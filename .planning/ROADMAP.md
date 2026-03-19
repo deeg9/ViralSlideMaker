@@ -45,12 +45,11 @@ Plans:
   3. User can choose a visual style template before generating, and slides render in that style
   4. Slides render as 1080x1920 images with text overlays baked in, consistent across devices
   5. User can download all slides as a ZIP or download individual slide images
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md — Types, schemas, templates, AI generation + Pexels integration, generation server action
+- [ ] 02-02-PLAN.md — Render API, download system, slide UI components, project page, visual checkpoint
 
 ### Phase 3: Slide Editor
 **Goal**: Users can fully edit AI-generated slideshows: manipulate slides, refine text, swap images, and undo mistakes
@@ -90,6 +89,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and Auth | 2/2 | Complete | 2026-03-19 |
-| 2. AI Generation and Image Rendering | 0/? | Not started | - |
+| 2. AI Generation and Image Rendering | 0/2 | Planning complete | - |
 | 3. Slide Editor | 0/? | Not started | - |
 | 4. Template System and Brand Kit | 0/? | Not started | - |
