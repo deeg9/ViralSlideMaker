@@ -29,11 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can create a new slideshow project, see it on a dashboard, and delete it
   4. User can save a project and return to it later with all data intact
   5. App has a clean, minimal design aesthetic consistent across all pages
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Scaffold Next.js app, Supabase auth setup, login/signup/logout flows
+- [ ] 01-02-PLAN.md — Project CRUD, dashboard UI, app shell layout, visual checkpoint
 
 ### Phase 2: AI Generation and Image Rendering
 **Goal**: Users can type a topic and receive a complete set of downloadable carousel slide images with AI-generated text and stock photos
@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Auth | 0/? | Not started | - |
+| 1. Foundation and Auth | 0/2 | Planning complete | - |
 | 2. AI Generation and Image Rendering | 0/? | Not started | - |
 | 3. Slide Editor | 0/? | Not started | - |
 | 4. Template System and Brand Kit | 0/? | Not started | - |
