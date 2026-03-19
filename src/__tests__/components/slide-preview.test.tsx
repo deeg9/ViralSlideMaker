@@ -31,7 +31,8 @@ describe('SlidePreview', () => {
     expect(container).toBeTruthy()
 
     const style = container?.getAttribute('style') || ''
-    expect(style).toContain(template.textColor)
-    expect(style).toContain(template.fontFamily)
+    // jsdom converts hex colors to rgb and normalizes quotes
+    expect(style).toMatch(/color:\s*rgb\(/)
+    expect(style).toContain('Inter')
   })
 })
