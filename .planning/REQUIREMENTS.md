@@ -17,15 +17,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Slide Editor
 
-- [ ] **EDIT-01**: User can add new slides to an existing slideshow
-- [ ] **EDIT-02**: User can remove slides from a slideshow
-- [ ] **EDIT-03**: User can reorder slides via drag-and-drop
-- [ ] **EDIT-04**: User can duplicate an existing slide
-- [ ] **EDIT-05**: User can edit text overlay content on each slide
-- [ ] **EDIT-06**: User can change text font size, color, and position on each slide
+- [x] **EDIT-01**: User can add new slides to an existing slideshow
+- [x] **EDIT-02**: User can remove slides from a slideshow
+- [x] **EDIT-03**: User can reorder slides via drag-and-drop
+- [x] **EDIT-04**: User can duplicate an existing slide
+- [x] **EDIT-05**: User can edit text overlay content on each slide
+- [x] **EDIT-06**: User can change text font size, color, and position on each slide
 - [ ] **EDIT-07**: User can search Pexels stock photos and swap a slide's background image
 - [ ] **EDIT-08**: User can upload their own images to use as slide backgrounds
-- [ ] **EDIT-09**: User can undo and redo editing actions
+- [x] **EDIT-09**: User can undo and redo editing actions
 - [ ] **EDIT-10**: User can preview all slides in sequence in the browser
 
 ### Templates and Styling
@@ -128,15 +128,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TMPL-01 | Phase 2 | Complete |
 | TMPL-02 | Phase 2 | Complete |
 | UIUX-03 | Phase 2 | Complete |
-| EDIT-01 | Phase 3 | Pending |
-| EDIT-02 | Phase 3 | Pending |
-| EDIT-03 | Phase 3 | Pending |
-| EDIT-04 | Phase 3 | Pending |
-| EDIT-05 | Phase 3 | Pending |
-| EDIT-06 | Phase 3 | Pending |
+| EDIT-01 | Phase 3 | Complete |
+| EDIT-02 | Phase 3 | Complete |
+| EDIT-03 | Phase 3 | Complete |
+| EDIT-04 | Phase 3 | Complete |
+| EDIT-05 | Phase 3 | Complete |
+| EDIT-06 | Phase 3 | Complete |
 | EDIT-07 | Phase 3 | Pending |
 | EDIT-08 | Phase 3 | Pending |
-| EDIT-09 | Phase 3 | Pending |
+| EDIT-09 | Phase 3 | Complete |
 | EDIT-10 | Phase 3 | Pending |
 | AIGEN-04 | Phase 3 | Pending |
 | AIGEN-05 | Phase 3 | Pending |

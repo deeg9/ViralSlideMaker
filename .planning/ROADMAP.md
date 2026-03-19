@@ -64,7 +64,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Editor state foundation: extended types, reducer with undo/redo, useSlideEditor hook (TDD)
+- [x] 03-01-PLAN.md — Editor state foundation: extended types, reducer with undo/redo, useSlideEditor hook (TDD)
 - [ ] 03-02-PLAN.md — Editor UI components, dnd-kit drag-and-drop, server actions, image picker, project page integration, checkpoint
 
 ### Phase 4: Template System and Brand Kit
@@ -89,5 +89,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation and Auth | 2/2 | Complete | 2026-03-19 |
 | 2. AI Generation and Image Rendering | 2/2 | Complete | 2026-03-19 |
-| 3. Slide Editor | 0/2 | Planning complete | - |
+| 3. Slide Editor | 1/2 | In progress | - |
 | 4. Template System and Brand Kit | 0/? | Not started | - |
