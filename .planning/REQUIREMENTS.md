@@ -45,10 +45,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Projects and Persistence
 
-- [ ] **PROJ-01**: User can create a new slideshow project
-- [ ] **PROJ-02**: User can save a project and return to edit it later
-- [ ] **PROJ-03**: User can view a dashboard of all their saved projects
-- [ ] **PROJ-04**: User can delete projects they no longer need
+- [x] **PROJ-01**: User can create a new slideshow project
+- [x] **PROJ-02**: User can save a project and return to edit it later
+- [x] **PROJ-03**: User can view a dashboard of all their saved projects
+- [x] **PROJ-04**: User can delete projects they no longer need
 
 ### Authentication
 
@@ -58,7 +58,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### UI/UX
 
-- [ ] **UIUX-01**: App has a clean, minimal design aesthetic
+- [x] **UIUX-01**: App has a clean, minimal design aesthetic
 - [ ] **UIUX-02**: App is responsive and works on desktop and tablet browsers
 - [ ] **UIUX-03**: Slide preview updates in real-time as user edits text or swaps images
 
@@ -113,11 +113,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
-| PROJ-01 | Phase 1 | Pending |
-| PROJ-02 | Phase 1 | Pending |
-| PROJ-03 | Phase 1 | Pending |
-| PROJ-04 | Phase 1 | Pending |
-| UIUX-01 | Phase 1 | Pending |
+| PROJ-01 | Phase 1 | Complete |
+| PROJ-02 | Phase 1 | Complete |
+| PROJ-03 | Phase 1 | Complete |
+| PROJ-04 | Phase 1 | Complete |
+| UIUX-01 | Phase 1 | Complete |
 | AIGEN-01 | Phase 2 | Pending |
 | AIGEN-02 | Phase 2 | Pending |
 | AIGEN-03 | Phase 2 | Pending |

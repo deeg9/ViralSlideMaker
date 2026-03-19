@@ -12,7 +12,7 @@ This roadmap delivers an AI-powered carousel image creator in 4 phases. Phase 1 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation and Auth** - Project scaffolding, Supabase setup, authentication, project CRUD, and base UI shell
+- [x] **Phase 1: Foundation and Auth** - Project scaffolding, Supabase setup, authentication, project CRUD, and base UI shell
 - [ ] **Phase 2: AI Generation and Image Rendering** - Core value loop: prompt to AI-generated carousel slides with stock photos, server-side rendering, and download
 - [ ] **Phase 3: Slide Editor** - Full editing capabilities: add/remove/reorder slides, text editing, image swap/upload, undo/redo, responsive layout
 - [ ] **Phase 4: Template System and Brand Kit** - Template switching post-generation, brand kit persistence, and auto-applied brand settings
@@ -32,8 +32,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Scaffold Next.js app, Supabase auth setup, login/signup/logout flows
-- [ ] 01-02-PLAN.md — Project CRUD, dashboard UI, app shell layout, visual checkpoint
+- [x] 01-01-PLAN.md — Scaffold Next.js app, Supabase auth setup, login/signup/logout flows
+- [x] 01-02-PLAN.md — Project CRUD, dashboard UI, app shell layout, visual checkpoint
 
 ### Phase 2: AI Generation and Image Rendering
 **Goal**: Users can type a topic and receive a complete set of downloadable carousel slide images with AI-generated text and stock photos
@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Auth | 1/2 | In Progress|  |
+| 1. Foundation and Auth | 2/2 | Complete | 2026-03-19 |
 | 2. AI Generation and Image Rendering | 0/? | Not started | - |
 | 3. Slide Editor | 0/? | Not started | - |
 | 4. Template System and Brand Kit | 0/? | Not started | - |
