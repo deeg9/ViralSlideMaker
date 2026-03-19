@@ -70,5 +70,5 @@ export async function GET(request: Request) {
     headers['Content-Disposition'] = `attachment; filename="slide-${slideNum}.png"`
   }
 
-  return new Response(imageBuffer, { status: 200, headers })
+  return new Response(new Uint8Array(imageBuffer), { status: 200, headers })
 }

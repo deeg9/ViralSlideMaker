@@ -1,64 +1,60 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock the Anthropic SDK
-const mockParse = vi.fn().mockResolvedValue({
-  parsed_output: {
+// Mock the Google GenAI SDK
+const mockGenerateContent = vi.fn().mockResolvedValue({
+  text: JSON.stringify({
     title: 'Test Carousel',
     slides: [
       { hook_text: 'Hook 1', body_text: 'Body 1', image_query: 'nature portrait', is_cta: false },
       { hook_text: 'Hook 2', body_text: 'Body 2', image_query: 'city portrait', is_cta: false },
       { hook_text: 'Hook 3', body_text: 'Body 3', image_query: 'sunset portrait', is_cta: true },
     ],
-  },
+  }),
 })
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    messages = { parse: mockParse }
+vi.mock('@google/genai', () => {
+  class MockGoogleGenAI {
+    models = { generateContent: mockGenerateContent }
     constructor() {}
   }
 
   return {
-    default: MockAnthropic,
+    GoogleGenAI: MockGoogleGenAI,
+    Type: {
+      STRING: 'STRING',
+      NUMBER: 'NUMBER',
+      INTEGER: 'INTEGER',
+      BOOLEAN: 'BOOLEAN',
+      ARRAY: 'ARRAY',
+      OBJECT: 'OBJECT',
+    },
   }
 })
 
-vi.mock('@anthropic-ai/sdk/helpers/zod', () => ({
-  zodOutputFormat: vi.fn().mockReturnValue({ type: 'json_schema', json_schema: {} }),
-}))
 
 describe('generate-slides', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.GEMINI_API_KEY = 'test-key'
   })
 
-  it('generateSlideContent calls Anthropic API with correct model and Zod schema', async () => {
+  it('generateSlideContent calls Gemini API with correct model and JSON schema', async () => {
     const { generateSlideContent } = await import('@/lib/ai/generate-slides')
-    const { zodOutputFormat } = await import('@anthropic-ai/sdk/helpers/zod')
 
     const result = await generateSlideContent('test topic')
 
-    // Verify messages.parse was called with correct parameters
-    expect(mockParse).toHaveBeenCalledWith(
+    // Verify generateContent was called with correct parameters
+    expect(mockGenerateContent).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'claude-sonnet-4-5-20250514',
-        max_tokens: 2048,
-        system: expect.any(String),
-        messages: expect.arrayContaining([
-          expect.objectContaining({
-            role: 'user',
-            content: expect.stringContaining('test topic'),
-          }),
-        ]),
-        output_config: expect.objectContaining({
-          format: expect.anything(),
+        model: 'gemini-2.5-flash',
+        contents: expect.stringContaining('test topic'),
+        config: expect.objectContaining({
+          systemInstruction: expect.any(String),
+          responseMimeType: 'application/json',
+          responseSchema: expect.anything(),
         }),
       })
     )
-
-    // Verify zodOutputFormat was called with the CarouselSchema
-    expect(zodOutputFormat).toHaveBeenCalled()
 
     // Verify result is the parsed output
     expect(result).toEqual(
@@ -101,7 +97,6 @@ describe('searchPhotos', () => {
   })
 
   it('calls Pexels with orientation=portrait', async () => {
-    // Need to re-import to get fresh module with mock
     const pexels = await import('pexels')
     const { searchPhotos } = await import('@/lib/pexels/search-photos')
 

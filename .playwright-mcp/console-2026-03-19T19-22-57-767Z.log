@@ -1,0 +1,21 @@
+[  250025ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3001/login?_rsc=9i6t2:0
+[  250053ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3001/login?_rsc=9i6t2:0
+[  250113ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3001/login?_rsc=9i6t2:0
+[  250210ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3001/login:0
+[  250316ms] Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createServerClient (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/edge/chunks/node_modules_f76aabff._.js:12788:15)
+    at updateSession (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/edge/chunks/[root-of-the-server]__04d2629a._.js:31:226)
+    at middleware (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/edge/chunks/[root-of-the-server]__04d2629a._.js:77:180)
+    at <unknown> (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/edge/chunks/_11995f80._.js:11953:26)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at <unknown> (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/edge/chunks/_11995f80._.js:7100:655)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at <unknown> (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/edge/chunks/_11995f80._.js:7100:325)
+    at async adapter (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/edge/chunks/_11995f80._.js:7055:16)
+    at async (file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/node_modules/next/dist/server/web/sandbox/sandbox.js:112:26)
