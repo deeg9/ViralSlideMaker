@@ -61,12 +61,11 @@ Plans:
   3. User can search Pexels stock photos and swap a slide's background, or upload their own image
   4. User can regenerate a single slide's text or image query without affecting other slides
   5. User can undo and redo editing actions, and the app works on desktop and tablet browsers
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
-- [ ] 03-03: TBD
+- [ ] 03-01-PLAN.md — Editor state foundation: extended types, reducer with undo/redo, useSlideEditor hook (TDD)
+- [ ] 03-02-PLAN.md — Editor UI components, dnd-kit drag-and-drop, server actions, image picker, project page integration, checkpoint
 
 ### Phase 4: Template System and Brand Kit
 **Goal**: Users can switch visual styles after generation and save brand preferences that auto-apply to new slideshows
@@ -90,5 +89,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation and Auth | 2/2 | Complete | 2026-03-19 |
 | 2. AI Generation and Image Rendering | 2/2 | Complete | 2026-03-19 |
-| 3. Slide Editor | 0/? | Not started | - |
+| 3. Slide Editor | 0/2 | Planning complete | - |
 | 4. Template System and Brand Kit | 0/? | Not started | - |
