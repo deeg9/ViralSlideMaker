@@ -2,6 +2,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Project } from '@/lib/types/project'
+import type { Slide } from '@/lib/types/slide'
+import { GenerationForm } from '@/components/slides/generation-form'
+import { SlideGrid } from '@/components/slides/slide-grid'
+import { DownloadControls } from '@/components/slides/download-controls'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -22,6 +26,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const p = project as Project
+  const slides = (p.slide_data ?? []) as Slide[]
+  const hasSlides = slides.length > 0
   const createdDate = new Date(p.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -49,14 +55,69 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </p>
       </div>
 
-      <div className="rounded-xl border border-dashed border-border p-12 text-center">
-        <p className="text-lg font-medium text-muted-foreground">
-          Slide editor coming soon.
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Phase 2 will bring the full AI-powered slide editor.
-        </p>
-      </div>
+      {/* Generating state */}
+      {p.generation_status === 'generating' && (
+        <div className="rounded-xl border border-border p-8 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <svg className="animate-spin h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p className="text-muted-foreground font-medium">Generating slides...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Generation form: prominent when no slides, collapsible when slides exist */}
+      {!hasSlides ? (
+        <div className="rounded-xl border border-border p-6">
+          <h2 className="text-lg font-semibold mb-4">Create Your Carousel</h2>
+          <GenerationForm
+            projectId={p.id}
+            currentTopic={p.topic}
+            currentTemplateId={p.template_id}
+            hasSlides={false}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Slide grid */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">
+              Slides ({slides.length})
+            </h2>
+            <SlideGrid
+              slides={slides}
+              templateId={p.template_id ?? 'bold-minimal'}
+            />
+          </div>
+
+          {/* Download controls */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Download</h2>
+            <DownloadControls
+              projectId={p.id}
+              slideCount={slides.length}
+              projectTitle={p.title}
+            />
+          </div>
+
+          {/* Regeneration form */}
+          <details className="rounded-xl border border-border">
+            <summary className="px-6 py-4 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Regenerate with different settings
+            </summary>
+            <div className="px-6 pb-6">
+              <GenerationForm
+                projectId={p.id}
+                currentTopic={p.topic}
+                currentTemplateId={p.template_id}
+                hasSlides={true}
+              />
+            </div>
+          </details>
+        </>
+      )}
     </div>
   )
 }
