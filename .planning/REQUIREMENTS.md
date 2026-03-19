@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### AI Content Generation
 
-- [ ] **AIGEN-01**: User can enter a text prompt (topic or product description) and receive a complete set of carousel slides
-- [ ] **AIGEN-02**: Claude generates structured content per slide: hook text, body copy, image search queries, and closing CTA
-- [ ] **AIGEN-03**: Hook text uses TikTok-optimized patterns (curiosity gaps, pattern interrupts, POV hooks, hot takes)
+- [x] **AIGEN-01**: User can enter a text prompt (topic or product description) and receive a complete set of carousel slides
+- [x] **AIGEN-02**: Claude generates structured content per slide: hook text, body copy, image search queries, and closing CTA
+- [x] **AIGEN-03**: Hook text uses TikTok-optimized patterns (curiosity gaps, pattern interrupts, POV hooks, hot takes)
 - [ ] **AIGEN-04**: User can regenerate a single slide's text without regenerating the entire slideshow
 - [ ] **AIGEN-05**: User can regenerate a single slide's image query without affecting other slides
 
@@ -30,15 +30,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Templates and Styling
 
-- [ ] **TMPL-01**: User can choose from 5-10 visual style templates before generating slides
-- [ ] **TMPL-02**: Templates define layout, font choices, color palette, and text positioning
+- [x] **TMPL-01**: User can choose from 5-10 visual style templates before generating slides
+- [x] **TMPL-02**: Templates define layout, font choices, color palette, and text positioning
 - [ ] **TMPL-03**: User can switch templates after generation and slides re-render in the new style
 - [ ] **TMPL-04**: User can save a brand kit (custom colors, fonts, logo) to their account
 - [ ] **TMPL-05**: Brand kit settings apply automatically when generating new slideshows
 
 ### Image Rendering
 
-- [ ] **REND-01**: Slides render as 9:16 vertical images (1080x1920 pixels) with text overlays baked in
+- [x] **REND-01**: Slides render as 9:16 vertical images (1080x1920 pixels) with text overlays baked in
 - [ ] **REND-02**: Image rendering happens server-side for consistent quality across all devices
 - [ ] **REND-03**: User can download all slides as a ZIP file
 - [ ] **REND-04**: User can download individual slide images one at a time
@@ -118,15 +118,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROJ-03 | Phase 1 | Complete |
 | PROJ-04 | Phase 1 | Complete |
 | UIUX-01 | Phase 1 | Complete |
-| AIGEN-01 | Phase 2 | Pending |
-| AIGEN-02 | Phase 2 | Pending |
-| AIGEN-03 | Phase 2 | Pending |
-| REND-01 | Phase 2 | Pending |
+| AIGEN-01 | Phase 2 | Complete |
+| AIGEN-02 | Phase 2 | Complete |
+| AIGEN-03 | Phase 2 | Complete |
+| REND-01 | Phase 2 | Complete |
 | REND-02 | Phase 2 | Pending |
 | REND-03 | Phase 2 | Pending |
 | REND-04 | Phase 2 | Pending |
-| TMPL-01 | Phase 2 | Pending |
-| TMPL-02 | Phase 2 | Pending |
+| TMPL-01 | Phase 2 | Complete |
+| TMPL-02 | Phase 2 | Complete |
 | UIUX-03 | Phase 2 | Pending |
 | EDIT-01 | Phase 3 | Pending |
 | EDIT-02 | Phase 3 | Pending |
