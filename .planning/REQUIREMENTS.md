@@ -39,9 +39,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Image Rendering
 
 - [x] **REND-01**: Slides render as 9:16 vertical images (1080x1920 pixels) with text overlays baked in
-- [ ] **REND-02**: Image rendering happens server-side for consistent quality across all devices
-- [ ] **REND-03**: User can download all slides as a ZIP file
-- [ ] **REND-04**: User can download individual slide images one at a time
+- [x] **REND-02**: Image rendering happens server-side for consistent quality across all devices
+- [x] **REND-03**: User can download all slides as a ZIP file
+- [x] **REND-04**: User can download individual slide images one at a time
 
 ### Projects and Persistence
 
@@ -60,7 +60,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **UIUX-01**: App has a clean, minimal design aesthetic
 - [ ] **UIUX-02**: App is responsive and works on desktop and tablet browsers
-- [ ] **UIUX-03**: Slide preview updates in real-time as user edits text or swaps images
+- [x] **UIUX-03**: Slide preview updates in real-time as user edits text or swaps images
 
 ## v2 Requirements
 
@@ -122,12 +122,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AIGEN-02 | Phase 2 | Complete |
 | AIGEN-03 | Phase 2 | Complete |
 | REND-01 | Phase 2 | Complete |
-| REND-02 | Phase 2 | Pending |
-| REND-03 | Phase 2 | Pending |
-| REND-04 | Phase 2 | Pending |
+| REND-02 | Phase 2 | Complete |
+| REND-03 | Phase 2 | Complete |
+| REND-04 | Phase 2 | Complete |
 | TMPL-01 | Phase 2 | Complete |
 | TMPL-02 | Phase 2 | Complete |
-| UIUX-03 | Phase 2 | Pending |
+| UIUX-03 | Phase 2 | Complete |
 | EDIT-01 | Phase 3 | Pending |
 | EDIT-02 | Phase 3 | Pending |
 | EDIT-03 | Phase 3 | Pending |

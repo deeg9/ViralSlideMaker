@@ -13,7 +13,7 @@ This roadmap delivers an AI-powered carousel image creator in 4 phases. Phase 1 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation and Auth** - Project scaffolding, Supabase setup, authentication, project CRUD, and base UI shell
-- [ ] **Phase 2: AI Generation and Image Rendering** - Core value loop: prompt to AI-generated carousel slides with stock photos, server-side rendering, and download
+- [x] **Phase 2: AI Generation and Image Rendering** - Core value loop: prompt to AI-generated carousel slides with stock photos, server-side rendering, and download
 - [ ] **Phase 3: Slide Editor** - Full editing capabilities: add/remove/reorder slides, text editing, image swap/upload, undo/redo, responsive layout
 - [ ] **Phase 4: Template System and Brand Kit** - Template switching post-generation, brand kit persistence, and auto-applied brand settings
 
@@ -48,8 +48,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Types, schemas, templates, AI generation + Pexels integration, generation server action
-- [ ] 02-02-PLAN.md — Render API, download system, slide UI components, project page, visual checkpoint
+- [x] 02-01-PLAN.md — Types, schemas, templates, AI generation + Pexels integration, generation server action
+- [x] 02-02-PLAN.md — Render API, download system, slide UI components, project page, visual checkpoint
 
 ### Phase 3: Slide Editor
 **Goal**: Users can fully edit AI-generated slideshows: manipulate slides, refine text, swap images, and undo mistakes
@@ -89,6 +89,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and Auth | 2/2 | Complete | 2026-03-19 |
-| 2. AI Generation and Image Rendering | 0/2 | Planning complete | - |
+| 2. AI Generation and Image Rendering | 2/2 | Complete | 2026-03-19 |
 | 3. Slide Editor | 0/? | Not started | - |
 | 4. Template System and Brand Kit | 0/? | Not started | - |

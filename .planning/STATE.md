@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-ai-generation-and-image-rendering/02-01-PLAN.md
-last_updated: "2026-03-19T22:23:00.000Z"
-last_activity: 2026-03-19 -- Completed 02-01 (AI Generation, Templates, Slide Pipeline)
+stopped_at: Completed 02-ai-generation-and-image-rendering/02-02-PLAN.md
+last_updated: "2026-03-19T23:00:00.000Z"
+last_activity: 2026-03-19 -- Completed 02-02 (Render API, Slide UI, Download System)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -21,39 +21,40 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 2: AI Generation and Image Rendering
+**Current focus:** Phase 2 complete. Ready for Phase 3: Slide Editor
 
 ## Current Position
 
-Phase: 2 of 4 (AI Generation and Image Rendering)
-Plan: 1 of 2 in current phase -- COMPLETE
-Status: Plan 02-01 complete, ready for 02-02
-Last activity: 2026-03-19 -- Completed 02-01 (AI Generation, Templates, Slide Pipeline)
+Phase: 2 of 4 (AI Generation and Image Rendering) -- COMPLETE
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 2 complete, ready for Phase 3
+Last activity: 2026-03-19 -- Completed 02-02 (Render API, Slide UI, Download System)
 
-Progress: [████████░░] 75% (3/4 plans)
+Progress: [██████████] 100% (4/4 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: ~6 min
-- Total execution time: ~17 min
+- Total plans completed: 4
+- Average duration: ~7 min
+- Total execution time: ~32 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-and-auth | 2 | ~13 min | ~7 min |
-| 02-ai-generation-and-image-rendering | 1 | ~4 min | ~4 min |
+| 02-ai-generation-and-image-rendering | 2 | ~19 min | ~10 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5 min), 01-02 (8 min), 02-01 (4 min)
-- Trend: Accelerating
+- Last 5 plans: 01-01 (5 min), 01-02 (8 min), 02-01 (4 min), 02-02 (15 min)
+- Trend: Stable (02-02 included checkpoint pause)
 
 *Updated after each plan completion*
 | Phase 01-foundation-and-auth P01 | 5 min | 2 tasks | 20 files |
 | Phase 01-foundation-and-auth P02 | 8 min | 3 tasks | 13 files |
 | Phase 02-ai-generation-and-image-rendering P01 | 4 min | 2 tasks | 19 files |
+| Phase 02-ai-generation-and-image-rendering P02 | 15 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 02-01]: Templates are typed CSS property objects, not React components -- simpler and portable
 - [Phase 02-01]: HTML escaping applied to all user text in slide HTML to prevent XSS
 - [Phase 02-01]: Pexels photos fetched in parallel with Promise.all for all slides
+- [Phase 02-02]: Switched AI backend from Anthropic Claude to Google Gemini 2.5 Flash for cost efficiency
+- [Phase 02-02]: CSS slide previews use inline styles from SlideTemplate for real-time WYSIWYG rendering
+- [Phase 02-02]: ZIP download fetches rendered PNGs in parallel from render API
 
 ### Pending Todos
 
@@ -82,10 +86,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Research was conducted before the video-to-image pivot. Remotion, RunPod, and video-related findings are not applicable. The image rendering approach (Puppeteer vs Sharp) needs validation during Phase 2 planning.
+- Research was conducted before the video-to-image pivot. Remotion, RunPod, and video-related findings are not applicable. Rendering approach validated: Puppeteer via node-html-to-image works for 1080x1920 PNG generation.
 
 ## Session Continuity
 
-Last session: 2026-03-19T22:23:00.000Z
-Stopped at: Completed 02-ai-generation-and-image-rendering/02-01-PLAN.md
+Last session: 2026-03-19T23:00:00.000Z
+Stopped at: Completed 02-ai-generation-and-image-rendering/02-02-PLAN.md
 Resume file: None
