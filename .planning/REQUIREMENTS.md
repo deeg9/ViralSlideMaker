@@ -1,7 +1,7 @@
 # Requirements: TikTok Slideshow Creator
 
 **Defined:** 2026-03-19
-**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
+**Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
 
 ## v1 Requirements
 
@@ -96,12 +96,12 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| AI avatars / talking heads | Different product category — this is faceless carousel content |
+| AI avatars / talking heads | Different product category -- this is faceless carousel content |
 | Real-time collaboration | Solo creator tool, not a team product |
-| Complex timeline editor | Slide-based model, not timeline-based — keeps UX simple |
-| Video clip support | Images only — slideshows are image-based by definition |
+| Complex timeline editor | Slide-based model, not timeline-based -- keeps UX simple |
+| Video clip support | Images only -- slideshows are image-based by definition |
 | AI voiceover / TTS | Not applicable to static image carousels |
-| Watermarks on free tier | Negative brand association — use usage limits instead |
+| Watermarks on free tier | Negative brand association -- use usage limits instead |
 | OAuth login (Google, GitHub) | Email/password sufficient for v1 |
 
 ## Traceability
@@ -110,13 +110,46 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (Populated during roadmap creation) | | |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| PROJ-01 | Phase 1 | Pending |
+| PROJ-02 | Phase 1 | Pending |
+| PROJ-03 | Phase 1 | Pending |
+| PROJ-04 | Phase 1 | Pending |
+| UIUX-01 | Phase 1 | Pending |
+| AIGEN-01 | Phase 2 | Pending |
+| AIGEN-02 | Phase 2 | Pending |
+| AIGEN-03 | Phase 2 | Pending |
+| REND-01 | Phase 2 | Pending |
+| REND-02 | Phase 2 | Pending |
+| REND-03 | Phase 2 | Pending |
+| REND-04 | Phase 2 | Pending |
+| TMPL-01 | Phase 2 | Pending |
+| TMPL-02 | Phase 2 | Pending |
+| UIUX-03 | Phase 2 | Pending |
+| EDIT-01 | Phase 3 | Pending |
+| EDIT-02 | Phase 3 | Pending |
+| EDIT-03 | Phase 3 | Pending |
+| EDIT-04 | Phase 3 | Pending |
+| EDIT-05 | Phase 3 | Pending |
+| EDIT-06 | Phase 3 | Pending |
+| EDIT-07 | Phase 3 | Pending |
+| EDIT-08 | Phase 3 | Pending |
+| EDIT-09 | Phase 3 | Pending |
+| EDIT-10 | Phase 3 | Pending |
+| AIGEN-04 | Phase 3 | Pending |
+| AIGEN-05 | Phase 3 | Pending |
+| UIUX-02 | Phase 3 | Pending |
+| TMPL-03 | Phase 4 | Pending |
+| TMPL-04 | Phase 4 | Pending |
+| TMPL-05 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27 ⚠️
+- v1 requirements: 34 total
+- Mapped to phases: 34
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 after roadmap creation*
