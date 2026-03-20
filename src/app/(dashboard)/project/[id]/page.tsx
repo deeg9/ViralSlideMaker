@@ -6,6 +6,7 @@ import type { Slide } from '@/lib/types/slide'
 import { GenerationForm } from '@/components/slides/generation-form'
 import { SlideGrid } from '@/components/slides/slide-grid'
 import { DownloadControls } from '@/components/slides/download-controls'
+import { SlideEditor } from '@/components/editor/slide-editor'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -81,16 +82,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
       ) : (
         <>
-          {/* Slide grid */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4">
-              Slides ({slides.length})
-            </h2>
-            <SlideGrid
-              slides={slides}
-              templateId={p.template_id ?? 'bold-minimal'}
-            />
-          </div>
+          {/* Slide Editor */}
+          <SlideEditor
+            initialSlides={slides}
+            projectId={p.id}
+            templateId={p.template_id ?? 'bold-minimal'}
+            topic={p.topic ?? ''}
+          />
 
           {/* Download controls */}
           <div>
