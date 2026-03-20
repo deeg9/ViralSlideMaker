@@ -75,10 +75,11 @@ Plans:
   1. User can switch templates after generation and all slides re-render in the new style
   2. User can save a brand kit (custom colors, fonts, logo) to their account
   3. Brand kit settings apply automatically when the user generates new slideshows
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Template switching in editor, brand kit DB schema/types/merge function
+- [ ] 04-02-PLAN.md — Brand kit settings page UI, auto-apply in generation and PNG rendering
 
 ## Progress
 
@@ -90,4 +91,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Foundation and Auth | 2/2 | Complete | 2026-03-19 |
 | 2. AI Generation and Image Rendering | 2/2 | Complete | 2026-03-19 |
 | 3. Slide Editor | 2/2 | Complete | 2026-03-19 |
-| 4. Template System and Brand Kit | 0/? | Not started | - |
+| 4. Template System and Brand Kit | 0/2 | Not started | - |
