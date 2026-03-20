@@ -32,9 +32,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **TMPL-01**: User can choose from 5-10 visual style templates before generating slides
 - [x] **TMPL-02**: Templates define layout, font choices, color palette, and text positioning
-- [ ] **TMPL-03**: User can switch templates after generation and slides re-render in the new style
-- [ ] **TMPL-04**: User can save a brand kit (custom colors, fonts, logo) to their account
-- [ ] **TMPL-05**: Brand kit settings apply automatically when generating new slideshows
+- [x] **TMPL-03**: User can switch templates after generation and slides re-render in the new style
+- [x] **TMPL-04**: User can save a brand kit (custom colors, fonts, logo) to their account
+- [x] **TMPL-05**: Brand kit settings apply automatically when generating new slideshows
 
 ### Image Rendering
 
@@ -141,9 +141,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AIGEN-04 | Phase 3 | Complete |
 | AIGEN-05 | Phase 3 | Complete |
 | UIUX-02 | Phase 3 | Complete |
-| TMPL-03 | Phase 4 | Pending |
-| TMPL-04 | Phase 4 | Pending |
-| TMPL-05 | Phase 4 | Pending |
+| TMPL-03 | Phase 4 | Complete |
+| TMPL-04 | Phase 4 | Complete |
+| TMPL-05 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 34 total
