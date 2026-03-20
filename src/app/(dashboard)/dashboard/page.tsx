@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { ProjectList } from '@/components/projects/project-list'
 import { Icon } from '@/components/ui/icon'
+import { checkCredits } from '@/lib/credits/check-credits'
 import type { Project } from '@/lib/types/project'
 
 export default async function DashboardPage() {
@@ -15,16 +16,19 @@ export default async function DashboardPage() {
 
   const projectList = (projects as Project[]) ?? []
 
+  // AI Credits based on user's subscription tier
+  const credits = await checkCredits()
+  const totalCredits = credits.limit
+  const remaining = credits.remaining
+
   return (
     <div className="space-y-16">
       {/* Welcome Header */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
-        <div className="lg:col-span-8">
-          <h1 className="text-[3.5rem] font-semibold tracking-tighter text-[#3d0000] leading-tight mb-4">
-            Welcome back, {userName}!
-          </h1>
-        </div>
-        <div className="lg:col-span-4 flex justify-start lg:justify-end">
+      <section className="flex items-center justify-between gap-8">
+        <h1 className="text-[3.5rem] font-semibold tracking-tighter text-[#3d0000] leading-tight">
+          Welcome back, {userName}!
+        </h1>
+        <div className="flex-shrink-0">
           <ProjectList projects={projectList} showCreateOnly />
         </div>
       </section>
@@ -51,7 +55,8 @@ export default async function DashboardPage() {
           <Icon name="bolt" className="text-[#3d0000]" />
           <div>
             <p className="text-[0.75rem] font-bold uppercase tracking-widest text-[#3d0000]">AI Credits</p>
-            <p className="text-3xl font-semibold text-[#3d0000] mt-1">840</p>
+            <p className="text-3xl font-semibold text-[#3d0000] mt-1">{remaining}</p>
+            <p className="text-xs text-[#7d6161] mt-0.5">{remaining} of {totalCredits} this month</p>
           </div>
         </div>
       </section>

@@ -3,6 +3,7 @@
 import { generateSlideContent } from '@/lib/ai/generate-slides'
 import { searchPhotos } from '@/lib/pexels/search-photos'
 import { createClient } from '@/lib/supabase/server'
+import { checkCredits } from '@/lib/credits/check-credits'
 import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
 
@@ -14,6 +15,15 @@ export async function generateCarousel(
   const supabase = await createClient()
 
   try {
+    // Check credit limits before generating
+    const credits = await checkCredits()
+    if (!credits.allowed) {
+      return {
+        success: false,
+        error: `You've used all ${credits.limit} carousel credits for this month on the ${credits.tier} plan. Upgrade for more.`,
+      }
+    }
+
     // Update status to generating
     await supabase
       .from('projects')
