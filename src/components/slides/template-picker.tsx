@@ -9,51 +9,59 @@ interface TemplatePickerProps {
 
 export function TemplatePicker({ selectedId, onSelect }: TemplatePickerProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-      {templates.map((template) => (
-        <button
-          key={template.id}
-          type="button"
-          onClick={() => onSelect(template.id)}
-          className={`
-            flex flex-col items-center gap-2 rounded-lg border p-3 transition-all
-            hover:border-foreground/30
-            ${selectedId === template.id
-              ? 'border-foreground ring-2 ring-foreground/20'
-              : 'border-border'
-            }
-          `}
-        >
-          <div
-            className="w-full aspect-[9/16] rounded-md"
-            style={{
-              backgroundColor: template.backgroundColor,
-              border: `1px solid ${template.overlayColor}`,
-            }}
+    <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-4 px-4">
+      {templates.map((template) => {
+        const isSelected = selectedId === template.id
+        return (
+          <button
+            key={template.id}
+            type="button"
+            onClick={() => onSelect(template.id)}
+            className="flex-none w-48 group text-left"
           >
             <div
-              className="w-full h-full rounded-md flex items-center justify-center p-2"
-              style={{
-                backgroundColor: template.overlayColor,
-                opacity: template.overlayOpacity,
-              }}
+              className={`aspect-[4/3] rounded-xl overflow-hidden mb-3 border-2 transition-all ${
+                isSelected
+                  ? 'border-[#3d0000]'
+                  : 'border-transparent group-hover:border-[#dbc1bc]'
+              }`}
             >
-              <span
-                className="text-[8px] font-bold leading-tight text-center"
-                style={{
-                  color: template.textColor,
-                  fontFamily: template.fontFamily,
-                }}
+              <div
+                className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
+                style={{ backgroundColor: template.backgroundColor }}
               >
-                Aa
-              </span>
+                <div
+                  className="w-16 h-16 rounded-lg flex items-center justify-center"
+                  style={{
+                    backgroundColor: template.overlayColor,
+                    opacity: Math.max(template.overlayOpacity, 0.3),
+                  }}
+                >
+                  <span
+                    className="text-2xl font-bold"
+                    style={{
+                      color: template.textColor,
+                      fontFamily: template.fontFamily,
+                    }}
+                  >
+                    Aa
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-          <span className="text-xs font-medium truncate w-full text-center">
-            {template.name}
-          </span>
-        </button>
-      ))}
+            <span className={`block text-sm font-semibold ${isSelected ? 'text-[#3d0000]' : 'text-[#3d0000]'}`}>
+              {template.name}
+            </span>
+            <span className={`block text-[10px] uppercase tracking-wider ${
+              isSelected
+                ? 'text-[#3d0000] font-bold'
+                : 'text-[#7d6161]'
+            }`}>
+              {isSelected ? 'Selected' : 'Style'}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }

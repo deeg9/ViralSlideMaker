@@ -1,28 +1,22 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Trash2 } from 'lucide-react'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Icon } from '@/components/ui/icon'
 import { deleteProject } from '@/app/(dashboard)/dashboard/actions'
 import type { Project } from '@/lib/types/project'
+import type { Slide } from '@/lib/types/slide'
 
 function relativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const minutes = Math.floor(diff / 60000)
   if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+  if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
-  return `${days} day${days === 1 ? '' : 's'} ago`
+  if (days < 7) return `${days}d ago`
+  const weeks = Math.floor(days / 7)
+  return `${weeks}w ago`
 }
 
 interface ProjectCardProps {
@@ -31,6 +25,7 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const router = useRouter()
+  const slides = (project.slide_data ?? []) as Slide[]
 
   function handleCardClick() {
     router.push(`/project/${project.id}`)
@@ -43,34 +38,41 @@ export function ProjectCard({ project }: ProjectCardProps) {
   }
 
   return (
-    <Card
-      className="cursor-pointer hover:ring-foreground/20 transition-shadow"
-      onClick={handleCardClick}
-    >
-      <CardHeader>
-        <CardTitle className="truncate font-bold text-base">
-          {project.title}
-        </CardTitle>
-        <CardDescription>
-          {project.description ?? 'No description'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-muted-foreground">
-          Updated {relativeTime(project.updated_at)}
-        </p>
-      </CardContent>
-      <CardFooter className="justify-end">
-        <Button
-          variant="destructive"
-          size="sm"
+    <div className="group cursor-pointer" onClick={handleCardClick}>
+      <div className="aspect-[9/16] bg-[#fadbdb] rounded-xl overflow-hidden relative mb-4 transition-all duration-300 group-hover:scale-[1.02]">
+        {slides[0]?.background_url ? (
+          <img
+            src={slides[0].background_url}
+            alt={project.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Icon name="auto_awesome_motion" size="xl" className="text-[#dbc1bc]" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#3d0000]/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+          <span className="text-white text-[0.75rem] font-bold uppercase tracking-widest">Open Editor</span>
+        </div>
+        {/* Delete button */}
+        <button
           onClick={handleDelete}
+          className="absolute top-2 right-2 p-1.5 bg-white/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
           aria-label={`Delete ${project.title}`}
         >
-          <Trash2 className="size-3.5" />
-          Delete
-        </Button>
-      </CardFooter>
-    </Card>
+          <Icon name="delete" size="sm" className="text-red-600" />
+        </button>
+      </div>
+      <h3 className="text-sm font-semibold text-[#3d0000] truncate">{project.title}</h3>
+      <div className="flex items-center gap-2 mt-1">
+        <span className="text-[0.65rem] font-bold uppercase tracking-widest text-[#7d6161]">
+          {slides.length} slide{slides.length !== 1 ? 's' : ''}
+        </span>
+        <span className="text-[0.65rem] text-[#dbc1bc]">&bull;</span>
+        <span className="text-[0.65rem] font-medium text-[#7d6161]">
+          {relativeTime(project.updated_at)}
+        </span>
+      </div>
+    </div>
   )
 }

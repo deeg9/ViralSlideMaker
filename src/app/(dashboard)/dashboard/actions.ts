@@ -9,13 +9,15 @@ export async function createProject(formData: FormData) {
   const title = (formData.get('title') as string)?.trim() || 'Untitled Project'
   const description = (formData.get('description') as string)?.trim() || null
 
-  await supabase.from('projects').insert({
-    title,
-    description,
-    slide_data: [],
-  })
+  const { data } = await supabase
+    .from('projects')
+    .insert({ title, description, slide_data: [] })
+    .select('id')
+    .single()
 
   revalidatePath('/dashboard')
+
+  return data?.id ?? null
 }
 
 export async function deleteProject(projectId: string) {

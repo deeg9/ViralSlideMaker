@@ -50,7 +50,7 @@ export function SlideList({
 
   return (
     <div
-      className="overflow-y-auto lg:h-full lg:flex-col flex lg:flex gap-2 p-2"
+      className="flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden"
       data-testid="slide-list"
     >
       <DndContext

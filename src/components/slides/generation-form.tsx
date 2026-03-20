@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
 import { TemplatePicker } from './template-picker'
+import { Icon } from '@/components/ui/icon'
 import { useRouter } from 'next/navigation'
 
 interface GenerationFormProps {
@@ -40,56 +41,74 @@ export function GenerationForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <label htmlFor="topic" className="text-sm font-medium">
-          Topic
+    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+      {/* Textarea */}
+      <div>
+        <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-3 ml-1">
+          Presentation Prompt
         </label>
-        <textarea
-          id="topic"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="Enter your carousel topic..."
-          rows={3}
-          disabled={isPending}
-          className="rounded-lg border border-border bg-background px-4 py-3 text-sm
-            placeholder:text-muted-foreground focus:outline-none focus:ring-2
-            focus:ring-foreground/20 disabled:opacity-50 resize-none"
-        />
+        <div className="relative">
+          <textarea
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="e.g. A 10-slide deck about the future of sustainable architecture in urban environments..."
+            rows={6}
+            disabled={isPending}
+            maxLength={500}
+            className="w-full bg-white p-6 rounded-xl border-b-2 border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 transition-all text-lg resize-none placeholder:text-[#dbc1bc] disabled:opacity-50"
+          />
+          <div className="absolute bottom-4 right-4 flex items-center gap-2 text-[#dbc1bc]">
+            <Icon name="auto_awesome" size="sm" />
+            <span className="text-xs font-medium">AI Assisted</span>
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Template</label>
+      {/* Template Picker */}
+      <div>
+        <div className="flex justify-between items-end mb-6">
+          <label className="text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]">
+            Select Visual Style
+          </label>
+        </div>
         <TemplatePicker selectedId={templateId} onSelect={setTemplateId} />
       </div>
 
+      {/* Error */}
       {error && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending || !topic.trim()}
-        className="rounded-lg bg-foreground text-background px-6 py-3 text-sm font-medium
-          hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed
-          flex items-center justify-center gap-2"
-      >
-        {isPending ? (
-          <>
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            Generating slides...
-          </>
-        ) : hasSlides ? (
-          'Regenerate Carousel'
-        ) : (
-          'Generate Carousel'
+      {/* Submit */}
+      <div className="flex flex-col items-center gap-6">
+        <button
+          type="submit"
+          disabled={isPending || !topic.trim()}
+          className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-semibold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.1)] hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isPending ? (
+            <>
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Generating slides...
+            </>
+          ) : (
+            <>
+              {hasSlides ? 'Regenerate Carousel' : 'Generate Carousel'}
+              <Icon name="bolt" />
+            </>
+          )}
+        </button>
+        {!hasSlides && (
+          <p className="text-[10px] text-[#7d6161] uppercase tracking-widest font-bold">
+            Estimated time: 45 seconds
+          </p>
         )}
-      </button>
+      </div>
     </form>
   )
 }

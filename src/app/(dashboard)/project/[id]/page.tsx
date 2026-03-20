@@ -1,11 +1,8 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
 import { GenerationForm } from '@/components/slides/generation-form'
-import { SlideGrid } from '@/components/slides/slide-grid'
-import { DownloadControls } from '@/components/slides/download-controls'
 import { SlideEditor } from '@/components/editor/slide-editor'
 
 interface ProjectPageProps {
@@ -29,93 +26,50 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const p = project as Project
   const slides = (p.slide_data ?? []) as Slide[]
   const hasSlides = slides.length > 0
-  const createdDate = new Date(p.created_at).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+
+  // Editor mode: render full-width with no extra chrome
+  if (hasSlides) {
+    return (
+      <SlideEditor
+        initialSlides={slides}
+        projectId={p.id}
+        templateId={p.template_id ?? 'bold-minimal'}
+        topic={p.topic ?? ''}
+        title={p.title}
+      />
+    )
+  }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <Link
-          href="/dashboard"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          &larr; Back to dashboard
-        </Link>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">{p.title}</h1>
-        {p.description && (
-          <p className="text-muted-foreground">{p.description}</p>
-        )}
-        <p className="text-sm text-muted-foreground">
-          Created on {createdDate}
-        </p>
-      </div>
-
+    <div className="max-w-3xl mx-auto pt-4">
       {/* Generating state */}
       {p.generation_status === 'generating' && (
-        <div className="rounded-xl border border-border p-8 text-center">
+        <div className="rounded-xl bg-[#fff0f0] border border-[#dbc1bc]/20 p-8 text-center mb-8">
           <div className="flex items-center justify-center gap-3">
-            <svg className="animate-spin h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none">
+            <svg className="animate-spin h-5 w-5 text-[#3d0000]" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-muted-foreground font-medium">Generating slides...</p>
+            <p className="text-[#3d0000] font-medium">Generating slides...</p>
           </div>
         </div>
       )}
 
-      {/* Generation form: prominent when no slides, collapsible when slides exist */}
-      {!hasSlides ? (
-        <div className="rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold mb-4">Create Your Carousel</h2>
-          <GenerationForm
-            projectId={p.id}
-            currentTopic={p.topic}
-            currentTemplateId={p.template_id}
-            hasSlides={false}
-          />
-        </div>
-      ) : (
-        <>
-          {/* Slide Editor */}
-          <SlideEditor
-            initialSlides={slides}
-            projectId={p.id}
-            templateId={p.template_id ?? 'bold-minimal'}
-            topic={p.topic ?? ''}
-          />
+      <div className="text-center mb-12">
+        <h1 className="text-[3.5rem] font-semibold tracking-[-0.02em] leading-tight text-[#3d0000] mb-4">
+          What shall we create?
+        </h1>
+        <p className="text-[#55423f] max-w-lg mx-auto leading-relaxed">
+          Describe your presentation goals and our AI will curate the narrative structure and visual flow for you.
+        </p>
+      </div>
 
-          {/* Download controls */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Download</h2>
-            <DownloadControls
-              projectId={p.id}
-              slideCount={slides.length}
-              projectTitle={p.title}
-            />
-          </div>
-
-          {/* Regeneration form */}
-          <details className="rounded-xl border border-border">
-            <summary className="px-6 py-4 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Regenerate with different settings
-            </summary>
-            <div className="px-6 pb-6">
-              <GenerationForm
-                projectId={p.id}
-                currentTopic={p.topic}
-                currentTemplateId={p.template_id}
-                hasSlides={true}
-              />
-            </div>
-          </details>
-        </>
-      )}
+      <GenerationForm
+        projectId={p.id}
+        currentTopic={p.topic}
+        currentTemplateId={p.template_id}
+        hasSlides={false}
+      />
     </div>
   )
 }

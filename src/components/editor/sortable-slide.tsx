@@ -45,14 +45,16 @@ export function SortableSlide({
       {...attributes}
       {...listeners}
       onClick={() => onSelect(index)}
-      className={`relative w-full cursor-grab active:cursor-grabbing rounded-lg overflow-hidden border-2 transition-colors min-h-[44px] ${
+      className={`relative w-full shrink-0 cursor-grab active:cursor-grabbing rounded-xl p-1.5 transition-all ${
         isSelected
-          ? 'border-primary ring-2 ring-primary/30'
-          : 'border-transparent hover:border-muted-foreground/30'
+          ? 'bg-[#fadbdb] ring-2 ring-[#3d0000]'
+          : 'hover:bg-[#ffe0e0]'
       }`}
       data-testid={`sortable-slide-${index}`}
     >
-      <SlidePreview slide={slide} template={template} index={index} />
+      <div className="aspect-[9/16] rounded-lg overflow-hidden bg-white">
+        <SlidePreview slide={slide} template={template} index={index} />
+      </div>
     </button>
   )
 }

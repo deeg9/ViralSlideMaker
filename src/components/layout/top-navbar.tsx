@@ -23,7 +23,7 @@ export function TopNavbar({ variant, userName }: TopNavbarProps) {
       <nav className="fixed top-0 z-50 w-full bg-[#fff8f7]/80 backdrop-blur-md shadow-[0px_20px_40px_rgba(61,0,0,0.06)]">
         <div className="flex justify-between items-center w-full px-8 py-4">
           <Link href="/" className="text-2xl font-semibold tracking-tighter text-[#3d0000]">
-            SlideAI
+            ViralSlide
           </Link>
           <div className="hidden md:flex items-center gap-10">
             <a className="font-medium text-sm tracking-wide text-[#3d0000] font-bold border-b-2 border-[#3d0000] pb-1" href="#">
@@ -58,7 +58,7 @@ export function TopNavbar({ variant, userName }: TopNavbarProps) {
         {/* Left: Logo + Search */}
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="text-2xl font-semibold tracking-tighter text-[#3d0000]">
-            SlideAI
+            ViralSlide
           </Link>
         </div>
 

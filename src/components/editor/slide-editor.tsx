@@ -1,27 +1,28 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { useSlideEditor } from '@/lib/editor/use-slide-editor'
 import { getTemplate } from '@/lib/render/templates/index'
-import { TemplatePicker } from '@/components/slides/template-picker'
-import { EditorToolbar } from '@/components/editor/editor-toolbar'
 import { SlideList } from '@/components/editor/slide-list'
 import { SlideCanvas } from '@/components/editor/slide-canvas'
 import { TextEditorPanel } from '@/components/editor/text-editor-panel'
 import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
+import { Icon } from '@/components/ui/icon'
 import {
   saveSlideData,
   saveTemplateId,
   regenerateSlideText,
   regenerateSlideImageQuery,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
-import type { Slide } from '@/lib/types/slide'
+import type { Slide, TextPosition } from '@/lib/types/slide'
 
 interface SlideEditorProps {
   initialSlides: Slide[]
   projectId: string
   templateId: string
   topic: string
+  title?: string
 }
 
 export function SlideEditor({
@@ -29,23 +30,23 @@ export function SlideEditor({
   projectId,
   templateId,
   topic,
+  title,
 }: SlideEditorProps) {
   const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty } =
     useSlideEditor(initialSlides)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
   const template = getTemplate(currentTemplateId)
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [activeTab, setActiveTab] = useState<'text' | 'images'>('text')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Clamp selectedIndex when slides are removed
   useEffect(() => {
     if (selectedIndex >= slides.length) {
       setSelectedIndex(Math.max(0, slides.length - 1))
     }
   }, [slides.length, selectedIndex])
 
-  // Auto-save with 2-second debounce
   const doSave = useCallback(async () => {
     setSaveStatus('saving')
     try {
@@ -59,17 +60,10 @@ export function SlideEditor({
 
   useEffect(() => {
     if (!isDirty) return
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
     saveTimeoutRef.current = setTimeout(doSave, 2000)
-
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
     }
   }, [isDirty, doSave])
 
@@ -84,6 +78,17 @@ export function SlideEditor({
     dispatch({ type: 'UPDATE_SLIDE', index: selectedIndex, updates })
   }
 
+  function handlePositionChange(field: 'hook' | 'body', position: TextPosition) {
+    if (!currentSlide) return
+    const overrides = currentSlide.style_overrides ?? {}
+    const key = field === 'hook' ? 'hook_position' : 'body_position'
+    dispatch({
+      type: 'UPDATE_SLIDE',
+      index: selectedIndex,
+      updates: { style_overrides: { ...overrides, [key]: position } },
+    })
+  }
+
   async function handleRegenerateText() {
     if (!currentSlide) return
     try {
@@ -93,9 +98,7 @@ export function SlideEditor({
         index: selectedIndex,
         updates: { hook_text: result.hook_text, body_text: result.body_text },
       })
-    } catch {
-      // Silently handle regen errors
-    }
+    } catch { /* silently handle */ }
   }
 
   async function handleRegenerateImage() {
@@ -111,92 +114,141 @@ export function SlideEditor({
           pexels_photo_id: result.pexels_photo_id,
         },
       })
-    } catch {
-      // Silently handle regen errors
-    }
+    } catch { /* silently handle */ }
   }
 
   return (
-    <div className="flex flex-col border border-border rounded-xl overflow-hidden bg-background">
-      {/* Toolbar */}
-      <EditorToolbar
-        onAdd={() => {
-          dispatch({ type: 'ADD_SLIDE', index: selectedIndex + 1 })
-          setSelectedIndex(selectedIndex + 1)
-        }}
-        onDuplicate={() => {
-          dispatch({ type: 'DUPLICATE_SLIDE', index: selectedIndex })
-          setSelectedIndex(selectedIndex + 1)
-        }}
-        onDelete={() => {
-          dispatch({ type: 'REMOVE_SLIDE', index: selectedIndex })
-        }}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        slideCount={slides.length}
-      />
-
-      {/* Save status */}
-      {saveStatus !== 'idle' && (
-        <div className="px-4 py-1 text-xs text-muted-foreground border-b border-border">
-          {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-        </div>
-      )}
-
-      {/* Template picker */}
-      <details className="border-b border-border">
-        <summary className="px-4 py-2 text-sm font-medium cursor-pointer hover:bg-muted/50 select-none">
-          Change Template
-        </summary>
-        <div className="px-4 pb-3">
-          <TemplatePicker
-            selectedId={currentTemplateId}
-            onSelect={handleTemplateChange}
-          />
-        </div>
-      </details>
-
-      {/* Main editor grid */}
+    <div className="flex flex-col bg-[#fff8f7] h-[calc(100vh-80px)]">
+      {/* Three-panel layout — no top toolbar */}
       <div
-        className="grid grid-cols-1 lg:grid-cols-[200px_1fr_320px] min-h-[600px]"
+        className="grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] flex-1 overflow-hidden gap-0 lg:gap-3 px-0 lg:px-2 py-0 lg:py-2"
         data-testid="editor-grid"
       >
-        {/* Left sidebar: slide thumbnails */}
-        <div className="border-b lg:border-b-0 lg:border-r border-border overflow-auto max-h-[200px] lg:max-h-none">
-          <SlideList
-            slides={slides}
-            template={template}
-            selectedIndex={selectedIndex}
-            onSelect={setSelectedIndex}
-            onReorder={(from, to) => {
-              dispatch({ type: 'REORDER_SLIDES', from, to })
-              setSelectedIndex(to)
-            }}
-          />
-        </div>
+        {/* Left panel: Slide thumbnails + actions at bottom */}
+        <aside className="bg-[#fff0f0] lg:rounded-xl flex flex-col overflow-hidden">
+          <div className="p-4 flex flex-col gap-4 flex-1 overflow-y-auto">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#3d0000] mb-1">
+                Presentation
+              </span>
+              <span className="text-[#795e5e] text-xs">{slides.length} Slides</span>
+            </div>
+            <SlideList
+              slides={slides}
+              template={template}
+              selectedIndex={selectedIndex}
+              onSelect={setSelectedIndex}
+              onReorder={(from, to) => {
+                dispatch({ type: 'REORDER_SLIDES', from, to })
+                setSelectedIndex(to)
+              }}
+            />
+          </div>
 
-        {/* Center: canvas */}
-        <div className="overflow-auto">
-          <SlideCanvas
-            slides={slides}
-            template={template}
-            selectedIndex={selectedIndex}
-            onSelectIndex={setSelectedIndex}
-          />
-        </div>
+          {/* Bottom actions: back, title, slide actions, help */}
+          <div className="p-3 border-t border-[#dbc1bc]/20 space-y-3">
+            {/* Back + Title */}
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors"
+                title="Back to dashboard"
+              >
+                <Icon name="arrow_back" size="sm" />
+              </Link>
+              <span className="text-xs font-semibold text-[#3d0000] truncate flex-1">
+                {title ?? 'Untitled'}
+              </span>
+              {saveStatus !== 'idle' && (
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#7d6161]">
+                  {saveStatus === 'saving' ? '...' : 'Saved'}
+                </span>
+              )}
+            </div>
 
-        {/* Right sidebar: editing panel */}
-        <div className="border-t lg:border-t-0 lg:border-l border-border overflow-auto max-h-[400px] lg:max-h-none">
-          {currentSlide && (
-            <>
+            {/* Slide actions */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  dispatch({ type: 'ADD_SLIDE', index: selectedIndex + 1 })
+                  setSelectedIndex(selectedIndex + 1)
+                }}
+                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                title="Add Slide"
+              >
+                <Icon name="add" size="sm" />
+              </button>
+              <button
+                onClick={() => {
+                  dispatch({ type: 'DUPLICATE_SLIDE', index: selectedIndex })
+                  setSelectedIndex(selectedIndex + 1)
+                }}
+                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                title="Duplicate Slide"
+              >
+                <Icon name="content_copy" size="sm" />
+              </button>
+              <button
+                onClick={() => dispatch({ type: 'REMOVE_SLIDE', index: selectedIndex })}
+                disabled={slides.length <= 1}
+                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                title="Delete Slide"
+              >
+                <Icon name="delete" size="sm" />
+              </button>
+              <div className="flex-1" />
+              <button className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors" title="Help">
+                <Icon name="help" size="sm" />
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Center: Canvas */}
+        <SlideCanvas
+          slides={slides}
+          template={template}
+          selectedIndex={selectedIndex}
+          onSelectIndex={setSelectedIndex}
+          onPositionChange={handlePositionChange}
+        />
+
+        {/* Right panel: Editor controls */}
+        <aside className="bg-white lg:rounded-xl flex flex-col overflow-hidden">
+          {/* Tabs */}
+          <div className="flex border-b border-[#dbc1bc]/10">
+            <button
+              onClick={() => setActiveTab('text')}
+              className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                activeTab === 'text'
+                  ? 'border-b-2 border-[#3d0000] text-[#3d0000]'
+                  : 'text-[#7d6161] hover:bg-[#fff0f0]'
+              }`}
+            >
+              Text
+            </button>
+            <button
+              onClick={() => setActiveTab('images')}
+              className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                activeTab === 'images'
+                  ? 'border-b-2 border-[#3d0000] text-[#3d0000]'
+                  : 'text-[#7d6161] hover:bg-[#fff0f0]'
+              }`}
+            >
+              Images
+            </button>
+          </div>
+
+          {/* Panel content + footer all scrollable together */}
+          <div className="flex-1 overflow-auto">
+            {currentSlide && activeTab === 'text' && (
               <TextEditorPanel
                 slide={currentSlide}
                 template={template}
                 onUpdate={handleUpdate}
               />
-              <div className="border-t border-border" />
+            )}
+            {currentSlide && activeTab === 'images' && (
               <ImagePickerPanel
                 slide={currentSlide}
                 slideIndex={selectedIndex}
@@ -206,9 +258,43 @@ export function SlideEditor({
                 onRegenerateText={handleRegenerateText}
                 onRegenerateImage={handleRegenerateImage}
               />
-            </>
-          )}
-        </div>
+            )}
+
+            {/* Footer: undo/redo, export, save — inside scroll area */}
+            <div className="p-4 bg-[#fff0f0] border-t border-[#dbc1bc]/10 space-y-3 mt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={undo}
+                    disabled={!canUndo}
+                    className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                    title="Undo"
+                  >
+                    <Icon name="undo" size="sm" />
+                  </button>
+                  <button
+                    onClick={redo}
+                    disabled={!canRedo}
+                    className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                    title="Redo"
+                  >
+                    <Icon name="redo" size="sm" />
+                  </button>
+                </div>
+                <button className="px-4 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs">
+                  <Icon name="download" size="sm" />
+                  Export
+                </button>
+              </div>
+              <button
+                onClick={doSave}
+                className="w-full py-3 bg-[#3d0000] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 active:scale-95 transition-all"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   )

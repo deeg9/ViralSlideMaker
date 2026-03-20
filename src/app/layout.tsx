@@ -8,8 +8,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'TikTok Slideshow Creator',
-  description: 'AI-powered carousel slide image creator for TikTok and Instagram',
+  title: 'ViralSlide — AI Carousel Creator',
+  description: 'Transform your ideas into editorial-grade carousel presentations instantly',
 }
 
 export default function RootLayout({
@@ -19,6 +19,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
       </body>

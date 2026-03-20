@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { AppHeader } from '@/components/layout/app-header'
+import { DashboardShell } from '@/components/layout/dashboard-shell'
 
 export default async function DashboardLayout({
   children,
@@ -14,12 +14,7 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  return (
-    <div className="min-h-screen bg-white">
-      <AppHeader />
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        {children}
-      </main>
-    </div>
-  )
+  const userName = user.email?.split('@')[0] ?? 'User'
+
+  return <DashboardShell userName={userName}>{children}</DashboardShell>
 }

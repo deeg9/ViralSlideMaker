@@ -1,8 +1,16 @@
+export interface TextPosition {
+  x: number  // percentage 0-100, from left
+  y: number  // percentage 0-100, from top
+}
+
 export interface SlideStyleOverrides {
   hook_font_size?: number
   body_font_size?: number
   text_color?: string
   text_position?: 'top' | 'center' | 'bottom'
+  text_align?: 'left' | 'center' | 'right'
+  hook_position?: TextPosition
+  body_position?: TextPosition
 }
 
 export interface Slide {
