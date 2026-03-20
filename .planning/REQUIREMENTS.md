@@ -12,8 +12,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AIGEN-01**: User can enter a text prompt (topic or product description) and receive a complete set of carousel slides
 - [x] **AIGEN-02**: Claude generates structured content per slide: hook text, body copy, image search queries, and closing CTA
 - [x] **AIGEN-03**: Hook text uses TikTok-optimized patterns (curiosity gaps, pattern interrupts, POV hooks, hot takes)
-- [ ] **AIGEN-04**: User can regenerate a single slide's text without regenerating the entire slideshow
-- [ ] **AIGEN-05**: User can regenerate a single slide's image query without affecting other slides
+- [x] **AIGEN-04**: User can regenerate a single slide's text without regenerating the entire slideshow
+- [x] **AIGEN-05**: User can regenerate a single slide's image query without affecting other slides
 
 ### Slide Editor
 
@@ -23,10 +23,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **EDIT-04**: User can duplicate an existing slide
 - [x] **EDIT-05**: User can edit text overlay content on each slide
 - [x] **EDIT-06**: User can change text font size, color, and position on each slide
-- [ ] **EDIT-07**: User can search Pexels stock photos and swap a slide's background image
-- [ ] **EDIT-08**: User can upload their own images to use as slide backgrounds
+- [x] **EDIT-07**: User can search Pexels stock photos and swap a slide's background image
+- [x] **EDIT-08**: User can upload their own images to use as slide backgrounds
 - [x] **EDIT-09**: User can undo and redo editing actions
-- [ ] **EDIT-10**: User can preview all slides in sequence in the browser
+- [x] **EDIT-10**: User can preview all slides in sequence in the browser
 
 ### Templates and Styling
 
@@ -59,7 +59,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### UI/UX
 
 - [x] **UIUX-01**: App has a clean, minimal design aesthetic
-- [ ] **UIUX-02**: App is responsive and works on desktop and tablet browsers
+- [x] **UIUX-02**: App is responsive and works on desktop and tablet browsers
 - [x] **UIUX-03**: Slide preview updates in real-time as user edits text or swaps images
 
 ## v2 Requirements
@@ -134,13 +134,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EDIT-04 | Phase 3 | Complete |
 | EDIT-05 | Phase 3 | Complete |
 | EDIT-06 | Phase 3 | Complete |
-| EDIT-07 | Phase 3 | Pending |
-| EDIT-08 | Phase 3 | Pending |
+| EDIT-07 | Phase 3 | Complete |
+| EDIT-08 | Phase 3 | Complete |
 | EDIT-09 | Phase 3 | Complete |
-| EDIT-10 | Phase 3 | Pending |
-| AIGEN-04 | Phase 3 | Pending |
-| AIGEN-05 | Phase 3 | Pending |
-| UIUX-02 | Phase 3 | Pending |
+| EDIT-10 | Phase 3 | Complete |
+| AIGEN-04 | Phase 3 | Complete |
+| AIGEN-05 | Phase 3 | Complete |
+| UIUX-02 | Phase 3 | Complete |
 | TMPL-03 | Phase 4 | Pending |
 | TMPL-04 | Phase 4 | Pending |
 | TMPL-05 | Phase 4 | Pending |

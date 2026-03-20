@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation and Auth** - Project scaffolding, Supabase setup, authentication, project CRUD, and base UI shell
 - [x] **Phase 2: AI Generation and Image Rendering** - Core value loop: prompt to AI-generated carousel slides with stock photos, server-side rendering, and download
-- [ ] **Phase 3: Slide Editor** - Full editing capabilities: add/remove/reorder slides, text editing, image swap/upload, undo/redo, responsive layout
+- [x] **Phase 3: Slide Editor** - Full editing capabilities: add/remove/reorder slides, text editing, image swap/upload, undo/redo, responsive layout
 - [ ] **Phase 4: Template System and Brand Kit** - Template switching post-generation, brand kit persistence, and auto-applied brand settings
 
 ## Phase Details
@@ -65,7 +65,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Editor state foundation: extended types, reducer with undo/redo, useSlideEditor hook (TDD)
-- [ ] 03-02-PLAN.md — Editor UI components, dnd-kit drag-and-drop, server actions, image picker, project page integration, checkpoint
+- [x] 03-02-PLAN.md — Editor UI components, dnd-kit drag-and-drop, server actions, image picker, project page integration, checkpoint
 
 ### Phase 4: Template System and Brand Kit
 **Goal**: Users can switch visual styles after generation and save brand preferences that auto-apply to new slideshows
@@ -89,5 +89,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation and Auth | 2/2 | Complete | 2026-03-19 |
 | 2. AI Generation and Image Rendering | 2/2 | Complete | 2026-03-19 |
-| 3. Slide Editor | 1/2 | In progress | - |
+| 3. Slide Editor | 2/2 | Complete | 2026-03-19 |
 | 4. Template System and Brand Kit | 0/? | Not started | - |
