@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSlideEditor } from '@/lib/editor/use-slide-editor'
 import { getTemplate } from '@/lib/render/templates/index'
+import { TemplatePicker } from '@/components/slides/template-picker'
 import { EditorToolbar } from '@/components/editor/editor-toolbar'
 import { SlideList } from '@/components/editor/slide-list'
 import { SlideCanvas } from '@/components/editor/slide-canvas'
@@ -10,6 +11,7 @@ import { TextEditorPanel } from '@/components/editor/text-editor-panel'
 import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import {
   saveSlideData,
+  saveTemplateId,
   regenerateSlideText,
   regenerateSlideImageQuery,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
@@ -30,7 +32,8 @@ export function SlideEditor({
 }: SlideEditorProps) {
   const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty } =
     useSlideEditor(initialSlides)
-  const template = getTemplate(templateId)
+  const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
+  const template = getTemplate(currentTemplateId)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -71,6 +74,11 @@ export function SlideEditor({
   }, [isDirty, doSave])
 
   const currentSlide = slides[selectedIndex]
+
+  async function handleTemplateChange(newId: string) {
+    setCurrentTemplateId(newId)
+    await saveTemplateId(projectId, newId)
+  }
 
   function handleUpdate(updates: Partial<Slide>) {
     dispatch({ type: 'UPDATE_SLIDE', index: selectedIndex, updates })
@@ -136,6 +144,19 @@ export function SlideEditor({
           {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
         </div>
       )}
+
+      {/* Template picker */}
+      <details className="border-b border-border">
+        <summary className="px-4 py-2 text-sm font-medium cursor-pointer hover:bg-muted/50 select-none">
+          Change Template
+        </summary>
+        <div className="px-4 pb-3">
+          <TemplatePicker
+            selectedId={currentTemplateId}
+            onSelect={handleTemplateChange}
+          />
+        </div>
+      </details>
 
       {/* Main editor grid */}
       <div

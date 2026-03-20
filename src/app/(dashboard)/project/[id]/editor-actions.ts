@@ -130,6 +130,18 @@ Provide a different, specific search query that would find a great background ph
   }
 }
 
+// --- Template ---
+
+export async function saveTemplateId(projectId: string, templateId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('projects')
+    .update({ template_id: templateId })
+    .eq('id', projectId)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/project/${projectId}`)
+}
+
 // --- Upload ---
 
 export async function createUploadUrl(
