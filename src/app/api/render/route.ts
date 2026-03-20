@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTemplate } from '@/lib/render/templates/index'
 import { buildSlideHtml } from '@/lib/render/render-slide'
+import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
 import type { Project } from '@/lib/types/project'
+import type { BrandKit } from '@/lib/types/brand-kit'
 import nodeHtmlToImage from 'node-html-to-image'
 
 export async function GET(request: Request) {
@@ -50,7 +52,16 @@ export async function GET(request: Request) {
   }
 
   const template = getTemplate(p.template_id ?? 'bold-minimal')
-  const html = buildSlideHtml(slide, template)
+
+  // Fetch the brand kit for the project owner and apply overrides
+  const { data: brandKit } = await supabase
+    .from('brand_kits')
+    .select('*')
+    .eq('user_id', p.user_id)
+    .single()
+
+  const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
+  const html = buildSlideHtml(slide, effectiveTemplate)
 
   const imageBuffer = await nodeHtmlToImage({
     html,

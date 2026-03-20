@@ -1,6 +1,19 @@
 import type { SlideTemplate } from './templates'
 import type { Slide } from '../types/slide'
 
+/**
+ * Build a Google Fonts <link> tag for the given font-family CSS value.
+ * Extracts the font name from a CSS font-family string like "'Montserrat', sans-serif"
+ * and returns the appropriate Google Fonts link with weights 400, 700, 900.
+ */
+export function getFontLink(fontFamily: string): string {
+  // Extract font name from CSS font-family (content inside single quotes, or first word)
+  const match = fontFamily.match(/'([^']+)'/)
+  const fontName = match ? match[1] : 'Inter'
+  const encoded = fontName.replace(/\s+/g, '+')
+  return `<link href="https://fonts.googleapis.com/css2?family=${encoded}:wght@400;700;900&display=swap" rel="stylesheet">`
+}
+
 export function buildSlideHtml(
   slide: Slide,
   template: SlideTemplate
@@ -19,7 +32,7 @@ export function buildSlideHtml(
 <html>
 <head>
   <!-- Note: For server rendering with node-html-to-image, use waitUntil: 'networkidle0' to ensure font loading -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  ${getFontLink(template.fontFamily)}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
