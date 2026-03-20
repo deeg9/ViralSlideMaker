@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 Phase: 4 of 4 (Template System and Brand Kit) -- COMPLETE
 Plan: 2 of 2 in current phase -- COMPLETE
 Status: All phases and plans complete. v1.0 milestone achieved.
-Last activity: 2026-03-20 - Completed quick task 2: Add animated text cycling effect to hero heading
+Last activity: 2026-03-20 - Completed quick task 3: Make showcase carousel previews real centered and interactive
 
 Progress: [██████████] 100% (8/8 plans)
 
@@ -115,6 +115,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 1 | Build settings pages with sidebar nav: Profile, Notifications, Manage Subscription | 2026-03-20 | 54f5fde | [1-build-settings-pages-with-sidebar-nav-pr](./quick/1-build-settings-pages-with-sidebar-nav-pr/) |
 | 2 | Add animated text cycling effect to hero heading | 2026-03-20 | 6102f46 | [2-add-animated-text-cycling-effect-to-hero](./quick/2-add-animated-text-cycling-effect-to-hero/) |
+| 3 | Make showcase carousel previews real centered and interactive | 2026-03-20 | 8efdde2 | [3-make-showcase-carousel-previews-real-cen](./quick/3-make-showcase-carousel-previews-real-cen/) |
 
 ## Session Continuity
 
