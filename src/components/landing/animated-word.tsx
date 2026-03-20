@@ -1,6 +1,6 @@
 "use client"
 
-import { motion, AnimatePresence } from "motion/react"
+import { motion } from "motion/react"
 import { useState, useEffect, useMemo } from "react"
 
 export function AnimatedWord() {
@@ -17,21 +17,30 @@ export function AnimatedWord() {
     return () => clearInterval(interval)
   }, [words.length])
 
+  // Find the longest word to use as an invisible spacer for container width
+  const longestWord = useMemo(
+    () => words.reduce((a, b) => (a.length >= b.length ? a : b)),
+    [words]
+  )
+
   return (
-    <span className="relative inline-flex overflow-hidden">
-      &nbsp;
-      <AnimatePresence mode="wait">
+    <span className="relative inline-flex overflow-hidden italic">
+      <span className="invisible">{longestWord}.</span>
+      {words.map((word, index) => (
         <motion.span
-          key={titleNumber}
-          className="italic absolute inset-0"
-          initial={{ opacity: 0, y: -150 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 150 }}
+          key={index}
+          className="absolute inset-0"
+          initial={{ opacity: 0, y: "-100%" }}
           transition={{ type: "spring", stiffness: 50 }}
+          animate={
+            titleNumber === index
+              ? { y: 0, opacity: 1 }
+              : { y: titleNumber > index ? "-150%" : "150%", opacity: 0 }
+          }
         >
-          {words[titleNumber]}.
+          {word}.
         </motion.span>
-      </AnimatePresence>
+      ))}
     </span>
   )
 }
