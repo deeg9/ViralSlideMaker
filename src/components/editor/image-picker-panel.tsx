@@ -14,8 +14,8 @@ interface ImagePickerPanelProps {
   projectId: string
   topic: string
   onUpdate: (updates: Partial<Slide>) => void
-  onRegenerateText: () => void
-  onRegenerateImage: () => void
+  onRegenerateText: () => void | Promise<void>
+  onRegenerateImage: () => void | Promise<void>
 }
 
 interface PexelsPhoto {
@@ -96,7 +96,7 @@ export function ImagePickerPanel({
   async function handleRegenerateText() {
     setRegeneratingText(true)
     try {
-      onRegenerateText()
+      await onRegenerateText()
     } finally {
       setRegeneratingText(false)
     }
@@ -105,7 +105,7 @@ export function ImagePickerPanel({
   async function handleRegenerateImage() {
     setRegeneratingImage(true)
     try {
-      onRegenerateImage()
+      await onRegenerateImage()
     } finally {
       setRegeneratingImage(false)
     }
