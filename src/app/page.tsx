@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { TopNavbar } from '@/components/layout/top-navbar'
 import { Footer } from '@/components/layout/footer'
 import { Icon } from '@/components/ui/icon'
+import { SplineScene } from '@/components/ui/splite'
+import { Testimonials } from '@/components/landing/testimonials-section'
+import { AnimatedWord } from '@/components/landing/animated-word'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -18,19 +21,21 @@ export default async function Home() {
 
       <main className="pt-32 pb-20">
         {/* Hero Section */}
-        <section className="px-8 max-w-5xl mx-auto flex flex-col items-center text-center mb-32">
+        <section className="px-8 max-w-7xl mx-auto flex flex-col items-center text-center mb-32">
           <span className="text-[0.75rem] font-bold uppercase tracking-[0.05em] text-[#7d6161] mb-6">
             Intelligence meets presentation
           </span>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-[-0.02em] text-[#3d0000] leading-[1.1] mb-8 max-w-4xl">
-            The future of narrative is <span className="italic">automated.</span>
+            The future of narrative is <AnimatedWord />
           </h1>
           <p className="text-lg text-[#55423f] max-w-2xl mb-12">
             ViralSlide transforms your raw thoughts into editorial-grade presentations instantly. No more templates. Just pure intent.
           </p>
 
-          {/* AI Generation Box */}
-          <div className="w-full bg-white rounded-2xl shadow-[0px_40px_80px_rgba(61,0,0,0.08)] p-8 md:p-12 border border-[#dbc1bc]/20">
+          {/* Side-by-side: Chat Box + Robot */}
+          <div className="w-full flex flex-col md:flex-row gap-6 items-stretch">
+          {/* Left: AI Generation Box */}
+          <div className="flex-1 bg-white rounded-2xl shadow-[0px_40px_80px_rgba(61,0,0,0.08)] p-8 md:p-12 border border-[#dbc1bc]/20">
             <div className="mb-8 text-left">
               <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1">
                 Presentation Prompt
@@ -83,6 +88,20 @@ export default async function Home() {
               Generate Carousel
               <Icon name="auto_awesome" />
             </button>
+          </div>
+
+          {/* Right: 3D Robot */}
+          <div className="flex-1 overflow-visible relative min-h-[500px] -mx-12"
+            style={{
+              maskImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, black 60%, transparent 95%)',
+              WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, black 60%, transparent 95%)',
+            }}
+          >
+            <SplineScene
+              scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+              className="w-full h-full"
+            />
+          </div>
           </div>
         </section>
 
@@ -210,42 +229,8 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Testimonials */}
-        <section className="px-8 py-24 bg-[#fff8f7]">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-semibold text-[#3d0000] mb-4">
-                Trusted by the World&apos;s Best Creators
-              </h2>
-              <p className="text-[#55423f]">Over 15,000 creators use ViralSlide to tell their stories.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                { name: 'Sarah J.', title: '500k on TikTok', quote: 'ViralSlide saved me hours of design work. I used to spend days on one carousel, now it takes me 5 minutes and looks even better.' },
-                { name: 'Marcus V.', title: 'LinkedIn Top Voice', quote: 'The layout engine is genuinely intelligent. It understands the hierarchy of my arguments and presents them with professional clarity.' },
-                { name: 'Elena K.', title: '200k on Instagram', quote: 'The templates are stunning, but the AI-driven generation is the real magic. It captures my brand voice perfectly every time.' },
-              ].map((t) => (
-                <div key={t.name} className="bg-[#fff0f0] p-8 rounded-2xl border border-[#dbc1bc]/10">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-[#fadbdb] flex items-center justify-center">
-                      <Icon name="person" className="text-[#3d0000]" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[#3d0000]">{t.name}</h4>
-                      <p className="text-[10px] uppercase font-bold tracking-widest text-[#7d6161]">{t.title}</p>
-                    </div>
-                  </div>
-                  <div className="flex text-[#ca6758] mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Icon key={i} name="star" size="sm" filled />
-                    ))}
-                  </div>
-                  <p className="text-[#55423f] italic leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Testimonials — Scrolling Columns */}
+        <Testimonials />
 
         {/* Final CTA */}
         <section className="px-8 py-32 bg-[#fff8f7] text-center">
