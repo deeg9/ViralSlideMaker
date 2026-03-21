@@ -31,20 +31,20 @@ export function TopNavbar({ variant, userName }: TopNavbarProps) {
   if (variant === 'marketing') {
     return (
       <nav className="fixed top-0 z-50 w-full bg-[#fff8f7]/80 backdrop-blur-md shadow-[0px_20px_40px_rgba(61,0,0,0.06)]">
-        <div className="flex justify-between items-center w-full px-8 py-4">
+        <div className="flex justify-between items-center w-full px-4 md:px-8 py-4">
           <Link href="/">
             <Logo size={36} />
           </Link>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 md:gap-6">
             <Link
               href="/login"
-              className="font-medium text-sm tracking-wide text-[#3d0000] hover:text-[#3d0000]/70 transition-colors duration-200"
+              className="whitespace-nowrap font-medium text-sm tracking-wide text-[#3d0000] hover:text-[#3d0000]/70 transition-colors duration-200"
             >
               Log In
             </Link>
             <Link
               href="/waitlist"
-              className="bg-[#3d0000] text-white px-6 py-2.5 rounded-xl font-medium text-sm transition-transform active:scale-90"
+              className="bg-[#3d0000] text-white px-4 md:px-6 py-2.5 rounded-xl font-medium text-sm transition-transform active:scale-90 whitespace-nowrap"
             >
               Get Started
             </Link>

@@ -62,7 +62,7 @@ export default async function Home() {
               <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4">
                 Select Visual Style
               </label>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                   { name: 'Bold Minimal', bg: '#000000', text: '#ffffff', font: 'sans-serif', hookStyle: 'uppercase' as const },
                   { name: 'Dark Gradient', bg: '#1a1a2e', text: '#ffffff', font: 'sans-serif', hookStyle: 'normal' as const },
@@ -109,7 +109,7 @@ export default async function Home() {
           </div>
 
           {/* Right: 3D Robot */}
-          <div className="flex-1 overflow-visible relative min-h-[500px] -mx-12"
+          <div className="hidden md:flex flex-1 overflow-visible relative min-h-[500px] -mx-12"
             style={{
               maskImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, black 60%, transparent 95%)',
               WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, black 60%, transparent 95%)',
