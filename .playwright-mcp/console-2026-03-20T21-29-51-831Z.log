@@ -1,0 +1,20 @@
+[     356ms] [WARNING] updating from  114 to  122 @ http://localhost:3003/_next/static/chunks/node_modules_%40splinetool_runtime_build_runtime_5cafa62e.js:23321
+[  283452ms] [ERROR] ./src/app/page.tsx:90:19
+Parsing ecmascript source code failed
+  88 |             </button>
+  89 |           </div>
+> 90 |         </section>
+     |                   ^
+> 91 |
+     | ^
+> 92 |         {/* Examples Showcase */}
+     | ^^^^^^^^^
+  93 |         <section className="px-8 py-24 bg-[#fff8f7]">
+  94 |           <div className="max-w-7xl mx-auto">
+  95 |             <div className="text-center mb-16">
+
+Expected '</', got 'jsx text (
+
+        )' @ http://localhost:3003/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:2359
+[  313653ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3003/?_rsc=fsnpp:0
+[  314619ms] [WARNING] updating from  114 to  122 @ http://localhost:3003/_next/static/chunks/node_modules_%40splinetool_runtime_build_runtime_5cafa62e.js:23321

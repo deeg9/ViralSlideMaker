@@ -155,3 +155,191 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Spotlight animation */
+@keyframes spotlight {
+  0% {
+    opacity: 0;
+    transform: translate(-72%, -62%) scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -40%) scale(1);
+  }
+}
+
+.animate-spotlight {
+  animation: spotlight 2s ease 0.75s 1 forwards;
+}
+
+/* Magic cursor sparkles */
+.mouse-sparkles-star {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-out;
+  width: 1em;
+  height: 1em;
+  translate: -50% -50%;
+}
+
+.mouse-sparkles-glow-point {
+  position: fixed;
+  z-index: 9998;
+  pointer-events: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgb(61 0 0 / 0.6);
+  box-shadow: 0 0 8px 2px rgb(61 0 0 / 0.3);
+  translate: -50% -50%;
+}
+
+@keyframes fall-1 {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotateX(45deg) rotateY(30deg) rotateZ(0deg) scale(0.25);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(10px, 20px) rotateX(45deg) rotateY(30deg) rotateZ(90deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(25px, 200px) rotateX(45deg) rotateY(30deg) rotateZ(180deg) scale(0);
+  }
+}
+
+@keyframes fall-2 {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotateX(-20deg) rotateY(10deg) rotateZ(0deg) scale(0.25);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-10px, 15px) rotateX(-20deg) rotateY(10deg) rotateZ(60deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-10px, 160px) rotateX(-20deg) rotateY(10deg) rotateZ(120deg) scale(0);
+  }
+}
+
+/* CPU Architecture light animations */
+.cpu-architecture {
+  animation-duration: 3s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+.cpu-line-1 {
+  animation-name: cpu-move-1;
+}
+.cpu-line-2 {
+  animation-name: cpu-move-2;
+  animation-delay: 0.4s;
+}
+.cpu-line-3 {
+  animation-name: cpu-move-3;
+  animation-delay: 0.8s;
+}
+.cpu-line-4 {
+  animation-name: cpu-move-4;
+  animation-delay: 1.2s;
+}
+.cpu-line-5 {
+  animation-name: cpu-move-5;
+  animation-delay: 0.2s;
+}
+.cpu-line-6 {
+  animation-name: cpu-move-6;
+  animation-delay: 0.6s;
+}
+.cpu-line-7 {
+  animation-name: cpu-move-7;
+  animation-delay: 1s;
+}
+.cpu-line-8 {
+  animation-name: cpu-move-8;
+  animation-delay: 1.4s;
+}
+
+@keyframes cpu-move-1 {
+  0% { cx: 10; cy: 20; }
+  50% { cx: 89.5; cy: 20; }
+  75% { cx: 94.5; cy: 25; }
+  100% { cx: 94.5; cy: 55; }
+}
+
+@keyframes cpu-move-2 {
+  0% { cx: 180; cy: 10; }
+  50% { cx: 110.3; cy: 10; }
+  75% { cx: 105.3; cy: 15; }
+  100% { cx: 105.3; cy: 45; }
+}
+
+@keyframes cpu-move-3 {
+  0% { cx: 130; cy: 20; }
+  50% { cx: 130; cy: 41.8; }
+  75% { cx: 125; cy: 46.8; }
+  100% { cx: 115; cy: 46.8; }
+}
+
+@keyframes cpu-move-4 {
+  0% { cx: 170; cy: 80; }
+  50% { cx: 170; cy: 58.2; }
+  75% { cx: 165; cy: 53.2; }
+  100% { cx: 115; cy: 53.2; }
+}
+
+@keyframes cpu-move-5 {
+  0% { cx: 135; cy: 65; }
+  20% { cx: 150; cy: 65; }
+  35% { cx: 155; cy: 70; }
+  50% { cx: 155; cy: 80; }
+  65% { cx: 150; cy: 85; }
+  80% { cx: 110.2; cy: 85; }
+  90% { cx: 105.2; cy: 80; }
+  100% { cx: 105.2; cy: 60; }
+}
+
+@keyframes cpu-move-6 {
+  0% { cx: 94.8; cy: 95; }
+  100% { cx: 94.8; cy: 59; }
+}
+
+@keyframes cpu-move-7 {
+  0% { cx: 88; cy: 88; }
+  25% { cx: 88; cy: 73; }
+  40% { cx: 83; cy: 68; }
+  55% { cx: 73; cy: 68; }
+  65% { cx: 68; cy: 63; }
+  75% { cx: 68; cy: 58; }
+  85% { cx: 73; cy: 53; }
+  100% { cx: 87; cy: 53; }
+}
+
+@keyframes cpu-move-8 {
+  0% { cx: 30; cy: 30; }
+  30% { cx: 55; cy: 30; }
+  45% { cx: 60; cy: 35; }
+  60% { cx: 60; cy: 41.5; }
+  75% { cx: 65; cy: 46.5; }
+  100% { cx: 85; cy: 46.5; }
+}
+
+@keyframes fall-3 {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotateX(0deg) rotateY(45deg) rotateZ(0deg) scale(0.25);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(7px, 12px) rotateX(0deg) rotateY(45deg) rotateZ(45deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(20px, 180px) rotateX(0deg) rotateY(45deg) rotateZ(90deg) scale(0);
+  }
+}

@@ -43,13 +43,13 @@ export default async function Home() {
               </label>
               <div className="relative">
                 <textarea
-                  className="w-full bg-[#fff0f0] p-6 rounded-xl border border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-1 focus:ring-[#3d0000] transition-all text-lg resize-none placeholder:text-[#dbc1bc]/60"
+                  className="w-full bg-[#fff0f0] p-6 rounded-xl border border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-1 focus:ring-[#3d0000] transition-all text-lg resize-none placeholder:text-[#7d6161]/60"
                   placeholder="Describe your carousel topic... e.g. '5 productivity hacks for remote workers'"
                   rows={5}
                 />
                 <div className="absolute bottom-4 right-4 flex items-center gap-3">
-                  <span className="text-[10px] font-bold text-[#dbc1bc]/60 uppercase tracking-widest">0 / 500</span>
-                  <div className="flex items-center gap-1.5 text-[#dbc1bc]/60">
+                  <span className="text-[10px] font-bold text-[#7d6161]/60 uppercase tracking-widest">0 / 500</span>
+                  <div className="flex items-center gap-1.5 text-[#7d6161]/60">
                     <Icon name="auto_awesome" size="sm" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">AI Assisted</span>
                   </div>
@@ -59,36 +59,53 @@ export default async function Home() {
 
             {/* Template Picker */}
             <div className="mb-10 text-left">
-              <div className="flex justify-between items-end mb-4">
-                <label className="text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]">
-                  Choose Template
-                </label>
-                <button className="text-[0.75rem] font-bold text-[#3d0000] hover:underline">View All</button>
-              </div>
-              <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2 -mx-1 px-1">
-                {['Bloom Editorial', 'The Archive', 'Manifesto', 'Systems'].map((name, i) => (
-                  <button key={name} className="flex-none w-36 group text-left">
-                    <div className={`aspect-[4/3] rounded-lg bg-[#ffe1e1] overflow-hidden mb-2 border-2 ${
+              <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4">
+                Select Visual Style
+              </label>
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { name: 'Bold Minimal', bg: '#000000', text: '#ffffff', font: 'sans-serif', hookStyle: 'uppercase' as const },
+                  { name: 'Dark Gradient', bg: '#1a1a2e', text: '#ffffff', font: 'sans-serif', hookStyle: 'normal' as const },
+                  { name: 'Soft Pastel', bg: '#f8f0e3', text: '#1a1a2e', font: 'serif', hookStyle: 'italic' as const },
+                  { name: 'Neon Pop', bg: '#0d0d0d', text: '#ffffff', font: 'sans-serif', hookStyle: 'uppercase' as const },
+                ].map((tmpl, i) => (
+                  <button key={tmpl.name} className="group text-left">
+                    <div className={`aspect-[4/3] rounded-lg overflow-hidden mb-2 border-2 flex items-center justify-center transition-all ${
                       i === 0
                         ? 'border-[#3d0000] ring-4 ring-[#3d0000]/5'
                         : 'border-transparent hover:border-[#dbc1bc]'
-                    } transition-all`}>
-                      <div className="w-full h-full flex items-center justify-center text-[#7d6161]">
-                        <Icon name="style" size="lg" />
-                      </div>
+                    }`} style={{ backgroundColor: tmpl.bg }}>
+                      <span style={{
+                        color: tmpl.text,
+                        fontFamily: tmpl.font,
+                        fontStyle: tmpl.hookStyle === 'italic' ? 'italic' : 'normal',
+                        textTransform: tmpl.hookStyle === 'uppercase' ? 'uppercase' : 'none',
+                        fontSize: '1.5rem',
+                        fontWeight: 700,
+                        letterSpacing: '-0.02em',
+                      }}>
+                        Aa
+                      </span>
                     </div>
                     <span className={`block text-xs ${i === 0 ? 'font-bold text-[#3d0000]' : 'font-medium text-[#7d6161] group-hover:text-[#3d0000]'}`}>
-                      {name}
+                      {tmpl.name}
+                    </span>
+                    <span className="block text-[10px] uppercase tracking-widest text-[#dbc1bc]">
+                      {i === 0 ? 'Selected' : 'Style'}
                     </span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <button className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-bold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.15)] hover:opacity-95 transition-all active:scale-[0.98]">
+            <a href="/waitlist" className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-bold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.15)] hover:opacity-95 transition-all active:scale-[0.98]">
               Generate Carousel
               <Icon name="auto_awesome" />
-            </button>
+            </a>
+            <p className="text-xs text-[#7d6161] text-center mt-3 flex items-center justify-center gap-1">
+              <Icon name="info" size="sm" className="text-[#dbc1bc]" />
+              By clicking Generate Carousel, you agree to our <a href="/terms" className="underline hover:text-[#3d0000]">Terms of Service</a>.
+            </p>
           </div>
 
           {/* Right: 3D Robot */}

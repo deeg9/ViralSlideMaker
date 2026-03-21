@@ -9,8 +9,12 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'ViralSlide — AI Carousel Creator',
+  title: 'ViralSlideMaker — AI Carousel Creator',
   description: 'Transform your ideas into editorial-grade carousel presentations instantly',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 }
 
 export default function RootLayout({

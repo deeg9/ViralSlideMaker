@@ -21,5 +21,13 @@ WRITING STYLE:
 - Short sentences. Punchy. Direct.
 - Use line breaks for emphasis
 - Numbers and statistics when relevant
-- Emoji sparingly (1-2 per carousel max, or zero)`
+- Emoji sparingly (1-2 per carousel max, or zero)
+
+LAYOUT & DESIGN RULES (for TikTok/Instagram posting):
+- Text should be centered vertically on each slide. Avoid placing text near the bottom — that's where platform captions, comments, and UI buttons appear.
+- Keep the top ~15% of the slide clear or minimal — the user's profile name and follow button overlay this area on TikTok/Instagram.
+- The safe zone for text is roughly the middle 60-70% of the slide vertically.
+- Use a semi-transparent overlay on background images so text remains readable. The background image adds mood, not information.
+- Hook text should be large and bold. Body text should be smaller and have reduced opacity for visual hierarchy.
+- Keep text concise per slide — aim for a glanceable read (under 3 seconds per slide).`
 }

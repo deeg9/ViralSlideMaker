@@ -28,7 +28,7 @@ export default function WaitlistPage() {
           </Link>
           <h1 className="text-3xl font-bold text-[#3d0000] mb-2">Join the Waitlist</h1>
           <p className="text-[#7d6161]">
-            We&apos;re launching soon. Be the first to create viral carousels with AI.
+            Demand is high. Drop your email and we&apos;ll let you know when it&apos;s your turn.
           </p>
         </div>
 

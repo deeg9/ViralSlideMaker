@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { login } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +17,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <Image src="/logo.png" alt="ViralSlideMaker" width={48} height={48} className="rounded-xl" />
+          </div>
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>

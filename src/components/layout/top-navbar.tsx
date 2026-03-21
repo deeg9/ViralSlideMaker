@@ -46,7 +46,7 @@ export function TopNavbar({ variant, userName }: TopNavbarProps) {
               href="/waitlist"
               className="bg-[#3d0000] text-white px-6 py-2.5 rounded-xl font-medium text-sm transition-transform active:scale-90"
             >
-              Join Waitlist
+              Get Started
             </Link>
           </div>
         </div>

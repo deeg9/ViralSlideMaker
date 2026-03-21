@@ -15,12 +15,9 @@ export function ProjectList({ projects, showCreateOnly }: ProjectListProps) {
 
   return (
     <section className="space-y-8">
-      <div className="flex justify-between items-end border-b border-[#dbc1bc]/15 pb-6">
+      <div className="flex items-center justify-between border-b border-[#dbc1bc]/15 pb-6">
         <div className="flex items-center gap-6">
-          <div>
-            <h2 className="text-xl font-medium tracking-tight text-[#3d0000]">Recent Carousels</h2>
-            <p className="text-xs text-[#7d6161] mt-1">Your latest editorial explorations</p>
-          </div>
+          <h2 className="text-xl font-medium tracking-tight text-[#3d0000] whitespace-nowrap">Recent Carousels</h2>
           <div className="hidden md:flex items-center bg-[#fff0f0] px-4 py-2 rounded-full w-full max-w-sm">
             <Icon name="search" size="sm" className="text-[#7d6161]" />
             <input
