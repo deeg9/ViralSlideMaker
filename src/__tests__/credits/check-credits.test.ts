@@ -10,7 +10,6 @@ import {
   getCreditLimit,
   isValidTier,
   checkCredits,
-  type SubscriptionTier,
 } from '@/lib/credits/check-credits'
 
 const mockCreateClient = vi.mocked(createClient)
@@ -35,6 +34,7 @@ function mockSupabase(tier: string | undefined, projectCount: number) {
     from: vi.fn().mockReturnValue({
       select: mockSelect,
     }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any)
 }
 

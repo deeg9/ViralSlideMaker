@@ -35,7 +35,7 @@ const MouseSparkles = React.forwardRef<HTMLDivElement, MouseSparklesProps>(
       sizes = ["1.4rem", "1rem", "0.6rem"],
       className,
     },
-    ref,
+    _ref,
   ) => {
     const configRef = React.useRef({
       starAnimationDuration,
