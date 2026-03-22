@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 
 interface ShowcaseSlide {
   hook_text: string
@@ -64,11 +64,35 @@ function CarouselCard({ data }: { data: ShowcaseData }) {
   const [current, setCurrent] = useState(0)
   const slide = data.slides[current]
   const { bg, text, accent, overlayOpacity } = data.template
+  const touchStartX = useRef<number | null>(null)
+
+  const goNext = useCallback(() => {
+    setCurrent((p) => Math.min(data.slides.length - 1, p + 1))
+  }, [data.slides.length])
+
+  const goPrev = useCallback(() => {
+    setCurrent((p) => Math.max(0, p - 1))
+  }, [])
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+  }, [])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    const SWIPE_THRESHOLD = 50
+    if (diff > SWIPE_THRESHOLD) goNext()
+    else if (diff < -SWIPE_THRESHOLD) goPrev()
+    touchStartX.current = null
+  }, [goNext, goPrev])
 
   return (
     <div
-      className="w-[280px] md:w-[300px] aspect-[9/16] rounded-[2rem] border-8 border-white shadow-2xl overflow-hidden flex-none relative"
+      className="w-[280px] md:w-[300px] aspect-[9/16] rounded-[2rem] border-8 border-white shadow-2xl overflow-hidden flex-none relative touch-pan-y"
       style={{ backgroundColor: bg, color: text }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Background Image */}
       <div
@@ -115,9 +139,9 @@ function CarouselCard({ data }: { data: ShowcaseData }) {
           </span>
           <div className="flex gap-2">
             <button
-              onClick={() => setCurrent((p) => Math.max(0, p - 1))}
+              onClick={goPrev}
               disabled={current === 0}
-              className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity disabled:opacity-20 hover:opacity-70"
+              className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-opacity disabled:opacity-20 hover:opacity-70"
               style={{ backgroundColor: `${text}15` }}
               aria-label="Previous slide"
             >
@@ -126,9 +150,9 @@ function CarouselCard({ data }: { data: ShowcaseData }) {
               </svg>
             </button>
             <button
-              onClick={() => setCurrent((p) => Math.min(data.slides.length - 1, p + 1))}
+              onClick={goNext}
               disabled={current === data.slides.length - 1}
-              className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity disabled:opacity-20 hover:opacity-70"
+              className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-opacity disabled:opacity-20 hover:opacity-70"
               style={{ backgroundColor: `${text}15` }}
               aria-label="Next slide"
             >
