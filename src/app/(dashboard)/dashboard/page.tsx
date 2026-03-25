@@ -18,8 +18,7 @@ export default async function DashboardPage() {
 
   // AI Credits based on user's subscription tier
   const credits = await checkCredits()
-  const totalCredits = credits.limit
-  const remaining = credits.remaining
+  const { balance, tier } = credits
 
   return (
     <div className="space-y-16">
@@ -55,8 +54,8 @@ export default async function DashboardPage() {
           <Icon name="bolt" className="text-[#3d0000]" />
           <div>
             <p className="text-[0.75rem] font-bold uppercase tracking-widest text-[#3d0000]">AI Credits</p>
-            <p className="text-3xl font-semibold text-[#3d0000] mt-1">{remaining}</p>
-            <p className="text-xs text-[#7d6161] mt-0.5">{remaining} of {totalCredits} this month</p>
+            <p className="text-3xl font-semibold text-[#3d0000] mt-1">{balance}</p>
+            <p className="text-xs text-[#7d6161] mt-0.5">{balance} credits remaining ({tier})</p>
           </div>
         </div>
       </section>
