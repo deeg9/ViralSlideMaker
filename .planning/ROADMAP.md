@@ -105,7 +105,11 @@ Plans:
   3. Credits deduct atomically before AI operations with no possibility of double-spend under concurrent requests
   4. User can view a credit usage history showing date, action type, and amount for each transaction
   5. Free tier users hit a clear usage limit on project count and AI text generations per month
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md -- Database schema (subscriptions, credit_transactions, stripe_events), atomic RPC functions, credit service rewrite, tests
+- [ ] 05-02-PLAN.md -- Navbar credit display, credit history page, dashboard wiring, atomic generation deduction, visual checkpoint
 
 ### Phase 6: Stripe Billing
 **Goal**: Users can subscribe to Pro, manage their subscription, and purchase extra credits through Stripe
@@ -143,6 +147,6 @@ Phases execute in numeric order: 5 -> 6 -> 7
 | 2. AI Generation and Image Rendering | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 3. Slide Editor | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 4. Template System and Brand Kit | v1.0 | 2/2 | Complete | 2026-03-20 |
-| 5. Credit Ledger & Usage Limits | v1.1 | 0/0 | Not started | - |
+| 5. Credit Ledger & Usage Limits | v1.1 | 0/2 | Planned | - |
 | 6. Stripe Billing | v1.1 | 0/0 | Not started | - |
 | 7. AI Images & Social Captions | v1.1 | 0/0 | Not started | - |
