@@ -40,12 +40,15 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [x] User authentication and accounts — v1.0
 - [x] Undo/redo in editor — v1.0
 - [x] Clean, minimal UI design — v1.0
+- [x] Credit ledger with atomic deduction (Postgres RPC) — v1.1 Phase 5
+- [x] Credit balance in navbar + usage history page — v1.1 Phase 5
+- [x] Free tier usage limits (project cap, credit gating) — v1.1 Phase 5
 
 ### Active
 
 - [ ] Google Imagen AI image generation for premium slide backgrounds
 - [ ] Stripe subscription integration (Free / Pro tiers)
-- [ ] Credit system (monthly allowance + purchasable credit packs)
+- [ ] Credit pack purchases for extra AI generations
 - [ ] AI-generated social media captions for carousel posts
 
 ### Out of Scope
