@@ -1,217 +1,240 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock supabase
+// Mock supabase server client
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
 }))
 
+// Mock supabase admin client
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: vi.fn(),
+}))
+
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
-  getCreditLimit,
-  isValidTier,
+  getUserTier,
+  getCreditBalance,
+  deductCredit,
   checkCredits,
+  checkProjectLimit,
 } from '@/lib/credits/check-credits'
+import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 
 const mockCreateClient = vi.mocked(createClient)
+const mockCreateAdminClient = vi.mocked(createAdminClient)
 
-function mockSupabase(tier: string | undefined, projectCount: number) {
-  const mockSelect = vi.fn().mockReturnValue({
-    neq: vi.fn().mockReturnValue({
-      gte: vi.fn().mockResolvedValue({ count: projectCount }),
-    }),
+interface MockConfig {
+  tier?: string | null
+  tierError?: boolean
+  balance?: number | null
+  deductResult?: boolean | null
+  user?: { id: string } | null
+  projectCount?: number
+}
+
+function mockSupabase(config: MockConfig) {
+  const {
+    tier = null,
+    tierError = false,
+    balance = 0,
+    deductResult = null,
+    user = { id: 'user-123' },
+    projectCount = 0,
+  } = config
+
+  const singleFn = vi.fn().mockResolvedValue(
+    tierError
+      ? { data: null, error: { message: 'not found' } }
+      : { data: tier ? { tier } : null, error: tier ? null : { message: 'not found' } }
+  )
+
+  const eqFn = vi.fn().mockReturnValue({ single: singleFn })
+
+  const selectSubsFn = vi.fn().mockReturnValue({ eq: eqFn })
+
+  // Projects mock for checkProjectLimit
+  const projectEqFn = vi.fn().mockResolvedValue({ count: projectCount })
+  const projectSelectFn = vi.fn().mockReturnValue({ eq: projectEqFn })
+
+  const fromFn = vi.fn().mockImplementation((table: string) => {
+    if (table === 'subscriptions') {
+      return { select: selectSubsFn }
+    }
+    if (table === 'projects') {
+      return { select: projectSelectFn }
+    }
+    return {}
+  })
+
+  const rpcFn = vi.fn().mockImplementation((fnName: string) => {
+    if (fnName === 'get_credit_balance') {
+      return Promise.resolve({ data: balance, error: null })
+    }
+    if (fnName === 'deduct_credits') {
+      return Promise.resolve({ data: deductResult, error: null })
+    }
+    return Promise.resolve({ data: null, error: null })
   })
 
   mockCreateClient.mockResolvedValue({
     auth: {
       getUser: vi.fn().mockResolvedValue({
-        data: {
-          user: {
-            user_metadata: { subscription_tier: tier },
-          },
-        },
+        data: { user },
       }),
     },
-    from: vi.fn().mockReturnValue({
-      select: mockSelect,
-    }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    from: fromFn,
+    rpc: rpcFn,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any)
+
+  return { fromFn, rpcFn }
 }
 
-describe('getCreditLimit', () => {
-  it('returns 5 for free tier', () => {
-    expect(getCreditLimit('free')).toBe(5)
+function mockAdminSupabase(config: { existingTier?: string | null }) {
+  const { existingTier = null } = config
+
+  const singleFn = vi.fn().mockResolvedValue(
+    existingTier
+      ? { data: { tier: existingTier }, error: null }
+      : { data: null, error: { message: 'not found' } }
+  )
+  const eqFn = vi.fn().mockReturnValue({ single: singleFn })
+  const selectFn = vi.fn().mockReturnValue({ eq: eqFn })
+  const insertFn = vi.fn().mockResolvedValue({ error: null })
+
+  const fromFn = vi.fn().mockImplementation((table: string) => {
+    if (table === 'subscriptions') {
+      return { select: selectFn, insert: insertFn }
+    }
+    if (table === 'credit_transactions') {
+      return { insert: insertFn }
+    }
+    return {}
   })
 
-  it('returns 12 for plus tier', () => {
-    expect(getCreditLimit('plus')).toBe(12)
+  mockCreateAdminClient.mockReturnValue({
+    from: fromFn,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any)
+
+  return { fromFn, insertFn }
+}
+
+describe('getUserTier', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('returns tier from subscriptions table', async () => {
+    mockSupabase({ tier: 'plus' })
+    const tier = await getUserTier('user-123')
+    expect(tier).toBe('plus')
   })
 
-  it('returns 30 for pro tier', () => {
-    expect(getCreditLimit('pro')).toBe(30)
+  it('returns free when no subscription row exists', async () => {
+    mockSupabase({ tier: null, tierError: true })
+    const tier = await getUserTier('user-123')
+    expect(tier).toBe('free')
   })
 })
 
-describe('isValidTier', () => {
-  it('accepts valid tier names', () => {
-    expect(isValidTier('free')).toBe(true)
-    expect(isValidTier('plus')).toBe(true)
-    expect(isValidTier('pro')).toBe(true)
+describe('getCreditBalance', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('calls get_credit_balance RPC and returns integer', async () => {
+    const { rpcFn } = mockSupabase({ balance: 7 })
+    const balance = await getCreditBalance('user-123')
+    expect(balance).toBe(7)
+    expect(rpcFn).toHaveBeenCalledWith('get_credit_balance', { p_user_id: 'user-123' })
   })
 
-  it('rejects invalid tier names', () => {
-    expect(isValidTier('premium')).toBe(false)
-    expect(isValidTier('')).toBe(false)
-    expect(isValidTier('business')).toBe(false)
+  it('returns 0 when RPC returns null', async () => {
+    mockSupabase({ balance: null })
+    const balance = await getCreditBalance('user-123')
+    expect(balance).toBe(0)
+  })
+})
+
+describe('deductCredit', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('calls deduct_credits RPC and returns true on success', async () => {
+    const { rpcFn } = mockSupabase({ deductResult: true })
+    const result = await deductCredit('user-123', 'carousel_generation', 'Gen carousel', 'proj-1')
+    expect(result).toBe(true)
+    expect(rpcFn).toHaveBeenCalledWith('deduct_credits', {
+      p_user_id: 'user-123',
+      p_amount: 1,
+      p_type: 'carousel_generation',
+      p_description: 'Gen carousel',
+      p_reference_id: 'proj-1',
+    })
+  })
+
+  it('returns false when RPC returns false (insufficient balance)', async () => {
+    mockSupabase({ deductResult: false })
+    const result = await deductCredit('user-123', 'carousel_generation')
+    expect(result).toBe(false)
   })
 })
 
 describe('checkCredits', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('returns allowed=true when balance > 0', async () => {
+    mockSupabase({ tier: 'plus', balance: 5 })
+    const result = await checkCredits()
+    expect(result).toEqual({ allowed: true, tier: 'plus', balance: 5 })
   })
 
-  it('allows generation when free user has credits remaining', async () => {
-    mockSupabase('free', 3)
+  it('returns allowed=false when balance is 0', async () => {
+    mockSupabase({ tier: 'free', balance: 0 })
     const result = await checkCredits()
-
-    expect(result).toEqual({
-      allowed: true,
-      tier: 'free',
-      used: 3,
-      limit: 5,
-      remaining: 2,
-    })
+    expect(result).toEqual({ allowed: false, tier: 'free', balance: 0 })
   })
 
-  it('blocks generation when free user hits 5 credit limit', async () => {
-    mockSupabase('free', 5)
+  it('returns { allowed: false, tier: free, balance: 0 } when no user', async () => {
+    mockSupabase({ user: null })
     const result = await checkCredits()
+    expect(result).toEqual({ allowed: false, tier: 'free', balance: 0 })
+  })
+})
 
-    expect(result).toEqual({
-      allowed: false,
-      tier: 'free',
-      used: 5,
-      limit: 5,
-      remaining: 0,
-    })
+describe('checkProjectLimit', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('returns true for non-free tiers regardless of count', async () => {
+    mockSupabase({ projectCount: 100 })
+    const result = await checkProjectLimit('user-123', 'pro')
+    expect(result).toBe(true)
   })
 
-  it('blocks generation when free user exceeds limit', async () => {
-    mockSupabase('free', 7)
-    const result = await checkCredits()
-
-    expect(result.allowed).toBe(false)
-    expect(result.remaining).toBe(0)
+  it('returns true for free tier when count < 10', async () => {
+    mockSupabase({ projectCount: 9 })
+    const result = await checkProjectLimit('user-123', 'free')
+    expect(result).toBe(true)
   })
 
-  it('allows generation when plus user has credits remaining', async () => {
-    mockSupabase('plus', 10)
-    const result = await checkCredits()
+  it('returns false for free tier when count >= 10', async () => {
+    mockSupabase({ projectCount: 10 })
+    const result = await checkProjectLimit('user-123', 'free')
+    expect(result).toBe(false)
+  })
+})
 
-    expect(result).toEqual({
-      allowed: true,
-      tier: 'plus',
-      used: 10,
-      limit: 12,
-      remaining: 2,
-    })
+describe('ensureSubscription', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('returns existing tier when subscription exists', async () => {
+    mockAdminSupabase({ existingTier: 'plus' })
+    const tier = await ensureSubscription('user-123')
+    expect(tier).toBe('plus')
   })
 
-  it('blocks generation when plus user hits 12 credit limit', async () => {
-    mockSupabase('plus', 12)
-    const result = await checkCredits()
-
-    expect(result).toEqual({
-      allowed: false,
-      tier: 'plus',
-      used: 12,
-      limit: 12,
-      remaining: 0,
-    })
-  })
-
-  it('allows generation when pro user has credits remaining', async () => {
-    mockSupabase('pro', 25)
-    const result = await checkCredits()
-
-    expect(result).toEqual({
-      allowed: true,
-      tier: 'pro',
-      used: 25,
-      limit: 30,
-      remaining: 5,
-    })
-  })
-
-  it('blocks generation when pro user hits 30 credit limit', async () => {
-    mockSupabase('pro', 30)
-    const result = await checkCredits()
-
-    expect(result).toEqual({
-      allowed: false,
-      tier: 'pro',
-      used: 30,
-      limit: 30,
-      remaining: 0,
-    })
-  })
-
-  it('defaults to free tier when user has no subscription metadata', async () => {
-    mockSupabase(undefined, 0)
-    const result = await checkCredits()
-
-    expect(result.tier).toBe('free')
-    expect(result.limit).toBe(5)
-  })
-
-  it('defaults to free tier when subscription_tier is invalid', async () => {
-    mockSupabase('enterprise', 0)
-    const result = await checkCredits()
-
-    expect(result.tier).toBe('free')
-    expect(result.limit).toBe(5)
-  })
-
-  it('allows first generation for a brand new user', async () => {
-    mockSupabase(undefined, 0)
-    const result = await checkCredits()
-
-    expect(result).toEqual({
-      allowed: true,
-      tier: 'free',
-      used: 0,
-      limit: 5,
-      remaining: 5,
-    })
-  })
-
-  // Edge case: tier upgrade mid-month should grant more credits
-  it('grants more credits after upgrading from free to plus mid-month', async () => {
-    // User upgraded to plus but already used 5 (was at free limit)
-    mockSupabase('plus', 5)
-    const result = await checkCredits()
-
-    expect(result).toEqual({
-      allowed: true,
-      tier: 'plus',
-      used: 5,
-      limit: 12,
-      remaining: 7,
-    })
-  })
-
-  it('grants more credits after upgrading from plus to pro mid-month', async () => {
-    // User upgraded to pro but already used 12 (was at plus limit)
-    mockSupabase('pro', 12)
-    const result = await checkCredits()
-
-    expect(result).toEqual({
-      allowed: true,
-      tier: 'pro',
-      used: 12,
-      limit: 30,
-      remaining: 18,
-    })
+  it('creates free subscription and grants credits when no subscription exists', async () => {
+    const { insertFn } = mockAdminSupabase({ existingTier: null })
+    const tier = await ensureSubscription('user-123')
+    expect(tier).toBe('free')
+    // Should have called insert twice: once for subscription, once for credit grant
+    expect(insertFn).toHaveBeenCalledTimes(2)
   })
 })
