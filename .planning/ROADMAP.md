@@ -121,7 +121,11 @@ Plans:
   3. User can open Stripe Customer Portal to upgrade, downgrade, or cancel their subscription
   4. Free users see contextual upgrade prompts when they hit usage limits (not random nag screens)
   5. User can purchase extra credit packs via one-time Stripe payment and credits appear in their balance
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md -- Stripe SDK setup, webhook Route Handler with signature verification and idempotency, event-type-dispatched sync handlers, unit tests
+- [ ] 06-02-PLAN.md -- Checkout/portal/credit-pack server actions, subscription page wiring, upgrade prompt component, visual checkpoint
 
 ### Phase 7: AI Images & Social Captions
 **Goal**: Users can generate AI-powered slide backgrounds and get ready-to-post social media captions for their carousels
@@ -148,5 +152,5 @@ Phases execute in numeric order: 5 -> 6 -> 7
 | 3. Slide Editor | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 4. Template System and Brand Kit | v1.0 | 2/2 | Complete | 2026-03-20 |
 | 5. Credit Ledger & Usage Limits | v1.1 | 0/2 | Planned | - |
-| 6. Stripe Billing | v1.1 | 0/0 | Not started | - |
+| 6. Stripe Billing | v1.1 | 0/2 | Planned | - |
 | 7. AI Images & Social Captions | v1.1 | 0/0 | Not started | - |
