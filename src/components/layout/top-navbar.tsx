@@ -9,6 +9,7 @@ import { LogoutButton } from '@/components/auth/logout-button'
 interface TopNavbarProps {
   variant: 'marketing' | 'app'
   userName?: string
+  creditDisplay?: React.ReactNode
 }
 
 const navItems = [
@@ -25,7 +26,7 @@ function Logo({ size = 32 }: { size?: number }) {
   )
 }
 
-export function TopNavbar({ variant, userName }: TopNavbarProps) {
+export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) {
   const pathname = usePathname()
 
   if (variant === 'marketing') {
@@ -92,7 +93,7 @@ export function TopNavbar({ variant, userName }: TopNavbarProps) {
           <div className="flex items-center gap-3 pl-3 border-l border-[#dbc1bc]/30 ml-2">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold text-[#3d0000]">{userName ?? 'User'}</p>
-              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-[#7d6161]">Pro Member</p>
+              {creditDisplay}
             </div>
             <div className="w-9 h-9 rounded-xl bg-[#fadbdb] flex items-center justify-center overflow-hidden">
               <Icon name="person" size="sm" className="text-[#3d0000]" />

@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { ProjectList } from '@/components/projects/project-list'
 import { Icon } from '@/components/ui/icon'
-import { checkCredits } from '@/lib/credits/check-credits'
+import { getCreditBalance, getUserTier } from '@/lib/credits/check-credits'
+import { TIER_CREDITS } from '@/lib/credits/types'
+import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import type { Project } from '@/lib/types/project'
 
 export default async function DashboardPage() {
@@ -16,9 +18,13 @@ export default async function DashboardPage() {
 
   const projectList = (projects as Project[]) ?? []
 
+  // Ensure subscription exists (bootstraps free tier if needed)
+  if (user) await ensureSubscription(user.id)
+
   // AI Credits based on user's subscription tier
-  const credits = await checkCredits()
-  const { balance, tier } = credits
+  const tier = user ? await getUserTier(user.id) : 'free' as const
+  const balance = user ? await getCreditBalance(user.id) : 0
+  const monthlyAllowance = TIER_CREDITS[tier]
 
   return (
     <div className="space-y-16">
@@ -55,7 +61,7 @@ export default async function DashboardPage() {
           <div>
             <p className="text-[0.75rem] font-bold uppercase tracking-widest text-[#3d0000]">AI Credits</p>
             <p className="text-3xl font-semibold text-[#3d0000] mt-1">{balance}</p>
-            <p className="text-xs text-[#7d6161] mt-0.5">{balance} credits remaining ({tier})</p>
+            <p className="text-xs text-[#7d6161] mt-0.5">{balance} of {monthlyAllowance} credits ({tier})</p>
           </div>
         </div>
       </section>

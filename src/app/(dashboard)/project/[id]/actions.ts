@@ -3,7 +3,8 @@
 import { generateSlideContent } from '@/lib/ai/generate-slides'
 import { searchPhotos } from '@/lib/pexels/search-photos'
 import { createClient } from '@/lib/supabase/server'
-import { checkCredits } from '@/lib/credits/check-credits'
+import { checkCredits, deductCredit } from '@/lib/credits/check-credits'
+import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
 
@@ -15,12 +16,17 @@ export async function generateCarousel(
   const supabase = await createClient()
 
   try {
-    // Check credit limits before generating
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Not authenticated' }
+
+    // Ensure subscription exists and check credits
+    await ensureSubscription(user.id)
     const credits = await checkCredits()
     if (!credits.allowed) {
       return {
         success: false,
-        error: `You have no credits remaining on the ${credits.tier} plan. Upgrade for more.`,
+        error: `No credits remaining on the ${credits.tier} plan. Upgrade for more.`,
       }
     }
 
@@ -29,6 +35,12 @@ export async function generateCarousel(
       .from('projects')
       .update({ generation_status: 'generating' })
       .eq('id', projectId)
+
+    // Atomically deduct 1 credit before AI call
+    const deducted = await deductCredit(user.id, 'carousel_generation', `Carousel: ${topic}`, projectId)
+    if (!deducted) {
+      return { success: false, error: 'Insufficient credits. Please try again.' }
+    }
 
     // 1. Generate content with Claude
     const carousel = await generateSlideContent(topic)
@@ -61,6 +73,7 @@ export async function generateCarousel(
       .eq('id', projectId)
 
     revalidatePath(`/project/${projectId}`)
+    revalidatePath('/dashboard')
     return { success: true, slideCount: slides.length }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error during generation'
