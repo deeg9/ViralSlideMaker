@@ -4,10 +4,10 @@ milestone: v1.1
 milestone_name: Monetization & AI Images
 status: active
 stopped_at: null
-last_updated: "2026-03-24"
-last_activity: 2026-03-24 -- Milestone v1.1 started
+last_updated: "2026-03-25"
+last_activity: 2026-03-25 -- Roadmap created for v1.1
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** v1.1 Monetization & AI Images -- defining requirements
+**Current focus:** v1.1 Monetization & AI Images -- Phase 5 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-24 — Milestone v1.1 started
+Phase: 5 of 7 (Credit Ledger & Usage Limits)
+Plan: --
+Status: Ready to plan
+Last activity: 2026-03-25 -- Roadmap created for v1.1 (Phases 5-7)
+
+Progress: [__________|__________] 0% (v1.1)
 
 ## Performance Metrics
 
@@ -45,10 +47,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
 - Pivoted from video output to image carousels (no Remotion, no RunPod, no video)
-- Server-side image rendering via Puppeteer or Sharp (not client-side)
-- Research SUMMARY.md was done pre-pivot; stack recommendations for Remotion/RunPod are obsolete
-- [Phase 02-02]: Switched AI backend from Anthropic Claude to Google Gemini 2.5 Flash for cost efficiency
-- [Phase 04-02]: Brand kit fetched by project owner user_id in render route for PNG generation
+- Gemini 2.5 Flash for AI text generation (cost efficiency)
+- Google Imagen 4 Fast for premium AI image generation
+- Hybrid credit model: monthly subscription allowance + purchasable credit packs
+- Stripe for payments (industry standard, good Next.js integration)
 
 ### Pending Todos
 
@@ -56,18 +58,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- Research was conducted before the video-to-image pivot. Remotion, RunPod, and video-related findings are not applicable.
-
-### Quick Tasks Completed (v1.0)
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 1 | Build settings pages with sidebar nav: Profile, Notifications, Manage Subscription | 2026-03-20 | 54f5fde | [1-build-settings-pages-with-sidebar-nav-pr](./quick/1-build-settings-pages-with-sidebar-nav-pr/) |
-| 2 | Add animated text cycling effect to hero heading | 2026-03-20 | 6102f46 | [2-add-animated-text-cycling-effect-to-hero](./quick/2-add-animated-text-cycling-effect-to-hero/) |
-| 3 | Make showcase carousel previews real centered and interactive | 2026-03-20 | 8efdde2 | [3-make-showcase-carousel-previews-real-cen](./quick/3-make-showcase-carousel-previews-real-cen/) |
+- Imagen auth model: confirm whether existing GEMINI_API_KEY works for Imagen 4 Fast or if separate Google Cloud service account is needed (blocker for Phase 7)
+- Vercel plan timeout: confirm deployment tier before Phase 7 (Hobby = 10s, Pro = 60s; Imagen takes 3-15s)
 
 ## Session Continuity
 
-Last session: 2026-03-24
-Stopped at: Milestone v1.1 initialization
+Last session: 2026-03-25
+Stopped at: Roadmap created for v1.1 milestone
 Resume file: None

@@ -151,28 +151,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STRIPE-01 | TBD | Pending |
-| STRIPE-02 | TBD | Pending |
-| STRIPE-03 | TBD | Pending |
-| STRIPE-04 | TBD | Pending |
-| STRIPE-05 | TBD | Pending |
-| CRED-01 | TBD | Pending |
-| CRED-02 | TBD | Pending |
-| CRED-03 | TBD | Pending |
-| CRED-04 | TBD | Pending |
-| CRED-05 | TBD | Pending |
-| IMAGEN-01 | TBD | Pending |
-| IMAGEN-02 | TBD | Pending |
-| IMAGEN-03 | TBD | Pending |
-| IMAGEN-04 | TBD | Pending |
-| CAPTION-01 | TBD | Pending |
-| CAPTION-02 | TBD | Pending |
+| CRED-01 | Phase 5 | Pending |
+| CRED-02 | Phase 5 | Pending |
+| CRED-03 | Phase 5 | Pending |
+| CRED-05 | Phase 5 | Pending |
+| STRIPE-04 | Phase 5 | Pending |
+| STRIPE-01 | Phase 6 | Pending |
+| STRIPE-02 | Phase 6 | Pending |
+| STRIPE-03 | Phase 6 | Pending |
+| STRIPE-05 | Phase 6 | Pending |
+| CRED-04 | Phase 6 | Pending |
+| IMAGEN-01 | Phase 7 | Pending |
+| IMAGEN-02 | Phase 7 | Pending |
+| IMAGEN-03 | Phase 7 | Pending |
+| IMAGEN-04 | Phase 7 | Pending |
+| CAPTION-01 | Phase 7 | Pending |
+| CAPTION-02 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 (pending roadmap creation)
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-24*
-*Last updated: 2026-03-24 after v1.1 scoping*
+*Last updated: 2026-03-25 after v1.1 roadmap creation*
