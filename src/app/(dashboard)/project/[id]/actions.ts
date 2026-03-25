@@ -12,7 +12,7 @@ export async function generateCarousel(
   projectId: string,
   topic: string,
   templateId: string
-): Promise<{ success: true; slideCount: number } | { success: false; error: string }> {
+): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
   const supabase = await createClient()
 
   try {
@@ -27,6 +27,7 @@ export async function generateCarousel(
       return {
         success: false,
         error: `No credits remaining on the ${credits.tier} plan. Upgrade for more.`,
+        upgradeEligible: credits.tier === 'free',
       }
     }
 
@@ -39,7 +40,7 @@ export async function generateCarousel(
     // Atomically deduct 1 credit before AI call
     const deducted = await deductCredit(user.id, 'carousel_generation', `Carousel: ${topic}`, projectId)
     if (!deducted) {
-      return { success: false, error: 'Insufficient credits. Please try again.' }
+      return { success: false, error: 'Insufficient credits. Please try again.', upgradeEligible: true }
     }
 
     // 1. Generate content with Claude

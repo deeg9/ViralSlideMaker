@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
 import { TemplatePicker } from './template-picker'
 import { Icon } from '@/components/ui/icon'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
 
 interface GenerationFormProps {
@@ -23,6 +24,7 @@ export function GenerationForm({
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'bold-minimal')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
   const router = useRouter()
 
   function handleSubmit(e: React.FormEvent) {
@@ -30,10 +32,14 @@ export function GenerationForm({
     if (!topic.trim()) return
 
     setError(null)
+    setShowUpgradePrompt(false)
     startTransition(async () => {
       const result = await generateCarousel(projectId, topic.trim(), templateId)
       if (!result.success) {
         setError(result.error)
+        if ('upgradeEligible' in result && result.upgradeEligible) {
+          setShowUpgradePrompt(true)
+        }
       } else {
         router.refresh()
       }
@@ -79,6 +85,9 @@ export function GenerationForm({
         <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
+      )}
+      {showUpgradePrompt && (
+        <UpgradePrompt context="generation" />
       )}
 
       {/* Submit */}

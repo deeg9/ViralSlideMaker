@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { ProjectList } from '@/components/projects/project-list'
 import { Icon } from '@/components/ui/icon'
-import { getCreditBalance, getUserTier } from '@/lib/credits/check-credits'
+import { getCreditBalance, getUserTier, checkProjectLimit } from '@/lib/credits/check-credits'
 import { TIER_CREDITS } from '@/lib/credits/types'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
+import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import type { Project } from '@/lib/types/project'
 
 export default async function DashboardPage() {
@@ -25,6 +26,7 @@ export default async function DashboardPage() {
   const tier = user ? await getUserTier(user.id) : 'free' as const
   const balance = user ? await getCreditBalance(user.id) : 0
   const monthlyAllowance = TIER_CREDITS[tier]
+  const canCreateProject = user ? await checkProjectLimit(user.id, tier) : true
 
   return (
     <div className="space-y-16">
@@ -65,6 +67,14 @@ export default async function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Upgrade Prompts */}
+      {balance <= 0 && tier === 'free' && (
+        <UpgradePrompt context="generation" />
+      )}
+      {!canCreateProject && tier === 'free' && (
+        <UpgradePrompt context="project_limit" />
+      )}
 
       {/* Recent Carousels */}
       <ProjectList projects={projectList} />
