@@ -1,7 +1,8 @@
-'use client'
-
 import { Icon } from '@/components/ui/icon'
 import { Pricing } from '@/components/ui/pricing'
+import { getUserTier } from '@/lib/credits/check-credits'
+import { createClient } from '@/lib/supabase/server'
+import { ManageSubscriptionButton } from './manage-subscription-button'
 
 const plans = [
   {
@@ -55,10 +56,11 @@ const plans = [
   },
 ]
 
-export default function SubscriptionPage() {
-  function handleManageSubscription() {
-    window.alert('Stripe billing portal coming soon!')
-  }
+export default async function SubscriptionPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const tier = user ? await getUserTier(user.id) : 'free'
+  const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1)
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -73,7 +75,7 @@ export default function SubscriptionPage() {
       {/* Current plan badge */}
       <div className="mb-6">
         <span className="bg-[#fadbdb] text-[#3d0000] px-3 py-1 rounded-full text-sm font-bold">
-          Current Plan: Pro
+          Current Plan: {tierLabel}
         </span>
       </div>
 
@@ -86,13 +88,7 @@ export default function SubscriptionPage() {
 
       {/* Manage Subscription button */}
       <div className="bg-white rounded-xl p-6 border border-[#dbc1bc]/10 mt-8">
-        <button
-          type="button"
-          onClick={handleManageSubscription}
-          className="bg-[#3d0000] text-white px-6 py-3 rounded-xl font-medium text-sm transition-all hover:bg-[#3d0000]/90 active:scale-95 w-full md:w-auto"
-        >
-          Manage Subscription
-        </button>
+        <ManageSubscriptionButton />
         <p className="text-xs text-[#7d6161] mt-2">
           Billing is managed through Stripe. You&apos;ll be redirected to a secure portal.
         </p>
