@@ -2,7 +2,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Skip auth for webhook routes (Phase 6: Stripe webhooks)
+  // Skip auth for webhook routes (Stripe webhooks)
   if (request.nextUrl.pathname.startsWith('/api/webhooks')) {
     return
   }
