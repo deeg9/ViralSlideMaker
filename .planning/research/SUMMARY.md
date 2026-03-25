@@ -1,255 +1,197 @@
 # Project Research Summary
 
-**Project:** TikTok Slideshow Creator
-**Domain:** AI-powered short-form video creation (SaaS web app)
-**Researched:** 2026-03-19
+**Project:** TikTok Slideshow Creator — v1.1 Monetization & AI Images
+**Domain:** AI-powered social media carousel SaaS with subscription billing
+**Researched:** 2026-03-24
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This is an AI-powered slideshow video creator targeting TikTok and Reels creators — a well-established product category with direct competitors in BigMotion AI, Lumen5, InVideo, and Pictory. The recommended approach centers on a three-tier architecture: a Next.js 15.5 + Remotion frontend for real-time editing and preview, a Next.js API layer for orchestrating Claude and Pexels integrations, and a RunPod serverless Docker container for headless MP4 rendering. The most critical architectural insight is that the slide editor does NOT need a canvas library — slides are Remotion React compositions, and editing means updating a Zustand store that the Remotion Player reads directly. This single shared composition powers both browser preview and server-side export, guaranteeing visual parity.
+This is a v1.1 milestone for an existing, working carousel creator. The product already has an editor, Pexels image search, brand kit, AI slide content generation (Gemini 2.5 Flash), and auth. The v1.1 goal is to monetize it: add Stripe subscriptions (Free/Pro), a credit ledger, Google Imagen AI image generation as the premium feature, and social media caption generation as a free value-add. All four capabilities are well-documented, well-understood domains with established patterns in the Next.js 15 / Supabase ecosystem.
 
-The recommended approach produces a fast, no-frills MVP by treating Phase 1 as infrastructure validation (Remotion composition + Zustand store + RunPod render pipeline, end-to-end, before any editor UI) and Phase 2 as the AI content loop (Claude content generation + Pexels image integration + slide editor). The product's core value — competitive with BigMotion — can be delivered in 5 focused phases. A key platform insight from research: TikTok is disincentivizing low-effort commerce slideshow spam, which validates building around quality AI hooks and compelling content rather than raw generation speed.
+The recommended approach is to build in strict dependency order: database schema first (the credit ledger is a prerequisite for everything else), then Stripe billing infrastructure, then Imagen image generation gated behind credits, and caption generation last (it is nearly independent and the simplest feature). Only two new npm packages are needed: `stripe` and `@stripe/stripe-js`. Everything else — Imagen, caption generation, the credit database — uses packages already installed. The unit economics are strong: Imagen 4 Fast at $0.02/image on a ~$12-15/month Pro tier yields ~80% gross margin even at full credit utilization.
 
-The top risks are infrastructure (Remotion Docker misconfiguration on RunPod is a multi-day trap; must be validated before building anything else), AI quality (generic Claude output destroys the value proposition; requires significant prompt engineering investment), and async rendering architecture (must be job-queue-based from day one — retrofitting is a rewrite). Remotion's licensing also deserves early attention: it is free for teams of 3 or fewer, but a company license is required beyond that threshold, and v5.0 license changes are pending.
+The most dangerous pitfalls are all in the Stripe + Supabase integration layer, not in the AI features. Credit race conditions (double-spend via concurrent requests), duplicate webhook processing, and RLS blocking webhook writes are the top three failure modes. All three require design-time decisions and cannot be retrofitted cleanly. The Imagen integration has its own hazard: safety filter false positives that silently consume user credits if the deduction-before-API-call pattern is not handled with a proper refund path. Get the database schema and atomic credit RPC correct before writing any billing or generation code.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack is cohesive and high-confidence across all components. Next.js 15.5 (not 16 — ecosystem still catching up to breaking changes) with React 19, TypeScript 5, and Tailwind CSS 4 forms the web foundation. Remotion 4.x is the only mature React-based video framework and handles both in-browser preview (via `@remotion/player`) and server-side MP4 rendering (via `@remotion/renderer`). Supabase bundles auth, Postgres database, and file storage into a single platform, eliminating the need to integrate three separate services. Zustand 5 manages editor state with a flat, serializable store shape that maps directly to Remotion's inputProps. RunPod serverless Docker containers handle rendering — CPU-only workers are sufficient (Remotion is CPU-bound, not GPU-bound), making this meaningfully cheaper than GPU instances.
+The existing stack (Next.js 15, React 19, Supabase, `@google/genai`, Pexels, dnd-kit, Tailwind 4, shadcn/ui) is unchanged. Only two new npm packages are needed. See [STACK.md](STACK.md) for full details including cost model and alternatives considered.
 
-**Core technologies:**
-- **Next.js 15.5**: Web framework — stable, best Remotion community support, SSR for marketing pages
-- **Remotion 4.x**: Video engine — only mature React video framework; single composition for preview and export
-- **@remotion/player**: Browser preview — renders compositions in real-time without server rendering
-- **@remotion/renderer**: Server rendering — headless Chromium + FFmpeg in Docker on RunPod
-- **Supabase**: Auth + database + storage — all-in-one eliminates multi-service integration
-- **Prisma 6**: ORM — type-safe queries for relational project/slide/user data
-- **Claude (Sonnet via @anthropic-ai/sdk 0.79)**: AI content generation — structured JSON output for slide copy
-- **Pexels API**: Stock images — free, no per-image attribution required, portrait orientation support
-- **Zustand 5**: Editor state — flat store shape maps to Remotion inputProps, supports undo/redo middleware
-- **dnd-kit 6**: Slide reordering — actively maintained, accessible, 10KB
-- **RunPod Serverless**: Render infrastructure — scale-to-zero, pay-per-second, Docker flexibility
-- **Tailwind CSS 4 + shadcn/ui**: UI — full React 19 + Tailwind v4 support, copy-paste components
+**Core technologies (new additions only):**
+- `stripe@^20.4.1` — server-side Stripe SDK; checkout sessions, Customer Portal, webhook verification; TypeScript-first, Next.js 15 Server Actions compatible
+- `@stripe/stripe-js@^8.11.0` — client-side Stripe.js loader (~3KB); required for Checkout redirect; no React provider or Elements wrapper needed
+- Imagen 4 Fast (`imagen-4.0-fast-generate-001`) — AI image generation at $0.02/image with native 9:16 aspect ratio support; uses already-installed `@google/genai` SDK; zero new dependencies
+- Supabase Postgres (new credit tables) — three new tables (`subscriptions`, `credit_transactions`, `stripe_events`) with RLS; no new packages; uses existing `@supabase/supabase-js`
+- Gemini 2.5 Flash (captions) — already installed; caption generation is text-only at ~$0.001/request; no new integration required
 
 ### Expected Features
 
-Competitors studied: BigMotion AI, Lumen5, InVideo AI, Pictory, Canva Video, Pippit (CapCut).
+See [FEATURES.md](FEATURES.md) for full feature analysis, competitor breakdown (PostNitro, Canva), and pricing model recommendation.
 
-**Must have (table stakes):**
-- Text prompt to slideshow generation — the entire value proposition; every competitor has it
-- 9:16 vertical output — non-negotiable for TikTok/Reels target audience
-- In-browser preview — users must see results immediately before committing to export
-- Basic slide editor (add, remove, reorder) — all competitors support post-generation editing
-- Text overlay editing (font, size, color, position) — users always tweak AI copy
-- Stock image search and swap (Pexels) — per-slide image replacement is table stakes
-- User image uploads — branded content requires custom photos
-- Transition effects (fade, zoom, slide, wipe) — static slides feel like PowerPoint
-- Text animations — static text looks amateur compared to competitors
-- MP4 export — the output the entire product exists to produce
-- Template/style system (5-10 at launch) — users pick a "look" before or after generation
-- Project save/load with user auth — creators make many projects; losing work is unacceptable
-- Auto-generated hook, body, and CTA copy — structured AI output per slide
+**Must have (table stakes for v1.1 launch):**
+- Stripe subscription integration (Free/Pro) — the revenue foundation; required before any premium feature gating
+- Credit system with monthly allowance and balance display — gates Imagen usage and shows users where they stand
+- Google Imagen AI background generation in editor — the core premium value proposition
+- Webhook handlers for full subscription lifecycle (checkout, renewal, cancellation, failed payment) — the only safe way to sync subscription state
+- Stripe Customer Portal link — self-service plan management with zero custom UI
+- Free tier usage limits with contextual upgrade prompts — creates the conversion funnel
+- Multi-platform social media captions (TikTok, Instagram, LinkedIn) — low cost, high perceived value; uses existing Gemini
 
-**Should have (competitive differentiators):**
-- Instant preview (under 10 seconds to see generated slideshow) — most competitors take 30-60 seconds
-- Slide-level AI regeneration — regenerate one slide without redoing the whole thing; high UX value, low complexity
-- Smart TikTok-specific hook generation — curiosity gaps, pattern interrupts, POV hooks outperform generic copy
-- Undo/redo in editor — surprisingly missing from many AI video tools; power users expect it
-- One-click style variations — same content in 3-4 templates for A/B testing
-- Brand kit (colors, fonts, logo) — saves significant time for repeat creators
-- Keyboard shortcuts — power users making 5+ videos/day want speed
-- Aspect ratio variants (9:16, 1:1, 16:9) — repurpose content for different platforms
+**Should have (add after v1.1 validation):**
+- Credit pack top-up purchases — when users report hitting plan limits
+- Usage history / credit ledger page — reduces "where did my credits go" support tickets
+- Prompt preview before Imagen generation — reduces wasted-credit complaints
 
 **Defer (v2+):**
-- Auto-posting to TikTok/Instagram — complex OAuth, fragile API, restricted TikTok access
-- Background music selection — TikTok adds music natively when posting; defer audio integration
-- AI image generation (DALL-E, Flux) — cost-prohibitive; stock photos look more natural for this content type
-- AI voiceover/TTS — TikTok's native voiceover is what creators actually use
-- Video clip support — doubles editor and rendering complexity; images only for v1
-- Content calendar / batch generation — requires queue infrastructure; v2 when core loop is validated
-- AI avatars / talking heads — different product category entirely
-- Real-time collaboration — target user is solo creator; multiplayer is massive engineering investment
+- Auto-posting to TikTok/Instagram — complex OAuth, platform API volatility; explicitly deferred in PROJECT.md
+- Annual billing — adds proration/refund complexity; validate monthly pricing first
+- Imagen inpainting/outpainting — significant UX scope; generate-only is sufficient for v1.1
+- Team/agency shared credit pools — different product category
 
 ### Architecture Approach
 
-The architecture follows a strict three-tier separation: frontend (Next.js + Remotion Player + Zustand), orchestration API (Next.js API routes proxying Claude, Pexels, RunPod, and Supabase), and render worker (RunPod Docker container with Remotion + Chromium + FFmpeg). The shared Remotion composition is the load-bearing architectural element — the same React components render the in-browser preview and the server-side MP4, guaranteeing visual parity. The Zustand store shape is designed to be the Remotion inputProps, meaning the entire project state serializes to JSON and passes directly to the render worker with no transformation layer.
+The architecture is a clean layered extension of the existing Next.js App Router structure. New service modules live in `src/lib/` (imagen, stripe, captions, credits rewrite). Stripe-initiated flows use a single new Route Handler at `/api/webhooks/stripe`. User-initiated flows (checkout, portal) use Server Actions — the standard 2025/2026 Next.js 15 pattern. The subscription tier must live in a Supabase `subscriptions` table written only by the webhook handler using the service role — never in user metadata (which is client-writable and spoofable). See [ARCHITECTURE.md](ARCHITECTURE.md) for data flow diagrams, full file structure, and database schema.
 
 **Major components:**
-1. **Remotion Composition** (`src/remotion/`) — single source of truth for visual rendering; imported by Player on frontend and bundled into Docker image for worker
-2. **Zustand Store** — serializable project state (slides array, settings, style); IS the inputProps; drives both editor and Player
-3. **Next.js API Routes** — `/api/generate` (Claude), `/api/images` (Pexels proxy with caching), `/api/uploads` (presigned URLs), `/api/render` (RunPod trigger + job polling), `/api/projects` (CRUD)
-4. **RunPod Docker Worker** — receives project JSON, calls `renderMedia()`, uploads MP4 to Supabase Storage, returns URL
-5. **Slide Editor UI** — writes to Zustand store; never touches Remotion internals directly
-6. **Image Picker** — Pexels search + user upload; updates per-slide `imageUrl` in store
+1. `lib/credits/` (rewrite) — atomic credit ledger via Postgres RPC; replaces naive project-count approach; prerequisite for everything else
+2. `lib/stripe/` + webhook route (new) — checkout sessions, Customer Portal, webhook event dispatch, subscription state sync to Supabase
+3. `lib/imagen/` + editor integration (new) — Imagen 4 Fast wrapper; uploads to Supabase Storage, updates `slide_data` with public URL; gated by credit deduction
+4. `lib/captions/` + caption panel (new) — Gemini 2.5 Flash structured output; stateless, no DB writes, platform-specific output with copy buttons
+
+**Existing code that must change:**
+- `lib/credits/check-credits.ts` — full rewrite to credit_transactions ledger (current project-count approach cannot handle Imagen credits or credit packs)
+- `app/(dashboard)/settings/subscription/page.tsx` — wire real Stripe Checkout and Portal (currently `window.alert('coming soon')`)
+- `components/editor/image-picker-panel.tsx` — add "AI Generate" tab alongside Pexels
+- `app/(dashboard)/project/[id]/actions.ts` — add credit deduction and Imagen generation option
 
 ### Critical Pitfalls
 
-1. **Remotion Docker misconfiguration on RunPod** — Use `node:22-bookworm-slim` base, install all required Chromium shared libraries explicitly (follow Remotion Docker docs), include emoji fonts, use `swangle` GL backend. Test the container end-to-end on RunPod before writing any editor UI. This pitfall costs days.
+See [PITFALLS.md](PITFALLS.md) for full details, recovery strategies, integration gotchas, and the "Looks Done But Isn't" checklist.
 
-2. **Synchronous render API** — Design render as async job queue from day one. POST to `/api/render` returns a job ID immediately; frontend polls status. RunPod's async endpoint pattern supports this natively. Retrofitting async into a sync architecture is a full rewrite.
-
-3. **Generic AI-generated content** — Invest 2-3x more time in prompt engineering than expected. Study 20-30 high-performing TikTok slideshows and build them into the system prompt as few-shot examples. Add tone parameters, constrain word count per slide (5-15 words max), use structured JSON output. The AI quality IS the product.
-
-4. **Editor built before data model is solid** — Define the slideshow JSON schema first, render a video from it on RunPod, verify output matches expectations. Only then build editor UI. The data model must support undo/redo, map cleanly to Remotion inputProps, and round-trip cleanly from JSON to video.
-
-5. **Preview/render parity gap** — Use the exact same Remotion composition for browser preview and server render. Bundle the same fonts in Docker and load them in the browser. Pin Chromium versions. Test side-by-side after every feature addition to catch divergence early.
+1. **Credit race conditions (double-spend)** — Use a Postgres RPC with `FOR UPDATE` row lock for atomic check-and-deduct. Never use two separate `SELECT` + `UPDATE` calls from `supabase-js`. Must be designed into the initial schema; cannot be retrofitted.
+2. **Stripe webhook duplicate processing** — Add a `stripe_events` table with `event_id` as PRIMARY KEY. Check before processing; return 200 immediately on duplicate. Without this, `invoice.payment_succeeded` can grant double credits.
+3. **Webhook signature verification fails on Vercel** — Use `request.text()` (raw body), never `request.json()`, in the webhook route handler. This is the single most-reported Stripe + Next.js issue and fails silently in production.
+4. **RLS blocks webhook database writes** — Webhook handlers have no auth session; use the Supabase service role key (not anon key) for all webhook-originated writes. Never prefix with `NEXT_PUBLIC_`.
+5. **Safety filter credit loss** — Deduct credit before calling Imagen but insert a refund transaction if the API returns a safety block. Show a specific user-facing message, not a generic error. Do not silently consume credits on filtered prompts.
 
 ## Implications for Roadmap
 
-Research strongly suggests 5 phases with clear dependency ordering. The architecture research explicitly defines this build order and the pitfalls research reinforces it.
+The build order has a hard dependency chain: the credit system enables Stripe, Stripe enables Imagen gating, and Imagen and captions can then be built in parallel. There is no shortcut through this order.
 
-### Phase 1: Infrastructure and Data Foundation
+### Phase 1: Database Foundation and Credit Ledger Rewrite
 
-**Rationale:** The Remotion composition and Zustand store shape are the foundations everything else depends on. The render pipeline (RunPod Docker + async job queue) must be proven before any UI work begins — Pitfall 1 warns this can cost days if deferred. The data model must be defined before the editor (Pitfall 9).
+**Rationale:** Every other feature depends on accurate credit tracking and subscription state. The current `check-credits.ts` uses a naive project count that cannot handle Imagen credits, credit packs, or multiple deduction types. Getting the atomic RPC right here prevents race conditions in all downstream features. This phase has zero external dependencies and unblocks everything else.
 
-**Delivers:** A working end-to-end pipeline: JSON project data in, MP4 out on RunPod. No real UI yet — just the rendering infrastructure and store schema proven.
+**Delivers:** New `subscriptions`, `credit_transactions`, and `stripe_events` tables with RLS; `get_credit_balance` and `deduct_credits` Postgres RPCs; rewritten `lib/credits/check-credits.ts`; Supabase Storage bucket for generated images.
 
-**Addresses:**
-- Remotion composition (`TikTokSlideshow.tsx`, `Slide.tsx`)
-- Zustand store schema (Project interface, slides array)
-- Remotion Player integration (in-browser preview)
-- RunPod Docker container (Chromium + FFmpeg + Remotion bundle)
-- Async render job architecture (`/api/render` returns job ID, polling endpoint)
-- Supabase setup (auth + database schema + storage bucket)
+**Addresses:** Credit system (table stake), subscription table stake prerequisite
 
-**Avoids:** Pitfalls 1 (Docker misconfiguration), 2 (sync rendering), 5 (Chromium OOM), 9 (editor before data model), 14 (no error recovery)
+**Avoids:** Credit race conditions (Pitfall 1), RLS blocking writes (Pitfall 4), storing subscription tier in user metadata (Anti-Pattern 1)
 
-**Research flag:** Needs phase research — RunPod + Remotion custom Docker is not a documented pattern; official Remotion Docker docs are the starting point but RunPod integration requires custom work.
+**Research flag:** Standard Postgres ledger and Supabase RLS patterns — well-documented. Skip phase research.
 
-### Phase 2: AI Content Generation Loop
+### Phase 2: Stripe Billing Infrastructure
 
-**Rationale:** Without AI generation, testing the editor requires manually crafting slide data. AI generation must come before editor polish because the editor's job is refining generated content, not creating from scratch. This phase delivers the core value proposition.
+**Rationale:** Subscriptions unlock the credit economy. Without a working Free/Pro tier, Imagen cannot be gated and there is no revenue path. This phase wires the existing placeholder subscription page to real Stripe Checkout and Customer Portal. Depends on the `subscriptions` table from Phase 1.
 
-**Delivers:** The complete "prompt to preview" loop — user types topic, Claude generates structured slide content, Pexels images are fetched per slide, Remotion Player shows the result. The product is usable at this point.
+**Delivers:** `lib/stripe/` service module; `/api/webhooks/stripe` Route Handler with full lifecycle handling (checkout, renewal, cancellation, failed payment, plan change); `createCheckoutSession` and `createPortalSession` Server Actions; subscription settings page wired to real Stripe.
 
-**Addresses:**
-- Claude API route (`/api/generate`) with few-shot TikTok-optimized prompts
-- Pexels API proxy (`/api/images`) with server-side caching
-- Image picker UI (search + swap per slide)
-- Template/style system (3-5 initial templates)
-- 9:16 aspect ratio enforcement throughout (Pexels portrait param, `object-fit: cover` in editor)
+**Uses:** `stripe@^20.4.1`, `@stripe/stripe-js@^8.11.0`
 
-**Avoids:** Pitfalls 4 (generic AI output), 6 (Pexels rate limits), 7 (Pexels license), 12 (aspect ratio enforcement)
+**Implements:** Stripe Webhook as Single Source of Truth pattern; Server Action for checkout / Route Handler for webhook pattern
 
-**Research flag:** Prompt engineering quality needs validation against real TikTok content — this is product work, not just engineering. Budget extra time here.
+**Avoids:** Duplicate webhook processing (Pitfall 2), webhook signature failure (Pitfall 3), trusting checkout success URL for fulfillment (Anti-Pattern 2), duplicate Stripe customers on returning users
 
-### Phase 3: Slide Editor and Export
+**Research flag:** Full subscription lifecycle has many edge cases. Use PITFALLS.md "Looks Done But Isn't" checklist as a completion gate. Must be tested on a deployed Vercel preview (not localhost only) before Phase 3 begins.
 
-**Rationale:** Now that AI-generated slides exist to edit, the editor UI has real content to work with. MP4 export is the primary deliverable of the product and must ship in this phase. Editor and export ship together because they are tightly coupled (the exported video is the preview composition).
+### Phase 3: Imagen AI Image Generation
 
-**Delivers:** Full editing capabilities plus working MP4 export. The product is shippable to beta users.
+**Rationale:** This is the premium feature that justifies the Pro subscription. It depends on the credit ledger (Phase 1) for pre-deduction and the subscription tier (Phase 2) for gating. Imagen uses the already-installed `@google/genai` SDK — no new dependencies beyond what Phase 2 brought in.
 
-**Addresses:**
-- Slide editor UI (add/remove/reorder via dnd-kit, text editing, style controls)
-- Text overlay editing (font, size, color, position)
-- User image uploads (presigned URL to Supabase Storage)
-- MP4 export with async render status UI (progress indicators, download link)
-- Slide-level AI regeneration (targeted Claude call per slide)
-- Undo/redo (Zustand history middleware)
-- Project save/load (CRUD via `/api/projects`)
+**Delivers:** `lib/imagen/generate-image.ts` wrapper; "AI Generate" tab in editor image picker; credit deduction with refund-on-failure flow; generated images stored in Supabase Storage (not as base64 in JSONB); `image_source` field added to Slide type.
 
-**Avoids:** Pitfall 10 (preview/render parity — validate side-by-side before shipping)
+**Uses:** Imagen 4 Fast at $0.02/image; existing `@google/genai` SDK; existing Supabase Storage
 
-**Research flag:** Standard patterns here (dnd-kit, Zustand middleware, presigned uploads). Skip phase research.
+**Avoids:** Calling API without pre-deduction (Anti-Pattern 3), storing images as base64 in JSONB (Anti-Pattern 4), safety filter credit loss (Pitfall 5), Vercel function timeout
 
-### Phase 4: Transitions, Animations, and Template Expansion
+**Research flag:** Two items need pre-build validation. First: confirm whether `imagen-4.0-fast-generate-001` uses the Gemini Developer API key or requires separate Google Cloud service account auth — STACK.md and PITFALLS.md have a minor contradiction here. Second: confirm the Vercel plan's function timeout limit (Hobby = 10s, Pro = 60s); Imagen takes 3-15s and will timeout on Hobby without an async polling pattern.
 
-**Rationale:** Transitions and text animations are table stakes but depend on a working composition and editor. With Phase 3 complete, these are pure Remotion composition enhancements with no new infrastructure. Template expansion multiplies value with relatively low effort.
+### Phase 4: Social Media Caption Generation
 
-**Delivers:** Polished video output with professional transitions and text animations. 8-10 templates total. The product is competitive with BigMotion baseline.
+**Rationale:** Lowest dependency of the four features. Uses only existing Gemini 2.5 Flash with a new prompt schema. Can be built immediately after Phase 1 (or in parallel with Phase 3 if bandwidth allows). Ships as free and unlimited for all tiers — cost is negligible (~$0.001/request) and it increases perceived value without adding billing complexity.
 
-**Addresses:**
-- Transition effects (fade, zoom, slide, wipe — at minimum)
-- Text animations (fade-in, slide-up, typewriter)
-- Additional templates (5+ new styles)
-- Transition and animation controls in editor UI
-- RunPod cold start UX improvements (FlashBoot, "Preparing..." state)
+**Delivers:** `lib/captions/generate-captions.ts` with structured JSON output; `components/captions/caption-panel.tsx` with per-platform copy buttons; TikTok, Instagram, and LinkedIn caption variants generated from actual slide content (hooks, key points, CTA) — not just the topic.
 
-**Avoids:** Pitfall 8 (cold start UX — users need clear progress states, not a frozen spinner)
+**Uses:** Existing `@google/genai` SDK, existing `GEMINI_API_KEY`, existing `CarouselSchema` slide data
 
-**Research flag:** Standard Remotion animation patterns. Skip phase research.
+**Avoids:** Caption generation on page load (generate on demand only), missing platform-specific formatting (hashtags, line breaks, character limits per platform)
 
-### Phase 5: Differentiation and Growth Features
-
-**Rationale:** After core loop is validated with real users, invest in the differentiators that set the product apart from competitors. These require product-market fit signal before building.
-
-**Delivers:** Features that convert casual users to power users and reduce churn — brand kit, style variations, keyboard shortcuts, aspect ratio variants.
-
-**Addresses:**
-- Brand kit (saved colors, fonts, logo)
-- One-click style variations (same content, 3-4 templates simultaneously)
-- Smart TikTok hook generation (curiosity gaps, pattern interrupts, POV hooks)
-- Aspect ratio variants (1:1 Instagram, 16:9 YouTube)
-- Keyboard shortcuts for editor
-- More templates (15-20 total)
-- Claude cost optimization (Haiku for simple tasks, Sonnet for creative content)
-
-**Research flag:** Brand kit and style variation UX patterns are worth a quick phase research pass — these have product design implications beyond engineering.
+**Research flag:** Standard Gemini structured output pattern — identical to existing slide generation. Skip phase research.
 
 ### Phase Ordering Rationale
 
-- Phase 1 must come first because the Remotion composition and store schema are foundational — every other phase depends on them. The render pipeline must be proven before building any UI that depends on it.
-- Phase 2 before Phase 3 because the editor's purpose is refining AI-generated content; without generation working, editor testing is artificial and misses real-world edge cases.
-- Phase 3 before Phase 4 because transitions and animations are composition enhancements that require the editor and export pipeline to already exist.
-- Phase 5 last because it requires user feedback to prioritize correctly. Building brand kits before knowing what users actually want is waste.
-- This order directly mirrors the dependency chain in ARCHITECTURE.md's "Suggested Build Order" section and is reinforced by PITFALLS.md's phase-specific warnings.
+- Phase 1 and Phase 2 are strictly ordered: the `subscriptions` table written by Phase 2's webhooks must exist before Phase 3 can read subscription tier for gating.
+- Phase 3 requires both Phase 1 (credit deduction RPC) and Phase 2 (subscription tier to gate the feature as Pro-only) to be fully complete and tested.
+- Phase 4 can begin after Phase 1 completes (credit system exists to confirm captions are free) and can run concurrently with Phase 3 if bandwidth allows.
+- This ordering mirrors the explicit build order in ARCHITECTURE.md and is reinforced by the dependency graph in FEATURES.md.
 
 ### Research Flags
 
-Phases needing deeper research during planning:
-- **Phase 1:** RunPod + custom Remotion Docker integration — not an officially documented pattern; requires careful reading of Remotion Docker docs and RunPod serverless handler setup. Async job architecture with webhook callbacks needs implementation research.
-- **Phase 2:** Claude prompt engineering for TikTok content — requires studying real TikTok slideshows and iterative prompt refinement. This is a product research activity more than an engineering one.
+Phases needing deeper research or validation before/during planning:
 
-Phases with standard patterns (skip research-phase):
-- **Phase 3:** dnd-kit, Zustand history middleware, Supabase presigned uploads are well-documented. Remotion's own templates demonstrate project persistence patterns.
-- **Phase 4:** Remotion animation and transition APIs are well-documented with examples in official templates.
-- **Phase 5:** Standard CRUD + UI patterns for brand kit and variation features.
+- **Phase 2 (Stripe):** Full lifecycle has known edge cases (failed renewal grace period, credit pack credits surviving monthly reset, plan change mid-cycle). Use the PITFALLS.md "Looks Done But Isn't" checklist as a required completion gate before advancing to Phase 3.
+- **Phase 3 (Imagen — auth model):** Confirm whether Imagen 4 Fast via `ai.models.generateImages()` accepts the existing `GEMINI_API_KEY` or requires a separate Google Cloud service account. This is a blocker for Phase 3 setup.
+- **Phase 3 (Imagen — Vercel timeout):** Confirm deployment plan tier before building. If on Hobby (10s timeout), Phase 3 requires an async pattern (return job ID, poll for completion) instead of synchronous generation — a meaningful architecture difference.
+
+Phases with standard patterns where additional research is not needed:
+
+- **Phase 1 (Database):** Postgres ledger + RLS + RPC patterns are canonical Supabase. Well-documented with official examples.
+- **Phase 4 (Captions):** Gemini structured output is already in use in this codebase for slide generation. Caption generation follows the identical pattern with a different schema.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All major choices verified against official docs. Remotion, Next.js 15.5, Supabase, RunPod all well-documented. Only Prisma vs Drizzle is medium-confidence (either works). |
-| Features | HIGH | Competitor feature analysis from 6+ reference products. TikTok platform dynamics (slideshow restrictions) confirmed from 2025-2026 sources. |
-| Architecture | HIGH | Three-tier pattern and shared Remotion composition approach come directly from Remotion's official architecture docs. RunPod integration is the one medium-confidence piece. |
-| Pitfalls | HIGH | 14 pitfalls documented, most from official Remotion changelog, RunPod docs, and Pexels API docs. Chromium memory leak and Docker misconfiguration are verified from official sources. |
+| Stack | HIGH | Imagen 4 Fast, Stripe packages verified against official docs and npm. All model names and prices confirmed from Google's GA announcement. Zero ambiguity on what to install. One minor uncertainty: auth model for Imagen via Gemini Developer API vs Vertex AI. |
+| Features | MEDIUM-HIGH | Feature list derived from competitor analysis (PostNitro, Canva) and SaaS billing conventions. Pricing model ($12-15/month Pro, 50-100 credits) is a research recommendation; exact numbers require market validation post-launch. |
+| Architecture | HIGH | Patterns sourced from Vercel's official Next.js subscription starter, Supabase's official Stripe webhook guide, and Next.js 15 App Router docs. Data flow diagrams and file structure are concrete and implementation-ready. |
+| Pitfalls | HIGH | Stripe webhook pitfalls (signature, RLS, idempotency) are the most-reported issues in the Next.js + Supabase community with clear, established fixes. Imagen safety filter behavior documented on Google's own developer forums. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **RunPod + Remotion integration specifics:** The exact handler code for a Remotion render server on RunPod is not in official docs. Plan for 2-3 days of integration work in Phase 1. The Remotion render server template on GitHub is the closest reference.
-- **Claude prompt quality validation:** Cannot be assessed until tested against real TikTok content. Allocate dedicated prompt engineering iteration time in Phase 2 before declaring it done.
-- **Pexels image relevance for niche queries:** Abstract topics may return irrelevant images. The mitigation (multiple query variants from Claude) needs to be tested empirically.
-- **Remotion 5.0 license changes:** Remotion 5.0 is forthcoming with unconfirmed license changes. Monitor remotion.pro for updates before any public launch involving more than 3 team members.
-- **RunPod cold start duration at scale:** FlashBoot claims 500ms-2s, but Docker image size heavily influences this. Actual cold start time needs measurement once the container is built.
+- **Imagen auth model:** STACK.md states the existing `GEMINI_API_KEY` works for Imagen; PITFALLS.md mentions potential need for a separate Google Cloud service account. Verify which auth path applies to `imagen-4.0-fast-generate-001` via the Gemini Developer API before starting Phase 3. If Vertex AI auth is required, add Google Cloud project setup to Phase 3.
+- **Vercel plan / function timeout:** Confirm the deployment plan before building Phase 3. Imagen takes 3-15 seconds. Vercel Hobby plan enforces a 10-second function timeout; Vercel Pro raises it to 60 seconds. If on Hobby, an async pattern (return job ID, poll for result) is required and changes the Phase 3 architecture meaningfully.
+- **Credit pricing and tier limits:** The research recommends ~$12-15/month Pro with 50-100 Imagen credits, but the exact numbers need a product decision before building Stripe price IDs and plan config. Changing price IDs post-launch requires migrating existing subscribers.
+- **Free trial Imagen credits:** Research recommends 2-3 trial Imagen generations on signup (not ongoing free Imagen). Whether this goes into Phase 1 credit grant logic or Phase 3 generation gate is a product decision needed before implementation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Remotion official docs](https://www.remotion.dev/docs/) — architecture, Docker, Player, renderMedia, licensing
-- [Remotion SSR comparison](https://www.remotion.dev/docs/compare-ssr) — rendering options rationale
-- [Next.js 15.5 blog](https://nextjs.org/blog/next-15-5) and [Next.js 16 blog](https://nextjs.org/blog/next-16) — version selection
-- [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) — Claude integration
-- [Pexels API docs](https://www.pexels.com/api/documentation/) — rate limits, licensing, portrait orientation
-- [Supabase docs](https://supabase.com/docs) — auth, storage, presigned URLs
-- [RunPod serverless docs](https://docs.runpod.io/serverless/overview) — job architecture, pricing, FlashBoot
-- [shadcn/ui Tailwind v4 support](https://ui.shadcn.com/docs/tailwind-v4) — component library compatibility
-- [Remotion Chromium flags](https://www.remotion.dev/docs/chromium-flags) — GL backend and memory leak history
-- [Claude prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices) — structured output
+- [Google Imagen API docs](https://ai.google.dev/gemini-api/docs/imagen) — model names, API params, aspect ratios, JS code examples
+- [Imagen 4 GA announcement](https://developers.googleblog.com/announcing-imagen-4-fast-and-imagen-4-family-generally-available-in-the-gemini-api/) — pricing, model variants, fast vs standard vs ultra
+- [@google/genai npm v1.46.0](https://www.npmjs.com/package/@google/genai) — SDK version and `generateImages()` method availability
+- [stripe npm v20.4.1](https://www.npmjs.com/package/stripe) — package version
+- [@stripe/stripe-js npm v8.11.0](https://www.npmjs.com/package/@stripe/stripe-js) — package version
+- [Supabase: Handling Stripe Webhooks](https://supabase.com/docs/guides/functions/examples/stripe-webhooks) — webhook + RLS + service role patterns
+- [Vercel Next.js subscription payments starter](https://vercel.com/templates/next.js/subscription-starter) — reference implementation
+- [Stripe: Receive events in your webhook endpoint](https://docs.stripe.com/webhooks) — idempotency and signature verification
 
 ### Secondary (MEDIUM confidence)
-- [BigMotion AI](https://www.bigmotion.ai/tools/slideshow-video-maker), [Lumen5](https://lumen5.com/features/ai-video-generator), [InVideo AI](https://invideo.io/make/ai-video-generator/), [Pictory](https://pictory.ai/all-features) — competitor feature analysis
-- [CrePal Remotion Docker guide](https://crepal.ai/blog/aivideo/blog-how-to-run-remotion-in-docker/) — CPU limits, fonts, permissions in Docker
-- [Remotion render server template](https://deepwiki.com/remotion-dev/template-render-server) — async render patterns
-- [Zustand vs Jotai comparison](https://dev.to/hijazi313/state-management-in-2025-when-to-use-context-redux-zustand-or-jotai-2d2k) — state management rationale
-- [TikTok Updates 2026](https://disruptmarketing.co/blog/tiktok-updates/) — slideshow posting restrictions
+- [Stripe + Next.js 15 complete guide 2025](https://www.pedroalonso.net/blog/stripe-nextjs-complete-guide-2025/) — Server Actions pattern for checkout
+- [Stripe subscription lifecycle in Next.js 2026](https://dev.to/thekarlesi/stripe-subscription-lifecycle-in-nextjs-the-complete-developer-guide-2026-4l9d) — webhook and Customer Portal patterns
+- [Stripe + Next.js 15 + Supabase guide](https://dev.to/flnzba/33-stripe-integration-guide-for-nextjs-15-with-supabase-13b5) — Supabase-specific integration
+- [PostNitro pricing plans](https://postnitro.ai/plans) — competitor pricing reference
+- [AI carousel generator tools 2025](https://www.aicarousels.com/blog/best-ai-carousel-generator) — competitor feature landscape
+- [Stripe webhook idempotency best practices](https://www.stigg.io/blog-posts/best-practices-i-wish-we-knew-when-integrating-stripe-webhooks) — idempotency patterns
 
 ### Tertiary (LOW confidence)
-- [RunPod FlashBoot announcement](https://www.runpod.io/blog/introducing-flashboot-serverless-cold-start) — cold start claims need empirical validation with actual container
+- [AI image pricing comparison 2026](https://intuitionlabs.ai/articles/ai-image-generation-pricing-google-openai) — cross-provider cost analysis (third-party, not Google official)
+- [Imagen 3 safety filter sensitivity](https://discuss.google.dev/t/imagen-3-filter-sensitivity/173697) — Google Developer Forums, anecdotal reports; may differ for Imagen 4
 
 ---
-*Research completed: 2026-03-19*
+*Research completed: 2026-03-24*
 *Ready for roadmap: yes*

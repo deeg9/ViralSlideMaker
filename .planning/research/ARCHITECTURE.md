@@ -1,354 +1,560 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** AI-powered TikTok slideshow video creator
-**Researched:** 2026-03-19
+**Domain:** SaaS monetization and AI image generation for existing carousel creator
+**Researched:** 2026-03-24
+**Confidence:** HIGH
 
-## Recommended Architecture
-
-A three-tier system with strict separation between the editor frontend, the orchestration API, and the render worker. This mirrors how production video creation platforms are structured and maps cleanly to the project's constraints (Next.js frontend, RunPod serverless rendering, Claude API for content generation).
-
-```
-+--------------------------------------------------+
-|                   FRONTEND                        |
-|  Next.js App (App Router)                         |
-|                                                   |
-|  +------------+  +------------+  +-----------+    |
-|  | Slide      |  | Remotion   |  | Image     |    |
-|  | Editor UI  |  | <Player>   |  | Picker    |    |
-|  +------+-----+  +------+-----+  +-----+-----+   |
-|         |               |              |           |
-|         +-------+-------+------+-------+           |
-|                 |              |                    |
-|          [Zustand Store]  [Upload to S3]           |
-+-----------|------------|---------------------------+
-            |            |
-            v            v
-+--------------------------------------------------+
-|              ORCHESTRATION API                    |
-|  Next.js API Routes (or standalone)               |
-|                                                   |
-|  /api/generate    - Claude content generation     |
-|  /api/images      - Pexels search proxy           |
-|  /api/uploads     - Presigned URL generation      |
-|  /api/render      - Trigger render on RunPod      |
-|  /api/render/[id] - Poll render status            |
-|  /api/projects    - CRUD for saved projects       |
-+-----------|--------------------------------------+
-            |
-            v
-+--------------------------------------------------+
-|              RENDER WORKER                        |
-|  RunPod Serverless (Docker container)             |
-|                                                   |
-|  +------------+  +------------+  +-----------+    |
-|  | Remotion   |  | Chromium   |  | FFmpeg    |    |
-|  | bundle()   |  | Headless   |  | Encoder   |    |
-|  +------+-----+  +------+-----+  +-----+-----+   |
-|         |               |              |           |
-|         +---> renderMedia() ---------->+           |
-|                                        |           |
-|                              [Upload MP4 to S3]    |
-+--------------------------------------------------+
-```
-
-### Component Boundaries
-
-| Component | Responsibility | Communicates With | Runtime |
-|-----------|---------------|-------------------|---------|
-| **Slide Editor UI** | Add/remove/reorder slides, edit text, configure styles | Zustand store, Image Picker | Browser |
-| **Remotion Player** | Real-time video preview in browser (no rendering) | Reads from Zustand store | Browser |
-| **Image Picker** | Pexels search + user upload interface | API routes, S3/storage | Browser |
-| **Zustand Store** | Single source of truth for slideshow project state | All frontend components | Browser |
-| **API: /generate** | Calls Claude API, returns structured slide content | Claude API | Server (Node.js) |
-| **API: /images** | Proxies Pexels API (hides API key, adds caching) | Pexels API | Server (Node.js) |
-| **API: /uploads** | Generates presigned upload URLs | S3-compatible storage | Server (Node.js) |
-| **API: /render** | Sends render job to RunPod, returns job ID | RunPod API | Server (Node.js) |
-| **API: /projects** | CRUD operations for saved slideshow projects | Database | Server (Node.js) |
-| **Render Worker** | Receives project data, runs Remotion renderMedia(), uploads MP4 | S3 storage | RunPod container |
-
-### Data Flow
-
-**1. Content Generation Flow (User prompt to slides)**
+## System Overview
 
 ```
-User types prompt
-  -> POST /api/generate { prompt, slideCount, style }
-  -> Claude API (structured output: array of slide objects)
-  -> Response: { slides: [{ hookText, bodyText, imageQuery, ctaText }] }
-  -> Zustand store updated with generated slides
-  -> Remotion Player re-renders preview automatically
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Client (Next.js App Router)                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐              │
+│  │ Slide Editor  │  │ Subscription │  │ Caption Panel │              │
+│  │ (existing)    │  │ Page (modify)│  │ (NEW)         │              │
+│  └──────┬───────┘  └──────┬───────┘  └───────┬───────┘              │
+├─────────┴──────────────────┴──────────────────┴─────────────────────┤
+│                   Server Actions + Route Handlers                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ generateCar- │  │ Stripe       │  │ Stripe       │               │
+│  │ ousel (mod)  │  │ Actions(NEW) │  │ Webhook(NEW) │               │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
+├─────────┴──────────────────┴──────────────────┴─────────────────────┤
+│                        Service Layer (lib/)                          │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐       │
+│  │ credits   │ │ imagen    │ │ stripe    │ │ captions      │       │
+│  │ (modify)  │ │ (NEW)     │ │ (NEW)     │ │ (NEW)         │       │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └───────┬───────┘       │
+├────────┴──────────────┴─────────────┴───────────────┴───────────────┤
+│                            Data Layer                                │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │ Supabase     │  │ Stripe API   │  │ Google GenAI │               │
+│  │ (PostgreSQL  │  │ (payments)   │  │ (Imagen +    │               │
+│  │  + Storage)  │  │              │  │  Gemini)     │               │
+│  └──────────────┘  └──────────────┘  └──────────────┘               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**2. Image Resolution Flow (Each slide gets an image)**
+### Component Responsibilities
 
-```
-For each slide.imageQuery:
-  -> GET /api/images?q={query}&orientation=portrait
-  -> Pexels API search (cached server-side, 200 req/hr limit)
-  -> Response: { photos: [{ id, src: { portrait, large } }] }
-  -> User selects image OR uploads custom image
-  -> If upload: POST /api/uploads -> presigned URL -> PUT to S3
-  -> Zustand store updated with image URL per slide
-```
+| Component | Responsibility | New vs Modified |
+|-----------|----------------|-----------------|
+| `lib/imagen/` | Generate AI background images via Imagen 4 | **NEW** |
+| `lib/stripe/` | Stripe client init, checkout session creation, portal URL | **NEW** |
+| `lib/credits/` | Credit balance tracking with DB-backed ledger, deduction, purchase credits | **MODIFY** (currently naive project-count approach) |
+| `lib/captions/` | Generate social media captions via Gemini 2.5 Flash | **NEW** |
+| `app/api/webhooks/stripe/route.ts` | Receive Stripe webhook events, sync subscription state | **NEW** |
+| `app/(dashboard)/settings/subscription/` | Wire up real Stripe Checkout + Customer Portal | **MODIFY** |
+| Editor image picker panel | Add "AI Generate" tab alongside Pexels search | **MODIFY** |
+| Caption panel component | UI for generating/copying captions post-carousel | **NEW** |
 
-**3. Video Render Flow (Project data to MP4)**
+## Recommended New Project Structure
 
-```
-User clicks "Export"
-  -> POST /api/render { projectData: entireZustandState }
-  -> API serializes project data as Remotion inputProps
-  -> API calls RunPod serverless endpoint
-  -> RunPod spins up container with pre-built Remotion bundle
-  -> Worker: selectComposition() with inputProps
-  -> Worker: renderMedia() (Chromium renders frames, FFmpeg encodes)
-  -> Worker: uploads MP4 to S3
-  -> Worker: returns S3 URL to RunPod
-  -> Frontend polls GET /api/render/{jobId} for status
-  -> On complete: user gets download link
-```
+Only showing NEW files and modified areas:
 
-**4. Project Persistence Flow**
-
-```
-Auto-save or manual save:
-  -> POST /api/projects { name, slides, settings }
-  -> Stored in database (project JSON + metadata)
-  -> On load: GET /api/projects/{id} -> hydrate Zustand store
-```
-
-## Patterns to Follow
-
-### Pattern 1: Shared Remotion Composition (Code Sharing)
-
-The same React component powers both the in-browser Player preview and the server-side render. This is Remotion's recommended architecture.
-
-**What:** Write your slideshow composition once in a `remotion/` directory. Import it into the Player on the frontend. Bundle it into the Docker image for the render worker.
-
-**Why:** Guarantees visual parity between preview and export. Single source of truth for layout, animations, and transitions.
-
-**Structure:**
 ```
 src/
-  remotion/
-    Root.tsx              # Registers all compositions
-    TikTokSlideshow.tsx   # Main composition component
-    Slide.tsx             # Individual slide component
-    transitions/          # Transition effects
-  app/                    # Next.js app directory
-    page.tsx              # Editor page
-    api/                  # API routes
-  components/
-    Editor/               # Slide editor UI components
-    Player/               # Remotion Player wrapper
+├── app/
+│   ├── api/
+│   │   ├── render/route.ts              # existing
+│   │   └── webhooks/
+│   │       └── stripe/route.ts          # NEW -- Stripe webhook handler
+│   ├── (dashboard)/
+│   │   ├── settings/
+│   │   │   └── subscription/
+│   │   │       ├── page.tsx             # MODIFY -- wire to real Stripe
+│   │   │       └── actions.ts           # NEW -- createCheckoutSession, createPortalSession
+│   │   └── project/[id]/
+│   │       ├── actions.ts               # MODIFY -- add imagen + credit deduction
+│   │       └── caption-actions.ts       # NEW -- generate captions
+├── components/
+│   ├── editor/
+│   │   └── image-picker-panel.tsx       # MODIFY -- add AI image tab
+│   ├── captions/
+│   │   └── caption-panel.tsx            # NEW -- caption generation UI
+│   └── subscription/
+│       └── credit-display.tsx           # NEW -- credit balance badge
+├── lib/
+│   ├── imagen/
+│   │   └── generate-image.ts            # NEW -- Imagen API wrapper
+│   ├── stripe/
+│   │   ├── client.ts                    # NEW -- Stripe SDK init (server-side)
+│   │   ├── config.ts                    # NEW -- price IDs, plan config
+│   │   └── sync-subscription.ts         # NEW -- webhook event handlers
+│   ├── captions/
+│   │   └── generate-captions.ts         # NEW -- Gemini caption generation
+│   └── credits/
+│       └── check-credits.ts             # MODIFY -- DB-backed ledger
 ```
 
-**Confidence:** HIGH -- This is directly from Remotion's official code-sharing documentation.
+### Structure Rationale
 
-### Pattern 2: Serializable Project State (InputProps)
+- **`lib/stripe/`:** Isolates all Stripe logic. `client.ts` exports the Stripe instance. `config.ts` maps price IDs to tier names. `sync-subscription.ts` handles webhook event processing. This separation keeps the webhook route handler thin.
+- **`lib/imagen/`:** Single-file wrapper because the Imagen API call is straightforward. Uses the same `@google/genai` SDK already installed for Gemini text generation. No new dependency needed.
+- **`lib/captions/`:** Separate from `lib/ai/` because caption generation has different prompts, schemas, and is invoked from a different UI flow than slide generation.
+- **`app/api/webhooks/stripe/`:** Must be a Route Handler (not a server action) because Stripe sends POST requests to a static URL. This is the only new API route needed.
 
-**What:** The entire slideshow project must be serializable as JSON. This JSON becomes the `inputProps` passed to the Remotion composition. The Zustand store shape IS the Remotion inputProps shape.
+## Architectural Patterns
 
-**Why:** The render worker has no access to browser state. Everything it needs must arrive as a JSON payload. If the store shape matches inputProps, no transformation layer is needed.
+### Pattern 1: Credit Ledger (Replace Naive Count)
 
-**Example shape:**
+**What:** Replace the current "count projects this month" credit system with a proper credits table that tracks balance, deductions, and top-ups as individual rows.
+
+**When to use:** Now. The current `check-credits.ts` counts projects with `generation_status != 'draft'` as credit usage. This breaks when you add Imagen (separate cost) and credit pack purchases (top-ups that the current system cannot track).
+
+**Trade-offs:** More database writes per action, but accurate and auditable. Necessary for a billing system.
+
+**Current problem:**
 ```typescript
-interface Project {
-  id: string;
-  name: string;
-  settings: {
-    fps: 30;
-    width: 1080;
-    height: 1920;
-    durationPerSlide: number; // seconds
-    transition: 'fade' | 'slide' | 'zoom';
-  };
-  slides: Array<{
-    id: string;
-    order: number;
-    hookText?: string;
-    bodyText?: string;
-    ctaText?: string;
-    imageUrl: string; // Must be an absolute URL accessible by the worker
-    textStyle: {
-      fontFamily: string;
-      fontSize: number;
-      color: string;
-      position: 'top' | 'center' | 'bottom';
-    };
-  }>;
+// Current approach in check-credits.ts -- cannot handle:
+// 1. Multiple credit types (carousel gen vs imagen gen)
+// 2. Purchased credit packs (top-ups)
+// 3. Different costs per action
+const { count } = await supabase
+  .from('projects')
+  .select('*', { count: 'exact', head: true })
+  .neq('generation_status', 'draft')
+  .gte('created_at', monthStart)
+```
+
+**Replacement approach:**
+```typescript
+// New: dedicated credit_transactions table with ledger entries
+// Rows: "subscription_grant" +30, "carousel_generation" -1,
+//        "imagen_generation" -1, "credit_pack" +10
+
+export async function deductCredit(
+  userId: string,
+  type: CreditActionType,
+  referenceId?: string
+): Promise<boolean> {
+  const supabase = await createServiceClient() // service role for atomicity
+  const balance = await getCreditBalance(userId)
+  if (balance <= 0) return false
+
+  await supabase.from('credit_transactions').insert({
+    user_id: userId,
+    type,
+    amount: -1,
+    description: `${type} usage`,
+    reference_id: referenceId,
+  })
+  return true
+}
+
+export async function getCreditBalance(userId: string): Promise<number> {
+  const supabase = await createClient()
+  const { data } = await supabase.rpc('get_credit_balance', { p_user_id: userId })
+  return data ?? 0
 }
 ```
 
-**Confidence:** HIGH -- This follows Remotion's inputProps pattern and is the standard approach in all Remotion templates.
+### Pattern 2: Stripe Webhook as Single Source of Truth
 
-### Pattern 3: API Proxy for Third-Party Services
+**What:** All subscription state changes flow through Stripe webhooks. The app never writes subscription status based on client-side Checkout success -- only the webhook handler updates the DB.
 
-**What:** Never call Claude or Pexels directly from the browser. Route through Next.js API routes that hold API keys as server-side environment variables.
+**When to use:** Always for Stripe subscriptions. The Checkout success redirect is unreliable (user can close browser). Webhooks are guaranteed delivery.
 
-**Why:** API keys must stay server-side. The proxy also enables caching (especially for Pexels, which has a 200 req/hr rate limit), request validation, and response transformation.
+**Trade-offs:** Slight delay (seconds) between payment and access. Acceptable for this use case.
 
-**Confidence:** HIGH -- Standard web security practice.
-
-### Pattern 4: Async Render with Polling
-
-**What:** POST /api/render returns a job ID immediately. The frontend polls GET /api/render/{jobId} for progress. The RunPod worker reports progress via callback or the RunPod status API.
-
-**Why:** Video rendering takes 30 seconds to several minutes. Synchronous HTTP would time out. RunPod serverless natively supports this pattern with job status endpoints.
-
-**Confidence:** HIGH -- This is exactly how the Remotion render server template works and how RunPod serverless is designed.
-
-### Pattern 5: Zustand for Editor State
-
-**What:** Use Zustand (not Redux, not Context) for the slide editor state.
-
-**Why:** Zustand is lightweight, works well with React, supports middleware (persist for auto-save, immer for immutable updates), and avoids the boilerplate of Redux or the re-render issues of Context. The video editor community has converged on Zustand for this type of application.
-
-**Confidence:** MEDIUM -- Based on community patterns from multiple Next.js video editor projects. Zustand is the most common choice but Jotai or Redux Toolkit would also work.
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Client-Side Rendering of Export Video
-
-**What:** Attempting to render the final MP4 in the user's browser using WebCodecs or @remotion/web-renderer.
-
-**Why bad:** Browser rendering is limited to a subset of HTML elements, unreliable across devices, slow, and cannot use FFmpeg. The quality and consistency gap compared to server-side rendering is significant.
-
-**Instead:** Always render exports server-side on RunPod. The browser Player is for preview only.
-
-### Anti-Pattern 2: Coupling Editor UI to Remotion Internals
-
-**What:** Having editor controls directly manipulate Remotion frames, timelines, or internal APIs.
-
-**Why bad:** Creates tight coupling. The editor should manage project data (which slides, what text, which images). The Remotion composition reads that data and handles all visual rendering. Mixing concerns makes both harder to maintain.
-
-**Instead:** Editor writes to Zustand store. Remotion Player reads from Zustand store. They never call each other directly.
-
-### Anti-Pattern 3: Storing Images as Base64 in Project State
-
-**What:** Embedding user-uploaded images as base64 strings in the project JSON.
-
-**Why bad:** Bloats project data massively. A single image can be 2-5MB as base64. The project JSON gets sent to the render worker -- you do not want multi-megabyte payloads. Also breaks Remotion's image loading (it expects URLs).
-
-**Instead:** Upload images to S3-compatible storage, store only the URL in project state. The render worker fetches images by URL during rendering.
-
-### Anti-Pattern 4: Running Multiple Concurrent Renders Per Worker
-
-**What:** Allowing a single RunPod worker container to handle multiple renderMedia() calls simultaneously.
-
-**Why bad:** Each render spawns a Chromium headless instance. Multiple instances compete for CPU and memory, causing OOM crashes or corrupted output. The official Remotion render server template explicitly serializes renders for this reason.
-
-**Instead:** One render per worker instance. Use RunPod's auto-scaling to handle concurrency -- it spins up additional containers as needed.
-
-## Key Architecture Decisions
-
-### Why RunPod Over Lambda or Cloud Run
-
-| Factor | Lambda | Cloud Run | RunPod Serverless |
-|--------|--------|-----------|-------------------|
-| Max execution time | 15 min | 60 min | Configurable (long) |
-| Cold start | Fast (distributed) | Moderate | Moderate |
-| GPU access | No | Limited | Yes (if needed later) |
-| Cost at low volume | Pay per invoke | Pay per invoke | Pay per second |
-| Remotion support | Official (@remotion/lambda) | Alpha | Custom Docker |
-| Vendor lock-in | AWS ecosystem | GCP ecosystem | Minimal (Docker) |
-| Scale to zero | Yes | Yes | Yes |
-
-**Recommendation:** Start with RunPod serverless because the project specifies it and it provides the most flexibility. The Docker container approach means you can migrate to any container platform later (Cloud Run, Fly.io, Railway) without code changes.
-
-**Important tradeoff:** Lambda has official Remotion support with distributed rendering (faster for long videos). RunPod requires a custom Docker setup using the Node.js renderMedia() API. For TikTok slideshows (typically 15-60 seconds, 5-10 slides), single-machine rendering is fast enough -- distributed rendering is overkill.
-
-**Confidence:** MEDIUM -- RunPod + Remotion is not a documented pattern. Lambda is officially supported. But RunPod's flexibility and the project's constraints make it the right call.
-
-### Why S3-Compatible Storage is Required
-
-Both user uploads and rendered videos need a persistent storage layer accessible by both the frontend and the render worker. Options:
-
-- **AWS S3** -- Standard, works with presigned URLs
-- **Cloudflare R2** -- S3-compatible, no egress fees, cheaper
-- **Supabase Storage** -- S3-compatible, integrates with Supabase auth if used
-
-**Recommendation:** Cloudflare R2 for cost efficiency, or Supabase Storage if using Supabase for auth/database.
-
-### Database for Project Persistence
-
-Projects are JSON documents with metadata. Options:
-
-- **Supabase (Postgres + auth)** -- Full-featured, includes auth, storage, and database in one platform
-- **PlanetScale/Neon (Postgres)** -- If auth is handled separately
-
-**Recommendation:** Supabase. It covers auth, database, and storage in a single platform, reducing integration complexity for v1.
-
-## Suggested Build Order (Dependencies)
-
-The architecture has clear dependency chains that dictate build order:
-
-```
-Phase 1: Foundation
-  Remotion composition (TikTokSlideshow.tsx, Slide.tsx)
-  Zustand store (project state shape)
-  Remotion Player integration (preview in browser)
-  -> These three form the core loop: edit state -> see preview
-
-Phase 2: Content Generation
-  Claude API route (/api/generate)
-  Pexels API route (/api/images)
-  Image picker UI
-  -> Depends on: Zustand store shape from Phase 1
-
-Phase 3: Persistence & Auth
-  Supabase setup (auth + database + storage)
-  Project CRUD API routes
-  Image upload flow (presigned URLs -> S3/R2)
-  -> Depends on: Store shape from Phase 1
-
-Phase 4: Video Export
-  RunPod Docker container (Remotion + Chromium + FFmpeg)
-  Render API route (/api/render)
-  Render status polling UI
-  -> Depends on: Remotion composition from Phase 1, Storage from Phase 3
-
-Phase 5: Polish
-  Transitions, animations, templates
-  Gallery/style system
-  Error handling, loading states, edge cases
+**Key events to handle:**
+```typescript
+// app/api/webhooks/stripe/route.ts
+switch (event.type) {
+  case 'checkout.session.completed':
+    // Link Stripe customer ID to Supabase user, grant initial credits
+    break
+  case 'customer.subscription.updated':
+    // Tier change -- update subscriptions table
+    break
+  case 'customer.subscription.deleted':
+    // Downgrade to free -- update subscriptions table
+    break
+  case 'invoice.payment_succeeded':
+    // Monthly renewal -- grant new month's credits
+    break
+}
+// For one-time credit pack purchases:
+// checkout.session.completed with mode === 'payment'
+// -> Add purchased credits to balance
 ```
 
-**Why this order:**
-- Phase 1 must come first because the Remotion composition and store shape are the foundation everything else depends on.
-- Phase 2 is next because without AI content generation, testing the editor means manually creating slides.
-- Phase 3 before Phase 4 because the render worker needs S3 storage to upload results, and you need storage for user image uploads.
-- Phase 4 is the most complex infrastructure piece but also the most independently testable once the composition exists.
+### Pattern 3: Server Action for Checkout, Route Handler for Webhook
 
-## Scalability Considerations
+**What:** Use Next.js server actions to create Stripe Checkout Sessions (user-initiated), but use a Route Handler for the webhook endpoint (Stripe-initiated).
 
-| Concern | At 10 users | At 1K users | At 100K users |
-|---------|-------------|-------------|---------------|
-| Rendering | Single RunPod worker, sequential | RunPod auto-scale 3-5 workers | RunPod auto-scale, consider Lambda for distributed rendering |
-| Storage | Supabase free tier | R2/S3 with CDN | CDN + lifecycle policies to delete old renders |
-| Claude API | Per-request, low volume | Rate limit awareness, retry logic | Queue + rate limiting, consider caching common prompts |
-| Pexels API | 200 req/hr sufficient | Server-side cache critical | Dedicated cache layer, consider premium API tier |
-| Database | Supabase free tier | Supabase Pro | Connection pooling, read replicas |
+**When to use:** This is the standard 2025/2026 pattern for Stripe + Next.js App Router.
 
-## Future: Expo/React Native iOS App
+**Trade-offs:** Two different patterns for Stripe communication. This is intentional -- server actions are for user-initiated flows, route handlers are for external service callbacks.
 
-The architecture supports code sharing with a future iOS app:
+```typescript
+// Server Action -- user clicks "Subscribe"
+'use server'
+export async function createCheckoutSession(priceId: string) {
+  const stripe = getStripeClient()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-- **Remotion compositions** are pure React components -- they can be previewed in React Native using @remotion/player (if RN support is added) or by rendering a WebView that loads the Player.
-- **Zustand store** works identically in React Native.
-- **API routes** are consumed via HTTP -- the mobile app calls the same endpoints.
-- **The render worker** is completely decoupled -- no changes needed for mobile.
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?success=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?canceled=true`,
+    metadata: { supabase_user_id: user!.id },
+  })
+  redirect(session.url!)
+}
 
-The main challenge will be the editor UI itself, which will need to be rebuilt in React Native components. But the data layer (store shape, API contracts, Remotion compositions) carries over directly.
+// Route Handler -- Stripe calls this
+// app/api/webhooks/stripe/route.ts
+export async function POST(request: Request) {
+  const body = await request.text()
+  const sig = request.headers.get('stripe-signature')!
+  const event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
+  await handleStripeEvent(event) // delegates to lib/stripe/sync-subscription.ts
+  return NextResponse.json({ received: true })
+}
+```
+
+## Data Flow
+
+### Flow 1: AI Image Generation (Imagen)
+
+```
+User clicks "Generate AI Image" in editor image picker
+    |
+    v
+Server Action: generateAIImage(projectId, slideIndex, prompt)
+    |
+    +-- 1. Check credit balance (credit_transactions table via RPC)
+    |       If insufficient -> return error with upgrade prompt
+    |
+    +-- 2. Deduct credit BEFORE calling API (optimistic deduction)
+    |       Insert credit_transaction: { type: 'imagen_generation', amount: -1 }
+    |
+    +-- 3. Call Imagen API via @google/genai
+    |       ai.models.generateImages({
+    |         model: 'imagen-4.0-fast-generate-001',
+    |         prompt: prompt,
+    |         config: { numberOfImages: 1, aspectRatio: '9:16' }
+    |       })
+    |
+    +-- 4. Upload image buffer to Supabase Storage
+    |       bucket: 'slide-images', path: '{userId}/{projectId}/{slideIndex}.png'
+    |
+    +-- 5. Update slide_data JSONB with public URL
+    |       slide.background_url = publicUrl
+    |       slide.image_source = 'imagen'
+    |
+    +-- 6. If step 3 fails -> refund credit (insert +1 transaction)
+    |
+    +-- 7. Return public URL to client
+```
+
+**Key detail:** Imagen natively supports `9:16` aspect ratio, which matches the 1080x1920 carousel slide dimensions exactly. Use `imagen-4.0-fast-generate-001` at $0.02/image for cost efficiency -- the quality difference vs standard is minimal for slide backgrounds.
+
+### Flow 2: Stripe Subscription Lifecycle
+
+```
+User clicks "Upgrade to Pro" on subscription page
+    |
+    v
+Server Action: createCheckoutSession(priceId)
+    |
+    +-- 1. Get Supabase user
+    +-- 2. Find or create Stripe customer (store stripe_customer_id)
+    +-- 3. Create Stripe Checkout Session (mode: 'subscription')
+    +-- 4. Redirect to Stripe-hosted Checkout page
+            |
+            v
+        Stripe processes payment
+            |
+            v
+        Stripe POSTs to /api/webhooks/stripe
+            |
+            v
+        Route Handler:
+            +-- 1. Verify webhook signature
+            +-- 2. Extract subscription details from event
+            +-- 3. Upsert row in subscriptions table (tier, status, period)
+            +-- 4. Grant monthly credits (insert credit_transaction: +N)
+            +-- 5. Return 200 OK
+
+User returns to success URL:
+    +-- Page checks subscriptions table for updated tier
+    +-- Shows "Subscription active" (or "Processing..." if webhook hasn't fired yet)
+```
+
+### Flow 3: Caption Generation
+
+```
+User clicks "Generate Captions" (after carousel is complete)
+    |
+    v
+Server Action: generateCaptions(projectId)
+    |
+    +-- 1. Fetch project slide_data + topic from DB
+    +-- 2. Build prompt: "Generate social media captions for a carousel about {topic}
+    |      with these slides: {slide summaries}"
+    +-- 3. Call Gemini 2.5 Flash via @google/genai (text generation, structured output)
+    |       Schema: { tiktok: string, instagram: string, twitter: string }
+    +-- 4. Return captions to client (ephemeral, no DB storage needed)
+    +-- 5. UI shows copy-to-clipboard for each platform
+```
+
+**Key detail:** Caption generation uses Gemini 2.5 Flash text-only. It is very cheap (fractions of a cent). It should NOT consume image/carousel credits. Either make it free for all tiers or give it a separate generous limit. This is a low-friction feature that increases perceived value.
+
+### Flow 4: Monthly Credit Renewal
+
+```
+Stripe sends webhook: invoice.payment_succeeded (recurring billing)
+    |
+    v
+Route Handler: /api/webhooks/stripe
+    |
+    +-- 1. Look up stripe_subscription_id -> find subscription row -> determine tier
+    +-- 2. Insert credit_transaction: { type: 'subscription_grant', amount: +tierLimit }
+    +-- 3. Return 200 OK
+```
+
+Credits do NOT roll over. The monthly grant is a flat amount regardless of remaining balance. This simplifies the system and incentivizes usage.
+
+## New Database Schema
+
+### subscriptions table
+
+```sql
+CREATE TABLE public.subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  stripe_customer_id TEXT NOT NULL,
+  stripe_subscription_id TEXT UNIQUE,
+  tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'plus', 'pro')),
+  status TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'canceled', 'past_due', 'trialing', 'incomplete')),
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  cancel_at_period_end BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id)
+);
+
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own subscription
+CREATE POLICY "Users can view their own subscription"
+  ON public.subscriptions FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Only the service role (webhook handler) writes to this table
+-- No INSERT/UPDATE/DELETE policies for anon/authenticated roles
+
+CREATE TRIGGER subscriptions_updated_at
+  BEFORE UPDATE ON public.subscriptions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at(); -- reuse existing trigger function
+```
+
+### credit_transactions table
+
+```sql
+CREATE TABLE public.credit_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN (
+    'subscription_grant',
+    'carousel_generation',
+    'imagen_generation',
+    'credit_pack_purchase',
+    'refund',
+    'admin_adjustment'
+  )),
+  amount INTEGER NOT NULL, -- positive for grants, negative for usage
+  description TEXT,
+  reference_id TEXT, -- optional: project_id, stripe_session_id, etc.
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX credit_transactions_user_id_idx
+  ON public.credit_transactions(user_id);
+
+CREATE INDEX credit_transactions_user_created_idx
+  ON public.credit_transactions(user_id, created_at DESC);
+
+ALTER TABLE public.credit_transactions ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own credit history
+CREATE POLICY "Users can view their own credits"
+  ON public.credit_transactions FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Only service role writes (from server actions and webhooks)
+
+-- Balance calculation via database function
+CREATE OR REPLACE FUNCTION public.get_credit_balance(p_user_id UUID)
+RETURNS INTEGER AS $$
+  SELECT COALESCE(SUM(amount), 0)::INTEGER
+  FROM public.credit_transactions
+  WHERE user_id = p_user_id;
+$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+```
+
+### Supabase Storage bucket
+
+```
+Bucket: slide-images (NEW)
+  - Public read access (images served via Supabase CDN)
+  - Write restricted to authenticated users, scoped to own user_id path
+  - Path pattern: {user_id}/{project_id}/{slide_index}.png
+  - Max file size: 5MB (Imagen outputs are typically 1-2MB PNGs)
+```
+
+### Slide type modification
+
+```typescript
+// Add to src/lib/types/slide.ts
+export interface Slide {
+  hook_text: string
+  body_text: string
+  image_query: string
+  is_cta: boolean
+  background_url: string | null
+  pexels_photo_id: number | null
+  image_source?: 'pexels' | 'imagen' | 'upload' // NEW field
+  style_overrides?: SlideStyleOverrides
+}
+```
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Key Config | Cost |
+|---------|---------------------|------------|------|
+| Google Imagen 4 Fast | `@google/genai` SDK, `ai.models.generateImages()` | `GEMINI_API_KEY` (same key works) | $0.02/image |
+| Stripe Subscriptions | `stripe` npm package (NEW), server-side only | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | 2.9% + $0.30/txn |
+| Stripe Credit Packs | Same package, `mode: 'payment'` (one-time) | Same keys | Same fee |
+| Stripe Customer Portal | `stripe.billingPortal.sessions.create()` | Same keys | Free |
+| Gemini 2.5 Flash (captions) | `@google/genai` SDK (existing), `ai.models.generateContent()` | `GEMINI_API_KEY` (same key) | ~$0.001/request |
+| Supabase Storage | `@supabase/supabase-js` (existing) | Existing Supabase keys | 1GB free, then $0.021/GB |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Editor --> Imagen | Server action `generateAIImage()` | Returns Supabase Storage public URL, updates slide_data |
+| Subscription page --> Stripe | Server action `createCheckoutSession()` | Redirects to Stripe-hosted page |
+| Stripe --> App | POST to `/api/webhooks/stripe` | Must verify signature; uses service role Supabase client |
+| Webhook --> Credits | Direct function call in same process | `grantMonthlyCredits()` called from webhook handler |
+| Webhook --> Subscriptions | Direct function call in same process | `upsertSubscription()` called from webhook handler |
+| Caption panel --> Gemini | Server action `generateCaptions()` | Stateless, returns text, no DB write |
+| Credit display --> DB | Server component data fetch or server action | Calls `get_credit_balance` RPC |
+| Settings page --> Subscription DB | Server component data fetch | Reads `subscriptions` table on page load |
+
+### Existing Code That Must Change
+
+| File | Change | Reason |
+|------|--------|--------|
+| `src/lib/credits/check-credits.ts` | Full rewrite: use `credit_transactions` table + RPC instead of counting projects | Current approach cannot handle credit packs, imagen deductions, or multiple credit types |
+| `src/app/(dashboard)/project/[id]/actions.ts` | Add credit deduction call after successful generation; add Imagen image option | Currently checks credits but never deducts from a ledger |
+| `src/app/(dashboard)/settings/subscription/page.tsx` | Wire "Upgrade" buttons to `createCheckoutSession()`, "Manage" to Customer Portal session | Currently shows `window.alert('coming soon')` placeholder |
+| `src/components/editor/image-picker-panel.tsx` | Add "AI Generate" tab with prompt input alongside existing Pexels tab | Currently only offers Pexels stock photo search |
+| `src/lib/types/slide.ts` | Add `image_source` field to Slide interface | Need to track where each slide image came from |
+| `src/middleware.ts` | No change needed | Webhook route at `/api/webhooks/stripe` is already excluded by the existing matcher pattern |
+
+## Environment Variables (New)
+
+```bash
+# Stripe (all new)
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+
+# Stripe Price IDs (configured in Stripe Dashboard)
+STRIPE_PRICE_PLUS_MONTHLY=price_...
+STRIPE_PRICE_PLUS_YEARLY=price_...
+STRIPE_PRICE_PRO_MONTHLY=price_...
+STRIPE_PRICE_PRO_YEARLY=price_...
+STRIPE_PRICE_CREDIT_PACK_10=price_...
+
+# Supabase Service Role (for webhook handler -- NOT exposed to client)
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Existing -- no changes needed:
+# GEMINI_API_KEY -- works for both Gemini text and Imagen image generation
+# NEXT_PUBLIC_SUPABASE_URL
+# NEXT_PUBLIC_SUPABASE_ANON_KEY
+# PEXELS_API_KEY
+```
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-1k users | Current monolith is fine. Single Supabase instance. Credit balance RPC is fast with index on user_id. |
+| 1k-10k users | Add materialized `balance` column to subscriptions table (updated by trigger on credit_transactions INSERT) to avoid SUM on every check. |
+| 10k+ users | Move Imagen calls behind a queue to handle rate limits. Add CDN in front of Supabase Storage. Consider read replicas for Supabase. |
+
+### Scaling Priorities
+
+1. **First bottleneck:** Imagen API rate limits. Google imposes per-minute quotas. Mitigate with optimistic deduction (credit deducted before API call) and retry with exponential backoff.
+2. **Second bottleneck:** Credit balance calculation. The SUM aggregation on credit_transactions will slow as rows grow. Fix with a materialized balance column updated via PostgreSQL trigger.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Storing Subscription Tier in User Metadata
+
+**What people do:** Store `subscription_tier` in `auth.users.user_metadata` (which is what the CURRENT code does in `getUserTier()`).
+**Why it's wrong:** User metadata is client-writable and can be spoofed via `supabase.auth.updateUser()`. It has no audit trail and cannot be updated atomically from a webhook (webhooks have no user session). The current implementation at `src/lib/credits/check-credits.ts:19-23` reads from `user?.user_metadata?.subscription_tier`.
+**Do this instead:** Create a `subscriptions` table written ONLY by the webhook handler using the Supabase service role client. Read tier from this table in all credit checks.
+
+### Anti-Pattern 2: Trusting Checkout Success URL for Fulfillment
+
+**What people do:** Grant access when the user lands on `?success=true` after Stripe Checkout.
+**Why it's wrong:** Users can navigate directly to the success URL. Browser might close before redirect. Checkout success is not a guarantee of payment.
+**Do this instead:** Only grant access via webhook. The success page shows "Processing your subscription..." and checks the subscriptions table. If the webhook has not fired yet, show a brief loading state.
+
+### Anti-Pattern 3: Calling Imagen Without Pre-deduction
+
+**What people do:** Call the Imagen API first, then deduct credit on success.
+**Why it's wrong:** If a user spam-clicks "generate," multiple API calls fire before any credit is deducted. This can exhaust your API quota and give away free generations.
+**Do this instead:** Deduct the credit BEFORE calling Imagen. If Imagen fails, insert a refund credit transaction. This naturally rate-limits per user via their credit balance.
+
+### Anti-Pattern 4: Storing AI Images as Base64 in JSONB
+
+**What people do:** Store the Imagen-generated image bytes directly in the `slide_data` JSONB column.
+**Why it's wrong:** JSONB is not designed for large binary blobs. A single image is 1-2MB as base64. It bloats the projects table, slows all queries that touch that row, and makes backups enormous.
+**Do this instead:** Upload to Supabase Storage, store the public URL in `slide_data[].background_url` -- the same field already used for Pexels image URLs. This is a drop-in replacement.
+
+## Suggested Build Order
+
+Based on dependency analysis of the four new features:
+
+1. **Database tables + credit ledger rewrite** -- Everything depends on proper credit tracking and subscription state. Create `subscriptions` and `credit_transactions` tables. Rewrite `check-credits.ts` to use the ledger. Create the `get_credit_balance` RPC. This unblocks all other features.
+
+2. **Stripe integration (webhooks + checkout + portal)** -- Subscriptions must work before gating premium features. Create webhook handler, checkout session server actions, customer portal redirect. Wire up the existing subscription settings page. Depends on: subscriptions table from step 1.
+
+3. **Imagen integration** -- Depends on credits (to deduct) and subscriptions (to gate as premium-only). Add the image generation wrapper using existing `@google/genai` SDK. Set up Supabase Storage bucket. Add "AI Generate" tab to the editor image picker. Depends on: credit system from step 1, subscription gating from step 2.
+
+4. **Caption generation** -- Lowest dependency, simplest feature. Uses existing Gemini SDK and patterns. No new tables, no billing impact. Add server action + UI panel. Can be built in parallel with step 3 once step 1 is complete.
+
+```
+[Step 1: DB + Credits] -----> [Step 2: Stripe] -----> [Step 3: Imagen]
+                          \                               /
+                           +----> [Step 4: Captions] ----+
+```
 
 ## Sources
 
-- [Remotion Code Sharing (Player + SSR)](https://www.remotion.dev/docs/player/integration) -- HIGH confidence
-- [Remotion SSR with Node.js](https://www.remotion.dev/docs/ssr-node) -- HIGH confidence
-- [Remotion SSR Comparison](https://www.remotion.dev/docs/compare-ssr) -- HIGH confidence
-- [Remotion Player docs](https://www.remotion.dev/docs/player/player) -- HIGH confidence
-- [Remotion Render Server Template](https://deepwiki.com/remotion-dev/template-render-server) -- HIGH confidence
-- [Remotion renderMedia() API](https://www.remotion.dev/docs/renderer/render-media) -- HIGH confidence
-- [RunPod Serverless Overview](https://docs.runpod.io/serverless/overview) -- HIGH confidence
-- [Pexels API Documentation](https://www.pexels.com/api/documentation/) -- HIGH confidence
-- [React Video Editor (Remotion + Next.js)](https://www.reactvideoeditor.com/) -- MEDIUM confidence
-- [Remotion Next.js Template](https://www.remotion.dev/templates/next) -- HIGH confidence
+- [Google Imagen API docs -- generateImages() API, model names, aspect ratios](https://ai.google.dev/gemini-api/docs/imagen) -- HIGH confidence
+- [@google/genai npm package v1.46.0](https://www.npmjs.com/package/@google/genai) -- HIGH confidence
+- [Imagen 4 GA announcement with pricing](https://developers.googleblog.com/announcing-imagen-4-fast-and-imagen-4-family-generally-available-in-the-gemini-api/) -- HIGH confidence
+- [Stripe subscription lifecycle in Next.js 2026](https://dev.to/thekarlesi/stripe-subscription-lifecycle-in-nextjs-the-complete-developer-guide-2026-4l9d) -- MEDIUM confidence
+- [Stripe + Next.js 15 complete guide 2025](https://www.pedroalonso.net/blog/stripe-nextjs-complete-guide-2025/) -- MEDIUM confidence
+- [Supabase Stripe webhook handling docs](https://supabase.com/docs/guides/functions/examples/stripe-webhooks) -- HIGH confidence
+- [Vercel Next.js subscription payments starter](https://vercel.com/templates/next.js/subscription-starter) -- HIGH confidence
+
+---
+*Architecture research for: TikTok Carousel Creator v1.1 -- Monetization and AI Images*
+*Researched: 2026-03-24*

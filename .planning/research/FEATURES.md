@@ -1,131 +1,189 @@
-# Feature Landscape
+# Feature Research
 
-**Domain:** AI-powered TikTok/Reels slideshow video creator
-**Researched:** 2026-03-19
-**Reference products:** BigMotion AI, Canva Video, Lumen5, InVideo AI, Pictory, Pippit (CapCut)
+**Domain:** AI carousel creator SaaS -- v1.1 monetization, AI image generation, credit system, captions
+**Researched:** 2026-03-24
+**Confidence:** MEDIUM-HIGH
 
-## Table Stakes
+## Feature Landscape
 
-Features users expect from any AI slideshow/video creator. Missing any of these and users will bounce to a competitor.
+This research focuses exclusively on the v1.1 milestone features: Google Imagen integration, Stripe subscriptions with credits, and social media caption generation. Existing v1.0 features (editor, templates, Pexels, brand kit, rendering, auth) are already built and working.
+
+### Table Stakes (Users Expect These)
+
+Features users assume exist once you introduce paid tiers. Missing these = broken monetization or confused users.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Text prompt to slideshow generation | Core value prop of every competitor. BigMotion, InVideo, Lumen5 all do this. Users type a topic, get slides. | High | Requires AI content generation (script, slide text, image queries), stock image matching, and layout assembly. This is THE feature. |
-| 9:16 vertical output | TikTok/Reels are vertical. Every competitor defaults to this. Non-negotiable for the target audience. | Low | Aspect ratio constraint on templates and rendering. |
-| Slide editor (add/remove/reorder slides) | Every competitor allows post-generation editing. Users always want to tweak AI output. | Medium | Drag-and-drop reorder, add/delete slides, basic CRUD. |
-| Text overlay editing | All competitors let you edit text on slides -- change copy, font size, color, position. | Medium | Rich text editing on canvas with font/size/color/position controls. |
-| Image swapping (stock library) | Lumen5, BigMotion, Pictory all have stock image libraries. Users swap AI-picked images constantly. | Medium | Pexels/Unsplash API integration with search. User must be able to search and swap per-slide. |
-| User image uploads | BigMotion and all competitors support uploading your own photos. Table stakes for branded content. | Low | File upload, storage, thumbnail preview. |
-| Transition effects between slides | Every slideshow tool has transitions (fade, zoom, wipe, slide). Without them the output feels like a PowerPoint. | Medium | Need 5-10 solid transitions. Fade, zoom, slide, wipe cover 90% of use cases. |
-| Text animations/motion | Text that fades in, slides up, or types on. All competitors have this. Static text looks amateur. | Medium | Remotion handles this well with React animations. |
-| MP4 video export | The entire point -- exportable video file. Every competitor does this. | High | Server-side Remotion rendering on RunPod. This is the most technically complex table-stakes feature. |
-| Preview/playback in browser | Users need to see what the video looks like before exporting. BigMotion, Canva, all have in-browser preview. | Medium | Remotion Player component handles this. Real-time preview of the composition. |
-| Template/style system | Every competitor offers templates -- different visual styles, layouts, color schemes. Users pick a "look" before generating. | Medium | Pre-built Remotion compositions with different layouts, fonts, color palettes. Need 5-10 at launch minimum. |
-| Project save/load | Users create multiple slideshows. Every competitor has a project dashboard. Without this, work is lost. | Medium | Database-backed project persistence. CRUD for projects. |
-| Auto-generated slide text (hook, body, CTA) | BigMotion specifically generates hook text, body copy, and closing CTA. This is core to the "AI" value prop. | Medium | Claude API generates structured slide content from prompt. |
+| Free tier with usage limits | Every SaaS creator tool (PostNitro, Canva) offers a free plan. No free tier = no funnel. | LOW | Limit by project count or AI generations per month. No watermarks (per PROJECT.md). |
+| Stripe Checkout for subscriptions | Standard payment flow. Users expect redirect-to-Stripe or embedded checkout, not custom payment forms. | MEDIUM | Use Stripe Checkout (hosted) -- simplest path, handles tax and card management automatically. |
+| Subscription management (upgrade/downgrade/cancel) | Users expect to manage their plan without contacting support. | LOW | Stripe Customer Portal handles this entirely. Just link from existing settings page. |
+| Credit balance display | When credits exist, users must see remaining balance at all times. | LOW | Show in top navbar. Update after each generation. |
+| Credit deduction on AI actions | Credits must be deducted atomically when AI image generation runs. | MEDIUM | Database transaction: check balance -> deduct -> call API. Never call API first (race condition). |
+| AI-generated image as slide background | The core premium feature. User gets AI background image for a slide. | MEDIUM | Imagen 4 Fast at $0.02/image. Returns 1024x1024 -- needs resize/crop to 1080x1920 (9:16). Integrate into existing slide editor. |
+| Clear upgrade prompts at limits | When free users hit limits, show what they get by upgrading. Not just "limit reached." | LOW | Modal with plan comparison. Contextual -- trigger during the blocked action. |
+| Webhook-driven subscription sync | Stripe webhooks must update DB subscription status. Cannot rely on polling. | MEDIUM | Handle: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.payment_failed. |
+| Social media captions for posts | Every competitor (PostNitro, Canva, Hootsuite) generates captions alongside content. | LOW | Use existing Gemini 2.5 Flash. Platform-specific output for TikTok, Instagram, LinkedIn. |
+| Usage history / credit ledger | Users need to see what consumed their credits. Transparency builds trust. | MEDIUM | Credit transaction log: date, action, credits used, balance. Reduces support burden. |
 
-## Differentiators
+### Differentiators (Competitive Advantage)
 
-Features that would set this product apart. Not expected by default, but valued when present.
+Features that set the product apart from PostNitro, Canva, and generic carousel tools.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Instant generation speed (under 10 seconds to preview) | Most competitors take 30-60 seconds. Instant preview while rendering MP4 in background would feel magical. | Medium | Remotion Player can preview compositions instantly without rendering to MP4. Generate content fast, show preview immediately, render MP4 async. |
-| Smart hook generation optimized for TikTok | BigMotion generates generic hooks. A tool that understands TikTok-specific hook patterns (curiosity gaps, pattern interrupts, POV hooks) would stand out. | Low | Prompt engineering on Claude API. Low technical complexity, high value. |
-| One-click style variations | Generate the same content in 3-4 different visual styles simultaneously so users can A/B test. | Medium | Run same content through multiple templates, show side-by-side. |
-| Slide-level AI regeneration | Regenerate just one slide's text or image query without redoing the whole slideshow. | Low | Targeted Claude API call for single slide. Very high UX value. |
-| Brand kit (saved colors, fonts, logo) | Lumen5 Pro and Canva have brand kits. For repeat creators, this saves massive time. | Medium | Store brand assets (colors, fonts, logo) per user. Apply to templates on generation. |
-| Aspect ratio variants (9:16, 1:1, 16:9) | Generate for TikTok, then one-click resize for Instagram square or YouTube. Canva does this well. | Medium | Re-layout the same content for different aspect ratios. Remotion supports this but templates need responsive layouts. |
-| Content calendar / batch generation | Generate 7 or 30 days of content from a single topic list. BigMotion has auto-posting but not batch creation from a content plan. | High | Requires queue system, bulk generation, storage for many projects. |
-| Analytics-informed templates | Track which template styles get the most engagement (if auto-posting added later). Surface "top performing" styles. | High | Requires analytics pipeline. Defer to v2+. |
-| Keyboard shortcuts for editor | Power users (content creators making 5+ videos/day) want speed. Most AI video tools have poor keyboard support. | Low | Standard shortcuts for common actions. Low effort, high power-user satisfaction. |
-| Undo/redo in editor | Surprisingly missing from many AI video tools. Essential for confident editing. | Medium | State management with history stack. |
+| Context-aware AI backgrounds | Auto-generate Imagen prompts from slide content (hook_text + body_text), not manual prompts. | LOW | Pipe slide data into Gemini to craft an Imagen prompt. Competitors require manual prompting. Genuine time-saver. |
+| One-click "upgrade slide" button | Free users see Pexels backgrounds; single button swaps any slide to AI-generated background. Low-friction upsell. | LOW | Shows Imagen value directly in the editor. Better conversion than abstract "upgrade plan" page. |
+| Multi-platform caption variants | Generate TikTok, Instagram, AND LinkedIn captions simultaneously with platform-specific tone and hashtags. | LOW | Most tools generate one caption. Three platform variants from one carousel saves real time for cross-posting creators. |
+| Carousel-aware captions | Captions reference actual slide content (hooks, key points, CTA) rather than generic topic text. | LOW | Feed full CarouselSchema slide_data into caption prompt. Competitors generate from topic only. |
+| Credit pack top-ups | Beyond monthly credits, let users buy extra without changing plans. | MEDIUM | Stripe one-time payment -> credit grant. Addresses usage spikes. Hybrid model is industry best practice for AI tools. |
+| Prompt preview before generation | Show auto-generated Imagen prompt, let users tweak before spending a credit. | LOW | Reduces wasted credits. Builds trust. Differentiates from black-box competitors. |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build. These add complexity without proportional value, or actively harm the product.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| AI-generated images (DALL-E, Flux, Midjourney) | Massive API cost per image. Stock photos are free and look more natural for slideshow content. AI images often look uncanny for product/lifestyle content. InVideo and Pictory use stock, not AI images, for slideshows. | Use Pexels/Unsplash stock photos. Add AI image generation as a premium v2 feature if demand warrants. |
-| Auto-posting to TikTok/Instagram | Complex OAuth flows, platform API changes frequently, TikTok API access is restricted. BigMotion has this but it is a whole product surface unto itself. | Export MP4. Users upload manually. Revisit in v2 when core product is validated. |
-| AI avatars / talking heads | Pictory and Synthesia offer this but it is a completely different product category. Slideshow content is faceless by design. Adding avatars fragments the product identity. | Stay focused on faceless slideshow content. This is the target niche. |
-| Real-time collaboration | Google Docs-style multiplayer editing is massive engineering effort. Target user is a solo creator, not a team. | Single-user editing. Project sharing via export. |
-| Video clip support (mixing video + images) | Doubles the complexity of the editor, timeline, and rendering pipeline. Slideshows are image-based by definition. | Images only for v1. If users request video clips heavily, add in v2. |
-| Music/audio integration in v1 | Audio sync, music licensing, volume controls, beat matching -- each is a rabbit hole. TikTok adds music natively when posting. | Let TikTok/Reels handle music. Export silent video. Add background music selection in v2 as a quick win. |
-| AI voiceover / text-to-speech | InVideo and Pictory have this, but for TikTok slideshows specifically, users add voiceover in TikTok itself or use trending sounds. Building TTS adds API cost and complexity. | Defer to v2. TikTok's native voiceover is what creators use anyway. |
-| Free tier with watermark | Watermarked exports are the #1 complaint about Lumen5 free tier. Creates negative brand association. | Use usage limits (number of exports/month) instead of watermarks if monetizing. |
-| Complex timeline editor | Canva Video 2.0 and traditional NLEs have complex timelines. This is a slideshow tool, not a video editor. A timeline adds cognitive load that conflicts with "type and get a video." | Keep it slide-based, not timeline-based. Each slide has a duration, transitions happen between slides. Simple. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Credit rollover across months | Feels fair to users | Complicates billing logic, creates balance sheet liability, users hoard and churn anyway. | Credits expire at billing cycle reset. Generous monthly allowance instead. |
+| Multiple AI image providers | "More options = better" | Each provider has different APIs, pricing, quality, content policies. Multiplies maintenance burden. | Imagen 4 only. One provider, well-integrated. Switch entirely later if needed. |
+| Auto-posting to TikTok/Instagram | Saves upload step | Complex OAuth, frequent platform API changes, TikTok API is restrictive, moderation risk. Massive scope. | Copy-to-clipboard captions + download images. Per PROJECT.md, defer to v2+. |
+| Free AI image generations (ongoing) | Lower barrier | Imagen costs real money ($0.02+/generation). Free AI images = cost exposure with no revenue. Pexels is already free for everyone. | Free tier = Pexels only. Offer 2-3 trial Imagen generations on signup, not ongoing. |
+| Real-time credit balance via WebSocket | Instant updates | Over-engineered. Credits change on explicit user actions (generate), not ambient events. | Refetch balance after each API call. Simple GET request. |
+| Granular per-feature credit costs | Different costs for different AI actions | Confuses users. "How much does X cost?" should have one answer. | Flat: 1 credit = 1 AI image. Captions are nearly free (Gemini text) -- bundle unlimited with Pro. |
+| Annual billing at launch | Standard SaaS practice | Adds credit granting complexity (monthly vs annual), refund edge cases, proration math. Not needed at current scale. | Monthly only. Add annual after validating pricing and understanding churn. |
+| Imagen image editing (inpainting/outpainting) | Advanced users want it | Significant UX complexity. Editor already has Pexels swap + upload. Editing AI images is a rabbit hole. | Generate-only for v1.1. Full image editing is a v2+ consideration. |
 
 ## Feature Dependencies
 
 ```
-Text prompt generation --> Slide editor (must generate before you can edit)
-Slide editor --> Preview (must have slides to preview)
-Preview --> MP4 export (preview composition is what gets rendered)
-Template system --> Text prompt generation (templates define layout for generated content)
-Stock image search --> Slide editor (swap images within editor)
-User image uploads --> Slide editor (use uploaded images in slides)
-Project save/load --> All editing features (persist state)
-User auth --> Project save/load (know whose projects are whose)
-Brand kit --> Template system (brand kit overrides template defaults)
+[Stripe Integration]
+    |-- requires --> [Stripe Customer creation + webhook endpoints]
+    |-- requires --> [Subscription tiers in DB schema]
+    |-- enables --> [Credit System]
+                        |-- requires --> [Credit ledger DB tables]
+                        |-- enables --> [AI Image Generation (gated)]
+                        |                    |-- requires --> [Google Cloud / Vertex AI Imagen setup]
+                        |                    |-- requires --> [Image prompt builder via Gemini]
+                        |                    |-- integrates with --> [Existing slide editor]
+                        |-- enables --> [Credit Pack Purchases]
+                                             |-- requires --> [Stripe one-time payment flow]
+
+[Caption Generation]
+    |-- requires --> [Existing Gemini 2.5 Flash]
+    |-- requires --> [Existing CarouselSchema slide_data]
+    |-- independent of --> [Stripe / Credits] (recommended: captions are free/unlimited)
 ```
 
-## MVP Recommendation
+### Dependency Notes
 
-**Prioritize (Phase 1 -- core loop):**
-1. Text prompt to slideshow generation (Claude API) -- THE feature
-2. Template/style system (3-5 templates minimum) -- needed for generation
-3. 9:16 vertical output -- non-negotiable for target market
-4. In-browser preview -- users must see result immediately
-5. Basic slide editor (reorder, add, delete slides)
-6. Text overlay editing (edit copy on each slide)
-7. Stock image search and swap (Pexels API)
-8. MP4 export (RunPod + Remotion)
+- **Credit System requires Stripe Subscriptions:** Credits are granted by subscription tier. Must know plan before granting.
+- **AI Image Generation requires Credit System:** Must deduct credits before calling Imagen. Without credits = no cost control.
+- **Imagen requires separate Google Cloud setup:** Gemini uses API key; Vertex AI Imagen uses service account + project ID. Different auth model.
+- **Caption Generation is nearly independent:** Uses existing Gemini 2.5 Flash. No Stripe dependency if captions are free/unlimited (recommended -- text gen costs ~$0.001).
+- **Caption Generation can ship first:** Zero dependency on payments infrastructure. Could be added immediately as free-tier value-add.
 
-**Prioritize (Phase 2 -- editing polish):**
-1. User image uploads
-2. Transition effects (5 core transitions)
-3. Text animations
-4. Project save/load with user auth
-5. Undo/redo
-6. Slide-level AI regeneration
+## MVP Definition
 
-**Prioritize (Phase 3 -- differentiation):**
-1. Brand kit
-2. Smart TikTok hook generation
-3. One-click style variations
-4. Aspect ratio variants
-5. Keyboard shortcuts
-6. More templates (10-20 total)
+### Launch With (v1.1)
 
-**Defer indefinitely:**
-- Auto-posting: Complex, fragile, TikTok API restrictions
-- AI images: Cost prohibitive, stock is better for this use case
-- AI voiceover: TikTok handles this natively
-- Video clips: Out of scope for slideshow product
-- AI avatars: Different product category entirely
+Minimum to monetize and justify a premium tier.
 
-## Critical Insight: TikTok Platform Risk
+- [ ] Stripe subscription integration (Free / Pro) -- the revenue foundation
+- [ ] Credit system with monthly allowance on Pro -- gates premium features
+- [ ] Google Imagen AI background generation in slide editor -- the premium value prop
+- [ ] Credit balance display in UI (navbar) -- users must see what they have
+- [ ] Stripe Customer Portal for plan management -- self-service, zero custom UI
+- [ ] Webhook handlers for subscription lifecycle events -- keeps DB in sync
+- [ ] Social media caption generation (TikTok, Instagram, LinkedIn) -- low-cost, high-value
+- [ ] Free tier usage limits (e.g., 3 projects, 5 AI text generations/month) -- upgrade pressure
+- [ ] Upgrade prompts when limits hit -- contextual, not naggy
 
-As of 2025-2026, TikTok is actively disincentivizing passive slideshow-style commerce content. Posting 5+ non-interactive shop videos in 7 days triggers a posting cap. This means:
+### Add After Validation (v1.x)
 
-- **Slideshows for educational/entertainment content remain strong** -- the restriction targets low-effort commerce spam
-- **Quality and engagement matter more than volume** -- the product should optimize for compelling hooks and content, not just fast generation
-- **This validates the "AI-powered quality" angle** -- generic template spam will be penalized; well-crafted AI-generated content with good hooks stands out
+Add once paying users exist and patterns emerge.
+
+- [ ] Credit pack top-up purchases -- when users request more credits than plan allows
+- [ ] Usage history / credit ledger page -- when "where did my credits go" tickets appear
+- [ ] Prompt preview/edit before Imagen generation -- after seeing wasted-generation complaints
+- [ ] Multiple caption tone options (professional, casual, viral) -- based on feedback
+
+### Future Consideration (v2+)
+
+- [ ] Annual billing -- after monthly pricing validates and churn patterns emerge
+- [ ] Team/agency plans with shared pools -- different product category
+- [ ] Auto-posting to social platforms -- per PROJECT.md, defer
+- [ ] Imagen editing (inpainting) -- significant UX scope
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Stripe subscriptions (Free/Pro) | HIGH | MEDIUM | P1 |
+| Credit system + balance display | HIGH | MEDIUM | P1 |
+| Imagen AI background generation | HIGH | MEDIUM | P1 |
+| Webhook subscription sync | HIGH | MEDIUM | P1 |
+| Stripe Customer Portal link | HIGH | LOW | P1 |
+| Free tier usage limits | HIGH | LOW | P1 |
+| Social media captions (multi-platform) | MEDIUM | LOW | P1 |
+| Upgrade prompts at limits | MEDIUM | LOW | P1 |
+| Credit pack top-ups | MEDIUM | MEDIUM | P2 |
+| Usage history page | MEDIUM | LOW | P2 |
+| Prompt preview before generation | LOW | LOW | P2 |
+| Caption tone variants | LOW | LOW | P3 |
+
+**Priority key:**
+- P1: Must have for v1.1 launch
+- P2: Should have, add when usage data supports
+- P3: Nice to have, future consideration
+
+## Competitor Feature Analysis
+
+| Feature | PostNitro | Canva | Our Approach |
+|---------|-----------|-------|--------------|
+| AI image backgrounds | Up to 100/month on $40 plan | Via Magic Media (separate tool) | Imagen 4 Fast in editor, context-aware auto-prompts from slide content |
+| Pricing | Free / $10 / $20 / $40/mo | Free / $13/mo Pro | Free / Pro ~$12-15/mo. Simple 2-tier. |
+| Credit system | Opaque limits, upgrade nags after few uses | Token-based for AI features | Transparent balance, visible ledger, clear per-action cost |
+| Caption generation | Basic, topic-only | AI caption generator (separate) | Integrated -- captions reference actual slide hooks/CTAs |
+| Platform focus | Instagram, LinkedIn, Twitter | All formats | TikTok + Instagram primary, LinkedIn bonus |
+| Free tier limits | Poorly communicated | Generous with AI caps | Clear: X projects, Y AI gens/month. Pexels always free. |
+| Plan management | Standard | Canva account settings | Stripe Customer Portal -- proven, zero custom UI |
+
+## Pricing Model Recommendation
+
+Based on competitor analysis and cost structure:
+
+**Cost per AI image:** $0.02 (Imagen 4 Fast) + ~$0.001 (Gemini prompt building) = ~$0.021
+
+**Pro tier:** ~$12-15/month with 50-100 AI image credits
+- At 100 credits used: $2.10 cost, ~$10-13 margin per user
+- Healthy margin even at full utilization
+
+**Credit pack:** ~$5 for 25 credits ($0.20/credit to user, $0.021 cost = ~90% margin)
+
+**Captions:** ~$0.001 per caption via Gemini 2.5 Flash. Negligible cost. Bundle unlimited with Pro.
+
+## Database Schema Implications
+
+Current schema has only `projects` table. v1.1 needs new tables:
+
+- **subscriptions** -- user_id, stripe_customer_id, stripe_subscription_id, plan_tier, status, current_period_start, current_period_end
+- **credits** -- user_id, balance, monthly_allowance, last_reset_at
+- **credit_transactions** -- id, user_id, amount, type (grant/deduct/purchase), description, created_at
+- **stripe_customer_id** mapping -- either new table or column on user profiles
 
 ## Sources
 
-- [BigMotion AI Slideshow Video Maker](https://www.bigmotion.ai/tools/slideshow-video-maker)
-- [BigMotion AI TikTok Slideshow Maker](https://www.bigmotion.ai/tools/slideshow)
-- [BigMotion Product Hunt](https://www.producthunt.com/products/bigmotion-ai-slideshow)
-- [Lumen5 AI Video Generator Features](https://lumen5.com/features/ai-video-generator)
-- [InVideo AI Video Generator](https://invideo.io/make/ai-video-generator/)
-- [InVideo AI Review 2026](https://max-productive.ai/ai-tools/invideo-ai/)
-- [Pictory All Features](https://pictory.ai/all-features)
-- [Canva AI Video Generator](https://www.canva.com/features/ai-video-generator/)
-- [Pippit AI Slideshow Video Maker](https://www.pippit.ai/create/slideshow-video-maker)
-- [Shopify: TikTok Slideshow 2026 Guide](https://www.shopify.com/blog/how-to-make-a-slideshow-on-tiktok)
-- [TikTok Updates 2026](https://disruptmarketing.co/blog/tiktok-updates/)
-- [Synthesia Brand Kits](https://docs.synthesia.io/docs/brand-kits)
-- [AI Studios Brand Kit](https://www.aistudios.com/features/brand-kit)
+- [Imagen 4 pricing and API access](https://magichour.ai/blog/imagen-4-pricing-and-api) -- model tiers and per-image costs
+- [AI image pricing comparison](https://intuitionlabs.ai/articles/ai-image-generation-pricing-google-openai) -- Imagen vs alternatives
+- [Vertex AI Imagen API reference](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api) -- official Google docs
+- [Stripe SaaS subscription docs](https://docs.stripe.com/get-started/use-cases/saas-subscriptions) -- official patterns
+- [Stripe SaaS credits billing integration](https://colorwhistle.com/stripe-saas-credits-billing/) -- credit system architecture
+- [Credit system in subscription model](https://flexprice.io/blog/how-to-implement-credit-system-in-subscription-model) -- ledger design
+- [Next.js Stripe credit system](https://medium.com/@jsteinb/nextjs-using-stripe-to-build-a-credit-system-for-your-saas-app-3562e1608c25) -- implementation guide
+- [Vercel Next.js subscription payments template](https://github.com/vercel/nextjs-subscription-payments) -- reference implementation
+- [PostNitro pricing plans](https://postnitro.ai/plans) -- competitor pricing
+- [PostNitro features review](https://coldiq.com/tools/postnitro) -- competitor feature analysis
+- [AI carousel generator tools 2025](https://www.aicarousels.com/blog/best-ai-carousel-generator) -- competitor landscape
+- [Best AI social media caption generators 2026](https://www.freelancecreatorai.com/2026/01/best-ai-tools-for-social-media-captions.html) -- caption tool landscape
+
+---
+*Feature research for: TikTok carousel creator SaaS -- v1.1 monetization and AI features*
+*Researched: 2026-03-24*

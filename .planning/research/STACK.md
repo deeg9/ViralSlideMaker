@@ -1,172 +1,241 @@
-# Technology Stack
+# Stack Research: v1.1 Monetization & AI Images
 
-**Project:** TikTok Slideshow Creator
-**Researched:** 2026-03-19
-**Overall Confidence:** HIGH
+**Domain:** SaaS monetization (payments, credits, AI image generation)
+**Researched:** 2026-03-24
+**Confidence:** HIGH
 
-## Recommended Stack
+> **Scope:** This document covers ONLY the new stack additions for v1.1.
+> The existing stack (Next.js 15, React 19, Supabase, Gemini 2.5 Flash, Pexels, node-html-to-image, dnd-kit, Tailwind 4, shadcn/ui) is validated and unchanged.
 
-### Core Framework
+## Recommended Stack Additions
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Next.js | 15.5.x | Web application framework | Stable, battle-tested. v16 is out but v15.5 is the safer choice -- v16 has breaking changes (middleware replaced by proxy.ts, Turbopack default) and the ecosystem is still catching up. Remotion docs and community examples target Next.js 15. Upgrade to 16 when Remotion and shadcn fully stabilize on it. | HIGH |
-| React | 19.x | UI library | Required by Next.js 15, Remotion 4.x, and shadcn/ui. React 19 is stable with Server Components, Actions, and improved hooks. | HIGH |
-| TypeScript | 5.x | Type safety | Non-negotiable for a project this size. Remotion, Next.js, Anthropic SDK, and Supabase all have first-class TS support. | HIGH |
+### AI Image Generation -- Imagen 4 Fast
 
-### Video Engine
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Imagen 4 Fast (`imagen-4.0-fast-generate-001`) | Current | AI-generated slide backgrounds | $0.02/image, supports 9:16 natively, uses existing `@google/genai` SDK -- zero new dependencies. Fast variant is purpose-built for content previews and social media imagery. |
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Remotion | 4.0.x (latest: 4.0.436) | Programmatic video creation | The only mature React-based video framework. Declarative composition, frame-by-frame React rendering, built-in Player component for browser preview, TikTok template available, Docker rendering support. Free for teams of 3 or fewer. No real alternative exists in this space. | HIGH |
-| @remotion/player | 4.0.x | In-browser video preview | Embeddable React component that renders Remotion compositions in-browser without server rendering. Supports play/pause, seeking, custom controls. This IS the slideshow preview. | HIGH |
-| @remotion/renderer | 4.0.x | Server-side MP4 rendering | Node.js API for headless rendering in Docker containers on RunPod. Uses Chromium + FFmpeg internally. | HIGH |
+**No new packages needed.** The existing `@google/genai` (^1.46.0) SDK already supports `ai.models.generateImages()` for Imagen. This is the same SDK used for Gemini 2.5 Flash text generation.
 
-### Database & Backend
+**Why Imagen 4 Fast over other options:**
+- Imagen 4 Standard ($0.04/image) -- 2x cost for quality improvement not needed at social-media resolution
+- Imagen 4 Ultra ($0.06/image) -- overkill for 1080x1920 slide backgrounds
+- Gemini 3.1 Flash native image gen ($0.039/image) -- more expensive than Imagen 4 Fast, optimized for text+image mixed output not pure image gen
+- DALL-E 3 ($0.04-0.08/image) -- different ecosystem, higher cost, requires separate SDK
+- Stable Diffusion (self-hosted) -- GPU infrastructure overhead, opposite of the "keep it simple" approach
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Supabase | Latest | Database, auth, file storage | All-in-one backend: Postgres DB, Row Level Security, auth (email/social), file storage with presigned URLs for image uploads, real-time subscriptions if needed later. Free tier is generous (500MB DB, 1GB storage). Eliminates need to build auth, storage, and DB separately. | HIGH |
-| Prisma | 6.x | ORM / type-safe queries | Layer on top of Supabase Postgres for type-safe queries, schema migrations, and generated types. Supabase client SDK is fine for auth/storage, but Prisma is better for complex relational queries (projects, slides, templates). Use Supabase for auth + storage, Prisma for data access. | MEDIUM |
+**Key API details:**
+```typescript
+// Uses the SAME GoogleGenAI instance already in the codebase
+const response = await ai.models.generateImages({
+  model: 'imagen-4.0-fast-generate-001',
+  prompt: 'descriptive prompt here',
+  config: {
+    numberOfImages: 1,
+    aspectRatio: '9:16',  // Native support -- critical for carousel slides
+  },
+});
+// Returns base64 image bytes in response.generatedImages[0].image.imageBytes
+```
 
-### AI & Content Generation
+**Constraints to know:**
+- Max 480 tokens per prompt
+- 1-4 images per request (use 1 for cost control)
+- 1K resolution (1024px longest side) by default -- sufficient for 1080x1920 slides
+- SynthID watermark embedded automatically (invisible, no visual impact)
+- `personGeneration` defaults to `allow_adult` -- good default for social content
+- Aspect ratio `9:16` is explicitly supported -- perfect match for TikTok/IG carousel slides
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| @anthropic-ai/sdk | 0.79.x | Claude API access | Official TypeScript SDK. Streaming support, structured output, retries built-in. Use Claude 3.5 Sonnet for content generation (fast, cheap, good enough for slide copy). Call from Next.js API routes / Server Actions only. | HIGH |
-| Pexels API | v1 | Stock photo search | Free, no attribution required for most uses. 200 req/hr, 20K req/month on free tier -- sufficient for MVP. Can request unlimited for free by emailing api@pexels.com with attribution. REST API, no official SDK needed (simple fetch wrapper). | HIGH |
+### Payments & Subscriptions -- Stripe
 
-### UI & Styling
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `stripe` (Node.js SDK) | ^20.4.1 | Server-side Stripe API (checkout, subscriptions, webhooks) | Industry standard, TypeScript-first, works with Next.js Server Actions. Handles subscriptions, one-time payments (credit packs), and customer portal. |
+| `@stripe/stripe-js` | ^8.11.0 | Client-side Stripe.js loader | Required for Stripe Checkout redirect. Lightweight loader (~3KB), not a full client SDK. |
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Tailwind CSS | 4.x | Utility-first CSS | v4 stable since Jan 2025, Rust-based Oxide engine, CSS-native config with @theme. Faster builds, cleaner DX. shadcn/ui has full v4 support. | HIGH |
-| shadcn/ui | Latest | Component library | Copy-paste components, not a dependency. Full Tailwind v4 + React 19 support. Clean, minimal aesthetic aligns with project design goals. Customizable to match "21st.dev" inspiration. | HIGH |
-| Lucide React | Latest | Icons | Default icon set for shadcn/ui. Consistent, clean, tree-shakeable. | HIGH |
+**Integration pattern -- Server Actions first, Route Handler for webhooks only:**
 
-### State Management
+Server Actions replace API routes for checkout session creation (modern Next.js 15 pattern):
+```typescript
+'use server'
+import Stripe from 'stripe'
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Zustand | 5.x | Global app state | Slide editor needs a centralized store for project state (slides array, current slide, editor mode, undo/redo stack). Zustand's single-store model with slices is simpler and more debuggable than atomic state for this use case. Lightweight (1.2KB), no boilerplate. | HIGH |
+export async function createCheckoutSession(priceId: string, userId: string) {
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription', // or 'payment' for credit packs
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${process.env.NEXT_PUBLIC_URL}/dashboard?success=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_URL}/pricing`,
+    metadata: { userId },
+  })
+  return session.url
+}
+```
 
-**Why not Jotai:** Jotai's atomic model is better for deeply nested, independently-updating state (collaborative editors, spreadsheets). A slideshow editor has a relatively flat state shape -- a list of slides with properties. Zustand's slice pattern handles this cleanly with less cognitive overhead.
+Webhooks still need a Route Handler (Stripe needs a stable POST URL):
+```
+src/app/api/webhooks/stripe/route.ts
+```
 
-**Why not Redux:** Overkill. Zustand gives the same single-store benefits without the boilerplate.
+**Stripe Customer Portal:** Use Stripe's hosted portal for plan changes, cancellations, payment method updates. No custom UI needed. Create a portal session server-side, redirect the user.
 
-### Slide Editor Internals
+### Credit System -- Database Only (No New Packages)
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| dnd-kit | 6.x | Drag-and-drop slide reordering | Best-in-class React DnD library. 10KB, zero deps, smooth animations, accessible. Use for reordering slides in the sidebar panel. | HIGH |
-| Native DOM + CSS | -- | Text/image positioning on slides | Do NOT use Fabric.js or Konva for the slide canvas. Remotion compositions ARE the slides -- text overlays and image positioning are React components rendered by Remotion. The "editor" manipulates Remotion composition props (text content, position, font size, image URL), not a separate canvas. The Remotion Player renders the result in real-time. | HIGH |
+Credit tracking lives entirely in Supabase (Postgres) with RLS policies. No new packages needed.
 
-This is a critical architectural insight: the slide editor does NOT need a canvas library. Each slide is a Remotion `<Composition>` rendered as React components. Editing means changing the data model (text, position, image) and letting Remotion re-render.
+**Schema design:**
+```sql
+-- Subscription tracking (synced from Stripe webhooks)
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) NOT NULL UNIQUE,
+  stripe_customer_id TEXT NOT NULL UNIQUE,
+  stripe_subscription_id TEXT UNIQUE,
+  plan TEXT NOT NULL DEFAULT 'free',  -- 'free' | 'pro'
+  status TEXT NOT NULL DEFAULT 'active',  -- 'active' | 'canceled' | 'past_due'
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-### Rendering Infrastructure
+-- Credit balance (fast reads for generation gate)
+CREATE TABLE credits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) NOT NULL UNIQUE,
+  balance INTEGER NOT NULL DEFAULT 0,
+  monthly_allowance INTEGER NOT NULL DEFAULT 3,  -- free: 3, pro: 100
+  last_refill_at TIMESTAMPTZ DEFAULT now(),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| RunPod Serverless | -- | GPU/CPU container hosting | Scales to zero, per-second billing ($0.17-0.40/hr for low-end GPUs, CPU even cheaper). Docker-based. Cold starts as low as 2s with FlashBoot. Perfect for bursty rendering workloads. | HIGH |
-| Docker | -- | Rendering container | Base image: `node:22-bookworm-slim`. Install Chromium + FFmpeg. Run @remotion/renderer in headless mode. Remotion docs have Docker guides. | HIGH |
+-- Credit transaction log (audit trail)
+CREATE TABLE credit_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  amount INTEGER NOT NULL,  -- positive = add, negative = consume
+  type TEXT NOT NULL,  -- 'monthly_refill' | 'pack_purchase' | 'imagen_generation' | 'caption_generation'
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
 
-**Why not Remotion Lambda:** Lambda is faster for distributed rendering of long videos (splits across many functions). Slideshow videos are short (15-60 seconds, 5-15 slides) -- a single container render is fast enough and simpler. RunPod gives more control, no AWS vendor lock-in, and is cheaper for CPU-bound rendering (Remotion does NOT need GPU -- it's Chromium + FFmpeg, both CPU-bound).
+**Why a ledger pattern:** Single `balance` column for fast reads (check before generation), plus `credit_transactions` for audit trail and debugging. The balance column is the source of truth for gating; the transaction log is for analytics and disputes.
 
-**Important:** Remotion rendering is CPU-bound, not GPU-bound. You do NOT need GPU instances on RunPod. Use CPU-only serverless workers for significant cost savings.
+**Credit refill strategy:** Stripe `invoice.paid` webhook triggers monthly refill. When the webhook fires for a subscription renewal, reset `balance` to `monthly_allowance` and log a `monthly_refill` transaction. No cron job needed.
 
-### File Storage & CDN
+### AI Caption Generation -- No New Packages
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Supabase Storage | -- | Image uploads, rendered video storage | Presigned URL uploads bypass Next.js body size limits. Built-in image transformations. Videos stored here after RunPod renders them. CDN delivery included. | HIGH |
+Uses existing Gemini 2.5 Flash via `@google/genai`. Captions are text generation -- the same capability already powering slide content in `src/lib/ai/generate-slides.ts`.
 
-### Dev Tooling
+**Cost:** ~$0.001 per caption. Negligible.
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| pnpm | 9.x | Package manager | Faster, stricter than npm. Workspace support if needed later. | HIGH |
-| ESLint | 9.x | Linting | Flat config, Next.js plugin, TypeScript support. | HIGH |
-| Prettier | 3.x | Code formatting | Consistent style, Tailwind plugin for class sorting. | HIGH |
-| Vitest | 2.x | Testing | Fast, Vite-native, good TypeScript support. Use for unit testing Remotion compositions and API routes. | MEDIUM |
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Framework | Next.js 15.5 | Next.js 16 | v16 has breaking changes (proxy.ts replaces middleware), ecosystem still catching up. Upgrade later. |
-| Framework | Next.js | Remix/Vite SPA | Remotion Player works best in React; Next.js has best Remotion community support and SSR for SEO/marketing pages. |
-| Video Engine | Remotion | FFmpeg + custom React preview | Remotion IS FFmpeg + Chromium under the hood, but adds React composition, Player component, and rendering pipeline. Rolling your own gets you worse DX for no benefit. |
-| Video Engine | Remotion | Motion Canvas | Motion Canvas is for animation/motion graphics, not slideshow/video composition. Different use case entirely. |
-| Database | Supabase | Firebase | Supabase is Postgres (SQL, relational, RLS) vs Firestore (NoSQL). Slideshow data is relational (users -> projects -> slides). Supabase also has better pricing and no vendor lock-in. |
-| Database | Supabase | PlanetScale/Neon + Clerk + S3 | Three services vs one. Supabase bundles DB + auth + storage. Less config, fewer bills, faster to ship. |
-| ORM | Prisma | Drizzle | Drizzle is lighter and closer to SQL, but Prisma has better docs, migration tooling, and generated types. For a team that wants to move fast, Prisma's DX wins. |
-| State | Zustand | Jotai | Jotai's atomic model adds complexity for a flat state shape. Zustand's single store with undo/redo middleware is simpler for a slide editor. |
-| State | Zustand | Redux Toolkit | Unnecessary boilerplate for this project size. |
-| Slide DnD | dnd-kit | react-beautiful-dnd | react-beautiful-dnd is in maintenance mode (Atlassian). dnd-kit is actively maintained and more performant. |
-| Canvas | None (Remotion) | Fabric.js / Konva | Slides are Remotion React compositions, not canvas elements. Adding a canvas library would mean maintaining two rendering paths (canvas for editing, Remotion for export) -- a massive source of bugs. |
-| Rendering | RunPod Serverless | AWS Lambda (Remotion Lambda) | Overkill for short videos. RunPod is simpler, cheaper for CPU-bound work, no AWS account needed. |
-| Rendering | RunPod Serverless | Modal | Modal is also good but RunPod has better Docker support and is more established for media workloads. |
-| Auth | Supabase Auth | Clerk / NextAuth | Already using Supabase. Adding another auth provider means two services to manage. Supabase Auth supports email, social (Google, GitHub), magic link -- sufficient for v1. |
-| Stock Photos | Pexels | Unsplash | Both free. Pexels has no attribution requirement for API partners (easier for video rendering). Unsplash requires attribution, which is awkward in generated videos. |
+**Implementation:** Add a new function alongside `generateSlideContent()` in `src/lib/ai/` that takes carousel slide content as input and returns platform-specific captions (TikTok, Instagram). Use structured output (JSON schema) same as existing slide generation.
 
 ## Installation
 
 ```bash
-# Initialize Next.js 15.5 with TypeScript, Tailwind v4, App Router
-pnpm create next-app@latest tiktok-slideshow --typescript --tailwind --eslint --app --src-dir
+# New dependencies -- ONLY 2 packages
+npm install stripe @stripe/stripe-js
 
-# Core dependencies
-pnpm add remotion @remotion/player @remotion/cli @remotion/renderer
-pnpm add @anthropic-ai/sdk
-pnpm add @supabase/supabase-js @supabase/ssr
-pnpm add prisma @prisma/client
-pnpm add zustand
-pnpm add @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
-pnpm add lucide-react
-pnpm add sonner  # toast notifications (shadcn default)
-
-# Dev dependencies
-pnpm add -D @remotion/bundler
-pnpm add -D vitest @testing-library/react
-pnpm add -D prettier prettier-plugin-tailwindcss
-pnpm add -D @types/node
-
-# shadcn/ui initialization (run after project setup)
-pnpm dlx shadcn@latest init
+# That's it.
+# @google/genai already installed for Imagen access.
+# Gemini 2.5 Flash already configured for caption generation.
+# Supabase already installed for credit tables.
+# Zod already installed for webhook validation.
 ```
 
-## Version Pinning Strategy
+## Environment Variables (New)
 
-Pin major versions, allow patch updates:
-- `remotion`: `^4.0.0` (v4 is current major, patch updates are safe)
-- `next`: `~15.5.0` (stay on 15.5.x, don't auto-upgrade to 16)
-- `@anthropic-ai/sdk`: `^0.79.0` (pre-1.0, but Anthropic maintains backward compat)
-- `zustand`: `^5.0.0`
-- `prisma`: `^6.0.0`
+```env
+# Stripe
+STRIPE_SECRET_KEY=sk_...
+STRIPE_PUBLISHABLE_KEY=pk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRO_MONTHLY_PRICE_ID=price_...   # Monthly Pro subscription
+STRIPE_CREDIT_PACK_PRICE_ID=price_...   # One-time credit pack purchase
+```
 
-## Licensing Notes
+No new env vars needed for Imagen -- it uses the existing `GEMINI_API_KEY`.
 
-- **Remotion**: Free for individuals and companies with 3 or fewer people. If the team grows past 3, a company license is required (paid). This is a hard constraint -- budget for it if scaling the team.
-- **Pexels API**: Free. Default limits: 200 req/hr, 20K req/month. Can request unlimited free by emailing api@pexels.com with attribution.
-- **Supabase**: Free tier (500MB DB, 1GB storage, 50K monthly active users). Pro tier $25/month when needed.
-- **RunPod**: Pay-per-second. CPU serverless workers are cheapest. No minimum spend.
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Imagen 4 Fast ($0.02/img) | Imagen 4 Standard ($0.04/img) | If users complain about image quality -- upgrade path is a single string change |
+| Imagen 4 Fast ($0.02/img) | Gemini 3.1 Flash native image gen ($0.039/img) | If you need text rendered inside images or image editing capabilities |
+| Stripe Checkout (hosted) | Stripe Elements (embedded) | If you need a fully custom payment form -- adds `@stripe/react-stripe-js` |
+| Stripe Checkout (hosted) | Lemon Squeezy | If you want merchant-of-record to handle tax compliance. Tradeoff: less control, smaller ecosystem |
+| Simple balance + transaction log | Full double-entry ledger | If you need accounting-grade audit trails. Overkill for a creator tool. |
+| Webhook-triggered credit refills | Supabase Edge Function cron | If webhook reliability is a concern. Cron can run daily and check/refill expired periods. |
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `@stripe/react-stripe-js` | Unnecessary for Checkout-based flow. Adds React provider, Elements wrapper, hooks -- all unneeded when Stripe hosts the payment page. | `@stripe/stripe-js` for redirect to Stripe Checkout |
+| Separate OpenAI SDK for DALL-E | Different ecosystem, higher cost ($0.04-0.08/img), second API key to manage | Imagen via existing `@google/genai` SDK |
+| Custom payment form UI | PCI compliance burden, lower conversion than Stripe Checkout | Stripe Checkout hosted page |
+| Redis for credit balance caching | Premature optimization. Postgres single-row primary-key lookup is <5ms on Supabase. | Direct Supabase query with RLS |
+| Paddle / PayPal | Paddle has poor DX; PayPal adds complexity. Neither provides value over Stripe here. | Stripe only |
+| `next-stripe` or wrapper libraries | Thin wrappers that go stale and obscure the API. Stripe's own SDK is excellent. | `stripe` package directly |
+| Prisma for credit queries | Already using Supabase client SDK. Adding Prisma for 3 tables is over-engineering. | `supabase.from('credits').select(...)` |
+| External cron service for credit refills | Extra infrastructure. Stripe webhooks already fire on subscription renewal. | `invoice.paid` webhook handler |
+
+## Stack Patterns
+
+**If credit check needs to be fast (pre-generation gate):**
+- Use `SELECT balance FROM credits WHERE user_id = $1` before every Imagen call
+- Primary-key lookup -- sub-millisecond on Supabase
+- Deduct in a transaction: check balance >= 1, then decrement and log, in one RPC call
+
+**If you later need real-time credit display:**
+- Use Supabase Realtime subscription on the `credits` table
+- Already available via `@supabase/supabase-js` -- no new packages
+
+**If Imagen quality is insufficient:**
+- Swap `imagen-4.0-fast-generate-001` to `imagen-4.0-generate-001` (Standard)
+- Single string change, same API, same SDK
+- Cost doubles ($0.02 to $0.04/image)
+
+**If you need to test Stripe locally:**
+- Use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+- No additional npm packages needed
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `stripe@^20.4.1` | Node.js 18+ | TypeScript types included, no `@types/stripe` needed |
+| `@stripe/stripe-js@^8.11.0` | Any modern browser | Loads Stripe.js from CDN, tiny bundle impact |
+| `@google/genai@^1.46.0` | Imagen 4 models | Already installed; `generateImages()` method available |
+| Next.js 15.5.13 | `stripe@20.x` | Server Actions for checkout; Route Handler for webhooks |
+
+## Cost Model Per Generation
+
+| Action | Your Cost | Credits Charged | Notes |
+|--------|-----------|-----------------|-------|
+| AI slide content (Gemini Flash) | ~$0.001 | 0 | Included in all tiers |
+| Pexels stock photo | $0.00 | 0 | Free API |
+| Imagen slide background (Fast) | $0.02 | 1 credit | Premium feature |
+| AI caption generation (Gemini Flash) | ~$0.001 | 1 credit | Or 0 -- design decision |
+| Server-side image render | ~$0.00 | 0 | Compute only |
+
+**Margin analysis:** Pro at $9.99/month with 100 Imagen credits: worst-case COGS = 100 x $0.02 = $2.00. That is 80% gross margin. Credit packs at $4.99 for 50 credits ($0.10/credit to user, $0.02 cost) yield 80% margin too. The unit economics work well.
 
 ## Sources
 
-- [Remotion official docs](https://www.remotion.dev/docs/) - HIGH confidence
-- [Remotion licensing](https://www.remotion.dev/docs/license) - HIGH confidence
-- [Remotion SSR comparison](https://www.remotion.dev/docs/compare-ssr) - HIGH confidence
-- [Remotion Docker guide](https://crepal.ai/blog/aivideo/blog-how-to-run-remotion-in-docker/) - MEDIUM confidence
-- [Remotion TikTok template](https://www.remotion.dev/templates/tiktok) - HIGH confidence
-- [Next.js 15.5 blog](https://nextjs.org/blog/next-15-5) - HIGH confidence
-- [Next.js 16 blog](https://nextjs.org/blog/next-16) - HIGH confidence
-- [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) - HIGH confidence
-- [Pexels API docs](https://www.pexels.com/api/documentation/) - HIGH confidence
-- [Pexels rate limits](https://help.pexels.com/hc/en-us/articles/900005851863-Do-I-have-to-pay-for-higher-limits) - HIGH confidence
-- [Supabase docs](https://supabase.com/docs) - HIGH confidence
-- [Supabase storage presigned URLs](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl) - HIGH confidence
-- [RunPod serverless docs](https://docs.runpod.io/serverless/overview) - HIGH confidence
-- [RunPod pricing](https://docs.runpod.io/serverless/pricing) - HIGH confidence
-- [shadcn/ui Tailwind v4 support](https://ui.shadcn.com/docs/tailwind-v4) - HIGH confidence
-- [dnd-kit](https://puckeditor.com/blog/top-5-drag-and-drop-libraries-for-react) - MEDIUM confidence
-- [Zustand vs Jotai comparison](https://dev.to/hijazi313/state-management-in-2025-when-to-use-context-redux-zustand-or-jotai-2d2k) - MEDIUM confidence
+- [Google Imagen API docs](https://ai.google.dev/gemini-api/docs/imagen) -- model names, API params, aspect ratios, JS code examples (HIGH confidence)
+- [Google Gemini image generation docs](https://ai.google.dev/gemini-api/docs/image-generation) -- native Gemini image gen comparison (HIGH confidence)
+- [Imagen 4 Fast announcement](https://developers.googleblog.com/announcing-imagen-4-fast-and-imagen-4-family-generally-available-in-the-gemini-api/) -- pricing, model variants (HIGH confidence)
+- [AI Image Pricing Comparison 2026](https://intuitionlabs.ai/articles/ai-image-generation-pricing-google-openai) -- cross-provider cost analysis (MEDIUM confidence)
+- [Stripe + Next.js 15 guide](https://www.pedroalonso.net/blog/stripe-nextjs-complete-guide-2025/) -- Server Actions pattern (MEDIUM confidence)
+- [Stripe subscription lifecycle 2026](https://dev.to/thekarlesi/stripe-subscription-lifecycle-in-nextjs-the-complete-developer-guide-2026-4l9d) -- webhook + customer portal patterns (MEDIUM confidence)
+- [Stripe + Next.js 15 + Supabase guide](https://dev.to/flnzba/33-stripe-integration-guide-for-nextjs-15-with-supabase-13b5) -- Supabase-specific integration (MEDIUM confidence)
+- [stripe npm](https://www.npmjs.com/package/stripe) -- version 20.4.1 (HIGH confidence)
+- [@stripe/stripe-js npm](https://www.npmjs.com/package/@stripe/stripe-js) -- version 8.11.0 (HIGH confidence)
+
+---
+*Stack research for: TikTok Slideshow Creator v1.1 -- Monetization & AI Images*
+*Researched: 2026-03-24*
