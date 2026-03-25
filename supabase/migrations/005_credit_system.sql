@@ -79,10 +79,12 @@ RETURNS BOOLEAN AS $$
 DECLARE
   current_balance INTEGER;
 BEGIN
+  -- Advisory lock on user_id to prevent concurrent deductions
+  PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
+
   SELECT COALESCE(SUM(amount), 0) INTO current_balance
   FROM public.credit_transactions
-  WHERE user_id = p_user_id
-  FOR UPDATE;
+  WHERE user_id = p_user_id;
 
   IF current_balance >= p_amount THEN
     INSERT INTO public.credit_transactions (user_id, type, amount, description, reference_id)
