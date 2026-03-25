@@ -20,7 +20,7 @@ export async function generateCarousel(
     if (!credits.allowed) {
       return {
         success: false,
-        error: `You've used all ${credits.limit} carousel credits for this month on the ${credits.tier} plan. Upgrade for more.`,
+        error: `You have no credits remaining on the ${credits.tier} plan. Upgrade for more.`,
       }
     }
 
