@@ -7,11 +7,14 @@ import { Icon } from '@/components/ui/icon'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
 
+export type ImageSource = 'stock' | 'ai'
+
 interface GenerationFormProps {
   projectId: string
   currentTopic?: string
   currentTemplateId?: string
   hasSlides: boolean
+  userTier?: 'free' | 'pro' | 'plus'
 }
 
 export function GenerationForm({
@@ -19,9 +22,11 @@ export function GenerationForm({
   currentTopic,
   currentTemplateId,
   hasSlides,
+  userTier = 'free',
 }: GenerationFormProps) {
   const [topic, setTopic] = useState(currentTopic ?? '')
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'bold-minimal')
+  const [imageSource, setImageSource] = useState<ImageSource>('stock')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
@@ -34,7 +39,7 @@ export function GenerationForm({
     setError(null)
     setShowUpgradePrompt(false)
     startTransition(async () => {
-      const result = await generateCarousel(projectId, topic.trim(), templateId)
+      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource)
       if (!result.success) {
         setError(result.error)
         if ('upgradeEligible' in result && result.upgradeEligible) {
@@ -78,6 +83,55 @@ export function GenerationForm({
           </label>
         </div>
         <TemplatePicker selectedId={templateId} onSelect={setTemplateId} />
+      </div>
+
+      {/* Image Source */}
+      <div>
+        <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1">
+          Background Images
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setImageSource('stock')}
+            disabled={isPending}
+            className={`flex flex-col items-center gap-2.5 p-5 rounded-xl border-2 transition-all ${
+              imageSource === 'stock'
+                ? 'border-[#3d0000] bg-[#fff0f0]'
+                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+            } disabled:opacity-50`}
+          >
+            <Icon name="image" size="lg" className={imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+            <span className={`text-sm font-semibold ${imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+              Stock Photos
+            </span>
+            <span className="text-[10px] text-[#7d6161]">Free with generation</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (userTier === 'free') {
+                setShowUpgradePrompt(true)
+                return
+              }
+              setImageSource('ai')
+            }}
+            disabled={isPending}
+            className={`flex flex-col items-center gap-2.5 p-5 rounded-xl border-2 transition-all ${
+              imageSource === 'ai'
+                ? 'border-[#3d0000] bg-[#fff0f0]'
+                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+            } disabled:opacity-50`}
+          >
+            <Icon name="auto_awesome" size="lg" className={imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+            <span className={`text-sm font-semibold ${imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+              AI Generated
+            </span>
+            <span className="text-[10px] text-[#7d6161]">
+              {userTier === 'free' ? 'Pro / Plus only' : '1 credit per image'}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Error */}

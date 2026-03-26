@@ -32,9 +32,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const slides = (p.slide_data ?? []) as Slide[]
   const hasSlides = slides.length > 0
 
+  const tier = user ? await getUserTier(user.id) : 'free' as const
+
   // Editor mode: render full-width with no extra chrome
   if (hasSlides) {
-    const tier = user ? await getUserTier(user.id) : 'free' as const
     return (
       <SlideEditor
         initialSlides={slides}
@@ -76,6 +77,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         currentTopic={p.topic}
         currentTemplateId={p.template_id}
         hasSlides={false}
+        userTier={tier}
       />
     </div>
   )

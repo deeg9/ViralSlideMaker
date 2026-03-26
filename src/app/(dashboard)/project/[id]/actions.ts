@@ -2,6 +2,8 @@
 
 import { generateSlideContent } from '@/lib/ai/generate-slides'
 import { searchPhotos } from '@/lib/pexels/search-photos'
+import { generateImagePrompt } from '@/lib/imagen/generate-prompt'
+import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createClient } from '@/lib/supabase/server'
 import { checkCredits, deductCredit } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
@@ -12,7 +14,8 @@ import type { Slide } from '@/lib/types/slide'
 export async function generateCarousel(
   projectId: string,
   topic: string,
-  templateId: string
+  templateId: string,
+  imageSource: 'stock' | 'ai' = 'stock'
 ): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
   const supabase = await createClient()
 
@@ -51,20 +54,34 @@ export async function generateCarousel(
     // 1. Generate content with Claude
     const carousel = await generateSlideContent(topic)
 
-    // 2. Fetch background images from Pexels for each slide
-    const slides: Slide[] = await Promise.all(
-      carousel.slides.map(async (slide) => {
-        const photos = await searchPhotos(slide.image_query, {
-          orientation: 'portrait',
-          per_page: 1,
+    // 2. Fetch background images for each slide
+    let slides: Slide[]
+
+    if (imageSource === 'ai') {
+      // AI-generated images: generate prompt then image for each slide
+      slides = await Promise.all(
+        carousel.slides.map(async (slide, index) => {
+          try {
+            const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text, slide.is_cta)
+            const result = await generateImagenBackground(user.id, prompt, projectId, index)
+            if ('url' in result) {
+              return { ...slide, background_url: result.url, pexels_photo_id: null }
+            }
+          } catch { /* fall through to stock fallback */ }
+          // Fallback to stock photo if AI generation fails
+          const photos = await searchPhotos(slide.image_query, { orientation: 'portrait', per_page: 1 })
+          return { ...slide, background_url: photos[0]?.src.portrait ?? null, pexels_photo_id: photos[0]?.id ?? null }
         })
-        return {
-          ...slide,
-          background_url: photos[0]?.src.portrait ?? null,
-          pexels_photo_id: photos[0]?.id ?? null,
-        }
-      })
-    )
+      )
+    } else {
+      // Stock photos from Pexels
+      slides = await Promise.all(
+        carousel.slides.map(async (slide) => {
+          const photos = await searchPhotos(slide.image_query, { orientation: 'portrait', per_page: 1 })
+          return { ...slide, background_url: photos[0]?.src.portrait ?? null, pexels_photo_id: photos[0]?.id ?? null }
+        })
+      )
+    }
 
     // 3. Save to database
     await supabase

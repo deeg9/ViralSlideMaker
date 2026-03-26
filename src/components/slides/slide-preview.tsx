@@ -6,22 +6,16 @@ import type { DraggableData, DraggableEvent } from 'react-draggable'
 import type { Slide, TextPosition } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
+// Reference canvas dimensions (matches TikTok/Instagram 9:16)
+const REF_WIDTH = 1080
+const REF_HEIGHT = 1920
+
 // TikTok/Instagram safe zone defaults (percentage of canvas)
-// Safe area: x 11-89%, y 10-75% (avoids username, captions, buttons)
 const SAFE_ZONE = {
-  x: 11,        // left margin to avoid side UI
-  top: {         // "top" preset: text near top of safe area
-    hookY: 12,
-    bodyY: 30,
-  },
-  center: {      // "center" preset: text in center of safe area
-    hookY: 30,
-    bodyY: 48,
-  },
-  bottom: {      // "bottom" preset: text in lower-center (still above caption zone)
-    hookY: 48,
-    bodyY: 62,
-  },
+  x: 11,
+  top: { hookY: 12, bodyY: 30 },
+  center: { hookY: 30, bodyY: 48 },
+  bottom: { hookY: 48, bodyY: 62 },
 }
 
 interface SlidePreviewProps {
@@ -46,125 +40,162 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   const hookPos = overrides.hook_position
   const bodyPos = overrides.body_position
 
-  // Determine safe-zone defaults based on text position
   const positionPreset = overrides.text_position ?? template.textPosition
   const defaults = SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
   const defaultX = SAFE_ZONE.x
 
-  // Resolve actual positions (explicit overrides or safe-zone defaults)
   const resolvedHookX = hookPos?.x ?? defaultX
   const resolvedHookY = hookPos?.y ?? defaults.hookY
   const resolvedBodyX = bodyPos?.x ?? defaultX
   const resolvedBodyY = bodyPos?.y ?? defaults.bodyY
 
-  // Track container dimensions for pixel conversion (editable mode only)
-  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null)
+  // Track container width to compute scale factor
+  const [containerWidth, setContainerWidth] = useState(0)
 
   useEffect(() => {
-    if (!editable || !containerRef.current) return
+    if (!containerRef.current) return
     const el = containerRef.current
     const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      if (width > 0 && height > 0) {
-        setContainerSize({ width, height })
-      }
+      const { width } = entry.contentRect
+      if (width > 0) setContainerWidth(width)
     })
     observer.observe(el)
-    // Initial measurement
     const rect = el.getBoundingClientRect()
-    if (rect.width > 0 && rect.height > 0) {
-      setContainerSize({ width: rect.width, height: rect.height })
-    }
+    if (rect.width > 0) setContainerWidth(rect.width)
     return () => observer.disconnect()
-  }, [editable])
+  }, [])
 
-  // Convert percentage to pixels
-  const toPixels = useCallback((pctX: number, pctY: number) => {
-    if (!containerSize) return { x: 0, y: 0 }
+  const scale = containerWidth > 0 ? containerWidth / REF_WIDTH : 0
+
+  // Convert percentage to pixels in reference coordinate space
+  const toRefPixels = useCallback((pctX: number, pctY: number) => {
     return {
-      x: (pctX / 100) * containerSize.width,
-      y: (pctY / 100) * containerSize.height,
+      x: (pctX / 100) * REF_WIDTH,
+      y: (pctY / 100) * REF_HEIGHT,
     }
-  }, [containerSize])
+  }, [])
 
-  // Convert pixels to percentage on drag stop
+  // Convert reference pixels to percentage on drag stop
   const handleStop = useCallback((field: 'hook' | 'body') => (_e: DraggableEvent, data: DraggableData) => {
-    if (!containerSize || !onPositionChange) return
-    const percentX = Math.max(0, Math.min(100, (data.x / containerSize.width) * 100))
-    const percentY = Math.max(0, Math.min(100, (data.y / containerSize.height) * 100))
+    if (!onPositionChange) return
+    const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+    const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
     onPositionChange(field, { x: percentX, y: percentY })
-  }, [containerSize, onPositionChange])
+  }, [onPositionChange])
 
-  // Shared container styles
-  const containerStyle: React.CSSProperties = {
+  // Background style (shared)
+  const innerStyle: React.CSSProperties = {
+    width: REF_WIDTH,
+    height: REF_HEIGHT,
     fontFamily: template.fontFamily,
     color: textColor,
     backgroundColor: template.backgroundColor,
     backgroundImage: slide.background_url ? `url(${slide.background_url})` : undefined,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    transform: `scale(${scale})`,
+    transformOrigin: 'top left',
   }
 
-  // Shared text styles
+  // Text width: symmetric margin
+  const textWidth = 100 - resolvedHookX * 2
+
   const hookTextStyle: React.CSSProperties = {
-    fontSize: hookFontSize ? `${hookFontSize}px` : undefined,
+    fontSize: `${hookFontSize}px`,
     textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
     fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined,
   }
   const bodyTextStyle: React.CSSProperties = {
-    fontSize: bodyFontSize ? `${bodyFontSize}px` : undefined,
+    fontSize: `${bodyFontSize}px`,
   }
 
-  // Non-editable OR editable before container measured: use CSS percentages
-  if (!editable || !containerSize) {
+  // Don't render content until we have a valid scale
+  if (scale === 0) {
     return (
       <div
         ref={containerRef}
         data-testid="slide-preview"
         className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
-        style={containerStyle}
+        style={{ backgroundColor: template.backgroundColor }}
+      />
+    )
+  }
+
+  // Non-editable mode (thumbnails, etc.)
+  if (!editable) {
+    return (
+      <div
+        ref={containerRef}
+        data-testid="slide-preview"
+        className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
       >
-        <div className="absolute inset-0" style={{ backgroundColor: template.overlayColor, opacity: template.overlayOpacity }} />
-
-        {/* Hook text */}
-        <div style={{
-          position: 'absolute',
-          left: `${resolvedHookX}%`,
-          top: `${resolvedHookY}%`,
-          width: `${100 - resolvedHookX * 2}%`,
-          zIndex: 10,
-          textAlign,
-        }}>
-          <p className="font-black leading-tight" style={hookTextStyle}>{slide.hook_text}</p>
-        </div>
-
-        {/* Body text */}
-        {slide.body_text && (
+        <div style={innerStyle}>
           <div style={{
             position: 'absolute',
-            left: `${resolvedBodyX}%`,
-            top: `${resolvedBodyY}%`,
-            width: `${100 - resolvedBodyX * 2}%`,
+            inset: 0,
+            backgroundColor: template.overlayColor,
+            opacity: template.overlayOpacity,
+          }} />
+
+          {/* Hook text */}
+          <div style={{
+            position: 'absolute',
+            left: `${resolvedHookX}%`,
+            top: `${resolvedHookY}%`,
+            width: `${textWidth}%`,
             zIndex: 10,
             textAlign,
           }}>
-            <p className="leading-relaxed opacity-90" style={bodyTextStyle}>{slide.body_text}</p>
+            <p className="font-black" style={{ ...hookTextStyle, lineHeight: 1.1 }}>{slide.hook_text}</p>
           </div>
-        )}
 
-        {/* Slide number badge */}
-        <div className="absolute top-2 right-2 z-20 bg-black/60 text-white text-[10px] font-bold rounded-full w-6 h-6 flex items-center justify-center">{index + 1}</div>
+          {/* Body text */}
+          {slide.body_text && (
+            <div style={{
+              position: 'absolute',
+              left: `${resolvedBodyX}%`,
+              top: `${resolvedBodyY}%`,
+              width: `${textWidth}%`,
+              zIndex: 10,
+              textAlign,
+            }}>
+              <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5 }}>{slide.body_text}</p>
+            </div>
+          )}
+
+          {/* Slide number badge */}
+          <div style={{
+            position: 'absolute',
+            top: 20,
+            right: 20,
+            zIndex: 20,
+            background: 'rgba(0,0,0,0.6)',
+            color: '#fff',
+            fontSize: 28,
+            fontWeight: 700,
+            borderRadius: '50%',
+            width: 56,
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'system-ui, sans-serif',
+          }}>{index + 1}</div>
+        </div>
       </div>
     )
   }
 
-  // Editable with valid container dimensions: draggable text boxes
-  const hookPixels = toPixels(resolvedHookX, resolvedHookY)
-  const bodyPixels = toPixels(resolvedBodyX, resolvedBodyY)
+  // Editable mode with draggable text boxes
+  const hookPixels = toRefPixels(resolvedHookX, resolvedHookY)
+  const bodyPixels = toRefPixels(resolvedBodyX, resolvedBodyY)
 
   const textBoxStyle: React.CSSProperties = {
     position: 'absolute',
-    width: `${100 - defaultX * 2}%`,
+    width: `${textWidth}%`,
     cursor: 'grab',
     padding: '4px 8px',
     borderRadius: '4px',
@@ -177,52 +208,74 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
       ref={containerRef}
       data-testid="slide-preview"
       className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
-      style={containerStyle}
     >
-      {/* Overlay */}
-      <div className="absolute inset-0" style={{ backgroundColor: template.overlayColor, opacity: template.overlayOpacity }} />
+      <div style={innerStyle}>
+        {/* Overlay */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: template.overlayColor,
+          opacity: template.overlayOpacity,
+        }} />
 
-      {/* Draggable hook text */}
-      <Draggable
-        nodeRef={hookRef as React.RefObject<HTMLElement>}
-        bounds="parent"
-        position={hookPixels}
-        onStop={handleStop('hook')}
-      >
-        <div
-          ref={hookRef}
-          style={textBoxStyle}
-          className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
-        >
-          <p className="font-black leading-tight" style={hookTextStyle}>
-            {slide.hook_text}
-          </p>
-        </div>
-      </Draggable>
-
-      {/* Draggable body text */}
-      {slide.body_text && (
+        {/* Draggable hook text */}
         <Draggable
-          nodeRef={bodyRef as React.RefObject<HTMLElement>}
+          nodeRef={hookRef as React.RefObject<HTMLElement>}
           bounds="parent"
-          position={bodyPixels}
-          onStop={handleStop('body')}
+          position={hookPixels}
+          onStop={handleStop('hook')}
+          scale={scale}
         >
           <div
-            ref={bodyRef}
+            ref={hookRef}
             style={textBoxStyle}
             className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
           >
-            <p className="leading-relaxed opacity-90" style={bodyTextStyle}>
-              {slide.body_text}
+            <p className="font-black" style={{ ...hookTextStyle, lineHeight: 1.1 }}>
+              {slide.hook_text}
             </p>
           </div>
         </Draggable>
-      )}
 
-      {/* Slide number badge */}
-      <div className="absolute top-2 right-2 z-20 bg-black/60 text-white text-[10px] font-bold rounded-full w-6 h-6 flex items-center justify-center">
-        {index + 1}
+        {/* Draggable body text */}
+        {slide.body_text && (
+          <Draggable
+            nodeRef={bodyRef as React.RefObject<HTMLElement>}
+            bounds="parent"
+            position={bodyPixels}
+            onStop={handleStop('body')}
+            scale={scale}
+          >
+            <div
+              ref={bodyRef}
+              style={textBoxStyle}
+              className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
+            >
+              <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5 }}>
+                {slide.body_text}
+              </p>
+            </div>
+          </Draggable>
+        )}
+
+        {/* Slide number badge */}
+        <div style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          zIndex: 20,
+          background: 'rgba(0,0,0,0.6)',
+          color: '#fff',
+          fontSize: 28,
+          fontWeight: 700,
+          borderRadius: '50%',
+          width: 56,
+          height: 56,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'system-ui, sans-serif',
+        }}>{index + 1}</div>
       </div>
     </div>
   )
