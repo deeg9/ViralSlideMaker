@@ -10,6 +10,7 @@ import { TextEditorPanel } from '@/components/editor/text-editor-panel'
 import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import { CaptionPanel } from '@/components/captions/caption-panel'
 import { Icon } from '@/components/ui/icon'
+import { downloadSlidesAsZip } from '@/lib/download/zip-slides'
 import {
   saveSlideData,
   saveTemplateId,
@@ -43,6 +44,7 @@ export function SlideEditor({
   const [activeTab, setActiveTab] = useState<'text' | 'images'>('text')
   const [showCaptions, setShowCaptions] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [exporting, setExporting] = useState(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -286,9 +288,19 @@ export function SlideEditor({
                     <Icon name="redo" size="sm" />
                   </button>
                 </div>
-                <button className="px-4 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs">
+                <button
+                  onClick={async () => {
+                    setExporting(true)
+                    try {
+                      await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
+                    } catch { /* silently handle */ }
+                    finally { setExporting(false) }
+                  }}
+                  disabled={exporting}
+                  className="px-4 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
+                >
                   <Icon name="download" size="sm" />
-                  Export
+                  {exporting ? 'Exporting...' : 'Export'}
                 </button>
               </div>
               <button

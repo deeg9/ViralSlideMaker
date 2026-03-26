@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTemplate } from '@/lib/render/templates/index'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitBucket } from '@/lib/rate-limit'
 import type { Project } from '@/lib/types/project'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
@@ -41,8 +41,8 @@ export async function GET(request: Request) {
     )
   }
 
-  // Rate limit: 1-second cooldown between renders
-  const { ok } = rateLimit(`render:${user.id}`, 1)
+  // Rate limit: 30 renders per minute (allows burst for ZIP download of all slides)
+  const { ok } = rateLimitBucket(`render:${user.id}`, 30)
   if (!ok) {
     return new Response(
       JSON.stringify({ error: 'Too many requests' }),
