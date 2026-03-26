@@ -7,12 +7,14 @@ import {
   searchBackgroundPhotos,
   createUploadUrl,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
+import { AIGenerateTab } from '@/components/editor/ai-generate-tab'
 
 interface ImagePickerPanelProps {
   slide: Slide
   slideIndex: number
   projectId: string
   topic: string
+  userTier: 'free' | 'pro' | 'plus'
   onUpdate: (updates: Partial<Slide>) => void
   onRegenerateText: () => void | Promise<void>
   onRegenerateImage: () => void | Promise<void>
@@ -30,11 +32,12 @@ export function ImagePickerPanel({
   slideIndex,
   projectId,
   topic,
+  userTier,
   onUpdate,
   onRegenerateText,
   onRegenerateImage,
 }: ImagePickerPanelProps) {
-  const [activeTab, setActiveTab] = useState<'search' | 'upload'>('search')
+  const [activeTab, setActiveTab] = useState<'search' | 'upload' | 'ai'>('search')
   const [query, setQuery] = useState(slide.image_query)
   const [photos, setPhotos] = useState<PexelsPhoto[]>([])
   const [searching, setSearching] = useState(false)
@@ -130,6 +133,16 @@ export function ImagePickerPanel({
           >
             Upload
           </button>
+          <button
+            onClick={() => setActiveTab('ai')}
+            className={`flex-1 px-3 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-colors ${
+              activeTab === 'ai'
+                ? 'border-[#3d0000] text-[#3d0000]'
+                : 'border-transparent text-[#7d6161] hover:text-[#3d0000]'
+            }`}
+          >
+            AI Generate
+          </button>
         </div>
       </div>
 
@@ -192,6 +205,18 @@ export function ImagePickerPanel({
             className="sr-only"
           />
         </label>
+      )}
+
+      {/* AI Generate */}
+      {activeTab === 'ai' && (
+        <AIGenerateTab
+          slide={slide}
+          slideIndex={slideIndex}
+          projectId={projectId}
+          topic={topic}
+          userTier={userTier}
+          onUpdate={onUpdate}
+        />
       )}
     </div>
   )

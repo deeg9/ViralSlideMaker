@@ -8,6 +8,7 @@ import { SlideList } from '@/components/editor/slide-list'
 import { SlideCanvas } from '@/components/editor/slide-canvas'
 import { TextEditorPanel } from '@/components/editor/text-editor-panel'
 import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
+import { CaptionPanel } from '@/components/captions/caption-panel'
 import { Icon } from '@/components/ui/icon'
 import {
   saveSlideData,
@@ -23,6 +24,7 @@ interface SlideEditorProps {
   templateId: string
   topic: string
   title?: string
+  userTier?: 'free' | 'pro' | 'plus'
 }
 
 export function SlideEditor({
@@ -31,6 +33,7 @@ export function SlideEditor({
   templateId,
   topic,
   title,
+  userTier,
 }: SlideEditorProps) {
   const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty } =
     useSlideEditor(initialSlides)
@@ -38,6 +41,7 @@ export function SlideEditor({
   const template = getTemplate(currentTemplateId)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [activeTab, setActiveTab] = useState<'text' | 'images'>('text')
+  const [showCaptions, setShowCaptions] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -254,6 +258,7 @@ export function SlideEditor({
                 slideIndex={selectedIndex}
                 projectId={projectId}
                 topic={topic}
+                userTier={userTier ?? 'free'}
                 onUpdate={handleUpdate}
                 onRegenerateText={handleRegenerateText}
                 onRegenerateImage={handleRegenerateImage}
@@ -287,6 +292,13 @@ export function SlideEditor({
                 </button>
               </div>
               <button
+                onClick={() => setShowCaptions(!showCaptions)}
+                className="w-full flex items-center justify-center gap-2 bg-[#fff0f0] text-[#3d0000] border border-[#dbc1bc]/30 rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-[#fadbdb] transition-colors"
+              >
+                <Icon name="auto_awesome" size="sm" />
+                Generate Captions
+              </button>
+              <button
                 onClick={doSave}
                 className="w-full py-3 bg-[#3d0000] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 active:scale-95 transition-all"
               >
@@ -296,6 +308,15 @@ export function SlideEditor({
           </div>
         </aside>
       </div>
+
+      {/* Caption panel below editor */}
+      {showCaptions && (
+        <CaptionPanel
+          projectId={projectId}
+          visible={showCaptions}
+          onClose={() => setShowCaptions(false)}
+        />
+      )}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
 import { GenerationForm } from '@/components/slides/generation-form'
 import { SlideEditor } from '@/components/editor/slide-editor'
+import { getUserTier } from '@/lib/credits/check-credits'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -12,6 +13,8 @@ interface ProjectPageProps {
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { id } = await params
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
 
   const { data: project } = await supabase
     .from('projects')
@@ -29,6 +32,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   // Editor mode: render full-width with no extra chrome
   if (hasSlides) {
+    const tier = user ? await getUserTier(user.id) : 'free' as const
     return (
       <SlideEditor
         initialSlides={slides}
@@ -36,6 +40,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         templateId={p.template_id ?? 'bold-minimal'}
         topic={p.topic ?? ''}
         title={p.title}
+        userTier={tier}
       />
     )
   }
