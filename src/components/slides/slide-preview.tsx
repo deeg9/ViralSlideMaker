@@ -40,8 +40,8 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
 
   const textColor = overrides.text_color ?? template.textColor
   const textAlign = overrides.text_align ?? template.textAlign
-  const hookFontSize = overrides.hook_font_size ?? undefined
-  const bodyFontSize = overrides.body_font_size ?? undefined
+  const hookFontSize = overrides.hook_font_size ?? parseInt(template.hookFontSize)
+  const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
   const hookPos = overrides.hook_position
   const bodyPos = overrides.body_position
