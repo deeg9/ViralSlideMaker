@@ -143,6 +143,33 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
         <p className="text-[9px] text-[#7d6161]">Drag text on the canvas for custom positioning</p>
       </div>
 
+      {/* Overlay Opacity */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Overlay</span>
+          <span className="text-[10px] font-bold text-[#3d0000]">
+            {overrides.overlay_opacity ?? Math.round(template.overlayOpacity * 100)}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={overrides.overlay_opacity ?? Math.round(template.overlayOpacity * 100)}
+          onChange={(e) =>
+            onUpdate({
+              style_overrides: {
+                ...overrides,
+                overlay_opacity: Number(e.target.value),
+              },
+            })
+          }
+          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
+        />
+        <p className="text-[9px] text-[#7d6161]">Lower for vivid backgrounds, higher for readable text</p>
+      </div>
+
       {/* Text Alignment */}
       <div className="space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Text Align</span>

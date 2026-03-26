@@ -51,6 +51,10 @@ export function buildSlideElement(
   const defaults = SAFE[posPreset] ?? SAFE.center
   const defaultX = SAFE.x
 
+  const overlayOpacity = overrides.overlay_opacity != null
+    ? overrides.overlay_opacity / 100
+    : template.overlayOpacity
+
   const hookX = overrides.hook_position?.x ?? defaultX
   const hookY = overrides.hook_position?.y ?? defaults.hookY
   const bodyX = overrides.body_position?.x ?? defaultX
@@ -121,7 +125,7 @@ export function buildSlideElement(
           right: 0,
           bottom: 0,
           backgroundColor: template.overlayColor,
-          opacity: template.overlayOpacity,
+          opacity: overlayOpacity,
         }}
       />
       {/* Hook text */}

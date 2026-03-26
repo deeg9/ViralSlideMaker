@@ -11,6 +11,7 @@ export interface SlideStyleOverrides {
   text_align?: 'left' | 'center' | 'right'
   hook_position?: TextPosition
   body_position?: TextPosition
+  overlay_opacity?: number  // 0-100, overrides template overlayOpacity
 }
 
 export interface Slide {

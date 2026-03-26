@@ -34,6 +34,10 @@ export function buildSlideHtml(
   const hookFontSize = overrides.hook_font_size ? `${overrides.hook_font_size}px` : template.hookFontSize
   const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
 
+  const overlayOpacity = overrides.overlay_opacity != null
+    ? overrides.overlay_opacity / 100
+    : template.overlayOpacity
+
   const backgroundCss = slide.background_url
     ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
     : `background-color: ${template.backgroundColor};`
@@ -71,7 +75,7 @@ export function buildSlideHtml(
       position: absolute;
       inset: 0;
       background-color: ${template.overlayColor};
-      opacity: ${template.overlayOpacity};
+      opacity: ${overlayOpacity};
     }
     .hook {
       position: absolute;

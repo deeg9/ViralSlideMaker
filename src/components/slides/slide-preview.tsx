@@ -37,6 +37,10 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   const hookFontSize = overrides.hook_font_size ?? parseInt(template.hookFontSize)
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
+  const overlayOpacity = overrides.overlay_opacity != null
+    ? overrides.overlay_opacity / 100
+    : template.overlayOpacity
+
   const hookPos = overrides.hook_position
   const bodyPos = overrides.body_position
 
@@ -137,7 +141,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             position: 'absolute',
             inset: 0,
             backgroundColor: template.overlayColor,
-            opacity: template.overlayOpacity,
+            opacity: overlayOpacity,
           }} />
 
           {/* Hook text */}
