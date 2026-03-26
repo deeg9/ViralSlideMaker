@@ -84,15 +84,15 @@ Requirements for monetization, AI images, and captions milestone. Each maps to r
 
 ### AI Image Generation
 
-- [ ] **IMAGEN-01**: User can generate AI slide backgrounds via Google Imagen 4 Fast
-- [ ] **IMAGEN-02**: Imagen prompts auto-generate from slide content (hook text, body, topic) without manual input
-- [ ] **IMAGEN-03**: Free users see "Upgrade to AI" button on slides as low-friction upsell
-- [ ] **IMAGEN-04**: User can preview and edit the auto-generated Imagen prompt before spending a credit
+- [x] **IMAGEN-01**: User can generate AI slide backgrounds via Google Imagen 4 Fast
+- [x] **IMAGEN-02**: Imagen prompts auto-generate from slide content (hook text, body, topic) without manual input
+- [x] **IMAGEN-03**: Free users see "Upgrade to AI" button on slides as low-friction upsell
+- [x] **IMAGEN-04**: User can preview and edit the auto-generated Imagen prompt before spending a credit
 
 ### Social Media Captions
 
-- [ ] **CAPTION-01**: User can generate social media captions for their carousel (TikTok, Instagram, LinkedIn)
-- [ ] **CAPTION-02**: Captions reference actual slide content (hooks, key points, CTA) rather than just the topic
+- [x] **CAPTION-01**: User can generate social media captions for their carousel (TikTok, Instagram, LinkedIn)
+- [x] **CAPTION-02**: Captions reference actual slide content (hooks, key points, CTA) rather than just the topic
 
 ## v2 Requirements
 
@@ -161,12 +161,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STRIPE-03 | Phase 6 | Pending |
 | STRIPE-05 | Phase 6 | Pending |
 | CRED-04 | Phase 6 | Pending |
-| IMAGEN-01 | Phase 7 | Pending |
-| IMAGEN-02 | Phase 7 | Pending |
-| IMAGEN-03 | Phase 7 | Pending |
-| IMAGEN-04 | Phase 7 | Pending |
-| CAPTION-01 | Phase 7 | Pending |
-| CAPTION-02 | Phase 7 | Pending |
+| IMAGEN-01 | Phase 7 | Complete |
+| IMAGEN-02 | Phase 7 | Complete |
+| IMAGEN-03 | Phase 7 | Complete |
+| IMAGEN-04 | Phase 7 | Complete |
+| CAPTION-01 | Phase 7 | Complete |
+| CAPTION-02 | Phase 7 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 16 total

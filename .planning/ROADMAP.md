@@ -141,8 +141,8 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 07-01-PLAN.md -- Imagen lib (generate + refund), auto-prompt lib, caption lib, server actions, unit tests
-- [ ] 07-02-PLAN.md -- AI Generate tab in image picker, caption panel, editor wiring, free-user gate, visual checkpoint
+- [x] 07-01-PLAN.md -- Imagen lib (generate + refund), auto-prompt lib, caption lib, server actions, unit tests
+- [x] 07-02-PLAN.md -- AI Generate tab in image picker, caption panel, editor wiring, free-user gate, visual checkpoint
 
 ## Progress
 
@@ -157,4 +157,4 @@ Phases execute in numeric order: 5 -> 6 -> 7
 | 4. Template System and Brand Kit | v1.0 | 2/2 | Complete | 2026-03-20 |
 | 5. Credit Ledger & Usage Limits | v1.1 | 0/2 | Planned | - |
 | 6. Stripe Billing | v1.1 | 0/2 | Planned | - |
-| 7. AI Images & Social Captions | v1.1 | 0/2 | Planned | - |
+| 7. AI Images & Social Captions | v1.1 | 0/2 | Planned    |  |
