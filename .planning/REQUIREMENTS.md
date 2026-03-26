@@ -3,9 +3,44 @@
 **Defined:** 2026-03-26
 **Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
 
-## v1.2 Requirements
+## v1.3 Requirements
 
-Requirements for Launch Readiness milestone.
+Requirements for Rich Text Editing milestone.
+
+### Foundation
+
+- [ ] **FOUND-01**: Exported PNG slides render in the correct template font (fix Satori font loading bug)
+- [ ] **FOUND-02**: Style resolution logic is consolidated into a shared `resolveSlideStyles()` utility used by all renderers
+
+### Text Styling
+
+- [ ] **STYLE-01**: User can toggle bold on/off for each text box (hook text, body text)
+- [ ] **STYLE-02**: User can toggle italic on/off for each text box
+- [ ] **STYLE-03**: Bold and italic settings persist across save/reload and render correctly in PNG exports
+
+### Font Selection
+
+- [ ] **FONT-01**: User can select a font from a curated list of Google Fonts for each text box
+- [ ] **FONT-02**: Font picker shows a live preview of each font in the dropdown
+- [ ] **FONT-03**: Selected fonts render correctly in both browser preview and PNG export (Satori)
+- [ ] **FONT-04**: Server-side font loading caches TTF files to avoid re-fetching on every export
+
+### Text Box Sizing
+
+- [ ] **RESIZE-01**: User can resize text boxes by dragging corner/edge handles
+- [ ] **RESIZE-02**: Text box dimensions persist across save/reload
+- [ ] **RESIZE-03**: Resized text boxes render correctly in PNG exports at the specified dimensions
+
+### Alignment Guides
+
+- [ ] **ALIGN-01**: Visual guide lines appear when dragging a text box near the horizontal or vertical center of the slide
+- [ ] **ALIGN-02**: Visual guide lines appear when a text box edge aligns with another text box's edge
+- [ ] **ALIGN-03**: Text boxes snap to guide positions when within proximity threshold
+
+## Previous Milestone Requirements
+
+<details>
+<summary>v1.2 Launch Readiness</summary>
 
 ### Stripe Portal
 
@@ -24,6 +59,8 @@ Requirements for Launch Readiness milestone.
 - [ ] **PROD-02**: Stripe webhook endpoint configured for production URL
 - [ ] **PROD-03**: NEXT_PUBLIC_APP_URL set to https://viralslidemaker.com in production
 
+</details>
+
 ## Future Requirements
 
 ### Growth
@@ -39,25 +76,34 @@ Requirements for Launch Readiness milestone.
 | Video export | Image carousels only — no video pipeline |
 | Auto-posting | Complex OAuth, defer to v2+ |
 | iOS app | Web first, validated before mobile |
+| Inline rich text | Per-word bold/italic within a text box — too complex for short carousel text, breaks Satori rendering |
+| Full rich text editor (TipTap/Slate) | Overkill for 5-15 word text boxes, adds massive complexity |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PORTAL-01 | Phase 8 | Pending |
-| PORTAL-02 | Phase 8 | Pending |
-| EXPORT-01 | Phase 8 | Pending |
-| EXPORT-02 | Phase 8 | Pending |
-| EXPORT-03 | Phase 8 | Pending |
-| PROD-01 | Phase 9 | Pending |
-| PROD-02 | Phase 9 | Pending |
-| PROD-03 | Phase 9 | Pending |
+| FOUND-01 | TBD | Pending |
+| FOUND-02 | TBD | Pending |
+| STYLE-01 | TBD | Pending |
+| STYLE-02 | TBD | Pending |
+| STYLE-03 | TBD | Pending |
+| FONT-01 | TBD | Pending |
+| FONT-02 | TBD | Pending |
+| FONT-03 | TBD | Pending |
+| FONT-04 | TBD | Pending |
+| RESIZE-01 | TBD | Pending |
+| RESIZE-02 | TBD | Pending |
+| RESIZE-03 | TBD | Pending |
+| ALIGN-01 | TBD | Pending |
+| ALIGN-02 | TBD | Pending |
+| ALIGN-03 | TBD | Pending |
 
 **Coverage:**
-- v1.2 requirements: 8 total
-- Mapped to phases: 8
-- Unmapped: 0
+- v1.3 requirements: 15 total
+- Mapped to phases: 0
+- Unmapped: 15 ⚠️
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after roadmap creation*
+*Last updated: 2026-03-26 after v1.3 requirements definition*
