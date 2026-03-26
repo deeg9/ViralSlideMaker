@@ -13,7 +13,7 @@ SLIDE STRUCTURE RULES:
 1. First slide: Must be a powerful hook that stops scrolling. Short, punchy, max 10 words.
 2. Middle slides (2-6): One key point per slide. Hook text (bold) + body text (supporting detail).
 3. Last slide: Clear CTA. Tell them what to do next (follow, save, share, comment).
-4. Total slides: 5-8 is optimal. Never less than 4, never more than 10.
+4. Generate exactly the number of slides the user requests. The user controls the count.
 5. Image queries: Provide specific Pexels search terms. Prefer lifestyle, aesthetic, and mood shots. Add "vertical" or "portrait" to queries.
 
 WRITING STYLE:

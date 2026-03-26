@@ -25,10 +25,10 @@ const responseSchema: Schema = {
   required: ['title', 'slides'],
 }
 
-export async function generateSlideContent(topic: string): Promise<Carousel> {
+export async function generateSlideContent(topic: string, slideCount: number = 7): Promise<Carousel> {
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
-    contents: `Create a TikTok carousel about: ${topic}`,
+    contents: `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).`,
     config: {
       systemInstruction: buildSystemPrompt(),
       responseMimeType: 'application/json',

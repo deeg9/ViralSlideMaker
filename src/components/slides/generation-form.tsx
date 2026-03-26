@@ -27,6 +27,7 @@ export function GenerationForm({
   const [topic, setTopic] = useState(currentTopic ?? '')
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'bold-minimal')
   const [imageSource, setImageSource] = useState<ImageSource>('stock')
+  const [slideCount, setSlideCount] = useState(7)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
@@ -39,7 +40,7 @@ export function GenerationForm({
     setError(null)
     setShowUpgradePrompt(false)
     startTransition(async () => {
-      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource)
+      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource, slideCount)
       if (!result.success) {
         setError(result.error)
         if ('upgradeEligible' in result && result.upgradeEligible) {
@@ -85,6 +86,30 @@ export function GenerationForm({
           </label>
         </div>
         <TemplatePicker selectedId={templateId} onSelect={setTemplateId} />
+      </div>
+
+      {/* Slide Count */}
+      <div>
+        <div className="flex justify-between items-center mb-3">
+          <label className="text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1">
+            Number of Slides
+          </label>
+          <span className="text-sm font-bold text-[#3d0000]">{slideCount}</span>
+        </div>
+        <input
+          type="range"
+          min={3}
+          max={20}
+          step={1}
+          value={slideCount}
+          onChange={(e) => setSlideCount(Number(e.target.value))}
+          disabled={isPending}
+          className="w-full h-1.5 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] disabled:opacity-50"
+        />
+        <div className="flex justify-between mt-1">
+          <span className="text-[10px] text-[#7d6161]">3</span>
+          <span className="text-[10px] text-[#7d6161]">20</span>
+        </div>
       </div>
 
       {/* Image Source Toggle */}
@@ -136,7 +161,7 @@ export function GenerationForm({
         </div>
         {imageSource === 'ai' && (
           <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
-            Uses ~6 credits for AI backgrounds. Takes ~30-45 seconds. Slides that fail will use stock photos instead.
+            Uses ~{slideCount} credits for AI backgrounds. Takes ~{Math.ceil(slideCount / 2) * 10}-{Math.ceil(slideCount / 2) * 15}s. Slides that fail will use stock photos instead.
           </p>
         )}
       </div>

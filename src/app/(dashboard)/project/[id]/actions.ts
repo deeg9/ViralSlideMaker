@@ -2,7 +2,7 @@
 
 import { generateSlideContent } from '@/lib/ai/generate-slides'
 import { searchPhotos } from '@/lib/pexels/search-photos'
-import { generateImagePrompt } from '@/lib/imagen/generate-prompt'
+import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createClient } from '@/lib/supabase/server'
 import { checkCredits, deductCredit, getCreditBalance } from '@/lib/credits/check-credits'
@@ -15,7 +15,8 @@ export async function generateCarousel(
   projectId: string,
   topic: string,
   templateId: string,
-  imageSource: 'stock' | 'ai' = 'stock'
+  imageSource: 'stock' | 'ai' = 'stock',
+  slideCount: number = 7
 ): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
   const supabase = await createClient()
 
@@ -65,14 +66,17 @@ export async function generateCarousel(
     }
 
     // 1. Generate content with Gemini
-    const carousel = await generateSlideContent(topic)
+    const clampedCount = Math.max(3, Math.min(20, slideCount))
+    const carousel = await generateSlideContent(topic, clampedCount)
 
     // 2. Fetch background images
     let slides: Slide[]
 
     if (imageSource === 'ai') {
+      // Generate a master visual style first so all slides look cohesive
+      const masterStyle = await generateCarouselStyle(topic)
+
       // AI images: generate in batches of 2 to stay under Vercel timeout
-      // Each Imagen call takes 3-15s, so 2 parallel × 3 batches = ~30-45s
       slides = [...carousel.slides] as Slide[]
       const batchSize = 2
 
@@ -82,7 +86,7 @@ export async function generateCarousel(
           batch.map(async (slide, batchIdx) => {
             const slideIdx = i + batchIdx
             try {
-              const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text, slide.is_cta)
+              const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text, slide.is_cta, masterStyle)
               const result = await generateImagenBackground(user.id, prompt, projectId, slideIdx)
               if ('url' in result) {
                 return { ...slide, background_url: result.url, pexels_photo_id: null }
