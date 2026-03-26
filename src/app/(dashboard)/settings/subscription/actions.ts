@@ -46,7 +46,30 @@ export async function createCheckoutSession(priceId: string) {
   const user = await getAuthenticatedUser()
   const customerId = await getOrCreateStripeCustomer(user.id, user.email ?? '')
   const stripe = getStripeServer()
+  const admin = createAdminClient()
 
+  // Check for existing active subscription — upgrade instead of creating a second one
+  const { data: sub } = await admin
+    .from('subscriptions')
+    .select('stripe_subscription_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (sub?.stripe_subscription_id) {
+    // Retrieve existing subscription and swap the price (prorated)
+    const existing = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
+    const itemId = existing.items.data[0]?.id
+    if (itemId) {
+      await stripe.subscriptions.update(sub.stripe_subscription_id, {
+        items: [{ id: itemId, price: priceId }],
+        proration_behavior: 'create_prorations',
+        metadata: { supabase_user_id: user.id },
+      })
+      redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?success=true`)
+    }
+  }
+
+  // No existing subscription — create new checkout session
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
