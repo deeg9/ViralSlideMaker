@@ -199,7 +199,10 @@ Plans:
   1. User downloads a slide PNG and sees the correct template font (not Satori default Noto Sans)
   2. Changing a template in the editor produces identical text styling in both the browser preview and the exported PNG
   3. Adding a new style override field requires updating only one function, not multiple renderer copies
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 10-01-PLAN.md -- Extract resolveSlideStyles() shared utility, fix Satori font loading in render route
 
 ### Phase 11: Bold & Italic
 **Goal**: Users can apply bold and italic formatting to individual text boxes and see it rendered correctly everywhere
@@ -264,7 +267,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 7. AI Images & Social Captions | v1.1 | 2/2 | Complete | - |
 | 8. Stripe Portal & Serverless Export | v1.2 | 0/0 | Not started | - |
 | 9. Production Deployment | v1.2 | 0/0 | Not started | - |
-| 10. Foundation Refactor | v1.3 | 0/0 | Not started | - |
+| 10. Foundation Refactor | v1.3 | 0/1 | Not started | - |
 | 11. Bold & Italic | v1.3 | 0/0 | Not started | - |
 | 12. Font Picker & Google Fonts | v1.3 | 0/0 | Not started | - |
 | 13. Resizable Text Boxes | v1.3 | 0/0 | Not started | - |
