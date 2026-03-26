@@ -148,8 +148,13 @@ export async function createUploadUrl(
   projectId: string,
   fileName: string
 ): Promise<{ signedUrl: string; path: string; publicUrl: string }> {
+  const { validateFileName } = await import('@/lib/upload-validation')
+  const validationError = validateFileName(fileName)
+  if (validationError) throw new Error(validationError)
+
   const supabase = await createClient()
-  const path = `${projectId}/${Date.now()}-${fileName}`
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `${projectId}/${Date.now()}-${safeName}`
 
   const { data, error } = await supabase.storage
     .from('slide-backgrounds')

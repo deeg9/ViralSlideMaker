@@ -5,6 +5,7 @@ import { searchPhotos } from '@/lib/pexels/search-photos'
 import { createClient } from '@/lib/supabase/server'
 import { checkCredits, deductCredit } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
+import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
 
@@ -19,6 +20,10 @@ export async function generateCarousel(
     // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
+
+    // Rate limit: 5 carousel generations per minute per user
+    const { ok } = rateLimit(`carousel:${user.id}`, 5)
+    if (!ok) return { success: false, error: 'Too many requests. Please wait a moment.' }
 
     // Ensure subscription exists and check credits
     await ensureSubscription(user.id)

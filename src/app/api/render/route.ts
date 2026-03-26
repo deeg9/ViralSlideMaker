@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTemplate } from '@/lib/render/templates/index'
 import { buildSlideHtml } from '@/lib/render/render-slide'
 import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
+import { rateLimit } from '@/lib/rate-limit'
 import type { Project } from '@/lib/types/project'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import nodeHtmlToImage from 'node-html-to-image'
@@ -28,6 +29,24 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient()
+
+  // Auth check
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return new Response(
+      JSON.stringify({ error: 'Not authenticated' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Rate limit: 30 renders per minute per user
+  const { ok } = rateLimit(`render:${user.id}`, 30)
+  if (!ok) {
+    return new Response(
+      JSON.stringify({ error: 'Too many requests' }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
   const { data: project } = await supabase
     .from('projects')
     .select('*')

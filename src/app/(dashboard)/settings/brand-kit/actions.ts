@@ -83,11 +83,12 @@ export async function uploadLogo(
     }
 
     const file = formData.get('file') as File
-    if (!file || file.size === 0) {
-      return { error: 'No file provided' }
-    }
+    const { validateImageFile } = await import('@/lib/upload-validation')
+    const validationError = validateImageFile(file)
+    if (validationError) return { error: validationError }
 
-    const path = `logos/${user.id}/${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `logos/${user.id}/${Date.now()}-${safeName}`
 
     const { error } = await supabase.storage
       .from('slide-backgrounds')

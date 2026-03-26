@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { generateImagePrompt } from '@/lib/imagen/generate-prompt'
+import { rateLimit } from '@/lib/rate-limit'
 import type { ImagenResult } from '@/lib/imagen/generate-image'
 
 export async function generateAIImageAction(
@@ -18,6 +19,10 @@ export async function generateAIImageAction(
   if (!user) {
     return { error: 'Not authenticated' }
   }
+
+  // Rate limit: 10 image generations per minute per user
+  const { ok } = rateLimit(`imagen:${user.id}`, 10)
+  if (!ok) return { error: 'Too many requests. Please wait a moment.' }
 
   return generateImagenBackground(user.id, prompt, projectId, slideIndex)
 }
