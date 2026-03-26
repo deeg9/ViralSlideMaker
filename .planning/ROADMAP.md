@@ -183,7 +183,7 @@ Plans:
 
 **Milestone Goal:** Give users professional-grade text editing tools in the slide editor -- fonts, styling, alignment with snap guides, and resizable text boxes.
 
-- [ ] **Phase 10: Foundation Refactor** - Fix export font rendering bug and extract shared style resolution utility
+- [x] **Phase 10: Foundation Refactor** - Fix export font rendering bug and extract shared style resolution utility (completed 2026-03-26)
 - [ ] **Phase 11: Bold & Italic** - Toggle bold/italic per text box with correct rendering in preview and export
 - [ ] **Phase 12: Font Picker & Google Fonts** - Curated font selection with live preview, correct Satori TTF rendering, and server-side caching
 - [ ] **Phase 13: Resizable Text Boxes** - Drag-handle resize for text boxes with persistence and correct export rendering
@@ -267,7 +267,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 7. AI Images & Social Captions | v1.1 | 2/2 | Complete | - |
 | 8. Stripe Portal & Serverless Export | v1.2 | 0/0 | Not started | - |
 | 9. Production Deployment | v1.2 | 0/0 | Not started | - |
-| 10. Foundation Refactor | v1.3 | 0/1 | Not started | - |
+| 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
 | 11. Bold & Italic | v1.3 | 0/0 | Not started | - |
 | 12. Font Picker & Google Fonts | v1.3 | 0/0 | Not started | - |
 | 13. Resizable Text Boxes | v1.3 | 0/0 | Not started | - |
