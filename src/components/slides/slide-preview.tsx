@@ -219,7 +219,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
           position: 'absolute',
           inset: 0,
           backgroundColor: template.overlayColor,
-          opacity: template.overlayOpacity,
+          opacity: overlayOpacity,
         }} />
 
         {/* Draggable hook text */}
