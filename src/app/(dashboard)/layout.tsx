@@ -16,7 +16,7 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  const userName = user.email?.split('@')[0] ?? 'User'
+  const userName = (user.user_metadata?.first_name as string) || user.email?.split('@')[0] || 'User'
 
   return (
     <DashboardShell

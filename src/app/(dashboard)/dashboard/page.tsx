@@ -10,7 +10,7 @@ import type { Project } from '@/lib/types/project'
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const userName = user?.email?.split('@')[0] ?? 'User'
+  const userName = (user?.user_metadata?.first_name as string) || user?.email?.split('@')[0] || 'User'
 
   const { data: projects } = await supabase
     .from('projects')
