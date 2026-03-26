@@ -136,33 +136,28 @@ export function AIGenerateTab({
         }`}
       />
 
-      {/* Credit badge + Generate button */}
-      <div className="flex items-center justify-between gap-3">
-        <span
-          className="text-xs bg-[#fadbdb] text-[#3d0000] px-2 py-0.5 rounded-full"
-          aria-label="This action costs 1 credit"
-        >
-          1 credit
-        </span>
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating || isLoadingPrompt || !prompt.trim()}
-          aria-label="Generate AI background image, costs 1 credit"
-          className="bg-[#3d0000] text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-2"
-        >
-          {isGenerating ? (
-            <>
-              <Icon name="progress_activity" size="sm" className="animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Icon name="auto_awesome" size="sm" />
-              Generate Image
-            </>
-          )}
-        </button>
-      </div>
+      {/* Generate button */}
+      <button
+        onClick={handleGenerate}
+        disabled={isGenerating || isLoadingPrompt || !prompt.trim()}
+        aria-label="Generate AI background image, costs 1 credit"
+        className="w-full bg-[#3d0000] text-white rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {isGenerating ? (
+          <>
+            <Icon name="progress_activity" size="sm" className="animate-spin" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <Icon name="auto_awesome" size="sm" />
+            Generate Image
+          </>
+        )}
+      </button>
+      <p className="text-[10px] text-[#7d6161] text-center" aria-label="This action costs 1 credit">
+        Uses 1 credit per generation
+      </p>
 
       {/* Generating state message */}
       {isGenerating && (

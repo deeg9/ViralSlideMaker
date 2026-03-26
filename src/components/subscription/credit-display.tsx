@@ -9,10 +9,9 @@ export async function CreditDisplay() {
   const balance = await getCreditBalance(user.id)
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#fadbdb]">
-      <Icon name="bolt" size="sm" className="text-[#3d0000]" />
-      <span className="text-xs font-bold text-[#3d0000]">{balance}</span>
-      <span className="text-xs text-[#7d6161]">credits</span>
+    <div className="flex items-center gap-1 mt-0.5">
+      <Icon name="bolt" size="sm" className="text-[#7d6161]" />
+      <span className="text-[11px] font-medium text-[#7d6161]">{balance} credits</span>
     </div>
   )
 }

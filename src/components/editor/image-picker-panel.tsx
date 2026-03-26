@@ -92,7 +92,7 @@ export function ImagePickerPanel({
           <button
             onClick={handleRegenText}
             disabled={regeneratingText}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-widest rounded-xl bg-[#fff0f0] text-[#3d0000] hover:bg-[#fadbdb] transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
           >
             <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
             Text
@@ -100,7 +100,7 @@ export function ImagePickerPanel({
           <button
             onClick={handleRegenImage}
             disabled={regeneratingImage}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-widest rounded-xl bg-[#fff0f0] text-[#3d0000] hover:bg-[#fadbdb] transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
           >
             <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
             Image

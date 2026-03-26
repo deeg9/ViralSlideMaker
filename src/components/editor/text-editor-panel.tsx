@@ -28,7 +28,7 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
             className="w-full bg-white border-none border-b border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
             placeholder="Enter headline..."
           />
-          <button className="absolute bottom-2 right-2 p-2 bg-[#fadbdb] text-[#3d0000] rounded-lg hover:bg-[#ffe0e0] transition-all">
+          <button className="absolute bottom-3 right-3 p-1 text-[#dbc1bc] hover:text-[#3d0000] transition-colors" title="AI rewrite">
             <Icon name="auto_awesome" size="sm" />
           </button>
         </div>

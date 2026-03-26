@@ -90,12 +90,12 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
           </div>
 
           {/* Profile */}
-          <div className="flex items-center gap-3 pl-3 border-l border-[#dbc1bc]/30 ml-2">
+          <div className="flex items-center gap-4 pl-4 border-l border-[#dbc1bc]/20 ml-3">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-[#3d0000]">{userName ?? 'User'}</p>
+              <p className="text-xs font-semibold text-[#3d0000] leading-tight">{userName ?? 'User'}</p>
               {creditDisplay}
             </div>
-            <div className="w-9 h-9 rounded-xl bg-[#fadbdb] flex items-center justify-center overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-[#fadbdb] flex items-center justify-center">
               <Icon name="person" size="sm" className="text-[#3d0000]" />
             </div>
             <LogoutButton />
