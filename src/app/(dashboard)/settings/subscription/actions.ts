@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripeServer } from '@/lib/stripe/client'
 import { STRIPE_PRICES } from '@/lib/stripe/config'
+import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 
 async function getAuthenticatedUser() {
   const supabase = await createClient()
@@ -17,11 +18,13 @@ async function getOrCreateStripeCustomer(userId: string, email: string): Promise
   const admin = createAdminClient()
   const stripe = getStripeServer()
 
+  await ensureSubscription(userId)
+
   const { data: sub } = await admin
     .from('subscriptions')
     .select('stripe_customer_id')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
 
   if (sub?.stripe_customer_id) {
     return sub.stripe_customer_id
@@ -33,11 +36,15 @@ async function getOrCreateStripeCustomer(userId: string, email: string): Promise
     metadata: { supabase_user_id: userId },
   })
 
-  // Update subscriptions row with new customer ID
+  // Upsert subscriptions row with new customer ID (belt-and-suspenders with ensureSubscription)
   await admin
     .from('subscriptions')
-    .update({ stripe_customer_id: customer.id })
-    .eq('user_id', userId)
+    .upsert({
+      user_id: userId,
+      stripe_customer_id: customer.id,
+      tier: 'free',
+      status: 'active',
+    }, { onConflict: 'user_id' })
 
   return customer.id
 }
@@ -53,7 +60,7 @@ export async function createCheckoutSession(priceId: string) {
     .from('subscriptions')
     .select('stripe_subscription_id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (sub?.stripe_subscription_id) {
     // Retrieve existing subscription and swap the price (prorated)
@@ -91,7 +98,7 @@ export async function createPortalSession() {
     .from('subscriptions')
     .select('stripe_customer_id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!sub?.stripe_customer_id) {
     throw new Error('No active subscription found')

@@ -11,7 +11,7 @@ export async function getUserTier(userId: string): Promise<SubscriptionTier> {
     .from('subscriptions')
     .select('tier')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return (data?.tier as SubscriptionTier) ?? 'free'
 }
 

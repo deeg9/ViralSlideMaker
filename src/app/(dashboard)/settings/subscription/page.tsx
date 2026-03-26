@@ -2,6 +2,7 @@ import { Icon } from '@/components/ui/icon'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getUserTier, getCreditBalance } from '@/lib/credits/check-credits'
+import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { STRIPE_PRICES } from '@/lib/stripe/config'
 import { createCheckoutSession, createCreditPackCheckout } from './actions'
 import { ManageSubscriptionButton } from './manage-subscription-button'
@@ -68,6 +69,8 @@ export default async function SubscriptionPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  await ensureSubscription(user.id)
+
   const tier = await getUserTier(user.id)
   const balance = await getCreditBalance(user.id)
 
@@ -77,7 +80,7 @@ export default async function SubscriptionPage({
     .from('subscriptions')
     .select('stripe_customer_id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
   const hasStripeCustomer = !!sub?.stripe_customer_id
 
   return (
