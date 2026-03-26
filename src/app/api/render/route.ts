@@ -39,8 +39,8 @@ export async function GET(request: Request) {
     )
   }
 
-  // Rate limit: 30 renders per minute per user
-  const { ok } = rateLimit(`render:${user.id}`, 30)
+  // Rate limit: 1-second cooldown between renders
+  const { ok } = rateLimit(`render:${user.id}`, 1)
   if (!ok) {
     return new Response(
       JSON.stringify({ error: 'Too many requests' }),

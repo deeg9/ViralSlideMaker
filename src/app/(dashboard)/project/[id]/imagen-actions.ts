@@ -20,8 +20,8 @@ export async function generateAIImageAction(
     return { error: 'Not authenticated' }
   }
 
-  // Rate limit: 10 image generations per minute per user
-  const { ok } = rateLimit(`imagen:${user.id}`, 10)
+  // Rate limit: 3-second cooldown between image generations
+  const { ok } = rateLimit(`imagen:${user.id}`, 3)
   if (!ok) return { error: 'Too many requests. Please wait a moment.' }
 
   return generateImagenBackground(user.id, prompt, projectId, slideIndex)

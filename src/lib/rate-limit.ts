@@ -1,32 +1,32 @@
 /**
- * Simple in-memory rate limiter using sliding window.
+ * Simple in-memory rate limiter using per-request cooldown.
+ * Users wait a few seconds between requests instead of hitting a minute-long lockout.
  * For production with multiple serverless instances, replace with Upstash Redis.
  */
 
-const windowMs = 60_000 // 1 minute window
-const store = new Map<string, { count: number; resetAt: number }>()
+const store = new Map<string, number>()
 
 // Clean up expired entries every 5 minutes
 setInterval(() => {
   const now = Date.now()
-  for (const [key, entry] of store) {
-    if (now > entry.resetAt) store.delete(key)
+  for (const [key, expiresAt] of store) {
+    if (now > expiresAt) store.delete(key)
   }
 }, 5 * 60_000)
 
-export function rateLimit(key: string, maxRequests: number): { ok: boolean; remaining: number } {
+/**
+ * Rate limit by enforcing a cooldown between requests.
+ * @param key - Unique key (e.g. "carousel:userId")
+ * @param cooldownSeconds - Seconds to wait between requests
+ */
+export function rateLimit(key: string, cooldownSeconds: number): { ok: boolean } {
   const now = Date.now()
-  const entry = store.get(key)
+  const expiresAt = store.get(key)
 
-  if (!entry || now > entry.resetAt) {
-    store.set(key, { count: 1, resetAt: now + windowMs })
-    return { ok: true, remaining: maxRequests - 1 }
+  if (expiresAt && now < expiresAt) {
+    return { ok: false }
   }
 
-  if (entry.count >= maxRequests) {
-    return { ok: false, remaining: 0 }
-  }
-
-  entry.count++
-  return { ok: true, remaining: maxRequests - entry.count }
+  store.set(key, now + cooldownSeconds * 1000)
+  return { ok: true }
 }

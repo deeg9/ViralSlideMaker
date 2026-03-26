@@ -21,7 +21,7 @@ export async function generateCarousel(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
 
-    // Rate limit: 5 carousel generations per minute per user
+    // Rate limit: 5-second cooldown between carousel generations
     const { ok } = rateLimit(`carousel:${user.id}`, 5)
     if (!ok) return { success: false, error: 'Too many requests. Please wait a moment.' }
 
