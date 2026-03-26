@@ -49,7 +49,7 @@ function mockSupabase(config: MockConfig) {
       : { data: tier ? { tier } : null, error: tier ? null : { message: 'not found' } }
   )
 
-  const eqFn = vi.fn().mockReturnValue({ single: singleFn })
+  const eqFn = vi.fn().mockReturnValue({ single: singleFn, maybeSingle: singleFn })
 
   const selectSubsFn = vi.fn().mockReturnValue({ eq: eqFn })
 
@@ -99,7 +99,7 @@ function mockAdminSupabase(config: { existingTier?: string | null }) {
       ? { data: { tier: existingTier }, error: null }
       : { data: null, error: { message: 'not found' } }
   )
-  const eqFn = vi.fn().mockReturnValue({ single: singleFn })
+  const eqFn = vi.fn().mockReturnValue({ single: singleFn, maybeSingle: singleFn })
   const selectFn = vi.fn().mockReturnValue({ eq: eqFn })
   const insertFn = vi.fn().mockResolvedValue({ error: null })
 
@@ -125,13 +125,13 @@ describe('getUserTier', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('returns tier from subscriptions table', async () => {
-    mockSupabase({ tier: 'plus' })
+    mockAdminSupabase({ existingTier: 'plus' })
     const tier = await getUserTier('user-123')
     expect(tier).toBe('plus')
   })
 
   it('returns free when no subscription row exists', async () => {
-    mockSupabase({ tier: null, tierError: true })
+    mockAdminSupabase({ existingTier: null })
     const tier = await getUserTier('user-123')
     expect(tier).toBe('free')
   })
@@ -182,12 +182,14 @@ describe('checkCredits', () => {
 
   it('returns allowed=true when balance > 0', async () => {
     mockSupabase({ tier: 'plus', balance: 5 })
+    mockAdminSupabase({ existingTier: 'plus' })
     const result = await checkCredits()
     expect(result).toEqual({ allowed: true, tier: 'plus', balance: 5 })
   })
 
   it('returns allowed=false when balance is 0', async () => {
     mockSupabase({ tier: 'free', balance: 0 })
+    mockAdminSupabase({ existingTier: 'free' })
     const result = await checkCredits()
     expect(result).toEqual({ allowed: false, tier: 'free', balance: 0 })
   })

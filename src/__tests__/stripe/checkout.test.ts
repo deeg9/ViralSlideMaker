@@ -9,6 +9,21 @@ vi.mock('next/navigation', () => ({
   redirect: (...args: unknown[]) => mockRedirect(...args),
 }))
 
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => ({
+    get: (name: string) => {
+      if (name === 'host') return 'localhost:3000'
+      if (name === 'x-forwarded-proto') return 'http'
+      return null
+    },
+  })),
+}))
+
+// Mock ensureSubscription (no-op in tests)
+vi.mock('@/lib/credits/ensure-subscription', () => ({
+  ensureSubscription: vi.fn().mockResolvedValue('free'),
+}))
+
 // Mock Stripe
 const mockCheckoutSessionsCreate = vi.fn()
 const mockCustomersCreate = vi.fn()
@@ -69,21 +84,25 @@ function setupUnauthenticatedUser() {
 }
 
 function setupAdminWithCustomer(customerId: string | null) {
+  const singleResult = vi.fn().mockResolvedValue({
+    data: customerId ? { stripe_customer_id: customerId } : { stripe_customer_id: null },
+  })
   const mockEq = vi.fn().mockReturnValue({
-    single: vi.fn().mockResolvedValue({
-      data: customerId ? { stripe_customer_id: customerId } : { stripe_customer_id: null },
-    }),
+    single: singleResult,
+    maybeSingle: singleResult,
   })
   const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
   const mockUpdateEq = vi.fn().mockResolvedValue({ error: null })
   const mockUpdate = vi.fn().mockReturnValue({ eq: mockUpdateEq })
+  const mockUpsert = vi.fn().mockResolvedValue({ error: null })
 
   mockAdminFrom.mockImplementation(() => ({
     select: mockSelect,
     update: mockUpdate,
+    upsert: mockUpsert,
   }))
 
-  return { mockSelect, mockEq, mockUpdate, mockUpdateEq }
+  return { mockSelect, mockEq, mockUpdate, mockUpdateEq, mockUpsert }
 }
 
 describe('createCheckoutSession', () => {
@@ -163,12 +182,13 @@ describe('createPortalSession', () => {
     expect(mockRedirect).toHaveBeenCalledWith('https://billing.stripe.com/test')
   })
 
-  it('throws No active subscription found when stripe_customer_id is null', async () => {
+  it('redirects to subscription page with error when stripe_customer_id is null', async () => {
     setupAuthenticatedUser()
     setupAdminWithCustomer(null)
 
-    await expect(createPortalSession()).rejects.toThrow('No active subscription found')
+    await expect(createPortalSession()).rejects.toThrow('NEXT_REDIRECT')
     expect(mockBillingPortalSessionsCreate).not.toHaveBeenCalled()
+    expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining('error=no_subscription'))
   })
 })
 

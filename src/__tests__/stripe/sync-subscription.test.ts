@@ -44,16 +44,40 @@ function createMockAdmin() {
     if (!tables[name]) {
       const tInsert = vi.fn().mockResolvedValue({ error: null })
       const tUpdate = vi.fn()
+      const tUpsert = vi.fn().mockResolvedValue({ error: null })
       const tSelect = vi.fn()
-      tables[name] = { insert: tInsert, update: tUpdate, select: tSelect }
+      tables[name] = { insert: tInsert, update: tUpdate, upsert: tUpsert, select: tSelect }
     }
     return tables[name]
   }
 
   const from = vi.fn((table: string) => {
     const t = getTable(table)
+    const mockSingleResult = vi.fn().mockResolvedValue(
+      t === tables['subscriptions']
+        ? { data: { user_id: 'user_123', tier: 'pro' } }
+        : { data: null }
+    )
+    // Create a chainable eq that supports multiple .eq() calls
+    const terminalResult = {
+      single: mockSingleResult,
+      maybeSingle: mockSingleResult,
+    }
+    const chainableEq: ReturnType<typeof vi.fn> = vi.fn().mockReturnValue({
+      ...terminalResult,
+      eq: vi.fn().mockReturnValue({
+        ...terminalResult,
+        eq: vi.fn().mockResolvedValue({ count: 0 }),
+      }),
+    })
     return {
       insert: t.insert,
+      upsert: (...args: unknown[]) => {
+        t.upsert(...args)
+        return {
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }
+      },
       update: (...args: unknown[]) => {
         t.update(...args)
         return {
@@ -63,13 +87,7 @@ function createMockAdmin() {
       select: (...args: unknown[]) => {
         t.select(...args)
         return {
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue(
-              t === tables['subscriptions']
-                ? { data: { user_id: 'user_123', tier: 'pro' } }
-                : { data: null }
-            ),
-          }),
+          eq: chainableEq,
         }
       },
     }
@@ -115,15 +133,17 @@ describe('sync-subscription handleStripeEvent', () => {
       // Should retrieve the subscription
       expect(mockRetrieve).toHaveBeenCalledWith('sub_xyz')
 
-      // Should update subscriptions table
+      // Should upsert subscriptions table
       const subTable = admin.getTable('subscriptions')
-      expect(subTable.update).toHaveBeenCalledWith(
+      expect(subTable.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
+          user_id: 'user_123',
           stripe_customer_id: 'cus_abc',
           stripe_subscription_id: 'sub_xyz',
           tier: 'pro',
           status: 'active',
-        })
+        }),
+        expect.objectContaining({ onConflict: 'user_id' })
       )
     })
   })
