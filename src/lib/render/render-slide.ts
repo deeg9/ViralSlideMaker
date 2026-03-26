@@ -1,14 +1,6 @@
 import type { SlideTemplate } from './templates'
 import type { Slide } from '../types/slide'
-
-// TikTok/Instagram safe zones on 1080x1920 canvas
-// Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
-const SAFE = {
-  x: 11,   // percentage from left
-  top: { hookY: 12, bodyY: 30 },
-  center: { hookY: 30, bodyY: 48 },
-  bottom: { hookY: 48, bodyY: 62 },
-}
+import { resolveSlideStyles } from './resolve-styles'
 
 /**
  * Build a Google Fonts <link> tag for the given font-family CSS value.
@@ -27,47 +19,25 @@ export function buildSlideHtml(
   slide: Slide,
   template: SlideTemplate
 ): string {
-  const overrides = slide.style_overrides ?? {}
-
-  const textColor = overrides.text_color ?? template.textColor
-  const textAlign = overrides.text_align ?? template.textAlign
-  const hookFontSize = overrides.hook_font_size ? `${overrides.hook_font_size}px` : template.hookFontSize
-  const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
-
-  const overlayOpacity = overrides.overlay_opacity != null
-    ? overrides.overlay_opacity / 100
-    : template.overlayOpacity
+  const styles = resolveSlideStyles(slide, template)
 
   const backgroundCss = slide.background_url
     ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
     : `background-color: ${template.backgroundColor};`
 
-  // Resolve text positions using safe-zone defaults
-  const posPreset = overrides.text_position ?? template.textPosition
-  const defaults = SAFE[posPreset] ?? SAFE.center
-  const defaultX = SAFE.x
-
-  const hookX = overrides.hook_position?.x ?? defaultX
-  const hookY = overrides.hook_position?.y ?? defaults.hookY
-  const bodyX = overrides.body_position?.x ?? defaultX
-  const bodyY = overrides.body_position?.y ?? defaults.bodyY
-
-  // Width is symmetric: same margin on both sides
-  const textWidth = 100 - hookX * 2
-
   return `<!DOCTYPE html>
 <html>
 <head>
   <!-- Note: For server rendering with node-html-to-image, use waitUntil: 'networkidle0' to ensure font loading -->
-  ${getFontLink(template.fontFamily)}
+  ${getFontLink(styles.hookFontFamily)}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       width: 1080px;
       height: 1920px;
       ${backgroundCss}
-      font-family: ${template.fontFamily};
-      color: ${textColor};
+      font-family: ${styles.hookFontFamily};
+      color: ${styles.textColor};
       position: relative;
       overflow: hidden;
     }
@@ -75,30 +45,31 @@ export function buildSlideHtml(
       position: absolute;
       inset: 0;
       background-color: ${template.overlayColor};
-      opacity: ${overlayOpacity};
+      opacity: ${styles.overlayOpacity};
     }
     .hook {
       position: absolute;
-      left: ${hookX}%;
-      top: ${hookY}%;
-      width: ${textWidth}%;
-      text-align: ${textAlign};
+      left: ${styles.hookX}%;
+      top: ${styles.hookY}%;
+      width: ${styles.hookWidth}%;
+      text-align: ${styles.textAlign};
       z-index: 1;
-      font-size: ${hookFontSize};
-      font-weight: 900;
+      font-size: ${styles.hookFontSize}px;
+      font-weight: ${styles.hookFontWeight};
+      font-style: ${styles.hookFontStyle};
+      ${styles.hookTextTransform === 'uppercase' ? 'text-transform: uppercase;' : ''}
       line-height: 1.1;
-      ${template.hookStyle === 'uppercase' ? 'text-transform: uppercase;' : ''}
-      ${template.hookStyle === 'italic' ? 'font-style: italic;' : ''}
     }
     .body {
       position: absolute;
-      left: ${bodyX}%;
-      top: ${bodyY}%;
-      width: ${textWidth}%;
-      text-align: ${textAlign};
+      left: ${styles.bodyX}%;
+      top: ${styles.bodyY}%;
+      width: ${styles.bodyWidth}%;
+      text-align: ${styles.textAlign};
       z-index: 1;
-      font-size: ${bodyFontSize};
-      font-weight: 400;
+      font-size: ${styles.bodyFontSize}px;
+      font-weight: ${styles.bodyFontWeight};
+      font-style: ${styles.bodyFontStyle};
       line-height: 1.5;
       opacity: 0.9;
     }
