@@ -10,7 +10,7 @@ export const cleanSerif: SlideTemplate = {
   textColor: '#2d2d2d',
   backgroundColor: '#fafafa',
   overlayColor: '#ffffff',
-  overlayOpacity: 0.9,
+  overlayOpacity: 0,
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'normal',

@@ -10,7 +10,7 @@ export const softPastel: SlideTemplate = {
   textColor: '#1a1a2e',
   backgroundColor: '#f8f0e3',
   overlayColor: '#f8f0e3',
-  overlayOpacity: 0.85,
+  overlayOpacity: 0,
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'italic',

@@ -10,7 +10,7 @@ export const boldMinimal: SlideTemplate = {
   textColor: '#ffffff',
   backgroundColor: '#000000',
   overlayColor: '#000000',
-  overlayOpacity: 0.6,
+  overlayOpacity: 0,
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'uppercase',

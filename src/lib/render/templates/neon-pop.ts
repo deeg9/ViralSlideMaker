@@ -10,7 +10,7 @@ export const neonPop: SlideTemplate = {
   textColor: '#ffffff',
   backgroundColor: '#0d0d0d',
   overlayColor: '#1a0033',
-  overlayOpacity: 0.75,
+  overlayOpacity: 0,
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'uppercase',
