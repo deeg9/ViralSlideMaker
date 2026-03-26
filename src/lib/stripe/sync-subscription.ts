@@ -71,15 +71,15 @@ async function handleCheckoutCompleted(
 
     await admin
       .from('subscriptions')
-      .update({
+      .upsert({
+        user_id: userId,
         stripe_customer_id: session.customer as string,
         stripe_subscription_id: session.subscription as string,
         tier,
         status: 'active',
         current_period_start: periodStart,
         current_period_end: periodEnd,
-      })
-      .eq('user_id', userId)
+      }, { onConflict: 'user_id' })
 
     // Grant initial credits for new subscription (invoice.paid may race with this)
     const creditAmount = TIER_CREDITS[tier]
@@ -119,7 +119,7 @@ async function handleSubscriptionUpdated(
     .from('subscriptions')
     .select('user_id')
     .eq('stripe_subscription_id', subscription.id)
-    .single()
+    .maybeSingle()
 
   if (!sub) return
 
@@ -151,7 +151,7 @@ async function handleSubscriptionDeleted(
     .from('subscriptions')
     .select('user_id')
     .eq('stripe_subscription_id', subscription.id)
-    .single()
+    .maybeSingle()
 
   if (!sub) return
 
@@ -176,7 +176,7 @@ async function handleInvoicePaid(
     .from('subscriptions')
     .select('user_id, tier')
     .eq('stripe_subscription_id', subscriptionId)
-    .single()
+    .maybeSingle()
 
   if (!sub) return
 
