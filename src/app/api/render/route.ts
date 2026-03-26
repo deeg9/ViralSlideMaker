@@ -1,11 +1,13 @@
+import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
 import { getTemplate } from '@/lib/render/templates/index'
-import { buildSlideHtml } from '@/lib/render/render-slide'
+import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
 import { rateLimit } from '@/lib/rate-limit'
 import type { Project } from '@/lib/types/project'
 import type { BrandKit } from '@/lib/types/brand-kit'
-import nodeHtmlToImage from 'node-html-to-image'
+
+export const maxDuration = 60
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -80,25 +82,25 @@ export async function GET(request: Request) {
     .single()
 
   const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
-  const html = buildSlideHtml(slide, effectiveTemplate)
+  const element = buildSlideElement(slide, effectiveTemplate)
 
-  const imageBuffer = await nodeHtmlToImage({
-    html,
-    type: 'png',
-    puppeteerArgs: {
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    },
-  }) as Buffer
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'image/png',
-    'Cache-Control': 'public, max-age=3600',
-  }
+  const imageResponse = new ImageResponse(element, {
+    width: 1080,
+    height: 1920,
+  })
 
   if (download) {
+    const buffer = await imageResponse.arrayBuffer()
     const slideNum = String(index + 1).padStart(2, '0')
-    headers['Content-Disposition'] = `attachment; filename="slide-${slideNum}.png"`
+    return new Response(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        'Content-Disposition': `attachment; filename="slide-${slideNum}.png"`,
+        'Cache-Control': 'public, max-age=3600',
+      },
+    })
   }
 
-  return new Response(new Uint8Array(imageBuffer), { status: 200, headers })
+  return imageResponse
 }
