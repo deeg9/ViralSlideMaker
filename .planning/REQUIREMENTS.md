@@ -1,7 +1,7 @@
 # Requirements: ViralSlideMaker
 
 **Defined:** 2026-03-26
-**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
+**Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
 
 ## v1.3 Requirements
 
@@ -73,37 +73,37 @@ Requirements for Rich Text Editing milestone.
 
 | Feature | Reason |
 |---------|--------|
-| Video export | Image carousels only — no video pipeline |
+| Video export | Image carousels only -- no video pipeline |
 | Auto-posting | Complex OAuth, defer to v2+ |
 | iOS app | Web first, validated before mobile |
-| Inline rich text | Per-word bold/italic within a text box — too complex for short carousel text, breaks Satori rendering |
+| Inline rich text | Per-word bold/italic within a text box -- too complex for short carousel text, breaks Satori rendering |
 | Full rich text editor (TipTap/Slate) | Overkill for 5-15 word text boxes, adds massive complexity |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | TBD | Pending |
-| FOUND-02 | TBD | Pending |
-| STYLE-01 | TBD | Pending |
-| STYLE-02 | TBD | Pending |
-| STYLE-03 | TBD | Pending |
-| FONT-01 | TBD | Pending |
-| FONT-02 | TBD | Pending |
-| FONT-03 | TBD | Pending |
-| FONT-04 | TBD | Pending |
-| RESIZE-01 | TBD | Pending |
-| RESIZE-02 | TBD | Pending |
-| RESIZE-03 | TBD | Pending |
-| ALIGN-01 | TBD | Pending |
-| ALIGN-02 | TBD | Pending |
-| ALIGN-03 | TBD | Pending |
+| FOUND-01 | Phase 10 | Pending |
+| FOUND-02 | Phase 10 | Pending |
+| STYLE-01 | Phase 11 | Pending |
+| STYLE-02 | Phase 11 | Pending |
+| STYLE-03 | Phase 11 | Pending |
+| FONT-01 | Phase 12 | Pending |
+| FONT-02 | Phase 12 | Pending |
+| FONT-03 | Phase 12 | Pending |
+| FONT-04 | Phase 12 | Pending |
+| RESIZE-01 | Phase 13 | Pending |
+| RESIZE-02 | Phase 13 | Pending |
+| RESIZE-03 | Phase 13 | Pending |
+| ALIGN-01 | Phase 14 | Pending |
+| ALIGN-02 | Phase 14 | Pending |
+| ALIGN-03 | Phase 14 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after v1.3 requirements definition*
+*Last updated: 2026-03-26 after v1.3 roadmap creation*
