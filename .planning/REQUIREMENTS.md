@@ -44,20 +44,20 @@ Requirements for Launch Readiness milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PORTAL-01 | — | Pending |
-| PORTAL-02 | — | Pending |
-| EXPORT-01 | — | Pending |
-| EXPORT-02 | — | Pending |
-| EXPORT-03 | — | Pending |
-| PROD-01 | — | Pending |
-| PROD-02 | — | Pending |
-| PROD-03 | — | Pending |
+| PORTAL-01 | Phase 8 | Pending |
+| PORTAL-02 | Phase 8 | Pending |
+| EXPORT-01 | Phase 8 | Pending |
+| EXPORT-02 | Phase 8 | Pending |
+| EXPORT-03 | Phase 8 | Pending |
+| PROD-01 | Phase 9 | Pending |
+| PROD-02 | Phase 9 | Pending |
+| PROD-03 | Phase 9 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 8 total
-- Mapped to phases: 0
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after initial definition*
+*Last updated: 2026-03-26 after roadmap creation*

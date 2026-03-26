@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Launch Readiness
-status: Defining requirements
+status: Ready to plan
 stopped_at: null
-last_updated: "2026-03-26T17:30:00.000Z"
+last_updated: "2026-03-26T18:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,22 +19,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Milestone v1.2 — Launch Readiness
+**Current focus:** Phase 8 — Stripe Portal & Serverless Export
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-26 — Milestone v1.2 started
+Phase: 8 of 9 (Stripe Portal & Serverless Export)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-03-26 — Roadmap created for v1.2 Launch Readiness
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-**Velocity (from v1.0):**
+**Velocity (from v1.0 + v1.1):**
 
-- Total plans completed: 8
+- Total plans completed: 14
 - Average duration: ~6 min
-- Total execution time: ~50 min
+- Total execution time: ~1.5 hours
 
 ## Accumulated Context
 
@@ -48,9 +50,6 @@ Recent decisions affecting current work:
 - Google Imagen 4 Fast for premium AI image generation
 - Hybrid credit model: monthly subscription allowance + purchasable credit packs
 - Stripe for payments (industry standard, good Next.js integration)
-- [Phase 07-ai-images-social-captions]: Imagen 4 Fast with credit pre-deduction/refund pattern for AI backgrounds
-- [Phase 07-ai-images-social-captions]: Captions free for all tiers (no credit deduction)
-- [Phase 07-ai-images-social-captions]: Hooks before conditional return in AIGenerateTab to comply with Rules of Hooks
 
 ### Pending Todos
 
@@ -58,8 +57,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- Imagen auth model: confirm whether existing GEMINI_API_KEY works for Imagen 4 Fast or if separate Google Cloud service account is needed (blocker for Phase 7)
-- Vercel plan timeout: confirm deployment tier before Phase 7 (Hobby = 10s, Pro = 60s; Imagen takes 3-15s)
+- Vercel plan timeout: confirm deployment tier before production (Hobby = 10s, Pro = 60s; Imagen takes 3-15s)
+- Puppeteer may not work on Vercel serverless -- EXPORT-03 requires serverless-compatible rendering alternative
 
 ### Quick Tasks Completed
 
@@ -69,6 +68,6 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-03-26 - Completed quick task 260326-0fq: Test and fix slide editor UI for iPhone 15 mobile viewport
-Stopped at: Checkpoint: 07-02 Task 3 human-verify
+Last activity: 2026-03-26 - Roadmap created for v1.2 Launch Readiness (Phases 8-9)
+Stopped at: Roadmap complete, ready to plan Phase 8
 Resume file: None

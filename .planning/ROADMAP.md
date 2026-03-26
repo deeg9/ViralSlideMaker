@@ -4,6 +4,7 @@
 
 - v1.0 MVP - Phases 1-4 (shipped 2026-03-20)
 - v1.1 Monetization & AI Images - Phases 5-7 (in progress)
+- v1.2 Launch Readiness - Phases 8-9 (planned)
 
 ## Phases
 
@@ -85,15 +86,14 @@ Plans:
 
 </details>
 
-### v1.1 Monetization & AI Images (In Progress)
+<details>
+<summary>v1.1 Monetization & AI Images (Phases 5-7) - SHIPPED</summary>
 
 **Milestone Goal:** Add premium AI image generation via Google Imagen, Stripe-powered subscription tiers with credit system, and AI-generated social media captions.
 
-- [ ] **Phase 5: Credit Ledger & Usage Limits** - Database foundation, atomic credit system, balance display, and free tier usage gating
-- [ ] **Phase 6: Stripe Billing** - Subscription checkout, webhook lifecycle, customer portal, credit pack purchases, and upgrade prompts
-- [ ] **Phase 7: AI Images & Social Captions** - Imagen AI backgrounds in editor, auto-generated prompts, and multi-platform caption generation
-
-## Phase Details
+- [x] **Phase 5: Credit Ledger & Usage Limits** - Database foundation, atomic credit system, balance display, and free tier usage gating
+- [x] **Phase 6: Stripe Billing** - Subscription checkout, webhook lifecycle, customer portal, credit pack purchases, and upgrade prompts
+- [x] **Phase 7: AI Images & Social Captions** - Imagen AI backgrounds in editor, auto-generated prompts, and multi-platform caption generation
 
 ### Phase 5: Credit Ledger & Usage Limits
 **Goal**: Users have accurate credit balances that gate premium features, and free tier users have clear usage boundaries
@@ -144,10 +144,43 @@ Plans:
 - [x] 07-01-PLAN.md -- Imagen lib (generate + refund), auto-prompt lib, caption lib, server actions, unit tests
 - [x] 07-02-PLAN.md -- AI Generate tab in image picker, caption panel, editor wiring, free-user gate, visual checkpoint
 
+</details>
+
+### v1.2 Launch Readiness (Phases 8-9)
+
+**Milestone Goal:** Get the app production-ready with Stripe Customer Portal, working export/download on Vercel serverless, and production deployment at viralslidemaker.com.
+
+- [ ] **Phase 8: Stripe Portal & Serverless Export** - Customer Portal branding, serverless-compatible image rendering, and working download flow on Vercel
+- [ ] **Phase 9: Production Deployment** - Environment variables, Stripe webhook endpoint, and domain configuration for viralslidemaker.com
+
+## Phase Details
+
+### Phase 8: Stripe Portal & Serverless Export
+**Goal**: Users can manage their subscription through a branded portal and download slide images from the Vercel-deployed app
+**Depends on**: Phase 7
+**Requirements**: PORTAL-01, PORTAL-02, EXPORT-01, EXPORT-02, EXPORT-03
+**Success Criteria** (what must be TRUE):
+  1. User can open Stripe Customer Portal from the app to cancel subscription or update payment method
+  2. Stripe Customer Portal displays ViralSlideMaker branding (name/colors) instead of generic Stripe defaults
+  3. User can download a single slide as a PNG image via the Export button
+  4. User can download all slides as a ZIP file containing individual PNGs
+  5. Export and rendering work on Vercel serverless without Puppeteer (serverless-compatible image pipeline)
+**Plans**: TBD
+
+### Phase 9: Production Deployment
+**Goal**: The app is live at viralslidemaker.com with all services correctly configured for production
+**Depends on**: Phase 8
+**Requirements**: PROD-01, PROD-02, PROD-03
+**Success Criteria** (what must be TRUE):
+  1. All environment variables (Supabase, Stripe, Gemini, Pexels, Imagen) are configured for production
+  2. Stripe webhooks fire to the production URL and process events successfully
+  3. The app is accessible at https://viralslidemaker.com with correct NEXT_PUBLIC_APP_URL
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 5 -> 6 -> 7
+Phases execute in numeric order: 8 -> 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -155,6 +188,8 @@ Phases execute in numeric order: 5 -> 6 -> 7
 | 2. AI Generation and Image Rendering | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 3. Slide Editor | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 4. Template System and Brand Kit | v1.0 | 2/2 | Complete | 2026-03-20 |
-| 5. Credit Ledger & Usage Limits | v1.1 | 0/2 | Planned | - |
-| 6. Stripe Billing | v1.1 | 0/2 | Planned | - |
-| 7. AI Images & Social Captions | v1.1 | 0/2 | Planned    |  |
+| 5. Credit Ledger & Usage Limits | v1.1 | 2/2 | Complete | - |
+| 6. Stripe Billing | v1.1 | 2/2 | Complete | - |
+| 7. AI Images & Social Captions | v1.1 | 2/2 | Complete | - |
+| 8. Stripe Portal & Serverless Export | v1.2 | 0/0 | Not started | - |
+| 9. Production Deployment | v1.2 | 0/0 | Not started | - |
