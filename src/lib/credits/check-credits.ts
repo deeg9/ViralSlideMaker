@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { SubscriptionTier, CreditStatus } from './types'
 
 export { isValidTier } from './types'
 export type { SubscriptionTier, CreditStatus } from './types'
 
 export async function getUserTier(userId: string): Promise<SubscriptionTier> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from('subscriptions')
     .select('tier')
