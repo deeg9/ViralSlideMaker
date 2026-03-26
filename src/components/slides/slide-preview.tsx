@@ -1,10 +1,28 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
 import Draggable from 'react-draggable'
 import type { DraggableData, DraggableEvent } from 'react-draggable'
 import type { Slide, TextPosition } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+
+// TikTok/Instagram safe zone defaults (percentage of canvas)
+// Safe area: x 11-89%, y 10-75% (avoids username, captions, buttons)
+const SAFE_ZONE = {
+  x: 11,        // left margin to avoid side UI
+  top: {         // "top" preset: text near top of safe area
+    hookY: 12,
+    bodyY: 30,
+  },
+  center: {      // "center" preset: text in center of safe area
+    hookY: 30,
+    bodyY: 48,
+  },
+  bottom: {      // "bottom" preset: text in lower-center (still above caption zone)
+    hookY: 48,
+    bodyY: 62,
+  },
+}
 
 interface SlidePreviewProps {
   slide: Slide
@@ -27,155 +45,179 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
 
   const hookPos = overrides.hook_position
   const bodyPos = overrides.body_position
-  const hasFreePosition = !!(hookPos || bodyPos)
+
+  // Determine safe-zone defaults based on text position
+  const positionPreset = overrides.text_position ?? template.textPosition
+  const defaults = SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
+  const defaultX = SAFE_ZONE.x
+
+  // Resolve actual positions (explicit overrides or safe-zone defaults)
+  const resolvedHookX = hookPos?.x ?? defaultX
+  const resolvedHookY = hookPos?.y ?? defaults.hookY
+  const resolvedBodyX = bodyPos?.x ?? defaultX
+  const resolvedBodyY = bodyPos?.y ?? defaults.bodyY
+
+  // Track container dimensions for pixel conversion (editable mode only)
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null)
+
+  useEffect(() => {
+    if (!editable || !containerRef.current) return
+    const el = containerRef.current
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) {
+        setContainerSize({ width, height })
+      }
+    })
+    observer.observe(el)
+    // Initial measurement
+    const rect = el.getBoundingClientRect()
+    if (rect.width > 0 && rect.height > 0) {
+      setContainerSize({ width: rect.width, height: rect.height })
+    }
+    return () => observer.disconnect()
+  }, [editable])
 
   // Convert percentage to pixels
-  const toPixels = useCallback((pos: TextPosition | undefined, fallbackY: number) => {
-    if (!containerRef.current) return { x: 0, y: 0 }
-    const { width, height } = containerRef.current.getBoundingClientRect()
-    if (pos) {
-      return { x: (pos.x / 100) * width, y: (pos.y / 100) * height }
+  const toPixels = useCallback((pctX: number, pctY: number) => {
+    if (!containerSize) return { x: 0, y: 0 }
+    return {
+      x: (pctX / 100) * containerSize.width,
+      y: (pctY / 100) * containerSize.height,
     }
-    return { x: (5 / 100) * width, y: (fallbackY / 100) * height }
-  }, [])
+  }, [containerSize])
 
   // Convert pixels to percentage on drag stop
   const handleStop = useCallback((field: 'hook' | 'body') => (_e: DraggableEvent, data: DraggableData) => {
-    if (!containerRef.current || !onPositionChange) return
-    const { width, height } = containerRef.current.getBoundingClientRect()
-    const percentX = Math.max(0, Math.min(100, (data.x / width) * 100))
-    const percentY = Math.max(0, Math.min(100, (data.y / height) * 100))
+    if (!containerSize || !onPositionChange) return
+    const percentX = Math.max(0, Math.min(100, (data.x / containerSize.width) * 100))
+    const percentY = Math.max(0, Math.min(100, (data.y / containerSize.height) * 100))
     onPositionChange(field, { x: percentX, y: percentY })
-  }, [onPositionChange])
+  }, [containerSize, onPositionChange])
 
-  // Old flex-based layout (backward compat for thumbnails without free position)
-  if (!hasFreePosition && !editable) {
-    const positionMap = { top: 'flex-start', center: 'center', bottom: 'flex-end' } as const
-    const textPosition = overrides.text_position ?? template.textPosition
+  // Shared container styles
+  const containerStyle: React.CSSProperties = {
+    fontFamily: template.fontFamily,
+    color: textColor,
+    backgroundColor: template.backgroundColor,
+    backgroundImage: slide.background_url ? `url(${slide.background_url})` : undefined,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }
+
+  // Shared text styles
+  const hookTextStyle: React.CSSProperties = {
+    fontSize: hookFontSize ? `${hookFontSize}px` : undefined,
+    textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
+    fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined,
+  }
+  const bodyTextStyle: React.CSSProperties = {
+    fontSize: bodyFontSize ? `${bodyFontSize}px` : undefined,
+  }
+
+  // Non-editable OR editable before container measured: use CSS percentages
+  if (!editable || !containerSize) {
     return (
       <div
         ref={containerRef}
         data-testid="slide-preview"
         className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
-        style={{
-          fontFamily: template.fontFamily,
-          color: textColor,
-          backgroundColor: template.backgroundColor,
-          backgroundImage: slide.background_url ? `url(${slide.background_url})` : undefined,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+        style={containerStyle}
       >
         <div className="absolute inset-0" style={{ backgroundColor: template.overlayColor, opacity: template.overlayOpacity }} />
-        <div className="relative z-10 flex flex-col h-full p-4 sm:p-6" style={{ justifyContent: positionMap[textPosition], textAlign }}>
-          <div className="max-w-full">
-            <p className="font-black leading-tight mb-2" style={{ fontSize: hookFontSize ? `${hookFontSize}px` : undefined, textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined, fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined }}>{slide.hook_text}</p>
-            <p className="leading-relaxed opacity-90" style={{ fontSize: bodyFontSize ? `${bodyFontSize}px` : undefined }}>{slide.body_text}</p>
-          </div>
+
+        {/* Hook text */}
+        <div style={{
+          position: 'absolute',
+          left: `${resolvedHookX}%`,
+          top: `${resolvedHookY}%`,
+          width: `${100 - resolvedHookX * 2}%`,
+          zIndex: 10,
+          textAlign,
+        }}>
+          <p className="font-black leading-tight" style={hookTextStyle}>{slide.hook_text}</p>
         </div>
+
+        {/* Body text */}
+        {slide.body_text && (
+          <div style={{
+            position: 'absolute',
+            left: `${resolvedBodyX}%`,
+            top: `${resolvedBodyY}%`,
+            width: `${100 - resolvedBodyX * 2}%`,
+            zIndex: 10,
+            textAlign,
+          }}>
+            <p className="leading-relaxed opacity-90" style={bodyTextStyle}>{slide.body_text}</p>
+          </div>
+        )}
+
+        {/* Slide number badge */}
         <div className="absolute top-2 right-2 z-20 bg-black/60 text-white text-[10px] font-bold rounded-full w-6 h-6 flex items-center justify-center">{index + 1}</div>
       </div>
     )
   }
 
-  // Free-position layout (absolute positioned text boxes)
-  const defaultHookY = overrides.text_position === 'top' ? 5 : overrides.text_position === 'center' ? 30 : 60
-  const defaultBodyY = defaultHookY + 20
+  // Editable with valid container dimensions: draggable text boxes
+  const hookPixels = toPixels(resolvedHookX, resolvedHookY)
+  const bodyPixels = toPixels(resolvedBodyX, resolvedBodyY)
 
-  const hookPixels = toPixels(hookPos, defaultHookY)
-  const bodyPixels = toPixels(bodyPos, defaultBodyY)
-
-  const textBoxStyle = (isHook: boolean): React.CSSProperties => ({
+  const textBoxStyle: React.CSSProperties = {
     position: 'absolute',
-    maxWidth: '90%',
-    cursor: editable ? 'grab' : 'default',
-    padding: editable ? '4px 8px' : '2px 4px',
-    borderRadius: editable ? '4px' : undefined,
+    width: `${100 - defaultX * 2}%`,
+    cursor: 'grab',
+    padding: '4px 8px',
+    borderRadius: '4px',
     textAlign,
     zIndex: 10,
-  })
-
-  const hookElement = (
-    <div
-      ref={hookRef}
-      style={textBoxStyle(true)}
-      className={editable ? 'hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing' : ''}
-    >
-      <p
-        className="font-black leading-tight"
-        style={{
-          fontSize: hookFontSize ? `${hookFontSize}px` : undefined,
-          textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
-          fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined,
-        }}
-      >
-        {slide.hook_text}
-      </p>
-    </div>
-  )
-
-  const bodyElement = slide.body_text ? (
-    <div
-      ref={bodyRef}
-      style={textBoxStyle(false)}
-      className={editable ? 'hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing' : ''}
-    >
-      <p
-        className="leading-relaxed opacity-90"
-        style={{ fontSize: bodyFontSize ? `${bodyFontSize}px` : undefined }}
-      >
-        {slide.body_text}
-      </p>
-    </div>
-  ) : null
+  }
 
   return (
     <div
       ref={containerRef}
       data-testid="slide-preview"
       className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
-      style={{
-        fontFamily: template.fontFamily,
-        color: textColor,
-        backgroundColor: template.backgroundColor,
-        backgroundImage: slide.background_url ? `url(${slide.background_url})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
+      style={containerStyle}
     >
       {/* Overlay */}
       <div className="absolute inset-0" style={{ backgroundColor: template.overlayColor, opacity: template.overlayOpacity }} />
 
       {/* Draggable hook text */}
-      {editable ? (
-        <Draggable
-          nodeRef={hookRef as React.RefObject<HTMLElement>}
-          bounds="parent"
-          position={hookPixels}
-          onStop={handleStop('hook')}
+      <Draggable
+        nodeRef={hookRef as React.RefObject<HTMLElement>}
+        bounds="parent"
+        position={hookPixels}
+        onStop={handleStop('hook')}
+      >
+        <div
+          ref={hookRef}
+          style={textBoxStyle}
+          className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
         >
-          {hookElement}
-        </Draggable>
-      ) : (
-        <div style={{ position: 'absolute', left: `${hookPos?.x ?? 5}%`, top: `${hookPos?.y ?? defaultHookY}%`, maxWidth: '90%', zIndex: 10 }}>
-          <p className="font-black leading-tight" style={{ fontSize: hookFontSize ? `${hookFontSize}px` : undefined, textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined, fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined }}>{slide.hook_text}</p>
+          <p className="font-black leading-tight" style={hookTextStyle}>
+            {slide.hook_text}
+          </p>
         </div>
-      )}
+      </Draggable>
 
       {/* Draggable body text */}
-      {bodyElement && editable ? (
+      {slide.body_text && (
         <Draggable
           nodeRef={bodyRef as React.RefObject<HTMLElement>}
           bounds="parent"
           position={bodyPixels}
           onStop={handleStop('body')}
         >
-          {bodyElement}
+          <div
+            ref={bodyRef}
+            style={textBoxStyle}
+            className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
+          >
+            <p className="leading-relaxed opacity-90" style={bodyTextStyle}>
+              {slide.body_text}
+            </p>
+          </div>
         </Draggable>
-      ) : bodyElement && (
-        <div style={{ position: 'absolute', left: `${bodyPos?.x ?? 5}%`, top: `${bodyPos?.y ?? defaultBodyY}%`, maxWidth: '90%', zIndex: 10 }}>
-          <p className="leading-relaxed opacity-90" style={{ fontSize: bodyFontSize ? `${bodyFontSize}px` : undefined }}>{slide.body_text}</p>
-        </div>
       )}
 
       {/* Slide number badge */}

@@ -1,6 +1,15 @@
 import type { SlideTemplate } from './templates'
 import type { Slide } from '../types/slide'
 
+// TikTok/Instagram safe zones on 1080x1920 canvas
+// Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
+const SAFE = {
+  x: 11,   // percentage from left
+  top: { hookY: 12, bodyY: 30 },
+  center: { hookY: 30, bodyY: 48 },
+  bottom: { hookY: 48, bodyY: 62 },
+}
+
 /**
  * Build a Google Fonts <link> tag for the given font-family CSS value.
  * Extracts the font name from a CSS font-family string like "'Montserrat', sans-serif"
@@ -18,15 +27,29 @@ export function buildSlideHtml(
   slide: Slide,
   template: SlideTemplate
 ): string {
+  const overrides = slide.style_overrides ?? {}
+
+  const textColor = overrides.text_color ?? template.textColor
+  const textAlign = overrides.text_align ?? template.textAlign
+  const hookFontSize = overrides.hook_font_size ? `${overrides.hook_font_size}px` : template.hookFontSize
+  const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
+
   const backgroundCss = slide.background_url
     ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
     : `background-color: ${template.backgroundColor};`
 
-  const positionMap = {
-    top: 'flex-start',
-    center: 'center',
-    bottom: 'flex-end',
-  }
+  // Resolve text positions using safe-zone defaults
+  const posPreset = overrides.text_position ?? template.textPosition
+  const defaults = SAFE[posPreset] ?? SAFE.center
+  const defaultX = SAFE.x
+
+  const hookX = overrides.hook_position?.x ?? defaultX
+  const hookY = overrides.hook_position?.y ?? defaults.hookY
+  const bodyX = overrides.body_position?.x ?? defaultX
+  const bodyY = overrides.body_position?.y ?? defaults.bodyY
+
+  // Width is symmetric: same margin on both sides
+  const textWidth = 100 - hookX * 2
 
   return `<!DOCTYPE html>
 <html>
@@ -40,14 +63,9 @@ export function buildSlideHtml(
       height: 1920px;
       ${backgroundCss}
       font-family: ${template.fontFamily};
-      color: ${template.textColor};
-      display: flex;
-      flex-direction: column;
-      justify-content: ${positionMap[template.textPosition]};
-      align-items: ${template.textAlign === 'center' ? 'center' : template.textAlign === 'right' ? 'flex-end' : 'flex-start'};
-      text-align: ${template.textAlign};
-      padding: 80px 60px;
+      color: ${textColor};
       position: relative;
+      overflow: hidden;
     }
     .overlay {
       position: absolute;
@@ -55,21 +73,27 @@ export function buildSlideHtml(
       background-color: ${template.overlayColor};
       opacity: ${template.overlayOpacity};
     }
-    .content {
-      position: relative;
-      z-index: 1;
-      max-width: 960px;
-    }
     .hook {
-      font-size: ${template.hookFontSize};
+      position: absolute;
+      left: ${hookX}%;
+      top: ${hookY}%;
+      width: ${textWidth}%;
+      text-align: ${textAlign};
+      z-index: 1;
+      font-size: ${hookFontSize};
       font-weight: 900;
       line-height: 1.1;
-      margin-bottom: 40px;
       ${template.hookStyle === 'uppercase' ? 'text-transform: uppercase;' : ''}
       ${template.hookStyle === 'italic' ? 'font-style: italic;' : ''}
     }
     .body {
-      font-size: ${template.bodyFontSize};
+      position: absolute;
+      left: ${bodyX}%;
+      top: ${bodyY}%;
+      width: ${textWidth}%;
+      text-align: ${textAlign};
+      z-index: 1;
+      font-size: ${bodyFontSize};
       font-weight: 400;
       line-height: 1.5;
       opacity: 0.9;
@@ -78,10 +102,8 @@ export function buildSlideHtml(
 </head>
 <body>
   <div class="overlay"></div>
-  <div class="content">
-    <div class="hook">${escapeHtml(slide.hook_text)}</div>
-    <div class="body">${escapeHtml(slide.body_text)}</div>
-  </div>
+  <div class="hook">${escapeHtml(slide.hook_text)}</div>
+  <div class="body">${escapeHtml(slide.body_text)}</div>
 </body>
 </html>`
 }

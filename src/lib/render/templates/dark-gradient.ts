@@ -11,7 +11,7 @@ export const darkGradient: SlideTemplate = {
   backgroundColor: '#1a1a2e',
   overlayColor: '#000000',
   overlayOpacity: 0.7,
-  textAlign: 'left',
-  textPosition: 'bottom',
+  textAlign: 'center',
+  textPosition: 'center',
   hookStyle: 'normal',
 }

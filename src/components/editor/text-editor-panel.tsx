@@ -114,9 +114,9 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Text Position</span>
         <div className="flex gap-2">
           {([
-            { label: 'top', hookY: 5, bodyY: 25 },
-            { label: 'center', hookY: 35, bodyY: 55 },
-            { label: 'bottom', hookY: 60, bodyY: 78 },
+            { label: 'top', hookY: 12, bodyY: 30 },
+            { label: 'center', hookY: 30, bodyY: 48 },
+            { label: 'bottom', hookY: 48, bodyY: 62 },
           ] as const).map(({ label, hookY, bodyY }) => (
             <button
               key={label}
@@ -125,8 +125,8 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
                   style_overrides: {
                     ...overrides,
                     text_position: label,
-                    hook_position: { x: 5, y: hookY },
-                    body_position: { x: 5, y: bodyY },
+                    hook_position: { x: 11, y: hookY },
+                    body_position: { x: 11, y: bodyY },
                   },
                 })
               }

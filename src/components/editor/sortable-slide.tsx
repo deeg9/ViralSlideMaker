@@ -45,7 +45,7 @@ export function SortableSlide({
       {...attributes}
       {...listeners}
       onClick={() => onSelect(index)}
-      className={`relative w-full shrink-0 cursor-grab active:cursor-grabbing rounded-xl p-1.5 transition-all ${
+      className={`relative w-20 lg:w-full shrink-0 cursor-grab active:cursor-grabbing rounded-xl p-1.5 transition-all ${
         isSelected
           ? 'bg-[#fadbdb] ring-2 ring-[#3d0000]'
           : 'hover:bg-[#ffe0e0]'
