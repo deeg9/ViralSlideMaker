@@ -1,560 +1,498 @@
-# Architecture Research
+# Architecture Research: Rich Text Editing Integration
 
-**Domain:** SaaS monetization and AI image generation for existing carousel creator
-**Researched:** 2026-03-24
+**Domain:** Slide editor rich text features (font picker, bold/italic, alignment guides, resizable text boxes)
+**Researched:** 2026-03-26
 **Confidence:** HIGH
 
-## System Overview
+## Current Architecture Summary
+
+The slide editor has a clean three-layer rendering pipeline:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Client (Next.js App Router)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐              │
-│  │ Slide Editor  │  │ Subscription │  │ Caption Panel │              │
-│  │ (existing)    │  │ Page (modify)│  │ (NEW)         │              │
-│  └──────┬───────┘  └──────┬───────┘  └───────┬───────┘              │
-├─────────┴──────────────────┴──────────────────┴─────────────────────┤
-│                   Server Actions + Route Handlers                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
-│  │ generateCar- │  │ Stripe       │  │ Stripe       │               │
-│  │ ousel (mod)  │  │ Actions(NEW) │  │ Webhook(NEW) │               │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
-├─────────┴──────────────────┴──────────────────┴─────────────────────┤
-│                        Service Layer (lib/)                          │
-│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────┐       │
-│  │ credits   │ │ imagen    │ │ stripe    │ │ captions      │       │
-│  │ (modify)  │ │ (NEW)     │ │ (NEW)     │ │ (NEW)         │       │
-│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └───────┬───────┘       │
-├────────┴──────────────┴─────────────┴───────────────┴───────────────┤
-│                            Data Layer                                │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
-│  │ Supabase     │  │ Stripe API   │  │ Google GenAI │               │
-│  │ (PostgreSQL  │  │ (payments)   │  │ (Imagen +    │               │
-│  │  + Storage)  │  │              │  │  Gemini)     │               │
-│  └──────────────┘  └──────────────┘  └──────────────┘               │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | New vs Modified |
-|-----------|----------------|-----------------|
-| `lib/imagen/` | Generate AI background images via Imagen 4 | **NEW** |
-| `lib/stripe/` | Stripe client init, checkout session creation, portal URL | **NEW** |
-| `lib/credits/` | Credit balance tracking with DB-backed ledger, deduction, purchase credits | **MODIFY** (currently naive project-count approach) |
-| `lib/captions/` | Generate social media captions via Gemini 2.5 Flash | **NEW** |
-| `app/api/webhooks/stripe/route.ts` | Receive Stripe webhook events, sync subscription state | **NEW** |
-| `app/(dashboard)/settings/subscription/` | Wire up real Stripe Checkout + Customer Portal | **MODIFY** |
-| Editor image picker panel | Add "AI Generate" tab alongside Pexels search | **MODIFY** |
-| Caption panel component | UI for generating/copying captions post-carousel | **NEW** |
-
-## Recommended New Project Structure
-
-Only showing NEW files and modified areas:
-
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── render/route.ts              # existing
-│   │   └── webhooks/
-│   │       └── stripe/route.ts          # NEW -- Stripe webhook handler
-│   ├── (dashboard)/
-│   │   ├── settings/
-│   │   │   └── subscription/
-│   │   │       ├── page.tsx             # MODIFY -- wire to real Stripe
-│   │   │       └── actions.ts           # NEW -- createCheckoutSession, createPortalSession
-│   │   └── project/[id]/
-│   │       ├── actions.ts               # MODIFY -- add imagen + credit deduction
-│   │       └── caption-actions.ts       # NEW -- generate captions
-├── components/
-│   ├── editor/
-│   │   └── image-picker-panel.tsx       # MODIFY -- add AI image tab
-│   ├── captions/
-│   │   └── caption-panel.tsx            # NEW -- caption generation UI
-│   └── subscription/
-│       └── credit-display.tsx           # NEW -- credit balance badge
-├── lib/
-│   ├── imagen/
-│   │   └── generate-image.ts            # NEW -- Imagen API wrapper
-│   ├── stripe/
-│   │   ├── client.ts                    # NEW -- Stripe SDK init (server-side)
-│   │   ├── config.ts                    # NEW -- price IDs, plan config
-│   │   └── sync-subscription.ts         # NEW -- webhook event handlers
-│   ├── captions/
-│   │   └── generate-captions.ts         # NEW -- Gemini caption generation
-│   └── credits/
-│       └── check-credits.ts             # MODIFY -- DB-backed ledger
-```
-
-### Structure Rationale
-
-- **`lib/stripe/`:** Isolates all Stripe logic. `client.ts` exports the Stripe instance. `config.ts` maps price IDs to tier names. `sync-subscription.ts` handles webhook event processing. This separation keeps the webhook route handler thin.
-- **`lib/imagen/`:** Single-file wrapper because the Imagen API call is straightforward. Uses the same `@google/genai` SDK already installed for Gemini text generation. No new dependency needed.
-- **`lib/captions/`:** Separate from `lib/ai/` because caption generation has different prompts, schemas, and is invoked from a different UI flow than slide generation.
-- **`app/api/webhooks/stripe/`:** Must be a Route Handler (not a server action) because Stripe sends POST requests to a static URL. This is the only new API route needed.
-
-## Architectural Patterns
-
-### Pattern 1: Credit Ledger (Replace Naive Count)
-
-**What:** Replace the current "count projects this month" credit system with a proper credits table that tracks balance, deductions, and top-ups as individual rows.
-
-**When to use:** Now. The current `check-credits.ts` counts projects with `generation_status != 'draft'` as credit usage. This breaks when you add Imagen (separate cost) and credit pack purchases (top-ups that the current system cannot track).
-
-**Trade-offs:** More database writes per action, but accurate and auditable. Necessary for a billing system.
-
-**Current problem:**
-```typescript
-// Current approach in check-credits.ts -- cannot handle:
-// 1. Multiple credit types (carousel gen vs imagen gen)
-// 2. Purchased credit packs (top-ups)
-// 3. Different costs per action
-const { count } = await supabase
-  .from('projects')
-  .select('*', { count: 'exact', head: true })
-  .neq('generation_status', 'draft')
-  .gte('created_at', monthStart)
-```
-
-**Replacement approach:**
-```typescript
-// New: dedicated credit_transactions table with ledger entries
-// Rows: "subscription_grant" +30, "carousel_generation" -1,
-//        "imagen_generation" -1, "credit_pack" +10
-
-export async function deductCredit(
-  userId: string,
-  type: CreditActionType,
-  referenceId?: string
-): Promise<boolean> {
-  const supabase = await createServiceClient() // service role for atomicity
-  const balance = await getCreditBalance(userId)
-  if (balance <= 0) return false
-
-  await supabase.from('credit_transactions').insert({
-    user_id: userId,
-    type,
-    amount: -1,
-    description: `${type} usage`,
-    reference_id: referenceId,
-  })
-  return true
-}
-
-export async function getCreditBalance(userId: string): Promise<number> {
-  const supabase = await createClient()
-  const { data } = await supabase.rpc('get_credit_balance', { p_user_id: userId })
-  return data ?? 0
-}
-```
-
-### Pattern 2: Stripe Webhook as Single Source of Truth
-
-**What:** All subscription state changes flow through Stripe webhooks. The app never writes subscription status based on client-side Checkout success -- only the webhook handler updates the DB.
-
-**When to use:** Always for Stripe subscriptions. The Checkout success redirect is unreliable (user can close browser). Webhooks are guaranteed delivery.
-
-**Trade-offs:** Slight delay (seconds) between payment and access. Acceptable for this use case.
-
-**Key events to handle:**
-```typescript
-// app/api/webhooks/stripe/route.ts
-switch (event.type) {
-  case 'checkout.session.completed':
-    // Link Stripe customer ID to Supabase user, grant initial credits
-    break
-  case 'customer.subscription.updated':
-    // Tier change -- update subscriptions table
-    break
-  case 'customer.subscription.deleted':
-    // Downgrade to free -- update subscriptions table
-    break
-  case 'invoice.payment_succeeded':
-    // Monthly renewal -- grant new month's credits
-    break
-}
-// For one-time credit pack purchases:
-// checkout.session.completed with mode === 'payment'
-// -> Add purchased credits to balance
-```
-
-### Pattern 3: Server Action for Checkout, Route Handler for Webhook
-
-**What:** Use Next.js server actions to create Stripe Checkout Sessions (user-initiated), but use a Route Handler for the webhook endpoint (Stripe-initiated).
-
-**When to use:** This is the standard 2025/2026 pattern for Stripe + Next.js App Router.
-
-**Trade-offs:** Two different patterns for Stripe communication. This is intentional -- server actions are for user-initiated flows, route handlers are for external service callbacks.
-
-```typescript
-// Server Action -- user clicks "Subscribe"
-'use server'
-export async function createCheckoutSession(priceId: string) {
-  const stripe = getStripeClient()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?canceled=true`,
-    metadata: { supabase_user_id: user!.id },
-  })
-  redirect(session.url!)
-}
-
-// Route Handler -- Stripe calls this
-// app/api/webhooks/stripe/route.ts
-export async function POST(request: Request) {
-  const body = await request.text()
-  const sig = request.headers.get('stripe-signature')!
-  const event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
-  await handleStripeEvent(event) // delegates to lib/stripe/sync-subscription.ts
-  return NextResponse.json({ received: true })
-}
-```
-
-## Data Flow
-
-### Flow 1: AI Image Generation (Imagen)
-
-```
-User clicks "Generate AI Image" in editor image picker
+Data Layer (Slide type + SlideStyleOverrides)
     |
     v
-Server Action: generateAIImage(projectId, slideIndex, prompt)
-    |
-    +-- 1. Check credit balance (credit_transactions table via RPC)
-    |       If insufficient -> return error with upgrade prompt
-    |
-    +-- 2. Deduct credit BEFORE calling API (optimistic deduction)
-    |       Insert credit_transaction: { type: 'imagen_generation', amount: -1 }
-    |
-    +-- 3. Call Imagen API via @google/genai
-    |       ai.models.generateImages({
-    |         model: 'imagen-4.0-fast-generate-001',
-    |         prompt: prompt,
-    |         config: { numberOfImages: 1, aspectRatio: '9:16' }
-    |       })
-    |
-    +-- 4. Upload image buffer to Supabase Storage
-    |       bucket: 'slide-images', path: '{userId}/{projectId}/{slideIndex}.png'
-    |
-    +-- 5. Update slide_data JSONB with public URL
-    |       slide.background_url = publicUrl
-    |       slide.image_source = 'imagen'
-    |
-    +-- 6. If step 3 fails -> refund credit (insert +1 transaction)
-    |
-    +-- 7. Return public URL to client
-```
-
-**Key detail:** Imagen natively supports `9:16` aspect ratio, which matches the 1080x1920 carousel slide dimensions exactly. Use `imagen-4.0-fast-generate-001` at $0.02/image for cost efficiency -- the quality difference vs standard is minimal for slide backgrounds.
-
-### Flow 2: Stripe Subscription Lifecycle
-
-```
-User clicks "Upgrade to Pro" on subscription page
+Editor Layer (useSlideEditor reducer + TextEditorPanel controls)
     |
     v
-Server Action: createCheckoutSession(priceId)
-    |
-    +-- 1. Get Supabase user
-    +-- 2. Find or create Stripe customer (store stripe_customer_id)
-    +-- 3. Create Stripe Checkout Session (mode: 'subscription')
-    +-- 4. Redirect to Stripe-hosted Checkout page
-            |
-            v
-        Stripe processes payment
-            |
-            v
-        Stripe POSTs to /api/webhooks/stripe
-            |
-            v
-        Route Handler:
-            +-- 1. Verify webhook signature
-            +-- 2. Extract subscription details from event
-            +-- 3. Upsert row in subscriptions table (tier, status, period)
-            +-- 4. Grant monthly credits (insert credit_transaction: +N)
-            +-- 5. Return 200 OK
-
-User returns to success URL:
-    +-- Page checks subscriptions table for updated tier
-    +-- Shows "Subscription active" (or "Processing..." if webhook hasn't fired yet)
+Rendering Layer (two parallel renderers reading same data)
+    |--- SlidePreview (React + react-draggable, client-side preview)
+    |--- buildSlideElement (Satori JSX, server-side PNG via next/og ImageResponse)
+    |--- buildSlideHtml (HTML string renderer, present but secondary)
 ```
 
-### Flow 3: Caption Generation
+**Critical constraint:** Any data model change must render identically in both `SlidePreview` (client React component) and `buildSlideElement` (Satori JSX for `next/og` ImageResponse). Satori has significant CSS limitations: no z-index, inline styles only, limited CSS subset (flexbox + absolute positioning). All style resolution logic is currently duplicated across these renderers.
 
-```
-User clicks "Generate Captions" (after carousel is complete)
-    |
-    v
-Server Action: generateCaptions(projectId)
-    |
-    +-- 1. Fetch project slide_data + topic from DB
-    +-- 2. Build prompt: "Generate social media captions for a carousel about {topic}
-    |      with these slides: {slide summaries}"
-    +-- 3. Call Gemini 2.5 Flash via @google/genai (text generation, structured output)
-    |       Schema: { tiktok: string, instagram: string, twitter: string }
-    +-- 4. Return captions to client (ephemeral, no DB storage needed)
-    +-- 5. UI shows copy-to-clipboard for each platform
-```
-
-**Key detail:** Caption generation uses Gemini 2.5 Flash text-only. It is very cheap (fractions of a cent). It should NOT consume image/carousel credits. Either make it free for all tiers or give it a separate generous limit. This is a low-friction feature that increases perceived value.
-
-### Flow 4: Monthly Credit Renewal
-
-```
-Stripe sends webhook: invoice.payment_succeeded (recurring billing)
-    |
-    v
-Route Handler: /api/webhooks/stripe
-    |
-    +-- 1. Look up stripe_subscription_id -> find subscription row -> determine tier
-    +-- 2. Insert credit_transaction: { type: 'subscription_grant', amount: +tierLimit }
-    +-- 3. Return 200 OK
-```
-
-Credits do NOT roll over. The monthly grant is a flat amount regardless of remaining balance. This simplifies the system and incentivizes usage.
-
-## New Database Schema
-
-### subscriptions table
-
-```sql
-CREATE TABLE public.subscriptions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  stripe_customer_id TEXT NOT NULL,
-  stripe_subscription_id TEXT UNIQUE,
-  tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'plus', 'pro')),
-  status TEXT NOT NULL DEFAULT 'active'
-    CHECK (status IN ('active', 'canceled', 'past_due', 'trialing', 'incomplete')),
-  current_period_start TIMESTAMPTZ,
-  current_period_end TIMESTAMPTZ,
-  cancel_at_period_end BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(user_id)
-);
-
-ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
-
--- Users can read their own subscription
-CREATE POLICY "Users can view their own subscription"
-  ON public.subscriptions FOR SELECT
-  USING (auth.uid() = user_id);
-
--- Only the service role (webhook handler) writes to this table
--- No INSERT/UPDATE/DELETE policies for anon/authenticated roles
-
-CREATE TRIGGER subscriptions_updated_at
-  BEFORE UPDATE ON public.subscriptions
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at(); -- reuse existing trigger function
-```
-
-### credit_transactions table
-
-```sql
-CREATE TABLE public.credit_transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN (
-    'subscription_grant',
-    'carousel_generation',
-    'imagen_generation',
-    'credit_pack_purchase',
-    'refund',
-    'admin_adjustment'
-  )),
-  amount INTEGER NOT NULL, -- positive for grants, negative for usage
-  description TEXT,
-  reference_id TEXT, -- optional: project_id, stripe_session_id, etc.
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX credit_transactions_user_id_idx
-  ON public.credit_transactions(user_id);
-
-CREATE INDEX credit_transactions_user_created_idx
-  ON public.credit_transactions(user_id, created_at DESC);
-
-ALTER TABLE public.credit_transactions ENABLE ROW LEVEL SECURITY;
-
--- Users can read their own credit history
-CREATE POLICY "Users can view their own credits"
-  ON public.credit_transactions FOR SELECT
-  USING (auth.uid() = user_id);
-
--- Only service role writes (from server actions and webhooks)
-
--- Balance calculation via database function
-CREATE OR REPLACE FUNCTION public.get_credit_balance(p_user_id UUID)
-RETURNS INTEGER AS $$
-  SELECT COALESCE(SUM(amount), 0)::INTEGER
-  FROM public.credit_transactions
-  WHERE user_id = p_user_id;
-$$ LANGUAGE SQL SECURITY DEFINER STABLE;
-```
-
-### Supabase Storage bucket
-
-```
-Bucket: slide-images (NEW)
-  - Public read access (images served via Supabase CDN)
-  - Write restricted to authenticated users, scoped to own user_id path
-  - Path pattern: {user_id}/{project_id}/{slide_index}.png
-  - Max file size: 5MB (Imagen outputs are typically 1-2MB PNGs)
-```
-
-### Slide type modification
+### Current Data Model
 
 ```typescript
-// Add to src/lib/types/slide.ts
-export interface Slide {
-  hook_text: string
-  body_text: string
+// src/lib/types/slide.ts
+interface SlideStyleOverrides {
+  hook_font_size?: number
+  body_font_size?: number
+  text_color?: string
+  text_position?: 'top' | 'center' | 'bottom'
+  text_align?: 'left' | 'center' | 'right'
+  hook_position?: TextPosition   // { x: number, y: number } as percentages
+  body_position?: TextPosition
+  overlay_opacity?: number
+}
+
+interface Slide {
+  hook_text: string              // plain string, NOT rich text
+  body_text: string              // plain string, NOT rich text
   image_query: string
   is_cta: boolean
   background_url: string | null
   pexels_photo_id: number | null
-  image_source?: 'pexels' | 'imagen' | 'upload' // NEW field
   style_overrides?: SlideStyleOverrides
 }
 ```
 
-## Integration Points
+Slides are stored as `jsonb` in Postgres (`projects.slide_data`). New optional fields are backward-compatible -- existing slides without them render with template defaults.
 
-### External Services
+### Current Rendering Coordinate System
 
-| Service | Integration Pattern | Key Config | Cost |
-|---------|---------------------|------------|------|
-| Google Imagen 4 Fast | `@google/genai` SDK, `ai.models.generateImages()` | `GEMINI_API_KEY` (same key works) | $0.02/image |
-| Stripe Subscriptions | `stripe` npm package (NEW), server-side only | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | 2.9% + $0.30/txn |
-| Stripe Credit Packs | Same package, `mode: 'payment'` (one-time) | Same keys | Same fee |
-| Stripe Customer Portal | `stripe.billingPortal.sessions.create()` | Same keys | Free |
-| Gemini 2.5 Flash (captions) | `@google/genai` SDK (existing), `ai.models.generateContent()` | `GEMINI_API_KEY` (same key) | ~$0.001/request |
-| Supabase Storage | `@supabase/supabase-js` (existing) | Existing Supabase keys | 1GB free, then $0.021/GB |
+The canvas uses a 1080x1920 reference space scaled down to the container width via CSS `transform: scale(factor)`. Text positions are stored as percentages (0-100). `react-draggable` handles position changes with the scale factor passed in. Text width is currently computed as `100 - hookX * 2` (symmetric margins, same width for both text boxes).
 
-### Internal Boundaries
+## Integration Analysis by Feature
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| Editor --> Imagen | Server action `generateAIImage()` | Returns Supabase Storage public URL, updates slide_data |
-| Subscription page --> Stripe | Server action `createCheckoutSession()` | Redirects to Stripe-hosted page |
-| Stripe --> App | POST to `/api/webhooks/stripe` | Must verify signature; uses service role Supabase client |
-| Webhook --> Credits | Direct function call in same process | `grantMonthlyCredits()` called from webhook handler |
-| Webhook --> Subscriptions | Direct function call in same process | `upsertSubscription()` called from webhook handler |
-| Caption panel --> Gemini | Server action `generateCaptions()` | Stateless, returns text, no DB write |
-| Credit display --> DB | Server component data fetch or server action | Calls `get_credit_balance` RPC |
-| Settings page --> Subscription DB | Server component data fetch | Reads `subscriptions` table on page load |
+### 1. Bold/Italic Text Styling
 
-### Existing Code That Must Change
+**Impact: LOW -- purely additive style fields, zero external dependencies**
 
-| File | Change | Reason |
-|------|--------|--------|
-| `src/lib/credits/check-credits.ts` | Full rewrite: use `credit_transactions` table + RPC instead of counting projects | Current approach cannot handle credit packs, imagen deductions, or multiple credit types |
-| `src/app/(dashboard)/project/[id]/actions.ts` | Add credit deduction call after successful generation; add Imagen image option | Currently checks credits but never deducts from a ledger |
-| `src/app/(dashboard)/settings/subscription/page.tsx` | Wire "Upgrade" buttons to `createCheckoutSession()`, "Manage" to Customer Portal session | Currently shows `window.alert('coming soon')` placeholder |
-| `src/components/editor/image-picker-panel.tsx` | Add "AI Generate" tab with prompt input alongside existing Pexels tab | Currently only offers Pexels stock photo search |
-| `src/lib/types/slide.ts` | Add `image_source` field to Slide interface | Need to track where each slide image came from |
-| `src/middleware.ts` | No change needed | Webhook route at `/api/webhooks/stripe` is already excluded by the existing matcher pattern |
+| Layer | Component | Change Type | Details |
+|-------|-----------|-------------|---------|
+| Data | `SlideStyleOverrides` | ADD fields | `hook_font_weight?: number`, `hook_font_style?: 'normal' \| 'italic'`, same for `body_*` |
+| Data | `SlideTemplate` | NO CHANGE | `hookStyle` already has `'uppercase' \| 'normal' \| 'italic'` at template level |
+| Editor | `TextEditorPanel` | ADD controls | Bold (B) and Italic (I) toggle buttons per text box |
+| Preview | `SlidePreview` | MODIFY | Apply `fontWeight` and `fontStyle` from overrides to text element styles |
+| Render | `buildSlideElement` | MODIFY | Same override resolution for Satori inline styles |
+| Render | Font loading | NOTE | Must ensure bold (700/900) and italic variants are loaded for selected font |
 
-## Environment Variables (New)
+**Design decision -- whole-box styling, NOT inline rich text:**
 
-```bash
-# Stripe (all new)
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+Apply bold/italic to the entire hook or body text box. Do NOT implement inline rich text (e.g., "some **bold** words"). Reasons:
+1. Satori cannot reliably render mixed-weight `<span>` elements within a text block
+2. Current data model stores `hook_text` and `body_text` as plain strings -- inline formatting would require migrating to a rich text format (Slate nodes, ProseMirror doc, or HTML)
+3. Inline rich text requires a full editor library (Slate, TipTap, ProseMirror) -- massive complexity for short slide text (1-3 sentences)
+4. Canva-style slide editors apply formatting to entire text boxes, not inline -- this is the right UX for short-form carousel content
 
-# Stripe Price IDs (configured in Stripe Dashboard)
-STRIPE_PRICE_PLUS_MONTHLY=price_...
-STRIPE_PRICE_PLUS_YEARLY=price_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
-STRIPE_PRICE_PRO_YEARLY=price_...
-STRIPE_PRICE_CREDIT_PACK_10=price_...
+**Implementation:** Toggle buttons that set `fontWeight: 700` (bold on) / `undefined` (bold off, inherit from template) and `fontStyle: 'italic'` / `undefined`. User overrides compose with template's `hookStyle` -- if template says `hookStyle: 'italic'` and user toggles italic off, the override wins.
 
-# Supabase Service Role (for webhook handler -- NOT exposed to client)
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+### 2. Font Picker (Google Fonts)
 
-# Existing -- no changes needed:
-# GEMINI_API_KEY -- works for both Gemini text and Imagen image generation
-# NEXT_PUBLIC_SUPABASE_URL
-# NEXT_PUBLIC_SUPABASE_ANON_KEY
-# PEXELS_API_KEY
+**Impact: MEDIUM -- requires font infrastructure for both client preview and server rendering**
+
+| Layer | Component | Change Type | Details |
+|-------|-----------|-------------|---------|
+| Data | `SlideStyleOverrides` | ADD fields | `hook_font_family?: string`, `body_font_family?: string` |
+| Data | `SlideTemplate` | NO CHANGE | Already has `fontFamily` field used as default |
+| Editor | `TextEditorPanel` | ADD section | Font picker dropdown with search, grouped by category |
+| Preview | `SlidePreview` | MODIFY | Dynamically inject Google Fonts `<link>` tag for custom font |
+| Render | `buildSlideElement` | MODIFY | Read font family override, apply to Satori styles |
+| Render | `render/route.ts` | MODIFY | Fetch font file buffers and pass to ImageResponse `fonts` option |
+| New | `font-catalog.ts` | NEW | Static list of curated fonts with metadata |
+| New | `load-font.ts` | NEW | Fetch Google Font .ttf buffers for Satori |
+| New | `font-picker.tsx` | NEW | Searchable font dropdown component |
+
+**Critical integration point -- Satori font loading:**
+
+Satori (used by `next/og` ImageResponse) does NOT use CSS `@font-face` or Google Fonts `<link>` tags. It requires raw font file ArrayBuffers passed to the constructor:
+
+```typescript
+// Current -- no custom fonts, uses system fallback
+new ImageResponse(element, { width: 1080, height: 1920 })
+
+// Required for custom fonts
+new ImageResponse(element, {
+  width: 1080,
+  height: 1920,
+  fonts: [
+    {
+      name: 'Montserrat',
+      data: fontBuffer,       // ArrayBuffer from .ttf/.woff file
+      weight: 400,
+      style: 'normal',
+    },
+    {
+      name: 'Montserrat',
+      data: boldFontBuffer,
+      weight: 700,
+      style: 'normal',
+    },
+  ],
+})
 ```
 
-## Scaling Considerations
+**Font loading strategy for server rendering:**
+1. Google Fonts CSS API returns `@font-face` declarations with URLs to `.woff2`/`.ttf` files
+2. Parse those URLs from the CSS response
+3. Fetch the binary font file
+4. Cache the buffer (in-memory or on disk) -- fonts are immutable, cache indefinitely
+5. Pass to ImageResponse
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 0-1k users | Current monolith is fine. Single Supabase instance. Credit balance RPC is fast with index on user_id. |
-| 1k-10k users | Add materialized `balance` column to subscriptions table (updated by trigger on credit_transactions INSERT) to avoid SUM on every check. |
-| 10k+ users | Move Imagen calls behind a queue to handle rate limits. Add CDN in front of Supabase Storage. Consider read replicas for Supabase. |
+**Client preview font loading:** Inject a `<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap">` tag into `<head>` dynamically. This is simple and well-supported.
 
-### Scaling Priorities
+**Curated font list -- not open search:**
+Limit to 20-30 popular Google Fonts grouped by category (sans-serif, serif, display, handwriting). Reasons:
+- Most of Google Fonts' 1400+ fonts are low quality
+- Each unique font in a project requires a buffer fetch at render time
+- Font previews for 1400 fonts would be slow to render
+- A curated list provides a better UX (less choice paralysis)
 
-1. **First bottleneck:** Imagen API rate limits. Google imposes per-minute quotas. Mitigate with optimistic deduction (credit deducted before API call) and retry with exponential backoff.
-2. **Second bottleneck:** Credit balance calculation. The SUM aggregation on credit_transactions will slow as rows grow. Fix with a materialized balance column updated via PostgreSQL trigger.
+### 3. Resizable Text Boxes
 
-## Anti-Patterns
+**Impact: MEDIUM -- modifies core text box rendering and breaks symmetric width assumption**
 
-### Anti-Pattern 1: Storing Subscription Tier in User Metadata
+| Layer | Component | Change Type | Details |
+|-------|-----------|-------------|---------|
+| Data | `SlideStyleOverrides` | ADD fields | `hook_width?: number` (percentage 0-100), `body_width?: number` |
+| Editor | `SlidePreview` | MODIFY | Replace symmetric width calc, add resize drag handles |
+| Preview | `SlidePreview` (non-editable) | MODIFY | Read per-box width from overrides |
+| Render | `buildSlideElement` | MODIFY | Read per-box width overrides |
+| Render | `buildSlideHtml` | MODIFY | Same |
+| New | Resize interaction code | NEW | Mouse/touch handlers for resize handles |
 
-**What people do:** Store `subscription_tier` in `auth.users.user_metadata` (which is what the CURRENT code does in `getUserTier()`).
-**Why it's wrong:** User metadata is client-writable and can be spoofed via `supabase.auth.updateUser()`. It has no audit trail and cannot be updated atomically from a webhook (webhooks have no user session). The current implementation at `src/lib/credits/check-credits.ts:19-23` reads from `user?.user_metadata?.subscription_tier`.
-**Do this instead:** Create a `subscriptions` table written ONLY by the webhook handler using the Supabase service role client. Read tier from this table in all credit checks.
+**Breaking the symmetric width assumption:**
 
-### Anti-Pattern 2: Trusting Checkout Success URL for Fulfillment
+Currently ALL renderers compute text width as `100 - hookX * 2` -- a symmetric margin. With per-box widths, this changes to:
 
-**What people do:** Grant access when the user lands on `?success=true` after Stripe Checkout.
-**Why it's wrong:** Users can navigate directly to the success URL. Browser might close before redirect. Checkout success is not a guarantee of payment.
-**Do this instead:** Only grant access via webhook. The success page shows "Processing your subscription..." and checks the subscriptions table. If the webhook has not fired yet, show a brief loading state.
+```typescript
+// Current (all renderers)
+const textWidth = 100 - hookX * 2
 
-### Anti-Pattern 3: Calling Imagen Without Pre-deduction
+// New
+const hookWidth = overrides.hook_width ?? (100 - hookX * 2)  // fallback to symmetric
+const bodyWidth = overrides.body_width ?? (100 - bodyX * 2)
+```
 
-**What people do:** Call the Imagen API first, then deduct credit on success.
-**Why it's wrong:** If a user spam-clicks "generate," multiple API calls fire before any credit is deducted. This can exhaust your API quota and give away free generations.
-**Do this instead:** Deduct the credit BEFORE calling Imagen. If Imagen fails, insert a refund credit transaction. This naturally rate-limits per user via their credit balance.
+This change touches `SlidePreview` (editable and non-editable modes) and both server renderers. All must be updated together.
 
-### Anti-Pattern 4: Storing AI Images as Base64 in JSONB
+**Width only, NOT height:** Text boxes auto-size height based on content (text wraps naturally). Users resize width; height follows. This matches Canva/Figma behavior for text boxes and avoids the complexity of overflow/truncation.
 
-**What people do:** Store the Imagen-generated image bytes directly in the `slide_data` JSONB column.
-**Why it's wrong:** JSONB is not designed for large binary blobs. A single image is 1-2MB as base64. It bloats the projects table, slows all queries that touch that row, and makes backups enormous.
-**Do this instead:** Upload to Supabase Storage, store the public URL in `slide_data[].background_url` -- the same field already used for Pexels image URLs. This is a drop-in replacement.
+**Implementation -- custom resize handles, not a library:**
 
-## Suggested Build Order
+Do NOT add `react-resizable` or `re-resizable`. Reasons:
+- The text boxes are already absolutely positioned in a scaled coordinate system with `react-draggable`
+- Adding a resize library creates two competing coordinate/event systems on the same DOM elements
+- The existing scale factor math (container width / 1080) must be applied to resize deltas too
 
-Based on dependency analysis of the four new features:
+Instead, add 8x8px drag handles at the left and right edges of each text box. On mousedown, track mouse movement, convert pixel deltas to percentage deltas using the same scale factor, and dispatch `UPDATE_SLIDE` with new width values.
 
-1. **Database tables + credit ledger rewrite** -- Everything depends on proper credit tracking and subscription state. Create `subscriptions` and `credit_transactions` tables. Rewrite `check-credits.ts` to use the ledger. Create the `get_credit_balance` RPC. This unblocks all other features.
+### 4. Alignment Guides (Snap Lines)
 
-2. **Stripe integration (webhooks + checkout + portal)** -- Subscriptions must work before gating premium features. Create webhook handler, checkout session server actions, customer portal redirect. Wire up the existing subscription settings page. Depends on: subscriptions table from step 1.
+**Impact: LOW -- purely visual, no data model or server rendering changes**
 
-3. **Imagen integration** -- Depends on credits (to deduct) and subscriptions (to gate as premium-only). Add the image generation wrapper using existing `@google/genai` SDK. Set up Supabase Storage bucket. Add "AI Generate" tab to the editor image picker. Depends on: credit system from step 1, subscription gating from step 2.
+| Layer | Component | Change Type | Details |
+|-------|-----------|-------------|---------|
+| Data | None | NO CHANGE | Guides are ephemeral UI state, not persisted |
+| Editor | `SlidePreview` | MODIFY | Add `onDrag` handler (currently only uses `onStop`), render guide overlays |
+| New | `use-alignment-guides.ts` | NEW | Hook: calculate guide positions, detect proximity, return active guides |
+| New | Overlay divs in `SlidePreview` | NEW | Thin colored lines shown during drag |
 
-4. **Caption generation** -- Lowest dependency, simplest feature. Uses existing Gemini SDK and patterns. No new tables, no billing impact. Add server action + UI panel. Can be built in parallel with step 3 once step 1 is complete.
+**Key change to react-draggable usage:**
+
+Currently the component only uses `onStop` to persist final position. Must add `onDrag` handler to compute snap positions in real-time during drag. The `Draggable` component already supports both callbacks.
 
 ```
-[Step 1: DB + Credits] -----> [Step 2: Stripe] -----> [Step 3: Imagen]
-                          \                               /
-                           +----> [Step 4: Captions] ----+
+User drags text box
+    |
+    v
+onDrag fires continuously
+    |
+    v
+useAlignmentGuides calculates nearest guides from current position
+    |
+    v
+If within snap threshold (e.g., 8-10px in reference space):
+    - Snap position to guide
+    - Show guide line overlay
+    |
+    v
+onStop: persist final snapped position (existing flow)
 ```
+
+**Guide lines to implement:**
+- Canvas horizontal center (y = 50%)
+- Canvas vertical center (x = 50%)
+- Top/bottom safe zone boundaries (y = 12%, y = 75%)
+- Left/right safe zone boundaries (x = 11%, x = 89%)
+- Cross-box alignment: hook aligns to body's x position, and vice versa
+
+## Data Model Changes (Complete)
+
+```typescript
+// Proposed SlideStyleOverrides for v1.3
+export interface SlideStyleOverrides {
+  // Existing fields (unchanged)
+  hook_font_size?: number
+  body_font_size?: number
+  text_color?: string
+  text_position?: 'top' | 'center' | 'bottom'
+  text_align?: 'left' | 'center' | 'right'
+  hook_position?: TextPosition
+  body_position?: TextPosition
+  overlay_opacity?: number
+
+  // NEW: Font picker
+  hook_font_family?: string       // Google Font name, e.g. "Montserrat"
+  body_font_family?: string
+
+  // NEW: Bold/italic
+  hook_font_weight?: number       // 400 | 700 | 900
+  hook_font_style?: 'normal' | 'italic'
+  body_font_weight?: number
+  body_font_style?: 'normal' | 'italic'
+
+  // NEW: Resizable width
+  hook_width?: number             // percentage 0-100
+  body_width?: number             // percentage 0-100
+}
+```
+
+**Database impact:** NONE. All fields are optional within the `style_overrides` object inside the `slide_data` jsonb column. Fully backward-compatible -- old slides render with template defaults for missing fields.
+
+## Editor State Changes
+
+The existing reducer pattern requires NO structural changes. All new fields flow through `SlideStyleOverrides`, which is already handled by the `UPDATE_SLIDE` action's merge logic:
+
+```typescript
+// Existing code in editor-reducer.ts -- already handles new fields
+case 'UPDATE_SLIDE': {
+  if (action.updates.style_overrides && slide.style_overrides) {
+    updated.style_overrides = {
+      ...slide.style_overrides,
+      ...action.updates.style_overrides,
+    }
+  }
+}
+```
+
+Undo/redo works automatically because the reducer snapshots the entire slide array in `past[]`. No new action types needed.
+
+## Architectural Pattern: Shared Style Resolution
+
+**This is the most important refactor before adding features.**
+
+Currently, override resolution (e.g., `overrides.text_color ?? template.textColor`) is duplicated across three renderers:
+1. `SlidePreview` (editable mode)
+2. `SlidePreview` (non-editable/thumbnail mode)
+3. `buildSlideElement` (Satori server render)
+4. `buildSlideHtml` (HTML renderer)
+
+With 8 new override fields, this duplication becomes a guaranteed source of preview-vs-export bugs.
+
+**Solution:** Extract `resolveSlideStyles(slide, template)` that ALL renderers consume:
+
+```typescript
+// src/lib/render/resolve-styles.ts
+export interface ResolvedSlideStyles {
+  textColor: string
+  textAlign: 'left' | 'center' | 'right'
+  overlayOpacity: number
+
+  hookFontSize: number
+  hookFontFamily: string
+  hookFontWeight: number
+  hookFontStyle: 'normal' | 'italic'
+  hookX: number           // percentage
+  hookY: number           // percentage
+  hookWidth: number       // percentage
+
+  bodyFontSize: number
+  bodyFontFamily: string
+  bodyFontWeight: number
+  bodyFontStyle: 'normal' | 'italic'
+  bodyX: number
+  bodyY: number
+  bodyWidth: number
+}
+
+export function resolveSlideStyles(
+  slide: Slide,
+  template: SlideTemplate
+): ResolvedSlideStyles {
+  const overrides = slide.style_overrides ?? {}
+  const posPreset = overrides.text_position ?? template.textPosition
+  const defaults = SAFE_ZONE[posPreset] ?? SAFE_ZONE.center
+
+  return {
+    textColor: overrides.text_color ?? template.textColor,
+    textAlign: overrides.text_align ?? template.textAlign,
+    overlayOpacity: overrides.overlay_opacity != null
+      ? overrides.overlay_opacity / 100
+      : template.overlayOpacity,
+
+    hookFontSize: overrides.hook_font_size ?? parseInt(template.hookFontSize),
+    hookFontFamily: overrides.hook_font_family
+      ? `'${overrides.hook_font_family}', sans-serif`
+      : template.fontFamily,
+    hookFontWeight: overrides.hook_font_weight ?? 900,
+    hookFontStyle: overrides.hook_font_style
+      ?? (template.hookStyle === 'italic' ? 'italic' : 'normal'),
+    hookX: overrides.hook_position?.x ?? SAFE_ZONE.x,
+    hookY: overrides.hook_position?.y ?? defaults.hookY,
+    hookWidth: overrides.hook_width ?? (100 - (overrides.hook_position?.x ?? SAFE_ZONE.x) * 2),
+
+    bodyFontSize: overrides.body_font_size ?? parseInt(template.bodyFontSize),
+    bodyFontFamily: overrides.body_font_family
+      ? `'${overrides.body_font_family}', sans-serif`
+      : template.fontFamily,
+    bodyFontWeight: overrides.body_font_weight ?? 400,
+    bodyFontStyle: overrides.body_font_style ?? 'normal',
+    bodyX: overrides.body_position?.x ?? SAFE_ZONE.x,
+    bodyY: overrides.body_position?.y ?? defaults.bodyY,
+    bodyWidth: overrides.body_width ?? (100 - (overrides.body_position?.x ?? SAFE_ZONE.x) * 2),
+  }
+}
+```
+
+## New Files
+
+| File | Type | Purpose |
+|------|------|---------|
+| `src/lib/render/resolve-styles.ts` | NEW | Shared style resolution -- single source of truth for all renderers |
+| `src/lib/fonts/font-catalog.ts` | NEW | Static array of 20-30 curated Google Fonts with metadata (name, weights, category) |
+| `src/lib/fonts/load-font.ts` | NEW | Fetch Google Font .ttf buffer for Satori rendering, with in-memory cache |
+| `src/components/editor/font-picker.tsx` | NEW | Searchable dropdown of curated fonts with live preview text |
+| `src/lib/editor/use-alignment-guides.ts` | NEW | Hook: calculate snap guide positions, detect proximity, return active guide lines |
+
+## Modified Files
+
+| File | Change | Why |
+|------|--------|-----|
+| `src/lib/types/slide.ts` | Add 8 new optional fields to `SlideStyleOverrides` | Data model for all new features |
+| `src/components/editor/text-editor-panel.tsx` | Add font picker component, bold/italic toggle buttons | Editor controls for new features |
+| `src/components/slides/slide-preview.tsx` | Consume `resolveSlideStyles()`, add resize handles, add alignment guide overlay, add `onDrag` to Draggable, dynamic Google Font `<link>` injection | Preview rendering + interaction |
+| `src/lib/render/render-slide-satori.tsx` | Consume `resolveSlideStyles()`, apply font family/weight/style to JSX styles | Server rendering parity |
+| `src/lib/render/render-slide.ts` | Consume `resolveSlideStyles()`, apply new CSS properties | HTML renderer parity |
+| `src/app/api/render/route.ts` | Detect custom fonts from slide overrides, fetch font buffers, pass to ImageResponse `fonts` option | Font loading for server-side PNG export |
+
+## Recommended Build Order
+
+Order is driven by dependencies. Each feature can ship independently.
+
+### Step 0: Extract `resolveSlideStyles()` (prerequisite refactor)
+
+**Why first:** This is a pure refactor with no behavior change. It eliminates the style resolution duplication BEFORE adding new fields. All subsequent features benefit from a single source of truth.
+
+1. Create `src/lib/render/resolve-styles.ts` with current fields only
+2. Refactor `SlidePreview` to consume it
+3. Refactor `buildSlideElement` to consume it
+4. Refactor `buildSlideHtml` to consume it
+5. Verify all tests pass -- rendering should be byte-identical
+
+**Risk:** LOW. Pure refactor, no new behavior.
+
+### Step 1: Bold/Italic (simplest feature, validates override pattern)
+
+**Why next:** Zero external dependencies. Tests the pattern of adding new override fields end-to-end through `resolveSlideStyles()`.
+
+1. Add `hook_font_weight`, `hook_font_style`, `body_font_weight`, `body_font_style` to `SlideStyleOverrides`
+2. Add resolution logic to `resolveSlideStyles()`
+3. Add toggle buttons to `TextEditorPanel`
+4. Verify preview and export render identically
+5. Verify undo/redo works (automatic via existing reducer)
+
+**Risk:** LOW. Identical pattern to existing `hook_font_size` override.
+
+### Step 2: Font Picker (requires font infrastructure)
+
+**Why next:** Builds the font loading infrastructure needed for proper bold/italic weight availability. Also the highest user-perceived-value feature.
+
+1. Create `font-catalog.ts` with curated font list
+2. Create `load-font.ts` for fetching/caching .ttf buffers
+3. Build `FontPicker` component with search and category grouping
+4. Add `hook_font_family`, `body_font_family` to `SlideStyleOverrides` and `resolveSlideStyles()`
+5. Wire into `TextEditorPanel`
+6. Update `SlidePreview` to dynamically load fonts via `<link>` tag
+7. Update `render/route.ts` to fetch font buffers and pass to ImageResponse
+
+**Risk:** MEDIUM. Satori font buffer loading is the trickiest integration point in the entire milestone. Test server-side rendering early with a single custom font before building the full picker UI.
+
+### Step 3: Resizable Text Boxes
+
+**Why next:** Modifies text box dimensions, which alignment guides need to understand.
+
+1. Add `hook_width`, `body_width` to `SlideStyleOverrides` and `resolveSlideStyles()`
+2. Update all renderers to use per-box width instead of symmetric calculation
+3. Add resize handles (small squares) on left/right edges of text boxes in editable mode
+4. Implement mousedown/mousemove/mouseup handlers with scale-factor conversion
+5. Dispatch `UPDATE_SLIDE` with new width on resize end
+
+**Risk:** MEDIUM. The scaled coordinate system makes pixel-to-percentage conversion non-trivial. Same pattern as existing drag, but adds the width dimension.
+
+### Step 4: Alignment Guides
+
+**Why last:** Purely visual polish. No data model impact. Benefits from stable text box dimensions (after resize is done).
+
+1. Build `useAlignmentGuides` hook with guide line definitions and proximity detection
+2. Add `onDrag` handler to existing `Draggable` components
+3. Implement snap logic with 8-10px threshold (in 1080x1920 reference space)
+4. Render guide line overlays as absolutely-positioned colored divs
+5. Optional: snap during resize operations too
+
+**Risk:** LOW. Client-side only, no persistence, no server rendering impact.
+
+```
+[Step 0: resolveSlideStyles refactor]
+    |
+    v
+[Step 1: Bold/Italic] --> [Step 2: Font Picker] --> [Step 3: Resize] --> [Step 4: Guides]
+                                                          |                    |
+                                              (guides benefit from stable box sizes)
+```
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Inline Rich Text Editor
+
+**What people do:** Add Slate.js, TipTap, or ProseMirror for inline bold/italic within text
+**Why it's wrong:** Slide text is 1-3 sentences. Inline formatting requires: rich text serialization format, Satori rendering of mixed-style spans, migration of all existing plain string data, contenteditable bugs on mobile, and a complete data model redesign from `string` to a node tree. 10x the complexity for minimal value.
+**Do this instead:** Whole-box bold/italic toggles. Apply to entire hook or body text box.
+
+### Anti-Pattern 2: Open Font Search (All 1400+ Google Fonts)
+
+**What people do:** Let users search the full Google Fonts library
+**Why it's wrong:** Most fonts are low quality. Loading previews for 1400 fonts is slow. Each unique font requires a .ttf buffer fetch at render time. More fonts means more render failures and slower exports.
+**Do this instead:** Curate 20-30 popular fonts grouped by category. Cover the 80% case. Can expand later if users request specific fonts.
+
+### Anti-Pattern 3: Using a Resize Library (react-resizable, re-resizable)
+
+**What people do:** Install a resize library alongside react-draggable
+**Why it's wrong:** Two libraries competing over the same DOM element in a scaled coordinate system. The resize library won't know about the scale factor, producing incorrect sizes. Event handler conflicts between drag and resize.
+**Do this instead:** Build resize handles with raw mouse event handlers, reusing the existing scale-factor math from the drag implementation.
+
+### Anti-Pattern 4: Divergent Override Resolution
+
+**What people do:** Add new override fields to one renderer but forget another, so preview and export look different
+**Why it's wrong:** The current codebase already has 3 copies of style resolution logic. Adding 8 fields to 3 places creates 24 potential divergence points. Users see one thing in preview and get something different on export.
+**Do this instead:** Extract `resolveSlideStyles()` BEFORE adding any new fields. All renderers consume the same resolved output.
+
+## Satori-Specific Constraints
+
+These constraints affect what is possible in server-side PNG rendering:
+
+| Feature | Satori Support | Notes |
+|---------|---------------|-------|
+| `fontWeight` | YES | Requires matching weight in the `fonts` buffer array |
+| `fontStyle: 'italic'` | YES | Requires italic variant in font buffers |
+| Custom font families | YES | Requires font ArrayBuffer passed to ImageResponse |
+| Per-box width | YES | Absolute positioning with explicit width works |
+| Text alignment | YES | `textAlign` in inline styles works |
+| Alignment guides | N/A | Editor-only feature, never rendered to PNG |
+| `textTransform: uppercase` | YES | Already used for hook text |
+| Inline `<span>` with mixed styles | PARTIAL | Works for simple cases but unreliable for complex mixed-weight text |
 
 ## Sources
 
-- [Google Imagen API docs -- generateImages() API, model names, aspect ratios](https://ai.google.dev/gemini-api/docs/imagen) -- HIGH confidence
-- [@google/genai npm package v1.46.0](https://www.npmjs.com/package/@google/genai) -- HIGH confidence
-- [Imagen 4 GA announcement with pricing](https://developers.googleblog.com/announcing-imagen-4-fast-and-imagen-4-family-generally-available-in-the-gemini-api/) -- HIGH confidence
-- [Stripe subscription lifecycle in Next.js 2026](https://dev.to/thekarlesi/stripe-subscription-lifecycle-in-nextjs-the-complete-developer-guide-2026-4l9d) -- MEDIUM confidence
-- [Stripe + Next.js 15 complete guide 2025](https://www.pedroalonso.net/blog/stripe-nextjs-complete-guide-2025/) -- MEDIUM confidence
-- [Supabase Stripe webhook handling docs](https://supabase.com/docs/guides/functions/examples/stripe-webhooks) -- HIGH confidence
-- [Vercel Next.js subscription payments starter](https://vercel.com/templates/next.js/subscription-starter) -- HIGH confidence
+- Codebase analysis: `src/lib/types/slide.ts`, `src/components/slides/slide-preview.tsx`, `src/lib/render/render-slide-satori.tsx`, `src/app/api/render/route.ts`, `src/lib/editor/editor-reducer.ts`, `src/components/editor/text-editor-panel.tsx`
+- Satori limitations: Documented in `buildSlideElement` code comments -- no z-index, inline styles only, limited CSS subset
+- `next/og` ImageResponse API: Font buffer loading via `fonts` option in ImageResponse constructor
+- react-draggable: Already used in `SlidePreview`, supports `onDrag` callback in addition to `onStop`
+- Google Fonts CSS API: Returns `@font-face` declarations with `.woff2`/`.ttf` URLs for font buffer fetching
 
 ---
-*Architecture research for: TikTok Carousel Creator v1.1 -- Monetization and AI Images*
-*Researched: 2026-03-24*
+*Architecture research for: v1.3 Rich Text Editing milestone*
+*Researched: 2026-03-26*

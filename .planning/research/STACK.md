@@ -1,241 +1,259 @@
-# Stack Research: v1.1 Monetization & AI Images
+# Stack Research: v1.3 Rich Text Editing
 
-**Domain:** SaaS monetization (payments, credits, AI image generation)
-**Researched:** 2026-03-24
-**Confidence:** HIGH
+**Domain:** Slide editor -- font picker, text styling, alignment guides, resizable text boxes
+**Researched:** 2026-03-26
+**Confidence:** HIGH (core libraries verified, integration patterns confirmed against codebase)
 
-> **Scope:** This document covers ONLY the new stack additions for v1.1.
-> The existing stack (Next.js 15, React 19, Supabase, Gemini 2.5 Flash, Pexels, node-html-to-image, dnd-kit, Tailwind 4, shadcn/ui) is validated and unchanged.
+> **Scope:** This document covers ONLY the new stack additions for v1.3 Rich Text Editing.
+> The existing stack (Next.js 15, React 19, Supabase, Gemini 2.5 Flash, Satori/ImageResponse, react-draggable, dnd-kit, Tailwind 4, shadcn/ui) is validated and unchanged.
+
+## Context: Current Architecture
+
+The existing editor uses:
+- `react-draggable` for text box positioning (drag only, no resize)
+- `next/og` (`ImageResponse` / Satori) for server-side image rendering -- NOT Puppeteer
+- Google Fonts loaded via `<link>` tags in the HTML render path (`render-slide.ts`)
+- Satori render path in `render-slide-satori.tsx` (used by the actual `/api/render` route)
+- CSS-based text styling (inline styles on absolutely positioned divs)
+- No rich text editor -- text is plain strings (`hook_text`, `body_text`)
+- Canvas reference size: 1080x1920 with CSS `transform: scale()` for preview
+
+**Key constraint:** Any font/styling change must work in BOTH the client-side React preview AND the Satori-based server render. Satori requires font data as `ArrayBuffer` (TTF/OTF format), not CSS `@font-face`.
 
 ## Recommended Stack Additions
 
-### AI Image Generation -- Imagen 4 Fast
+### Core: react-rnd (Draggable + Resizable)
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Imagen 4 Fast (`imagen-4.0-fast-generate-001`) | Current | AI-generated slide backgrounds | $0.02/image, supports 9:16 natively, uses existing `@google/genai` SDK -- zero new dependencies. Fast variant is purpose-built for content previews and social media imagery. |
+| `react-rnd` | ^10.5.3 | Draggable + resizable text boxes | Replaces existing `react-draggable` with a single component that handles both drag AND resize. Built on top of `react-draggable` + `re-resizable`, so migration is minimal. Published March 2026, actively maintained. Supports `scale` prop needed for the scaled canvas. |
 
-**No new packages needed.** The existing `@google/genai` (^1.46.0) SDK already supports `ai.models.generateImages()` for Imagen. This is the same SDK used for Gemini 2.5 Flash text generation.
+**Migration from react-draggable:** The `<Rnd>` component uses the same `position` / `onDragStop` API pattern as `<Draggable>`. The main additions are `size`, `onResizeStop`, and resize handle configuration. The existing coordinate system (percentage-based positions, reference space math) remains unchanged.
 
-**Why Imagen 4 Fast over other options:**
-- Imagen 4 Standard ($0.04/image) -- 2x cost for quality improvement not needed at social-media resolution
-- Imagen 4 Ultra ($0.06/image) -- overkill for 1080x1920 slide backgrounds
-- Gemini 3.1 Flash native image gen ($0.039/image) -- more expensive than Imagen 4 Fast, optimized for text+image mixed output not pure image gen
-- DALL-E 3 ($0.04-0.08/image) -- different ecosystem, higher cost, requires separate SDK
-- Stable Diffusion (self-hosted) -- GPU infrastructure overhead, opposite of the "keep it simple" approach
+### Everything Else: Custom (No New Packages)
 
-**Key API details:**
-```typescript
-// Uses the SAME GoogleGenAI instance already in the codebase
-const response = await ai.models.generateImages({
-  model: 'imagen-4.0-fast-generate-001',
-  prompt: 'descriptive prompt here',
-  config: {
-    numberOfImages: 1,
-    aspectRatio: '9:16',  // Native support -- critical for carousel slides
-  },
-});
-// Returns base64 image bytes in response.generatedImages[0].image.imageBytes
-```
+The font picker, bold/italic toggles, and alignment snap guides require zero new npm packages. They are implemented with:
+- Google Fonts CSS2 API (font loading)
+- Google Fonts Developer API (font list)
+- Existing shadcn/ui components (font picker UI)
+- Simple geometry math (snap guides)
+- CSS properties (bold/italic)
 
-**Constraints to know:**
-- Max 480 tokens per prompt
-- 1-4 images per request (use 1 for cost control)
-- 1K resolution (1024px longest side) by default -- sufficient for 1080x1920 slides
-- SynthID watermark embedded automatically (invisible, no visual impact)
-- `personGeneration` defaults to `allow_adult` -- good default for social content
-- Aspect ratio `9:16` is explicitly supported -- perfect match for TikTok/IG carousel slides
+## Detailed Integration Plans
 
-### Payments & Subscriptions -- Stripe
+### 1. Font Picker -- Google Fonts API + Custom UI
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `stripe` (Node.js SDK) | ^20.4.1 | Server-side Stripe API (checkout, subscriptions, webhooks) | Industry standard, TypeScript-first, works with Next.js Server Actions. Handles subscriptions, one-time payments (credit packs), and customer portal. |
-| `@stripe/stripe-js` | ^8.11.0 | Client-side Stripe.js loader | Required for Stripe Checkout redirect. Lightweight loader (~3KB), not a full client SDK. |
+**Client-side font loading (preview):**
+- Fetch font list from Google Fonts Developer API: `https://www.googleapis.com/webfonts/v1/webfonts?key=API_KEY&sort=popularity`
+- Cache the font list server-side (changes rarely -- refresh daily at most)
+- When user selects a font, inject a `<link>` tag: `https://fonts.googleapis.com/css2?family=FontName:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap`
+- Apply via inline `style={{ fontFamily: selectedFont }}` on the text box div
 
-**Integration pattern -- Server Actions first, Route Handler for webhooks only:**
-
-Server Actions replace API routes for checkout session creation (modern Next.js 15 pattern):
-```typescript
-'use server'
-import Stripe from 'stripe'
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-
-export async function createCheckoutSession(priceId: string, userId: string) {
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription', // or 'payment' for credit packs
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_URL}/dashboard?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_URL}/pricing`,
-    metadata: { userId },
+**Server-side font loading (Satori render):**
+- Satori (used by `ImageResponse`) requires font data as TTF ArrayBuffer, not CSS
+- Fetch Google Fonts CSS2 URL with `User-Agent` header requesting TTF format
+- Extract the `.ttf` URL from the CSS response using regex
+- Fetch the TTF file as ArrayBuffer
+- Pass to `ImageResponse` via the `fonts` option array:
+  ```typescript
+  new ImageResponse(element, {
+    width: 1080,
+    height: 1920,
+    fonts: [
+      { name: 'Playfair Display', data: ttfBuffer, weight: 400, style: 'normal' },
+      { name: 'Playfair Display', data: ttfBoldBuffer, weight: 700, style: 'normal' },
+      { name: 'Playfair Display', data: ttfItalicBuffer, weight: 400, style: 'italic' },
+      // ... more variants
+    ],
   })
-  return session.url
+  ```
+- Cache font ArrayBuffers in a server-side Map to avoid repeated fetches per render
+
+**Why NOT next/font/google:** `next/font` requires static module-scope declarations at build time. It cannot load fonts dynamically at runtime based on user selection. This is a fundamental limitation confirmed by Next.js team discussions.
+
+**Why NOT font-picker-react:** Abandoned (last update 2021), loads fonts via DOM `<link>` injection without Satori awareness, no TypeScript types, dubious React 19 support.
+
+**Font picker UI:** Build with existing shadcn Popover + Command (combobox pattern). Show font name rendered in its own typeface for preview. Limit the displayed list to top 100-200 popular fonts + search. Use `react-window` or simple virtual scrolling if performance is an issue (unlikely with 200 items).
+
+**API key:** Google Fonts Developer API requires a free API key from Google Cloud Console. Store in `.env` as `GOOGLE_FONTS_API_KEY`. The CSS2 endpoint (for loading actual font files) requires no key.
+
+**Data model change:**
+```typescript
+// Add to SlideStyleOverrides
+font_family?: string  // e.g. "'Playfair Display', serif"
+```
+
+### 2. Bold/Italic -- CSS Property Toggles
+
+**Approach:** Per-text-box `fontWeight` and `fontStyle` toggles. NOT inline rich text.
+
+The entire hook text is bold (or not), and the entire body text is italic (or not). This matches the Canva/BigMotion model for carousel slides -- each text element has uniform formatting. No need for mixed formatting like "Hello **world**" within a single text block.
+
+**Data model changes:**
+```typescript
+// Add to SlideStyleOverrides
+hook_font_weight?: number     // 400 | 700 | 900
+hook_font_style?: 'normal' | 'italic'
+body_font_weight?: number     // 400 | 700
+body_font_style?: 'normal' | 'italic'
+```
+
+**Client preview:** Apply via inline styles (already the existing pattern in `slide-preview.tsx`).
+
+**Satori render:** Satori requires separate font data for each weight+style combination. The font loader must fetch the appropriate variants.
+
+**Font variant loading strategy:** Always load 5 variants for the selected font: 400, 400italic, 700, 700italic, 900. Google Fonts CSS2 supports multi-variant requests:
+```
+family=Font:ital,wght@0,400;0,700;0,900;1,400;1,700
+```
+
+### 3. Alignment Snap Guides -- Custom Implementation (~100 LOC)
+
+**Why custom:** The slide canvas has a fixed 1080x1920 reference space with only 2-3 elements (hook text, body text, possibly a badge). This is trivial geometry, not a complex multi-element design canvas.
+
+**Snap targets:**
+- Horizontal center: element center X = canvas center (540px)
+- Vertical center: element center Y = canvas center (960px)
+- Edge alignment: element edges align with other element edges
+- Safe zone boundaries: existing SAFE_ZONE constants (11% margins)
+
+**Implementation:**
+```typescript
+interface Guide {
+  orientation: 'horizontal' | 'vertical'
+  position: number  // px in reference space
 }
+
+function getSnapGuides(
+  movingBox: { x: number; y: number; w: number; h: number },
+  otherBoxes: Array<{ x: number; y: number; w: number; h: number }>,
+  threshold: number  // 8-10px in reference space
+): { guides: Guide[]; snappedX: number; snappedY: number }
 ```
 
-Webhooks still need a Route Handler (Stripe needs a stable POST URL):
-```
-src/app/api/webhooks/stripe/route.ts
-```
+- On drag (from `react-rnd` `onDrag` callback), compute snap positions
+- Render guide lines as absolutely positioned `<div>`s with `border: 1px dashed cyan`
+- Snap the position when within threshold
+- Remove guides on drag end
 
-**Stripe Customer Portal:** Use Stripe's hosted portal for plan changes, cancellations, payment method updates. No custom UI needed. Create a portal session server-side, redirect the user.
+**No library needed.** `react-moveable` (last published 2+ years ago, 180KB, uncertain React 19 support) is designed for complex multi-element canvases with rotation, warping, and grouping. Extreme overkill for this use case.
 
-### Credit System -- Database Only (No New Packages)
+### 4. Resizable Text Boxes -- react-rnd
 
-Credit tracking lives entirely in Supabase (Postgres) with RLS policies. No new packages needed.
+**Replace `<Draggable>` with `<Rnd>` in `slide-preview.tsx`:**
 
-**Schema design:**
-```sql
--- Subscription tracking (synced from Stripe webhooks)
-CREATE TABLE subscriptions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) NOT NULL UNIQUE,
-  stripe_customer_id TEXT NOT NULL UNIQUE,
-  stripe_subscription_id TEXT UNIQUE,
-  plan TEXT NOT NULL DEFAULT 'free',  -- 'free' | 'pro'
-  status TEXT NOT NULL DEFAULT 'active',  -- 'active' | 'canceled' | 'past_due'
-  current_period_start TIMESTAMPTZ,
-  current_period_end TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
+```typescript
+// Before (current)
+<Draggable
+  nodeRef={hookRef}
+  bounds="parent"
+  position={hookPixels}
+  onStop={handleStop('hook')}
+  scale={scale}
+>
+  <div ref={hookRef} style={textBoxStyle}>...</div>
+</Draggable>
 
--- Credit balance (fast reads for generation gate)
-CREATE TABLE credits (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) NOT NULL UNIQUE,
-  balance INTEGER NOT NULL DEFAULT 0,
-  monthly_allowance INTEGER NOT NULL DEFAULT 3,  -- free: 3, pro: 100
-  last_refill_at TIMESTAMPTZ DEFAULT now(),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Credit transaction log (audit trail)
-CREATE TABLE credit_transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) NOT NULL,
-  amount INTEGER NOT NULL,  -- positive = add, negative = consume
-  type TEXT NOT NULL,  -- 'monthly_refill' | 'pack_purchase' | 'imagen_generation' | 'caption_generation'
-  description TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+// After (react-rnd)
+<Rnd
+  position={hookPixels}
+  size={{ width: hookWidth, height: 'auto' }}
+  onDragStop={(e, d) => handleDragStop('hook', d)}
+  onResizeStop={(e, dir, ref, delta, pos) => handleResizeStop('hook', ref, pos)}
+  scale={scale}
+  bounds="parent"
+  enableResizing={{ left: true, right: true }}  // horizontal only
+  minWidth={200}
+  maxWidth={REF_WIDTH * 0.9}
+>
+  <div style={textBoxStyle}>...</div>
+</Rnd>
 ```
 
-**Why a ledger pattern:** Single `balance` column for fast reads (check before generation), plus `credit_transactions` for audit trail and debugging. The balance column is the source of truth for gating; the transaction log is for analytics and disputes.
+**Resize behavior:** Horizontal only (left/right handles). Height is auto-determined by text content + font size. This prevents users from creating empty space or clipping text.
 
-**Credit refill strategy:** Stripe `invoice.paid` webhook triggers monthly refill. When the webhook fires for a subscription renewal, reset `balance` to `monthly_allowance` and log a `monthly_refill` transaction. No cron job needed.
+**Data model changes:**
+```typescript
+// Add to SlideStyleOverrides
+hook_width?: number   // percentage of canvas width (default: 100 - hookX * 2)
+body_width?: number   // percentage of canvas width
+```
 
-### AI Caption Generation -- No New Packages
+Currently `textWidth` is computed as `100 - hookX * 2` (symmetric margin). With resize, width becomes an independent user-controlled value.
 
-Uses existing Gemini 2.5 Flash via `@google/genai`. Captions are text generation -- the same capability already powering slide content in `src/lib/ai/generate-slides.ts`.
-
-**Cost:** ~$0.001 per caption. Negligible.
-
-**Implementation:** Add a new function alongside `generateSlideContent()` in `src/lib/ai/` that takes carousel slide content as input and returns platform-specific captions (TikTok, Instagram). Use structured output (JSON schema) same as existing slide generation.
+**scale prop:** `react-rnd` supports a `scale` prop (inherited from `react-draggable`), so the existing coordinate math with CSS `transform: scale()` works correctly.
 
 ## Installation
 
 ```bash
-# New dependencies -- ONLY 2 packages
-npm install stripe @stripe/stripe-js
+# Add react-rnd (replaces react-draggable for text boxes in slide-preview)
+npm install react-rnd
 
-# That's it.
-# @google/genai already installed for Imagen access.
-# Gemini 2.5 Flash already configured for caption generation.
-# Supabase already installed for credit tables.
-# Zod already installed for webhook validation.
+# After migration, remove react-draggable
+# npm uninstall react-draggable
 ```
+
+No other npm packages needed.
 
 ## Environment Variables (New)
 
 ```env
-# Stripe
-STRIPE_SECRET_KEY=sk_...
-STRIPE_PUBLISHABLE_KEY=pk_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRO_MONTHLY_PRICE_ID=price_...   # Monthly Pro subscription
-STRIPE_CREDIT_PACK_PRICE_ID=price_...   # One-time credit pack purchase
+# Google Fonts Developer API (free, get from Google Cloud Console)
+GOOGLE_FONTS_API_KEY=AIza...
 ```
-
-No new env vars needed for Imagen -- it uses the existing `GEMINI_API_KEY`.
-
-## Alternatives Considered
-
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Imagen 4 Fast ($0.02/img) | Imagen 4 Standard ($0.04/img) | If users complain about image quality -- upgrade path is a single string change |
-| Imagen 4 Fast ($0.02/img) | Gemini 3.1 Flash native image gen ($0.039/img) | If you need text rendered inside images or image editing capabilities |
-| Stripe Checkout (hosted) | Stripe Elements (embedded) | If you need a fully custom payment form -- adds `@stripe/react-stripe-js` |
-| Stripe Checkout (hosted) | Lemon Squeezy | If you want merchant-of-record to handle tax compliance. Tradeoff: less control, smaller ecosystem |
-| Simple balance + transaction log | Full double-entry ledger | If you need accounting-grade audit trails. Overkill for a creator tool. |
-| Webhook-triggered credit refills | Supabase Edge Function cron | If webhook reliability is a concern. Cron can run daily and check/refill expired periods. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `@stripe/react-stripe-js` | Unnecessary for Checkout-based flow. Adds React provider, Elements wrapper, hooks -- all unneeded when Stripe hosts the payment page. | `@stripe/stripe-js` for redirect to Stripe Checkout |
-| Separate OpenAI SDK for DALL-E | Different ecosystem, higher cost ($0.04-0.08/img), second API key to manage | Imagen via existing `@google/genai` SDK |
-| Custom payment form UI | PCI compliance burden, lower conversion than Stripe Checkout | Stripe Checkout hosted page |
-| Redis for credit balance caching | Premature optimization. Postgres single-row primary-key lookup is <5ms on Supabase. | Direct Supabase query with RLS |
-| Paddle / PayPal | Paddle has poor DX; PayPal adds complexity. Neither provides value over Stripe here. | Stripe only |
-| `next-stripe` or wrapper libraries | Thin wrappers that go stale and obscure the API. Stripe's own SDK is excellent. | `stripe` package directly |
-| Prisma for credit queries | Already using Supabase client SDK. Adding Prisma for 3 tables is over-engineering. | `supabase.from('credits').select(...)` |
-| External cron service for credit refills | Extra infrastructure. Stripe webhooks already fire on subscription renewal. | `invoice.paid` webhook handler |
+| `react-moveable` | 180KB+, last published 2+ years ago (v0.56.0), uncertain React 19 support, designed for complex multi-element canvases with rotation/warping/grouping. Extreme overkill for 2-3 text boxes. | `react-rnd` for drag+resize, custom snap guides for alignment |
+| `font-picker-react` | Abandoned (last update 2021), no TypeScript types, loads fonts by injecting `<link>` tags without Satori awareness, not compatible with React 19 | Custom font picker: Google Fonts API + shadcn Popover/Command |
+| `@fontsource/*` packages | Requires installing a separate npm package per font. Not viable when users choose from 1600+ fonts at runtime. | Google Fonts CSS2 API for client-side, TTF fetch for Satori |
+| `next/font/google` for dynamic fonts | Only works at build time with static module-scope declarations. Cannot load fonts dynamically at runtime. | Direct Google Fonts CSS2 API `<link>` injection for preview |
+| Rich text editors (TipTap, Slate, Lexical) | Paragraph-level editors for mixed inline formatting. The slide editor needs per-text-box formatting toggles (bold/italic on the whole block), not mixed formatting within text. Adding one would massively overcomplicate the data model and break Satori rendering. | CSS `fontWeight` / `fontStyle` toggles stored in `style_overrides` |
+| Fabric.js / Konva.js | Canvas-based rendering. The entire editor and export pipeline is HTML/CSS + Satori. Switching to canvas would require rewriting everything. | Keep HTML/CSS approach |
+| `react-alignment-guides` | Barely maintained (last meaningful update years ago), designed for a different component model | Custom snap guide utility (~100 LOC) |
 
-## Stack Patterns
+## Alternatives Considered
 
-**If credit check needs to be fast (pre-generation gate):**
-- Use `SELECT balance FROM credits WHERE user_id = $1` before every Imagen call
-- Primary-key lookup -- sub-millisecond on Supabase
-- Deduct in a transaction: check balance >= 1, then decrement and log, in one RPC call
-
-**If you later need real-time credit display:**
-- Use Supabase Realtime subscription on the `credits` table
-- Already available via `@supabase/supabase-js` -- no new packages
-
-**If Imagen quality is insufficient:**
-- Swap `imagen-4.0-fast-generate-001` to `imagen-4.0-generate-001` (Standard)
-- Single string change, same API, same SDK
-- Cost doubles ($0.02 to $0.04/image)
-
-**If you need to test Stripe locally:**
-- Use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
-- No additional npm packages needed
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| `react-rnd` | `react-moveable` | Only if you need rotation, warping, group selection, or 10+ interactive elements. Not this project. |
+| Custom font picker | shadcn-font-picker (community) | If you want a drop-in. But it's an external dependency for something simple, and it may not handle Satori font loading. |
+| Custom snap guides | `react-moveable` Snappable | Only if you already use react-moveable. Its snapping is not available standalone. |
+| CSS fontWeight/fontStyle toggles | TipTap / Slate rich text | Only if users need mixed formatting within a single text block (e.g., "Hello **world** how *are* you"). Not needed for carousel slides. |
+| Google Fonts CSS2 API | Bunny Fonts | Privacy-focused alternative (no Google tracking). Smaller selection. Consider if GDPR is a concern. |
 
 ## Version Compatibility
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| `stripe@^20.4.1` | Node.js 18+ | TypeScript types included, no `@types/stripe` needed |
-| `@stripe/stripe-js@^8.11.0` | Any modern browser | Loads Stripe.js from CDN, tiny bundle impact |
-| `@google/genai@^1.46.0` | Imagen 4 models | Already installed; `generateImages()` method available |
-| Next.js 15.5.13 | `stripe@20.x` | Server Actions for checkout; Route Handler for webhooks |
+| `react-rnd@^10.5.3` | React 18 + 19 | Built on `react-draggable` + `re-resizable`. Published March 2026. Supports `scale` prop for scaled containers. |
+| `ImageResponse` (next@15.5.13) | Custom fonts via `fonts` option | Accepts `{ name, data, weight, style }` array. Requires TTF/OTF format (not WOFF2). |
+| Google Fonts CSS2 API | Any | Stable public API. CSS2 endpoint requires no API key. Developer API (font list) requires free API key. |
 
-## Cost Model Per Generation
+## Key Risks
 
-| Action | Your Cost | Credits Charged | Notes |
-|--------|-----------|-----------------|-------|
-| AI slide content (Gemini Flash) | ~$0.001 | 0 | Included in all tiers |
-| Pexels stock photo | $0.00 | 0 | Free API |
-| Imagen slide background (Fast) | $0.02 | 1 credit | Premium feature |
-| AI caption generation (Gemini Flash) | ~$0.001 | 1 credit | Or 0 -- design decision |
-| Server-side image render | ~$0.00 | 0 | Compute only |
+1. **Satori font rendering fidelity:** Satori's text layout differs slightly from browser CSS. Some Google Fonts may render with minor kerning/spacing differences between preview and export. Mitigation: test with the 20 most popular fonts and document any that render poorly.
 
-**Margin analysis:** Pro at $9.99/month with 100 Imagen credits: worst-case COGS = 100 x $0.02 = $2.00. That is 80% gross margin. Credit packs at $4.99 for 50 credits ($0.10/credit to user, $0.02 cost) yield 80% margin too. The unit economics work well.
+2. **Google Fonts API rate limits:** The Developer API (font list) has a default quota of 1000 requests/day. Mitigation: cache the font list server-side and refresh daily. The CSS2 endpoint (font file loading) has no practical rate limit.
+
+3. **Font file caching for Satori:** Each font weight variant is ~100-300KB as TTF. Loading 5 variants per render adds ~0.5-1.5MB of fetches. Mitigation: cache font ArrayBuffers in a server-side `Map<string, ArrayBuffer>` keyed by `fontFamily:weight:style`. The cache persists for the lifetime of the serverless function instance.
+
+4. **react-rnd and scaled coordinates:** The `scale` prop must match the CSS `transform: scale()` factor exactly. The existing codebase already handles this correctly for `react-draggable` via ResizeObserver -- the same pattern transfers directly.
 
 ## Sources
 
-- [Google Imagen API docs](https://ai.google.dev/gemini-api/docs/imagen) -- model names, API params, aspect ratios, JS code examples (HIGH confidence)
-- [Google Gemini image generation docs](https://ai.google.dev/gemini-api/docs/image-generation) -- native Gemini image gen comparison (HIGH confidence)
-- [Imagen 4 Fast announcement](https://developers.googleblog.com/announcing-imagen-4-fast-and-imagen-4-family-generally-available-in-the-gemini-api/) -- pricing, model variants (HIGH confidence)
-- [AI Image Pricing Comparison 2026](https://intuitionlabs.ai/articles/ai-image-generation-pricing-google-openai) -- cross-provider cost analysis (MEDIUM confidence)
-- [Stripe + Next.js 15 guide](https://www.pedroalonso.net/blog/stripe-nextjs-complete-guide-2025/) -- Server Actions pattern (MEDIUM confidence)
-- [Stripe subscription lifecycle 2026](https://dev.to/thekarlesi/stripe-subscription-lifecycle-in-nextjs-the-complete-developer-guide-2026-4l9d) -- webhook + customer portal patterns (MEDIUM confidence)
-- [Stripe + Next.js 15 + Supabase guide](https://dev.to/flnzba/33-stripe-integration-guide-for-nextjs-15-with-supabase-13b5) -- Supabase-specific integration (MEDIUM confidence)
-- [stripe npm](https://www.npmjs.com/package/stripe) -- version 20.4.1 (HIGH confidence)
-- [@stripe/stripe-js npm](https://www.npmjs.com/package/@stripe/stripe-js) -- version 8.11.0 (HIGH confidence)
+- [Next.js ImageResponse docs](https://nextjs.org/docs/app/api-reference/functions/image-response) -- font loading options for Satori (HIGH confidence)
+- [Vercel custom font guide](https://vercel.com/kb/guide/using-custom-font) -- TTF ArrayBuffer approach for ImageResponse (HIGH confidence)
+- [react-rnd GitHub](https://github.com/bokuweb/react-rnd) -- API reference, version 10.5.3 (HIGH confidence)
+- [react-rnd npm](https://www.npmjs.com/package/react-rnd) -- published March 2026 (HIGH confidence)
+- [Google Fonts CSS2 API](https://developers.google.com/fonts/docs/css2) -- font loading endpoint (HIGH confidence)
+- [Google Fonts Developer API](https://developers.google.com/fonts/docs/developer_api) -- font list endpoint (HIGH confidence)
+- [Next.js dynamic font loading discussion](https://github.com/vercel/next.js/discussions/40345) -- confirms next/font cannot load fonts at runtime (HIGH confidence)
+- [react-moveable npm](https://www.npmjs.com/package/react-moveable) -- last published 2+ years ago, v0.56.0 (HIGH confidence)
+- [Satori font format requirements](https://github.com/vercel/satori/discussions/662) -- TTF/OTF required, WOFF2 not supported (MEDIUM confidence)
 
 ---
-*Stack research for: TikTok Slideshow Creator v1.1 -- Monetization & AI Images*
-*Researched: 2026-03-24*
+*Stack research for: TikTok Slideshow Creator v1.3 -- Rich Text Editing*
+*Researched: 2026-03-26*

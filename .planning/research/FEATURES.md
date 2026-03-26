@@ -1,189 +1,200 @@
-# Feature Research
+# Feature Research: Rich Text Editing in Carousel Slide Editor
 
-**Domain:** AI carousel creator SaaS -- v1.1 monetization, AI image generation, credit system, captions
-**Researched:** 2026-03-24
-**Confidence:** MEDIUM-HIGH
+**Domain:** Design tool text editing (Canva/Figma-like carousel editor)
+**Researched:** 2026-03-26
+**Confidence:** HIGH (well-established UX patterns, mature ecosystem)
 
 ## Feature Landscape
 
-This research focuses exclusively on the v1.1 milestone features: Google Imagen integration, Stripe subscriptions with credits, and social media caption generation. Existing v1.0 features (editor, templates, Pexels, brand kit, rendering, auth) are already built and working.
-
 ### Table Stakes (Users Expect These)
 
-Features users assume exist once you introduce paid tiers. Missing these = broken monetization or confused users.
+Features users assume exist when they see a text editor in a design tool. Missing these = product feels incomplete or broken.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Free tier with usage limits | Every SaaS creator tool (PostNitro, Canva) offers a free plan. No free tier = no funnel. | LOW | Limit by project count or AI generations per month. No watermarks (per PROJECT.md). |
-| Stripe Checkout for subscriptions | Standard payment flow. Users expect redirect-to-Stripe or embedded checkout, not custom payment forms. | MEDIUM | Use Stripe Checkout (hosted) -- simplest path, handles tax and card management automatically. |
-| Subscription management (upgrade/downgrade/cancel) | Users expect to manage their plan without contacting support. | LOW | Stripe Customer Portal handles this entirely. Just link from existing settings page. |
-| Credit balance display | When credits exist, users must see remaining balance at all times. | LOW | Show in top navbar. Update after each generation. |
-| Credit deduction on AI actions | Credits must be deducted atomically when AI image generation runs. | MEDIUM | Database transaction: check balance -> deduct -> call API. Never call API first (race condition). |
-| AI-generated image as slide background | The core premium feature. User gets AI background image for a slide. | MEDIUM | Imagen 4 Fast at $0.02/image. Returns 1024x1024 -- needs resize/crop to 1080x1920 (9:16). Integrate into existing slide editor. |
-| Clear upgrade prompts at limits | When free users hit limits, show what they get by upgrading. Not just "limit reached." | LOW | Modal with plan comparison. Contextual -- trigger during the blocked action. |
-| Webhook-driven subscription sync | Stripe webhooks must update DB subscription status. Cannot rely on polling. | MEDIUM | Handle: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.payment_failed. |
-| Social media captions for posts | Every competitor (PostNitro, Canva, Hootsuite) generates captions alongside content. | LOW | Use existing Gemini 2.5 Flash. Platform-specific output for TikTok, Instagram, LinkedIn. |
-| Usage history / credit ledger | Users need to see what consumed their credits. Transparency builds trust. | MEDIUM | Credit transaction log: date, action, credits used, balance. Reduces support burden. |
+| Font picker dropdown with search | Every design tool (Canva, Figma, Adobe) has font search. Users choose fonts by name. | MEDIUM | Google Fonts API provides ~1,500 free fonts. Need curated subset (~30-50 popular fonts) for the dropdown, with search for the full library. Currently `fontFamily` is set per-template and brand kit but not per-text-box. |
+| Bold toggle (B button) | Universal text formatting control. Users see it in every text editor from Google Docs to Canva. | LOW | Add `font_weight` to `SlideStyleOverrides`. Hook text is already `font-weight: 900`; need per-box override. Body text defaults to 400. Toggle between 400/700 (or 900 for hook). |
+| Italic toggle (I button) | Universal text formatting control alongside bold. | LOW | Add `font_style` to `SlideStyleOverrides`. Currently `hookStyle: 'italic'` exists at template level but not user-togglable per text box. |
+| Resizable text boxes with drag handles | Canva, Figma, and every design tool let you resize text boxes. Users drag corners/edges to control text width. | MEDIUM | Currently text width is calculated symmetrically from X position (`100 - hookX * 2`). Need independent width per text box. Corner handles for proportional resize, edge handles for width-only. |
+| Text alignment buttons (left/center/right) | Already built. Confirming it as table stakes. | DONE | Already implemented in `text-editor-panel.tsx`. |
+| Font size control | Already built via slider. Table stakes confirmed. | DONE | Already implemented for hook and body text. |
+| Text color picker | Already built with swatches + custom color. | DONE | Already implemented in `text-editor-panel.tsx`. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart from PostNitro, Canva, and generic carousel tools.
+Features that elevate beyond basic text editing. Not required for v1.3 but create a polished, professional feel.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Context-aware AI backgrounds | Auto-generate Imagen prompts from slide content (hook_text + body_text), not manual prompts. | LOW | Pipe slide data into Gemini to craft an Imagen prompt. Competitors require manual prompting. Genuine time-saver. |
-| One-click "upgrade slide" button | Free users see Pexels backgrounds; single button swaps any slide to AI-generated background. Low-friction upsell. | LOW | Shows Imagen value directly in the editor. Better conversion than abstract "upgrade plan" page. |
-| Multi-platform caption variants | Generate TikTok, Instagram, AND LinkedIn captions simultaneously with platform-specific tone and hashtags. | LOW | Most tools generate one caption. Three platform variants from one carousel saves real time for cross-posting creators. |
-| Carousel-aware captions | Captions reference actual slide content (hooks, key points, CTA) rather than generic topic text. | LOW | Feed full CarouselSchema slide_data into caption prompt. Competitors generate from topic only. |
-| Credit pack top-ups | Beyond monthly credits, let users buy extra without changing plans. | MEDIUM | Stripe one-time payment -> credit grant. Addresses usage spikes. Hybrid model is industry best practice for AI tools. |
-| Prompt preview before generation | Show auto-generated Imagen prompt, let users tweak before spending a credit. | LOW | Reduces wasted credits. Builds trust. Differentiates from black-box competitors. |
+| Snap alignment guides (center/edge) | Visual guide lines appear when dragging text near canvas center or edges. Creates the "it just works" feel of Canva/Figma. Users feel precision without effort. | MEDIUM | Implement on `dragmove` events from existing `react-draggable`. Calculate proximity to canvas center (50%, 50%), edges, and other text boxes. Show dashed lines at 50% horizontal/vertical and at safe zone boundaries. Snap threshold ~5-10px. |
+| Font preview in dropdown | Show each font name rendered in its own typeface inside the picker. Canva does this. Lets users visually browse without applying. | LOW | Lazy-load font preview CSS. Only load the font file when it appears in the scrollable list viewport. |
+| Curated font categories | Group fonts by style: "Sans Serif", "Serif", "Display", "Handwritten". Faster than scrolling 1,500 fonts. | LOW | Static categorization of top ~50 fonts. Matches Canva's approach. |
+| Recently used fonts | Show last 5-10 fonts at top of picker. Reduces repetitive searching. | LOW | Store in localStorage or user preferences. |
+| Cross-text-box snapping | When dragging one text box, snap guides also show alignment with the other text box (hook aligns with body edge, etc.). | MEDIUM | Extension of basic snap guides. Calculate edges/centers of all text boxes, not just canvas. |
+| Letter spacing control | Adjust tracking for design-forward titles. Common in Canva for headline styling. | LOW | Add `letter_spacing` to `SlideStyleOverrides`. Simple CSS property. |
+| Line height control | Fine-tune vertical spacing within text blocks. | LOW | Already hardcoded (1.1 for hook, 1.5 for body). Expose as slider. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
+Features that seem good but create significant complexity without proportional value for a carousel creator.
+
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Credit rollover across months | Feels fair to users | Complicates billing logic, creates balance sheet liability, users hoard and churn anyway. | Credits expire at billing cycle reset. Generous monthly allowance instead. |
-| Multiple AI image providers | "More options = better" | Each provider has different APIs, pricing, quality, content policies. Multiplies maintenance burden. | Imagen 4 only. One provider, well-integrated. Switch entirely later if needed. |
-| Auto-posting to TikTok/Instagram | Saves upload step | Complex OAuth, frequent platform API changes, TikTok API is restrictive, moderation risk. Massive scope. | Copy-to-clipboard captions + download images. Per PROJECT.md, defer to v2+. |
-| Free AI image generations (ongoing) | Lower barrier | Imagen costs real money ($0.02+/generation). Free AI images = cost exposure with no revenue. Pexels is already free for everyone. | Free tier = Pexels only. Offer 2-3 trial Imagen generations on signup, not ongoing. |
-| Real-time credit balance via WebSocket | Instant updates | Over-engineered. Credits change on explicit user actions (generate), not ambient events. | Refetch balance after each API call. Simple GET request. |
-| Granular per-feature credit costs | Different costs for different AI actions | Confuses users. "How much does X cost?" should have one answer. | Flat: 1 credit = 1 AI image. Captions are nearly free (Gemini text) -- bundle unlimited with Pro. |
-| Annual billing at launch | Standard SaaS practice | Adds credit granting complexity (monthly vs annual), refund edge cases, proration math. Not needed at current scale. | Monthly only. Add annual after validating pricing and understanding churn. |
-| Imagen image editing (inpainting/outpainting) | Advanced users want it | Significant UX complexity. Editor already has Pexels swap + upload. Editing AI images is a rabbit hole. | Generate-only for v1.1. Full image editing is a v2+ consideration. |
+| Rich text within a single text box (mixed bold/italic/color per word) | Power users want inline formatting like Google Docs. | Requires a rich text engine (Slate.js, ProseMirror, or Tiptap). Massively increases complexity. Server-side rendering with Satori becomes much harder -- Satori does not support rich text spans natively. The HTML renderer would need to parse styled spans. Undo/redo becomes complex (character-level vs box-level). For carousel slides with short text (5-15 words), per-word styling is rarely needed. | Apply bold/italic to entire text box. Users can split text into multiple boxes if they need mixed styles. |
+| Custom font uploads | Users want to upload their own .ttf/.otf files. | Font hosting, validation, licensing concerns, server-side rendering needs font file access. Google Fonts covers 99% of use cases for social media carousels. | Offer 50-100 curated Google Fonts. Add brand kit font field for specific Google Font names. |
+| Underline and strikethrough | Feels like a "complete" text editor should have these. | Almost never used in social media carousel design. Adds toolbar clutter. Underline is a web anti-pattern (looks like a link). | Omit. If users request, add underline only as a v2 feature. |
+| Text on a path / curved text | Trendy design feature. | Very high complexity. Satori does not support SVG text paths. Would need entirely different rendering approach for server-side. | Not worth it for carousel use case. Defer indefinitely. |
+| Full WYSIWYG text editing on canvas | Click text on canvas to edit inline, like Figma. | Current architecture uses separate text panel (textarea) + canvas preview. Inline editing requires contentEditable, which is notoriously buggy. The scaled canvas (`transform: scale()`) makes cursor positioning unreliable. | Keep the side-panel text editing approach. It works well for short carousel text. |
+| Text effects (shadow, outline, glow) | Canva has these, users may expect them. | Each effect needs both client-side CSS preview AND server-side rendering parity. Satori supports `textShadow` but not all effects. Scope creep risk -- "just one more effect" compounds. | Defer to v1.4+. Add text shadow first (easiest, Satori-compatible), then evaluate demand. |
 
 ## Feature Dependencies
 
 ```
-[Stripe Integration]
-    |-- requires --> [Stripe Customer creation + webhook endpoints]
-    |-- requires --> [Subscription tiers in DB schema]
-    |-- enables --> [Credit System]
-                        |-- requires --> [Credit ledger DB tables]
-                        |-- enables --> [AI Image Generation (gated)]
-                        |                    |-- requires --> [Google Cloud / Vertex AI Imagen setup]
-                        |                    |-- requires --> [Image prompt builder via Gemini]
-                        |                    |-- integrates with --> [Existing slide editor]
-                        |-- enables --> [Credit Pack Purchases]
-                                             |-- requires --> [Stripe one-time payment flow]
+Font Picker
+    |-- requires --> Google Fonts loading infrastructure
+    |                    |-- requires --> Font loading in slide-preview.tsx (client)
+    |                    |-- requires --> Font loading in render-slide.ts (server HTML)
+    |                    |-- requires --> Font binary fetching for render-slide-satori.tsx (server Satori)
+    |                    |-- requires --> getFontLink() update for dynamic fonts
+    |
+    |-- enhances --> Brand Kit font selection (existing font_family field)
 
-[Caption Generation]
-    |-- requires --> [Existing Gemini 2.5 Flash]
-    |-- requires --> [Existing CarouselSchema slide_data]
-    |-- independent of --> [Stripe / Credits] (recommended: captions are free/unlimited)
+Bold/Italic Toggles
+    |-- requires --> SlideStyleOverrides type extension (font_weight, font_style)
+    |-- requires --> slide-preview.tsx style application
+    |-- requires --> render-slide.ts + render-slide-satori.tsx parity
+    |-- independent of --> Font Picker (can ship separately)
+
+Resizable Text Boxes
+    |-- requires --> Per-text-box width in SlideStyleOverrides
+    |-- requires --> Drag handle UI on canvas (new component)
+    |-- enhances --> Existing draggable text positioning
+    |-- conflicts with --> Symmetric text width calculation (100 - hookX * 2)
+    |                      Must migrate to explicit width per box
+
+Snap Alignment Guides
+    |-- requires --> Draggable text boxes (already exists via react-draggable)
+    |-- enhances --> Text positioning UX
+    |-- independent of --> Resizable text boxes (but better together)
 ```
 
 ### Dependency Notes
 
-- **Credit System requires Stripe Subscriptions:** Credits are granted by subscription tier. Must know plan before granting.
-- **AI Image Generation requires Credit System:** Must deduct credits before calling Imagen. Without credits = no cost control.
-- **Imagen requires separate Google Cloud setup:** Gemini uses API key; Vertex AI Imagen uses service account + project ID. Different auth model.
-- **Caption Generation is nearly independent:** Uses existing Gemini 2.5 Flash. No Stripe dependency if captions are free/unlimited (recommended -- text gen costs ~$0.001).
-- **Caption Generation can ship first:** Zero dependency on payments infrastructure. Could be added immediately as free-tier value-add.
+- **Font Picker requires font loading infrastructure:** The hardest part is not the UI dropdown -- it is ensuring fonts load correctly in three places: (1) the client-side `slide-preview.tsx` for live preview, (2) the `render-slide.ts` HTML template for Puppeteer rendering, and (3) the `render-slide-satori.tsx` for Satori rendering (which requires font binary data, not CSS links). This is the riskiest dependency.
+- **Bold/Italic is independent:** Can ship without font picker. Just extends `SlideStyleOverrides` and adds toolbar buttons. Low risk.
+- **Resizable text boxes conflict with symmetric width:** Current `textWidth = 100 - hookX * 2` calculates width from position. Resizable boxes need independent width storage. This is a data model change that affects all three renderers.
+- **Snap guides enhance dragging:** Works with existing `react-draggable` by adding visual feedback on `onDrag` events. Independent feature, no blockers.
 
-## MVP Definition
+## Milestone v1.3 Definition
 
-### Launch With (v1.1)
+### Must Ship (P1)
 
-Minimum to monetize and justify a premium tier.
+- [ ] **Bold/italic toggles** -- Lowest complexity, highest user expectation. Two buttons in toolbar, two new fields in `SlideStyleOverrides`. Ship first.
+- [ ] **Font picker with Google Fonts** -- Core user request. Start with curated list of ~40 popular fonts with search. Must solve Satori font loading (fetch font binary from Google Fonts CDN and pass to Satori options).
+- [ ] **Resizable text boxes** -- Users expect drag handles on selected text. Add width/height override to `SlideStyleOverrides`, render corner/edge handles on the canvas.
+- [ ] **Snap alignment guides** -- Visual polish that makes positioning feel professional. Center lines + edge snap at minimum.
 
-- [ ] Stripe subscription integration (Free / Pro) -- the revenue foundation
-- [ ] Credit system with monthly allowance on Pro -- gates premium features
-- [ ] Google Imagen AI background generation in slide editor -- the premium value prop
-- [ ] Credit balance display in UI (navbar) -- users must see what they have
-- [ ] Stripe Customer Portal for plan management -- self-service, zero custom UI
-- [ ] Webhook handlers for subscription lifecycle events -- keeps DB in sync
-- [ ] Social media caption generation (TikTok, Instagram, LinkedIn) -- low-cost, high-value
-- [ ] Free tier usage limits (e.g., 3 projects, 5 AI text generations/month) -- upgrade pressure
-- [ ] Upgrade prompts when limits hit -- contextual, not naggy
+### Add After v1.3 Ships (v1.4)
 
-### Add After Validation (v1.x)
-
-Add once paying users exist and patterns emerge.
-
-- [ ] Credit pack top-up purchases -- when users request more credits than plan allows
-- [ ] Usage history / credit ledger page -- when "where did my credits go" tickets appear
-- [ ] Prompt preview/edit before Imagen generation -- after seeing wasted-generation complaints
-- [ ] Multiple caption tone options (professional, casual, viral) -- based on feedback
+- [ ] **Font preview in dropdown** -- Nice visual polish but requires lazy font loading. Add when core font picker works.
+- [ ] **Letter spacing / line height controls** -- Low complexity, add when toolbar has room.
+- [ ] **Text shadow** -- Most requested text effect, Satori-compatible. Evaluate demand first.
+- [ ] **Recently used fonts** -- UX convenience, trivial to add once font picker exists.
 
 ### Future Consideration (v2+)
 
-- [ ] Annual billing -- after monthly pricing validates and churn patterns emerge
-- [ ] Team/agency plans with shared pools -- different product category
-- [ ] Auto-posting to social platforms -- per PROJECT.md, defer
-- [ ] Imagen editing (inpainting) -- significant UX scope
+- [ ] **Custom font uploads** -- Requires font hosting infrastructure. Evaluate if Google Fonts coverage is insufficient.
+- [ ] **Rich text (mixed formatting within a text box)** -- Requires rich text engine. Only if carousel text gets longer/more complex.
+- [ ] **Text effects beyond shadow** -- Outline, glow, gradient text. Each needs render parity.
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Stripe subscriptions (Free/Pro) | HIGH | MEDIUM | P1 |
-| Credit system + balance display | HIGH | MEDIUM | P1 |
-| Imagen AI background generation | HIGH | MEDIUM | P1 |
-| Webhook subscription sync | HIGH | MEDIUM | P1 |
-| Stripe Customer Portal link | HIGH | LOW | P1 |
-| Free tier usage limits | HIGH | LOW | P1 |
-| Social media captions (multi-platform) | MEDIUM | LOW | P1 |
-| Upgrade prompts at limits | MEDIUM | LOW | P1 |
-| Credit pack top-ups | MEDIUM | MEDIUM | P2 |
-| Usage history page | MEDIUM | LOW | P2 |
-| Prompt preview before generation | LOW | LOW | P2 |
-| Caption tone variants | LOW | LOW | P3 |
+| Feature | User Value | Implementation Cost | Risk | Priority |
+|---------|------------|---------------------|------|----------|
+| Bold/italic toggles | HIGH | LOW | LOW | P1 |
+| Font picker (curated Google Fonts) | HIGH | MEDIUM | MEDIUM (Satori font loading) | P1 |
+| Snap alignment guides | HIGH | MEDIUM | LOW | P1 |
+| Resizable text boxes | HIGH | MEDIUM | MEDIUM (data model change) | P1 |
+| Font preview in dropdown | MEDIUM | LOW | LOW | P2 |
+| Letter spacing | MEDIUM | LOW | LOW | P2 |
+| Line height control | MEDIUM | LOW | LOW | P2 |
+| Recently used fonts | LOW | LOW | LOW | P2 |
+| Text shadow | MEDIUM | MEDIUM | LOW | P3 |
 
 **Priority key:**
-- P1: Must have for v1.1 launch
-- P2: Should have, add when usage data supports
+- P1: Must have for v1.3 milestone
+- P2: Should have, add in v1.4 when P1 is solid
 - P3: Nice to have, future consideration
 
 ## Competitor Feature Analysis
 
-| Feature | PostNitro | Canva | Our Approach |
-|---------|-----------|-------|--------------|
-| AI image backgrounds | Up to 100/month on $40 plan | Via Magic Media (separate tool) | Imagen 4 Fast in editor, context-aware auto-prompts from slide content |
-| Pricing | Free / $10 / $20 / $40/mo | Free / $13/mo Pro | Free / Pro ~$12-15/mo. Simple 2-tier. |
-| Credit system | Opaque limits, upgrade nags after few uses | Token-based for AI features | Transparent balance, visible ledger, clear per-action cost |
-| Caption generation | Basic, topic-only | AI caption generator (separate) | Integrated -- captions reference actual slide hooks/CTAs |
-| Platform focus | Instagram, LinkedIn, Twitter | All formats | TikTok + Instagram primary, LinkedIn bonus |
-| Free tier limits | Poorly communicated | Generous with AI caps | Clear: X projects, Y AI gens/month. Pexels always free. |
-| Plan management | Standard | Canva account settings | Stripe Customer Portal -- proven, zero custom UI |
+| Feature | Canva | Figma | BigMotion (inspiration) | Our Approach |
+|---------|-------|-------|------------------------|--------------|
+| Font picker | Full Google Fonts + premium fonts, visual preview, categories, recently used | System fonts + Google Fonts, no preview | Limited/no font selection | Curated ~40 Google Fonts with search, visual preview deferred to P2 |
+| Bold/italic | Per-character (rich text) | Per-character (rich text) | Basic/none | Per-text-box toggle (simpler, sufficient for carousel) |
+| Text resize | Drag handles on all sides + corners, auto-resize option | Drag handles, auto-width/fixed-width modes | Unknown | Corner + edge handles, fixed height (auto based on content) |
+| Snap guides | Center, edges, other elements, spacing guides, rotation snap | Center, edges, other elements, distribution guides | None observed | Canvas center + edges + other text box alignment |
+| Text effects | Shadow, outline, glow, curved, neon, splice | Shadow only (via plugin) | None | Defer to v1.4+ (shadow first) |
+| Inline editing | Click-to-edit on canvas | Click-to-edit on canvas | Unknown | Side-panel editing (simpler, avoids contentEditable bugs at scale) |
 
-## Pricing Model Recommendation
+## Implementation Complexity Notes
 
-Based on competitor analysis and cost structure:
+### Font Picker -- Key Technical Challenge: Satori Font Loading
 
-**Cost per AI image:** $0.02 (Imagen 4 Fast) + ~$0.001 (Gemini prompt building) = ~$0.021
+The `render-slide-satori.tsx` renderer uses Satori which requires font binary data (ArrayBuffer), not CSS `@font-face` declarations. For dynamic user-selected fonts:
 
-**Pro tier:** ~$12-15/month with 50-100 AI image credits
-- At 100 credits used: $2.10 cost, ~$10-13 margin per user
-- Healthy margin even at full utilization
+1. Fetch the Google Fonts CSS to get the `.woff2` URL
+2. Fetch the `.woff2` binary
+3. Pass it to Satori's `fonts` option
 
-**Credit pack:** ~$5 for 25 credits ($0.20/credit to user, $0.021 cost = ~90% margin)
+This means the server-side render API needs to dynamically fetch and cache font files. The HTML renderer (`render-slide.ts`) is simpler -- just update the `getFontLink()` function.
 
-**Captions:** ~$0.001 per caption via Gemini 2.5 Flash. Negligible cost. Bundle unlimited with Pro.
+**Recommendation:** Cache fetched font binaries on the server (filesystem or memory cache with LRU eviction). Google Fonts URLs are stable per font+weight combination.
 
-## Database Schema Implications
+### Resizable Text Boxes -- Data Model Impact
 
-Current schema has only `projects` table. v1.1 needs new tables:
+Current `SlideStyleOverrides` calculates text width from position. New model needs:
 
-- **subscriptions** -- user_id, stripe_customer_id, stripe_subscription_id, plan_tier, status, current_period_start, current_period_end
-- **credits** -- user_id, balance, monthly_allowance, last_reset_at
-- **credit_transactions** -- id, user_id, amount, type (grant/deduct/purchase), description, created_at
-- **stripe_customer_id** mapping -- either new table or column on user profiles
+```typescript
+// Add to SlideStyleOverrides
+hook_width?: number    // percentage 0-100 (default: 78, matching current 100 - 11*2)
+body_width?: number    // percentage 0-100
+hook_height?: number   // percentage, optional (auto-height from content is usually better)
+body_height?: number
+```
+
+All three renderers must honor these new fields. Existing slides without these fields should fall back to current symmetric calculation for backwards compatibility.
+
+### Snap Guides -- Implementation Pattern
+
+Use the `onDrag` callback from `react-draggable` (not just `onStop`):
+
+1. On each drag frame, calculate distances to snap targets (canvas center, edges, other text box edges/centers)
+2. If distance < threshold (~5px in reference coordinates), snap position to target
+3. Render guide lines as absolutely-positioned `<div>` elements in the canvas layer
+4. Remove guides on `onStop`
+
+Snap targets for a 1080x1920 canvas:
+- Horizontal center: x = 50%
+- Vertical center: y = 50%
+- Safe zone edges: x = 11%, x = 89%
+- Top safe: y = 10.4%
+- Other text box edges and centers
 
 ## Sources
 
-- [Imagen 4 pricing and API access](https://magichour.ai/blog/imagen-4-pricing-and-api) -- model tiers and per-image costs
-- [AI image pricing comparison](https://intuitionlabs.ai/articles/ai-image-generation-pricing-google-openai) -- Imagen vs alternatives
-- [Vertex AI Imagen API reference](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api) -- official Google docs
-- [Stripe SaaS subscription docs](https://docs.stripe.com/get-started/use-cases/saas-subscriptions) -- official patterns
-- [Stripe SaaS credits billing integration](https://colorwhistle.com/stripe-saas-credits-billing/) -- credit system architecture
-- [Credit system in subscription model](https://flexprice.io/blog/how-to-implement-credit-system-in-subscription-model) -- ledger design
-- [Next.js Stripe credit system](https://medium.com/@jsteinb/nextjs-using-stripe-to-build-a-credit-system-for-your-saas-app-3562e1608c25) -- implementation guide
-- [Vercel Next.js subscription payments template](https://github.com/vercel/nextjs-subscription-payments) -- reference implementation
-- [PostNitro pricing plans](https://postnitro.ai/plans) -- competitor pricing
-- [PostNitro features review](https://coldiq.com/tools/postnitro) -- competitor feature analysis
-- [AI carousel generator tools 2025](https://www.aicarousels.com/blog/best-ai-carousel-generator) -- competitor landscape
-- [Best AI social media caption generators 2026](https://www.freelancecreatorai.com/2026/01/best-ai-tools-for-social-media-captions.html) -- caption tool landscape
+- [Canva Help Center - Add and Edit Text](https://www.canva.com/help/add-and-edit-text/)
+- [Canva Help Center - Format Text](https://www.canva.com/help/format-text/)
+- [Canva Help Center - Text and Fonts](https://www.canva.com/help/text-fonts/)
+- [Canva Apps SDK - Creating Text](https://www.canva.dev/docs/apps/creating-text/)
+- [Canva Apps SDK - Fonts Example](https://www.canva.dev/docs/apps/examples/fonts/)
+- [Next.js Font Optimization Docs](https://nextjs.org/docs/app/getting-started/fonts)
+- [Next.js Dynamic Font Loading Discussion](https://github.com/vercel/next.js/discussions/40345)
+- [React Konva Snap Guides Implementation](https://www.bigbinary.com/blog/shape-snapping-with-react-konva)
+- [Fabric.js SnappyRect Snapping Guide](https://dinesh-rawat.medium.com/enhancing-object-snapping-in-fabric-js-introducing-the-snappyrect-class-2c406d8a4965)
+- [Konva.js Resize Snapping Docs](https://konvajs.org/docs/select_and_transform/Resize_Snaps.html)
+- [tldraw Infinite Canvas SDK](https://tldraw.dev/features/composable-primitives/layout-and-composition)
 
 ---
-*Feature research for: TikTok carousel creator SaaS -- v1.1 monetization and AI features*
-*Researched: 2026-03-24*
+*Feature research for: Rich text editing in carousel slide editor (v1.3)*
+*Researched: 2026-03-26*

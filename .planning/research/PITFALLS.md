@@ -1,305 +1,269 @@
-# Pitfalls Research
+# Domain Pitfalls: Rich Text Editing (v1.3)
 
-**Domain:** SaaS monetization (Stripe subscriptions + credits) + AI image generation + caption gen for existing Next.js 15 / Supabase app
-**Researched:** 2026-03-24
-**Confidence:** HIGH (Stripe/Supabase patterns well-documented), MEDIUM (Google image gen ecosystem evolving rapidly)
+**Domain:** Adding font picker, bold/italic, alignment guides, and resizable text boxes to carousel slide editor
+**Researched:** 2026-03-26
+**Confidence:** HIGH (verified against codebase + Satori documentation)
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Credit Deduction Race Conditions
+Mistakes that cause rewrites, broken exports, or visual inconsistency between preview and download.
 
-**What goes wrong:**
-Two concurrent requests (user clicks "generate" twice quickly, or opens two tabs) both read the credit balance as 5, both deduct 1, and write back 4. The user pays for one generation but gets two. At scale this drains the credit economy. The inverse is equally dangerous: a failed generation still deducts credits permanently.
+### Pitfall 1: Satori Does Not Use CSS Font Names -- It Needs Raw Font Files
 
-**Why it happens:**
-Supabase's JavaScript client (`supabase-js`) does not support transactions. Developers write `SELECT balance` then `UPDATE balance = balance - 1` as two separate calls, creating a classic TOCTOU (time-of-check-time-of-use) race condition.
+**What goes wrong:** The browser preview renders fonts using CSS `fontFamily` strings (e.g., `'Playfair Display', serif`), which the browser resolves via Google Fonts `<link>` tags or `@font-face` rules. But Satori (used via `next/og` `ImageResponse`) completely ignores CSS font names. It requires raw font file ArrayBuffers passed in the `fonts` option. If you add a font picker to the browser but do not also fetch and pass the corresponding `.ttf`/`.otf` file to Satori, **every exported image will render in Satori's default font (Noto Sans), not the user's chosen font.**
 
-**How to avoid:**
-Use a Postgres RPC function that performs the check-and-deduct atomically. PostgREST automatically wraps RPC calls in a transaction:
+**Why it happens:** Satori is not a browser. It has its own text layout engine (based on Yoga/Flexbox) and needs font binary data to measure and render glyphs. The current codebase already has this bug -- templates specify `fontFamily: "'Inter', sans-serif"` but the render route passes no `fonts` option to `ImageResponse`, meaning exports likely render in Noto Sans already.
 
-```sql
-CREATE OR REPLACE FUNCTION deduct_credits(p_user_id uuid, p_amount int)
-RETURNS boolean AS $$
-DECLARE current_balance int;
-BEGIN
-  SELECT credits INTO current_balance
-  FROM user_credits
-  WHERE user_id = p_user_id
-  FOR UPDATE;  -- Row-level lock prevents concurrent reads
+**Consequences:** Users see one font in the editor, a different font in their downloaded images. This is a trust-destroying bug for a design tool.
 
-  IF current_balance >= p_amount THEN
-    UPDATE user_credits SET credits = credits - p_amount
-    WHERE user_id = p_user_id;
-    RETURN true;
-  ELSE
-    RETURN false;
-  END IF;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
+**Prevention:**
+1. Build a server-side font registry that maps font names to their `.ttf` file URLs (Google Fonts API provides these).
+2. When rendering, fetch the required font files as ArrayBuffers and pass them in the `fonts` option of `ImageResponse`.
+3. For each font weight/style variant (regular, bold, italic, bold-italic), you need a separate font file. Satori does NOT synthesize bold or italic -- it needs the actual variant file.
+4. Cache font files aggressively (they are immutable). Store in memory or on disk, not fetched per-render.
 
-Call via `supabase.rpc('deduct_credits', { p_user_id, p_amount })`. The `FOR UPDATE` lock serializes concurrent access to the same row.
+**Detection:** Compare browser preview screenshot with downloaded PNG side-by-side. If fonts differ, this pitfall is active. The current codebase likely already has this issue.
 
-**Warning signs:**
-Credit balances go negative. Users report getting "free" generations. Audit log shows more generations than credits consumed.
+**Phase:** Must be solved in the very first phase, before any font picker UI work. Fix the existing font loading gap first.
 
-**Phase to address:**
-Credit system database schema phase. Must be baked into the initial schema, not bolted on later.
+### Pitfall 2: Satori Cannot Synthesize Bold/Italic -- Each Variant Needs Its Own Font File
 
----
+**What goes wrong:** In browsers, setting `font-weight: 700` on a font that only has a regular weight causes the browser to algorithmically "fake bold" the text (faux bold). Satori does NOT do this. If you pass only the regular weight file for Inter but set `fontWeight: 700`, Satori will render it in regular weight. The text will not look bold.
 
-### Pitfall 2: Stripe Webhook Events Processed Multiple Times
+**Why it happens:** Satori uses a font matching algorithm that selects the closest available font file. If only weight 400 is loaded, weight 700 requests will silently fall back to 400. There is no warning or error.
 
-**What goes wrong:**
-Stripe retries webhook delivery if your endpoint returns non-2xx or times out (retries continue for up to 3 days). Without idempotency, the same `invoice.payment_succeeded` event grants credits twice, or `customer.subscription.deleted` fires twice and corrupts state.
+**Consequences:** Bold text appears bold in the browser preview but renders as regular weight in exports. Italic text appears italic in browser but upright in exports. Users will report "my styling disappeared in the download."
 
-**Why it happens:**
-Developers return 200 only after completing all business logic. If the logic takes too long or partially fails, Stripe retries. The handler processes the event again from scratch.
+**Prevention:**
+1. For every font offered in the picker, pre-register which variants are available (regular, bold, italic, bold-italic).
+2. When a user applies bold, load the bold variant file. When italic, load the italic variant.
+3. Pass ALL needed variant files to `ImageResponse({ fonts: [...] })`.
+4. If a font does not have a bold variant, either disable the bold button for that font or show a warning.
+5. Google Fonts API provides variant availability metadata -- use it to gate the UI.
 
-**How to avoid:**
-1. Store processed event IDs in a `stripe_events` table with a UNIQUE constraint on `event_id`.
-2. Check if event ID exists before processing. If yes, return 200 immediately.
-3. Return 200 to Stripe as fast as possible -- acknowledge receipt, then process.
-4. Always use `stripe.webhooks.constructEvent()` for signature verification.
+**Detection:** Apply bold to text in editor, export, compare. If bold is missing in export, this is active.
 
-```sql
-CREATE TABLE stripe_events (
-  event_id TEXT PRIMARY KEY,
-  event_type TEXT NOT NULL,
-  processed_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+**Phase:** Must be solved alongside the font picker. Bold/italic UI controls and font file loading are tightly coupled.
 
-**Warning signs:**
-Users receive double credits after payment. Subscription status flips between active/cancelled. Stripe dashboard shows repeated delivery attempts for the same event.
+### Pitfall 3: Browser Preview and Satori Render Text Layout Differently
 
-**Phase to address:**
-Stripe integration phase. The events table and idempotency check must be part of the initial webhook handler.
+**What goes wrong:** The browser preview uses standard CSS layout with `position: absolute` and percentage-based coordinates. Satori uses its own Yoga-based flexbox engine with pixel-based absolute positioning. Text wrapping, line breaking, letter spacing, and font metrics differ between the two engines. A text block that fits neatly in the browser preview may overflow or have different line breaks in the Satori render.
+
+**Why it happens:** Satori explicitly notes it uses a subset of CSS. It does not support `z-index`, has different text shaping, no OpenType features, no kerning, and no ligatures. Line-height calculations, word-break behavior, and text measurement all differ from browser rendering.
+
+**Consequences:** Text position drift between preview and export. Text that fits in preview overflows in export (or vice versa). Users perceive the tool as broken because "what I see is not what I get."
+
+**Prevention:**
+1. Use the SAME font files for both preview and export. Load Google Fonts via their `.ttf` files (not the CSS API) and use `@font-face` in the browser with the same files Satori will use.
+2. Keep text styling simple -- avoid advanced CSS properties Satori does not support.
+3. Add a "preview render" button that generates the actual Satori output so users can verify before downloading all slides.
+4. Test every template with long text, short text, and multi-line text to identify layout drift.
+5. Consider using Satori for both preview AND export (render SVG in browser) for pixel-perfect consistency, though this adds complexity and latency.
+
+**Detection:** Overlay browser screenshot on Satori output at same resolution. Any text position or wrapping difference indicates this pitfall.
+
+**Phase:** Ongoing concern. Initial fix: use identical font files. Long-term: consider Satori-based preview.
 
 ---
 
-### Pitfall 3: Webhook Signature Verification Fails on Vercel / Next.js App Router
+## High Pitfalls
 
-**What goes wrong:**
-`stripe.webhooks.constructEvent()` throws "No signatures found matching the expected signature for payload." The webhook endpoint silently rejects all events from Stripe. Subscriptions never activate after payment.
+Mistakes that cause significant UX issues or require substantial rework.
 
-**Why it happens:**
-Next.js App Router can parse/consume the request body before the handler sees it. Stripe signature verification requires the raw request body bytes. If the body is parsed as JSON first, the signature will not match. This is the single most reported Stripe + Next.js issue.
+### Pitfall 4: Font Loading Race Conditions in Browser Preview
 
-**How to avoid:**
-In your webhook route handler (`app/api/webhooks/stripe/route.ts`), read the raw body:
+**What goes wrong:** User selects a font from the picker. The font CSS is injected via a `<link>` tag or `@font-face` rule. The slide preview re-renders immediately, but the font file has not finished downloading yet. The preview briefly shows the fallback font, then jumps to the correct font once loaded (FOUT -- Flash of Unstyled Text). During this flash, any text measurement (for resize handles, alignment guides) is wrong.
+
+**Why it happens:** Google Fonts are loaded asynchronously. The browser does not block rendering to wait for fonts. React re-renders do not wait for font loads.
+
+**Consequences:** Jarring visual flash on every font change. Incorrect text box dimensions during the flash. Alignment guides snap to wrong positions.
+
+**Prevention:**
+1. Use the `document.fonts.load()` API or `FontFace` API to preload fonts before applying them. Only update the slide's font after the promise resolves.
+2. Show a loading indicator on the font picker while the font downloads.
+3. Preload the most popular fonts (top 10-20) during initial page load so they are instant.
+4. Use `font-display: block` in `@font-face` rules to prevent FOUT (the text will be invisible briefly instead of flashing).
+
+**Detection:** Select a font on a slow connection (throttle in DevTools). Observe the preview for flashes or layout jumps.
+
+**Phase:** Font picker implementation phase. Must be addressed when building the font selection UI.
+
+### Pitfall 5: Data Model Migration Breaks Existing Projects
+
+**What goes wrong:** Adding new fields to `SlideStyleOverrides` (e.g., `font_family`, `font_weight`, `font_style`) seems straightforward since they are optional fields on an interface. But existing slide data in Supabase has `style_overrides` as a JSON column. If the code starts reading new fields without defaults, existing projects may render differently or crash.
+
+**Why it happens:** The current `SlideStyleOverrides` interface uses optional fields with nullish coalescing (`??`) to fall back to template values. This pattern is safe IF consistently applied. The risk is adding a new field and forgetting the fallback, or changing the default behavior.
+
+**Consequences:** Existing projects render with wrong fonts/styles after code update. Users open old projects and they look different.
+
+**Prevention:**
+1. Every new field in `SlideStyleOverrides` MUST be optional and MUST have a fallback to the template value using `??`.
+2. Write a migration test: load a slide with empty `style_overrides` and verify it renders identically to before the change.
+3. Do NOT rename or restructure existing fields. Only add new ones.
+4. The `deepCloneSlide` in the editor reducer uses `JSON.parse(JSON.stringify())` which handles new optional fields correctly (they will be `undefined` and thus omitted), but verify this.
+
+**Detection:** Open an existing project after deploying new code. Compare with a screenshot taken before the deploy.
+
+**Phase:** First phase, before any UI work. Define the data model extension upfront.
+
+### Pitfall 6: Resizable Text Boxes -- Coordinate System Confusion
+
+**What goes wrong:** The current system uses percentage-based positioning (`TextPosition` with `x: 0-100, y: 0-100`) but renders at a reference resolution of 1080x1920 with CSS `transform: scale()`. Adding resize handles introduces a width/height dimension to text boxes, which must also work in this scaled coordinate system. Resize drag deltas reported by the DOM are in screen pixels, but must be converted to reference pixels, then stored as percentages.
+
+**Why it happens:** Three coordinate systems are in play: (1) screen pixels (what the user drags), (2) reference pixels (1080x1920 canvas), (3) percentages (stored in data model). The existing code handles this for position via the `scale` prop on `react-draggable`, but resize handles from a different library may not have built-in scale awareness.
+
+**Consequences:** Resize handles feel "off" -- dragging 100 screen pixels moves the handle by a different visual amount depending on the canvas scale. On mobile (smaller canvas), the problem is worse. Text boxes jump or resize incorrectly.
+
+**Prevention:**
+1. Use `react-rnd` (react-resizable-and-draggable) which handles both drag and resize in a single component, with scale support.
+2. OR continue with `react-draggable` and add `react-resizable`, but manually apply the scale factor to resize deltas.
+3. Store text box dimensions as percentages of the canvas (width%, height%) in the data model, same as position.
+4. Test at multiple canvas scales (mobile, tablet, desktop) to verify consistent behavior.
+5. Add minimum size constraints to prevent text boxes from being resized to zero.
+
+**Detection:** Resize a text box at different browser window sizes. If the resize feels faster/slower at different scales, the coordinate conversion is wrong.
+
+**Phase:** Resizable text boxes phase. Must be carefully implemented with coordinate system awareness.
+
+### Pitfall 7: Alignment Guides -- Snapping to Wrong Positions Due to Text Box Dimensions
+
+**What goes wrong:** Alignment guides (snap lines like Canva/Figma) need to know the bounding box of each text element -- not just its position, but also its rendered width and height. Currently, text boxes have a position but no explicit size; their height depends on content and font size. If alignment guides calculate snapping based on the position point only (top-left corner), the visual alignment will be wrong -- elements will appear "close to center" but not actually centered.
+
+**Why it happens:** Text box height is content-dependent and font-dependent. Without measuring the actual rendered text, the alignment system cannot know where the bottom or right edge of a text box is.
+
+**Consequences:** "Center alignment" snaps the top-left corner to center, not the visual center of the text block. Users expect Canva-like precision but get approximate alignment.
+
+**Prevention:**
+1. Measure actual rendered text box dimensions using `getBoundingClientRect()` after the font loads and content renders.
+2. Calculate snap points from the center and edges of the measured bounding box, not from the position origin.
+3. Snap to: canvas center (H/V), other text box edges (top/bottom/left/right), other text box centers.
+4. Use a threshold (e.g., 5-10 reference pixels) for snapping activation.
+5. Show visual guide lines only when within snap threshold.
+
+**Detection:** Add two text boxes with different content lengths. Try to center-align them. If they are visually offset, the bounding box measurement is wrong.
+
+**Phase:** Alignment guides phase. Depends on text box dimensions being available (requires either explicit sizes from resize feature, or runtime measurement).
+
+---
+
+## Moderate Pitfalls
+
+### Pitfall 8: Google Fonts API Rate Limiting and Loading Strategy
+
+**What goes wrong:** Fetching font metadata and font files from Google Fonts on every render request (server-side) hits rate limits or adds latency. Each font family can have 10+ variants (weights x styles), and fetching all variants on every export is slow.
+
+**Prevention:**
+1. Cache the Google Fonts metadata (family list, available variants) at build time or in a long-lived server cache.
+2. Cache font file ArrayBuffers in memory (they are immutable, ~50-200KB each).
+3. Only fetch the specific variants used in the slide (not all variants of a family).
+4. Bundle the 5-10 most popular fonts with the app to avoid network requests entirely.
+5. The Google Fonts API key has a daily quota -- monitor usage.
+
+**Phase:** Font picker + server-side rendering integration phase.
+
+### Pitfall 9: Font Picker UI Overwhelming Users
+
+**What goes wrong:** Google Fonts has 1,500+ families. Showing all of them in a dropdown creates an unusable UI. Loading font previews for all of them consumes bandwidth and memory.
+
+**Prevention:**
+1. Curate a list of 30-50 fonts that work well for social media content (readable at mobile sizes, have bold/italic variants).
+2. Show font previews using the actual font (lazy-load font files as user scrolls).
+3. Add a search/filter to find fonts by name.
+4. Group by category: sans-serif, serif, display, handwriting.
+5. Show which fonts have bold/italic variants available.
+
+**Phase:** Font picker UI phase. Design decision, not a technical blocker.
+
+### Pitfall 10: Undo/Redo Stack Bloat with Frequent Style Changes
+
+**What goes wrong:** The current undo/redo system stores full slide array snapshots (`Slide[][]`). Every font change, color pick, or resize drag pushes a new snapshot. Using a color picker (which fires on every mouse move) can generate hundreds of undo states per second.
+
+**Prevention:**
+1. Debounce style changes before pushing to undo stack. Only commit to history on `onChangeComplete` (color picker), `onStop` (resize), or `onChange` with a 300ms debounce (font selector).
+2. The current `MAX_HISTORY = 50` provides a cap, but rapid changes will flush meaningful history.
+3. Consider coalescing consecutive changes of the same type (e.g., multiple font-size adjustments before moving on).
+
+**Phase:** All phases. Must be considered when implementing any new interactive control.
+
+### Pitfall 11: Bold/Italic Partial Text (Rich Text Within a Text Box)
+
+**What goes wrong:** If bold/italic is implemented per-text-box (the whole box is bold or not), it is straightforward. If the intent is to allow bold/italic on individual words WITHIN a text box (rich text), the complexity explodes. Satori supports inline `<span>` elements with different styles, but the editor needs a rich text editing engine (contenteditable, Slate, TipTap, etc.).
+
+**Prevention:**
+1. Start with per-text-box styling: the entire hook or body text is bold/italic/normal. This maps cleanly to the current data model (`font_weight` and `font_style` on `SlideStyleOverrides`).
+2. Do NOT add inline rich text (per-word bold) in v1.3. It requires a rich text editor, a more complex data model (serialized rich text nodes instead of plain strings), and Satori JSX generation from rich text nodes.
+3. If rich text is needed later, use TipTap (modern, React-native, good API) and serialize to a portable format.
+
+**Phase:** v1.3 should be per-text-box only. Rich text is a v2 feature.
+
+---
+
+## Minor Pitfalls
+
+### Pitfall 12: Font Family String Format Inconsistency
+
+**What goes wrong:** Templates store `fontFamily` as CSS strings like `"'Inter', sans-serif"`. The brand kit stores `font_family` as a plain name like `"Inter"`. The merge function wraps it: `'${brandKit.font_family}', sans-serif`. If the font picker stores the value differently (e.g., `"Inter"` vs `"inter"` vs `"'Inter'"` vs `"Inter, sans-serif"`), comparisons and lookups break.
+
+**Prevention:** Normalize to a canonical format. Store the Google Fonts family name exactly as the API returns it (e.g., `"Inter"`, `"Playfair Display"`). Convert to CSS string only at render time.
+
+### Pitfall 13: Mobile Touch Targets for Resize Handles
+
+**What goes wrong:** Resize handles that work fine with a mouse cursor are too small for touch on mobile. The current app targets mobile-first (TikTok creators on phones).
+
+**Prevention:** Make resize handles at least 44x44px touch target (iOS HIG). Consider showing handles only when the text box is selected, to avoid visual clutter.
+
+### Pitfall 14: Template hookStyle Conflicts with New Bold/Italic Controls
+
+**What goes wrong:** Templates already have `hookStyle: 'uppercase' | 'normal' | 'italic'` which forces italic on the hook text. If the user also has a bold/italic toggle, the interaction between template `hookStyle` and user `font_style` override is ambiguous. Does the user's choice override the template? Are they additive?
+
+**Prevention:** Define clear precedence: `slide.style_overrides.font_style` overrides `template.hookStyle` for italic. If the user explicitly sets font_style, use it. If not set (undefined), fall back to template hookStyle. Document this in code comments.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|---|---|---|
+| Font picker UI | Font loading FOUT (Pitfall 4), overwhelming choices (Pitfall 9) | Preload popular fonts, curate list, use `document.fonts.load()` |
+| Font rendering in export | Missing font files in Satori (Pitfall 1), no bold/italic synthesis (Pitfall 2) | Build server-side font registry, load variant files per-render |
+| Bold/italic controls | Scope creep to inline rich text (Pitfall 11), template conflict (Pitfall 14) | Per-text-box only, clear override precedence |
+| Data model changes | Breaking existing projects (Pitfall 5), format inconsistency (Pitfall 12) | All new fields optional with fallbacks, normalize font names |
+| Resizable text boxes | Coordinate system confusion (Pitfall 6), undo stack bloat (Pitfall 10) | Use react-rnd with scale, debounce history pushes |
+| Alignment guides | Wrong snap due to unknown box size (Pitfall 7) | Measure rendered bounding boxes, snap from center/edges |
+| Browser/export parity | Text layout drift (Pitfall 3) | Use same font files, test extensively, consider Satori-based preview |
+
+## Existing Codebase Issue (Pre-existing)
+
+The current render route (`src/app/api/render/route.ts`) creates `ImageResponse` with **no `fonts` option**. Templates specify `fontFamily` strings like `'Inter', sans-serif` but no font files are loaded server-side. This means exports are already rendering in Satori's default font (Noto Sans), not the template's specified font. **This must be fixed before adding a font picker** -- it is the foundation that all font work builds on.
 
 ```typescript
-export async function POST(request: Request) {
-  const body = await request.text(); // RAW text, not .json()
-  const signature = request.headers.get('stripe-signature')!;
-  const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-  // ... handle event
-}
+// Current code (line 87-90 of route.ts) -- no fonts passed:
+const imageResponse = new ImageResponse(element, {
+  width: 1080,
+  height: 1920,
+})
+
+// Required fix:
+const imageResponse = new ImageResponse(element, {
+  width: 1080,
+  height: 1920,
+  fonts: [
+    { name: 'Inter', data: interRegularBuffer, weight: 400, style: 'normal' },
+    { name: 'Inter', data: interBoldBuffer, weight: 700, style: 'normal' },
+    // ... all needed variants
+  ],
+})
 ```
-
-Do NOT use `request.json()`. Ensure no global middleware intercepts and re-serializes the body on this route.
-
-**Warning signs:**
-Stripe dashboard shows all webhook deliveries failing with non-2xx. Users complete checkout but subscription status never updates in the app.
-
-**Phase to address:**
-Stripe integration phase. Test webhook delivery end-to-end on a deployed Vercel preview immediately -- do not defer.
-
----
-
-### Pitfall 4: Supabase RLS Blocks Webhook-Originated Database Writes
-
-**What goes wrong:**
-Stripe webhooks hit the Next.js API route, which tries to update the user's subscription status or credit balance in Supabase. But the request has no authenticated user session -- it is server-to-server. If RLS policies require `auth.uid() = user_id`, the write silently fails or returns zero rows affected. No error is thrown.
-
-**Why it happens:**
-Developers set up RLS policies during the auth phase that restrict all writes to the authenticated user. Webhook handlers run without a Supabase auth context. The developer tests with the service role key locally but uses the anon key in production by mistake, or forgets to configure the service role key on Vercel.
-
-**How to avoid:**
-1. Use the Supabase **service role key** (not the anon key) for all webhook-originated database operations. This bypasses RLS.
-2. Create a dedicated Supabase client for server-side admin operations: `createClient(url, SERVICE_ROLE_KEY)`.
-3. NEVER expose the service role key to the client. Keep it in server-side environment variables only (`SUPABASE_SERVICE_ROLE_KEY`, no `NEXT_PUBLIC_` prefix).
-4. Alternatively, use `SECURITY DEFINER` Postgres functions called via RPC that bypass RLS by design.
-
-**Warning signs:**
-Webhook handler returns 200 but database is not updated. Users pay but subscription status stays "free." Supabase logs show zero rows affected on UPDATE.
-
-**Phase to address:**
-Stripe integration phase. Establish the admin Supabase client pattern before writing any webhook handlers.
-
----
-
-### Pitfall 5: Safety Filters Block Legitimate Image Prompts, User Gets Charged
-
-**What goes wrong:**
-Google's image generation models have aggressive content safety filters that reject prompts containing certain keywords or contexts even when the intent is benign. A user's credit gets deducted, but the API returns a filtered/blocked response instead of an image. The user sees a vague error and loses a credit.
-
-**Why it happens:**
-Developers deduct credits before calling the image generation API, or do not handle the "blocked by safety filter" response distinctly from other errors. Google's filters are documented as overly restrictive -- developers on Google forums report false positives on mundane prompts.
-
-**How to avoid:**
-1. Deduct credits AFTER successful image generation, not before. Use a "pending" state: reserve the credit, call the API, confirm or release based on result.
-2. Or use the atomic RPC approach: deduct, call API, refund on failure, all tracked in a `generation_log` table.
-3. Parse the API response for safety filter blocks specifically and show the user a clear message: "Your prompt was filtered by our image provider. Try different wording. No credits were charged."
-4. Adjust `safetySetting` threshold if your use case allows it (Google provides "Block most", "Block some", "Block few" options).
-
-**Warning signs:**
-User complaints about "wasted credits." High rate of failed generations. Support tickets about vague error messages.
-
-**Phase to address:**
-AI image generation phase. The credit-deduction-on-failure path must be designed alongside the generation flow.
-
----
-
-### Pitfall 6: Wrong Image Generation Model Choice -- Cost Confusion
-
-**What goes wrong:**
-The project spec says "Google Imagen" but the image generation landscape has shifted significantly as of early 2026. There are now multiple options through the same `@google/genai` SDK the project already uses: Imagen 3 Fast ($0.02/image), Imagen 4 (newest), Gemini 2.5 Flash Image / "Nano Banana" (~$0.039/image but 500 free images/day), and Gemini 3.x image models. Picking the wrong model means overpaying, hitting unexpected rate limits, or choosing a model that gets deprecated.
-
-**Why it happens:**
-Google's image generation ecosystem evolved rapidly in late 2025/early 2026. Documentation references multiple models. Developers pick one from a tutorial without comparing cost-per-image at their expected volume.
-
-**How to avoid:**
-Since the project already uses `@google/genai` SDK:
-- For **cheapest per-image at scale**: Imagen 3 Fast at $0.02/image via `ai.models.generateImages()`.
-- For **cheapest during development/low volume**: Gemini 2.5 Flash Image has 500 free images/day.
-- For **highest quality**: Imagen 3 Standard at $0.04/image or Imagen 4.
-- Avoid Vertex AI setup complexity -- the Gemini Developer API (same API key already in use) supports Imagen directly.
-- Pin the model version string. Google deprecated and removed Imagen 1/2 entirely in September 2025.
-- Abstract the model choice behind a service function so you can switch models without touching business logic.
-
-**Warning signs:**
-Unexpected Google Cloud bills. Model returning 404 errors after a deprecation deadline. Rate limit (429) errors in production.
-
-**Phase to address:**
-AI image generation phase. Decide on the specific model, pricing tier, and document the decision before writing integration code.
-
----
-
-## Technical Debt Patterns
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Store subscription status only in Stripe, query on every page load | No DB sync needed | Slow page loads (200-500ms per Stripe API call), Stripe rate limits, no offline access to status | Never for a real product |
-| Client-side credit balance checks only | Quick to implement | Trivially bypassable, race conditions | Never -- always enforce server-side |
-| Hardcoded pricing/tier logic in frontend | Fast iteration | Every price change requires deploy, out of sync with Stripe | MVP only -- migrate to Stripe metadata + DB within 2 weeks |
-| Single monolithic webhook handler function | Fewer files | Unmaintainable 500-line function, hard to debug specific event types | Never -- use event-type dispatch from day one |
-| Skip the generation audit log | Faster initial build | Cannot debug credit disputes, cannot track costs, no usage analytics | Never -- log every generation attempt with status |
-| Storing generated images as base64 in the database | Works immediately | DB bloat, slow queries, expensive storage | Never -- use Supabase Storage from the start |
-
-## Integration Gotchas
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Stripe Checkout | Creating checkout session without `customer` param, so returning users get duplicate Stripe customers | Always look up or create a Stripe customer tied to the Supabase user ID first. Store `stripe_customer_id` in a `profiles` or `subscriptions` table. |
-| Stripe Checkout | Using `payment` mode for recurring subscriptions | Use `mode: 'subscription'` for plans, `mode: 'payment'` for one-time credit pack purchases |
-| Stripe Webhooks | Testing with Stripe CLI locally but never testing on deployed Vercel preview | Different webhook signing secret per environment. Register a separate webhook endpoint for preview deployments. |
-| Stripe Customer Portal | Not configuring the portal in Stripe Dashboard before linking to it | Portal must be configured (allowed actions, branding) in Stripe Dashboard > Settings > Customer Portal before `createBillingPortalSession` will work |
-| Google Imagen | Using deprecated `@google/generative-ai` package | Project already uses `@google/genai` (correct). Use `ai.models.generateImages()` for Imagen, `ai.models.generateContent()` for text. |
-| Supabase + Stripe | Storing Stripe webhook secret in `.env.local` but forgetting to set it in Vercel env vars | Maintain an env var checklist: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` |
-| Gemini API | Using the same API key without understanding separate rate limits for text vs images | Image generation has separate IPM (images per minute) quotas from text RPM quotas. Monitor both independently. |
-| Stripe + Supabase | Creating the subscription record in DB on checkout.session.completed but not handling renewal/cancellation | Must also handle: `invoice.payment_succeeded` (renewal + credit reset), `invoice.payment_failed` (grace period), `customer.subscription.updated` (plan change), `customer.subscription.deleted` (cancellation) |
-
-## Performance Traps
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Checking subscription status via Stripe API on every page load | Slow page transitions (200-500ms added) | Cache subscription status in Supabase `subscriptions` table, update only via webhooks | Immediately noticeable with >5 pages/session |
-| Synchronous image generation in API route | Request times out (Vercel hobby: 10s limit, pro: 60s) | Return immediately with a generation ID, poll or use Supabase Realtime for completion | Imagen takes 3-15s per image; will timeout on Vercel hobby plan |
-| No caching of generated images | Same image regenerated if user revisits project | Store generated images in Supabase Storage, reference by URL in project data | When users have >10 projects or revisit frequently |
-| RLS policies with joins on every credit check | Slow credit balance lookups on every generation | Keep credit balance in a simple indexed column on the user's row, update atomically via RPC | Noticeable at >100 concurrent users |
-| Loading full subscription object from Stripe to check tier | Unnecessary API call overhead + Stripe rate limits | Store `plan_id` and `status` locally, trust webhook updates | From day one -- unnecessary network call |
-| Caption generation on every view instead of on-demand | Wastes Gemini API tokens, slow page load | Generate captions once when user clicks "Generate Captions", cache result with the project | Immediately -- each caption gen costs tokens |
-
-## Security Mistakes
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Exposing Stripe secret key or Supabase service role key in client bundle | Full access to Stripe account or ability to bypass all RLS | Only use `NEXT_PUBLIC_` prefix for the Stripe publishable key and Supabase anon key. Audit imports in client components. |
-| Not verifying Stripe webhook signatures | Anyone can POST fake events to grant themselves unlimited credits or Pro status | Always use `stripe.webhooks.constructEvent()` with the webhook signing secret |
-| Credit balance checked client-side only before generation | Users bypass by calling the generation API directly | Server-side credit check + deduction in the same atomic RPC call |
-| Using anon key for admin operations in API routes | RLS prevents webhook updates, or worse, devs loosen RLS to "fix" it (exposing all user data) | Separate admin client with service role key for server-to-server operations only |
-| Storing generated images without user scoping in Storage | Users could enumerate and access other users' AI-generated images | Supabase Storage policies + user-scoped paths (`/{user_id}/generations/{image_id}.png`) |
-| No rate limiting on the generation endpoint | A single user (or attacker) could drain your entire Imagen/Gemini API budget in minutes | Per-user rate limiting (e.g., max 10 generations/minute) enforced server-side, independent of credits |
-| Stripe checkout session created without binding to authenticated user | Someone could complete checkout and credits go to wrong account or nowhere | Verify `auth.uid()` in the server action that creates the checkout session, pass Supabase user ID as `client_reference_id` |
-
-## UX Pitfalls
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| No loading state during image generation (3-15 seconds) | User thinks app is broken, clicks generate again (potential double charge) | Show skeleton/shimmer with estimated time, disable the generate button immediately |
-| Vague error on safety filter block | User thinks the app is broken, loses trust | Specific message: "This prompt was filtered by our image provider. Try rephrasing. No credits were charged." |
-| No confirmation before credit-consuming actions | Accidental generations waste limited credits | "This will use 1 credit (3 remaining). Generate?" confirmation dialog |
-| Subscription status stale after upgrade | User pays for Pro but still sees Free tier limits until page refresh | Use Supabase Realtime subscription on the `subscriptions` table, or `revalidatePath` after checkout redirect |
-| Credit balance not visible during creation flow | User does not know how many credits remain | Always show credit balance in the editor header during generation workflows |
-| No way to see generation history | User cannot find a previously generated image, cannot dispute credit charges | Generation log with thumbnails, accessible from dashboard |
-| Caption output not copy-friendly | User has to manually select and copy text, loses formatting | One-click copy button per caption, preserve line breaks and hashtags |
-| Plan comparison unclear before checkout | User does not understand what Pro gives them | Clear feature comparison table on pricing page with explicit limits per tier |
-
-## "Looks Done But Isn't" Checklist
-
-- [ ] **Stripe Subscriptions:** Often missing subscription *update* and *cancellation* webhook handling -- verify `customer.subscription.updated` and `customer.subscription.deleted` are handled, not just `checkout.session.completed`
-- [ ] **Stripe Subscriptions:** Often missing failed payment renewal handling -- verify `invoice.payment_failed` triggers a grace period or downgrade, not silent continuation of Pro access
-- [ ] **Credit System:** Often missing credit refund path -- verify that failed/filtered image generations return credits to the user
-- [ ] **Credit System:** Often missing monthly credit reset -- verify credits reset on subscription renewal (triggered by `invoice.payment_succeeded` webhook), not on a calendar cron
-- [ ] **Credit System:** Often missing credit pack + subscription interaction -- verify purchased credit packs do NOT reset when monthly subscription renews (only base allowance resets)
-- [ ] **Customer Portal:** Often missing portal configuration -- verify Stripe Customer Portal is configured in Dashboard with cancellation, plan-change, and payment method update flows
-- [ ] **Image Generation:** Often missing timeout handling -- verify that if Imagen takes >10s, the Vercel function does not silently timeout (use async pattern or Vercel Pro plan)
-- [ ] **Image Generation:** Often missing image persistence -- verify generated images are saved to Supabase Storage, not just returned as base64 and lost on page navigation
-- [ ] **Caption Generation:** Often missing platform-specific formatting -- verify captions include hashtags, appropriate line breaks, and respect character limits for TikTok vs Instagram
-- [ ] **Environment Variables:** Often missing in deployment -- verify ALL keys are set in Vercel: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `GOOGLE_API_KEY` (or `GEMINI_API_KEY`)
-- [ ] **Free Tier Limits:** Often missing enforcement -- verify free users cannot generate AI images at all (or have a small trial allowance) without the credit check being trivially bypassable
-
-## Recovery Strategies
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Credit race conditions (double-spend) | LOW | Add the atomic RPC function, audit generation log vs credit ledger, manually refund affected users |
-| Duplicate webhook processing | MEDIUM | Add events table + idempotency check, replay recent events from Stripe dashboard, reconcile subscription/credit states |
-| Webhook signature verification broken in production | LOW | Fix raw body reading in route handler, re-test with Stripe CLI, replay failed events from Stripe dashboard |
-| Wrong Imagen model chosen (overpaying) | LOW | Change model string in one place (if abstracted correctly), no data migration needed |
-| Safety filter credits lost without refund | MEDIUM | Add refund-on-filter logic, audit generation log for filtered results, issue manual credit adjustments |
-| RLS blocking webhook writes | LOW | Switch to service role client in webhook handler, replay failed webhooks from Stripe |
-| Vercel function timeout on image generation | MEDIUM | Restructure to async pattern (return job ID, poll for result) -- requires both API and UI changes |
-| Subscription status not updating in UI | LOW | Add Supabase Realtime listener or revalidation on checkout return, one-time fix |
-
-## Pitfall-to-Phase Mapping
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Credit race conditions | Database schema / credit system | Concurrent test: two simultaneous deductions on balance of 1 -- only one succeeds |
-| Duplicate webhook processing | Stripe webhook integration | Send same test event twice via Stripe CLI -- verify only one DB mutation |
-| Webhook signature failure | Stripe webhook integration | Deploy to Vercel preview, trigger test checkout, verify webhook received and processed |
-| RLS blocking webhooks | Stripe webhook integration | Webhook handler updates a real row, check Supabase logs for RLS denials |
-| Model choice / billing surprise | AI image generation planning (before coding) | Document model, price-per-image, rate limits in decision log |
-| Safety filter credit loss | AI image generation + credit system | Test with prompts known to trigger filters, verify zero credit deduction |
-| Vercel function timeout | AI image generation | Test with slowest model option on Vercel deployment, verify completion |
-| Stale subscription status | Frontend after Stripe integration | Complete test checkout, verify UI updates without manual page refresh |
-| Monthly credit reset | Credit system + webhook handling | Simulate `invoice.payment_succeeded` renewal event, verify credits reset to plan allowance |
-| Credit pack vs subscription credits | Credit system schema design | Purchase a credit pack, then trigger subscription renewal -- verify pack credits survive |
 
 ## Sources
 
-- [Supabase: Handling Stripe Webhooks](https://supabase.com/docs/guides/functions/examples/stripe-webhooks)
-- [Supabase: RLS Performance and Best Practices](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv)
-- [Supabase: Row Level Security](https://supabase.com/docs/reference/javascript/v1/rpc)
-- [Stripe: Receive events in your webhook endpoint](https://docs.stripe.com/webhooks)
-- [Stripe webhook idempotency best practices (Stigg)](https://www.stigg.io/blog-posts/best-practices-i-wish-we-knew-when-integrating-stripe-webhooks)
-- [Stripe + Next.js 15 complete guide (Pedro Alonso)](https://www.pedroalonso.net/blog/stripe-nextjs-complete-guide-2025/)
-- [Transactions and RLS in Supabase Edge Functions (Marmelab)](https://marmelab.com/blog/2025/12/08/supabase-edge-function-transaction-rls.html)
-- [Data Integrity with Supabase SQL Transactions (DEV Community)](https://dev.to/damasosanoja/data-integrity-first-mastering-transactions-in-supabase-sql-for-reliable-applications-2dbb)
-- [Imagen 3 safety filter sensitivity (Google Developer Forums)](https://discuss.google.dev/t/imagen-3-filter-sensitivity/173697)
-- [Google: Configure Responsible AI safety settings for Imagen](https://cloud.google.com/vertex-ai/generative-ai/docs/image/configure-responsible-ai-safety-settings)
-- [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing)
-- [Gemini API rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)
-- [Gemini image generation docs (Imagen via Gemini API)](https://ai.google.dev/gemini-api/docs/imagen)
-- [@google/genai SDK (npm)](https://www.npmjs.com/package/@google/genai)
-- [Stripe integration for Next.js 15 with Supabase (DEV Community)](https://dev.to/flnzba/33-stripe-integration-guide-for-nextjs-15-with-supabase-13b5)
-- [Gemini image generation free tier and pricing (2026)](https://www.aifreeapi.com/en/posts/gemini-image-generation-free-api)
-- [Vercel + Stripe webhook issues (GitHub)](https://github.com/vercel/nextjs-subscription-payments/issues/240)
-- [next-supabase-stripe-starter (GitHub)](https://github.com/KolbySisk/next-supabase-stripe-starter)
-
----
-*Pitfalls research for: TikTok Slideshow Creator v1.1 -- Monetization and AI Images*
-*Researched: 2026-03-24*
+- [Satori README -- supported CSS, font requirements](https://github.com/vercel/satori/blob/main/README.md)
+- [Satori font weight resolution issue #263](https://github.com/vercel/satori/issues/263)
+- [Satori text and fonts -- DeepWiki](https://deepwiki.com/vercel/satori/3.3-text-and-fonts)
+- [Next.js ImageResponse docs](https://nextjs.org/docs/app/api-reference/functions/image-response)
+- [Using custom fonts in OG Image -- Vercel KB](https://vercel.com/kb/guide/using-custom-font)
+- [Custom Fonts causing fetch errors -- Satori discussion #662](https://github.com/vercel/satori/discussions/662)
+- [react-rnd -- resizable and draggable component](https://github.com/bokuweb/react-rnd)
+- [Satori CSS support -- DeepWiki](https://deepwiki.com/vercel/satori/4-advanced-usage)
