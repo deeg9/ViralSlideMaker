@@ -1,7 +1,5 @@
 'use server'
 
-export const maxDuration = 60
-
 import { createClient } from '@/lib/supabase/server'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { generateImagePrompt } from '@/lib/imagen/generate-prompt'
