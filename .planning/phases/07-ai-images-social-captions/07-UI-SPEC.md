@@ -49,10 +49,10 @@ Exceptions: none
 |------|------|--------|-------------|
 | Body | 14px | 400 (regular) | 1.5 |
 | Label | 10px | 700 (bold), uppercase, tracking-widest | 1.0 |
-| Heading | 20px | 600 (semibold) | 1.2 |
+| Heading | 20px | 700 (bold) | 1.2 |
 | Display | 28px | 700 (bold) | 1.2 |
 
-Source: Existing codebase uses 10px bold uppercase for section labels, 14px (text-sm) for body/descriptions, and these values are consistent across image-picker-panel, upgrade-prompt, and credit-display components.
+Source: Existing codebase uses 10px bold uppercase for section labels, 14px (text-sm) for body/descriptions, and these values are consistent across image-picker-panel, upgrade-prompt, and credit-display components. Two weights only: 400 (regular) for body/muted text, 700 (bold) for label/heading/display.
 
 ---
 
@@ -130,7 +130,7 @@ Accent reserved for: "Generate Image" primary CTA button, active tab underline i
 **Layout:** Panel renders below the slide editor (not a modal). Three platform tabs: TikTok, Instagram, LinkedIn. Each tab shows:
 - Platform icon (Material Symbols: `tag` for TikTok, `photo_camera` for Instagram, `work` for LinkedIn)
 - Generated caption text in a read-only textarea or pre-formatted block
-- "Copy" button with icon `content_copy`. On click: copies to clipboard, icon changes to `check` for 2 seconds, reverts.
+- "Copy Caption" button with icon `content_copy`. On click: copies to clipboard, icon changes to `check` for 2 seconds, reverts.
 
 **States:**
 
@@ -138,7 +138,7 @@ Accent reserved for: "Generate Image" primary CTA button, active tab underline i
 2. **Generating** -- Button shows spinner. Panel appears with skeleton pulse lines (3 lines per platform tab).
 3. **Ready** -- All three platform captions populated. TikTok tab active by default. User can switch tabs. Each tab has copy button.
 4. **Error** -- Inline error in panel: "Caption generation failed. Please try again." with retry button.
-5. **Regenerate** -- "Regenerate" button (icon `refresh`) at top of panel to get new captions. Same loading state as initial generation.
+5. **Regenerate** -- "Regenerate Captions" button (icon `refresh`) at top of panel to get new captions. Same loading state as initial generation.
 
 **No credits consumed** for caption generation. No credit badge shown. Available to all tiers (free and paid).
 
@@ -160,8 +160,9 @@ Accent reserved for: "Generate Image" primary CTA button, active tab underline i
 | Caption CTA | "Generate Captions" |
 | Caption generating | (skeleton pulse lines) |
 | Caption error | "Caption generation failed. Please try again." |
-| Caption copy button | "Copy" (icon only on mobile, icon + label on desktop) |
+| Caption copy button | "Copy Caption" (icon only on mobile, icon + label on desktop) |
 | Caption copied feedback | Icon switches from `content_copy` to `check` for 2 seconds |
+| Caption regenerate button | "Regenerate Captions" |
 | Empty state (captions) | Not applicable -- panel only appears after clicking "Generate Captions" |
 | Prompt textarea placeholder | "Describe the background image you want..." |
 
@@ -199,7 +200,7 @@ No third-party registries declared. No vetting required.
 | Generate Image button | `aria-disabled="true"` when loading, includes `aria-label="Generate AI background image, costs 1 credit"` |
 | Credit cost badge | `aria-label="This action costs 1 credit"` |
 | Caption tabs | Standard tab pattern with `role="tablist"`, `role="tab"`, `role="tabpanel"` |
-| Copy button | `aria-label="Copy TikTok caption to clipboard"` (per platform) |
+| Copy Caption button | `aria-label="Copy TikTok caption to clipboard"` (per platform) |
 | Safety filter warning | `role="alert"` for screen reader announcement |
 | Insufficient credits message | `role="status"` |
 
