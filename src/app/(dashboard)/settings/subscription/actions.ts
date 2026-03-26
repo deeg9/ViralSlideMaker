@@ -1,11 +1,23 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripeServer } from '@/lib/stripe/client'
 import { STRIPE_PRICES } from '@/lib/stripe/config'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
+
+async function getAppUrl(): Promise<string> {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL
+  }
+  // Derive from request headers when env var is missing
+  const h = await headers()
+  const host = h.get('host') ?? 'localhost:3000'
+  const proto = h.get('x-forwarded-proto') ?? 'https'
+  return `${proto}://${host}`
+}
 
 async function getAuthenticatedUser() {
   const supabase = await createClient()
@@ -54,6 +66,7 @@ export async function createCheckoutSession(priceId: string) {
   const customerId = await getOrCreateStripeCustomer(user.id, user.email ?? '')
   const stripe = getStripeServer()
   const admin = createAdminClient()
+  const appUrl = await getAppUrl()
 
   // Check for existing active subscription — upgrade instead of creating a second one
   const { data: sub } = await admin
@@ -72,7 +85,7 @@ export async function createCheckoutSession(priceId: string) {
         proration_behavior: 'create_prorations',
         metadata: { supabase_user_id: user.id },
       })
-      redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?success=true`)
+      redirect(`${appUrl}/settings/subscription?success=true`)
     }
   }
 
@@ -81,8 +94,8 @@ export async function createCheckoutSession(priceId: string) {
     customer: customerId,
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?canceled=true`,
+    success_url: `${appUrl}/settings/subscription?success=true`,
+    cancel_url: `${appUrl}/settings/subscription?canceled=true`,
     metadata: { supabase_user_id: user.id },
   })
 
@@ -93,6 +106,7 @@ export async function createPortalSession() {
   const user = await getAuthenticatedUser()
   const admin = createAdminClient()
   const stripe = getStripeServer()
+  const appUrl = await getAppUrl()
 
   const { data: sub } = await admin
     .from('subscriptions')
@@ -101,12 +115,12 @@ export async function createPortalSession() {
     .maybeSingle()
 
   if (!sub?.stripe_customer_id) {
-    throw new Error('No active subscription found')
+    redirect(`${appUrl}/settings/subscription?error=no_subscription`)
   }
 
   const session = await stripe.billingPortal.sessions.create({
     customer: sub.stripe_customer_id,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription`,
+    return_url: `${appUrl}/settings/subscription`,
   })
 
   redirect(session.url)
@@ -116,13 +130,14 @@ export async function createCreditPackCheckout() {
   const user = await getAuthenticatedUser()
   const customerId = await getOrCreateStripeCustomer(user.id, user.email ?? '')
   const stripe = getStripeServer()
+  const appUrl = await getAppUrl()
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'payment',
     line_items: [{ price: STRIPE_PRICES.credit_pack_10, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription?credits=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/subscription`,
+    success_url: `${appUrl}/settings/subscription?credits=true`,
+    cancel_url: `${appUrl}/settings/subscription`,
     metadata: { supabase_user_id: user.id },
   })
 
