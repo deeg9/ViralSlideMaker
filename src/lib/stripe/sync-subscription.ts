@@ -80,6 +80,18 @@ async function handleCheckoutCompleted(
         current_period_end: periodEnd,
       })
       .eq('user_id', userId)
+
+    // Grant initial credits for new subscription (invoice.paid may race with this)
+    const creditAmount = TIER_CREDITS[tier]
+    if (creditAmount) {
+      await admin.from('credit_transactions').insert({
+        user_id: userId,
+        type: 'subscription_grant',
+        amount: creditAmount,
+        description: `Welcome credits (${tier.charAt(0).toUpperCase() + tier.slice(1)} tier)`,
+        reference_id: session.id,
+      })
+    }
   } else if (session.mode === 'payment') {
     const stripe = getStripeServer()
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id)
@@ -171,6 +183,16 @@ async function handleInvoicePaid(
   const tierKey = sub.tier as keyof typeof TIER_CREDITS
   const creditAmount = TIER_CREDITS[tierKey]
   if (!creditAmount) return
+
+  // Skip if credits were already granted for this billing cycle (e.g. by checkout handler)
+  const { count } = await admin
+    .from('credit_transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', sub.user_id)
+    .eq('type', 'subscription_grant')
+    .eq('reference_id', invoice.id)
+
+  if (count && count > 0) return
 
   await admin.from('credit_transactions').insert({
     user_id: sub.user_id,
