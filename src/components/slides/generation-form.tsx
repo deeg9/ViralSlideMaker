@@ -39,7 +39,7 @@ export function GenerationForm({
     setError(null)
     setShowUpgradePrompt(false)
     startTransition(async () => {
-      const result = await generateCarousel(projectId, topic.trim(), templateId)
+      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource)
       if (!result.success) {
         setError(result.error)
         if ('upgradeEligible' in result && result.upgradeEligible) {
@@ -50,6 +50,8 @@ export function GenerationForm({
       }
     })
   }
+
+  const isPaidUser = userTier !== 'free'
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -85,6 +87,60 @@ export function GenerationForm({
         <TemplatePicker selectedId={templateId} onSelect={setTemplateId} />
       </div>
 
+      {/* Image Source Toggle */}
+      <div>
+        <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1">
+          Background Images
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setImageSource('stock')}
+            disabled={isPending}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+              imageSource === 'stock'
+                ? 'border-[#3d0000] bg-[#fff0f0]'
+                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+            } disabled:opacity-50`}
+          >
+            <Icon name="image" size="lg" className={imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+            <span className={`text-sm font-semibold ${imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+              Stock Photos
+            </span>
+            <span className="text-[10px] text-[#7d6161]">Included free</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!isPaidUser) {
+                setShowUpgradePrompt(true)
+                return
+              }
+              setImageSource('ai')
+            }}
+            disabled={isPending}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+              imageSource === 'ai'
+                ? 'border-[#3d0000] bg-[#fff0f0]'
+                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+            } disabled:opacity-50`}
+          >
+            <Icon name="auto_awesome" size="lg" className={imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+            <span className={`text-sm font-semibold ${imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+              AI Generated
+            </span>
+            <span className="text-[10px] text-[#7d6161]">
+              {isPaidUser ? '1 credit per slide' : 'Plus / Pro only'}
+            </span>
+          </button>
+        </div>
+        {imageSource === 'ai' && (
+          <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
+            Uses ~6 credits for AI backgrounds. Takes ~30-45 seconds. Slides that fail will use stock photos instead.
+          </p>
+        )}
+      </div>
+
       {/* Error */}
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -108,7 +164,7 @@ export function GenerationForm({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Generating slides...
+              {imageSource === 'ai' ? 'Generating with AI images (~30s)...' : 'Generating slides...'}
             </>
           ) : (
             <>
@@ -119,7 +175,7 @@ export function GenerationForm({
         </button>
         {!hasSlides && (
           <p className="text-[10px] text-[#7d6161] uppercase tracking-widest font-bold">
-            Estimated time: 45 seconds
+            {imageSource === 'ai' ? 'Estimated time: 30-45 seconds' : 'Estimated time: 15 seconds'}
           </p>
         )}
       </div>

@@ -2,8 +2,10 @@
 
 import { generateSlideContent } from '@/lib/ai/generate-slides'
 import { searchPhotos } from '@/lib/pexels/search-photos'
+import { generateImagePrompt } from '@/lib/imagen/generate-prompt'
+import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createClient } from '@/lib/supabase/server'
-import { checkCredits, deductCredit } from '@/lib/credits/check-credits'
+import { checkCredits, deductCredit, getCreditBalance } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
@@ -12,7 +14,8 @@ import type { Slide } from '@/lib/types/slide'
 export async function generateCarousel(
   projectId: string,
   topic: string,
-  templateId: string
+  templateId: string,
+  imageSource: 'stock' | 'ai' = 'stock'
 ): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
   const supabase = await createClient()
 
@@ -36,6 +39,19 @@ export async function generateCarousel(
       }
     }
 
+    // For AI images, check if user has enough credits upfront (1 for carousel + ~6 for images)
+    if (imageSource === 'ai') {
+      const balance = await getCreditBalance(user.id)
+      // Need 1 for carousel + estimated 6 for images = 7 minimum
+      if (balance < 3) {
+        return {
+          success: false,
+          error: `AI images need more credits. You have ${balance}, need at least 3. Upgrade or buy credits.`,
+          upgradeEligible: true,
+        }
+      }
+    }
+
     // Update status to generating
     await supabase
       .from('projects')
@@ -48,24 +64,60 @@ export async function generateCarousel(
       return { success: false, error: 'Insufficient credits. Please try again.', upgradeEligible: true }
     }
 
-    // 1. Generate content with Claude
+    // 1. Generate content with Gemini
     const carousel = await generateSlideContent(topic)
 
-    // 2. Fetch background images from Pexels for each slide
-    // AI images are generated per-slide in the editor (too slow for bulk generation)
-    const slides: Slide[] = await Promise.all(
-      carousel.slides.map(async (slide) => {
-        const photos = await searchPhotos(slide.image_query, {
-          orientation: 'portrait',
-          per_page: 1,
-        })
-        return {
-          ...slide,
-          background_url: photos[0]?.src.portrait ?? null,
-          pexels_photo_id: photos[0]?.id ?? null,
+    // 2. Fetch background images
+    let slides: Slide[]
+
+    if (imageSource === 'ai') {
+      // AI images: generate in batches of 2 to stay under Vercel timeout
+      // Each Imagen call takes 3-15s, so 2 parallel × 3 batches = ~30-45s
+      slides = [...carousel.slides] as Slide[]
+      const batchSize = 2
+
+      for (let i = 0; i < slides.length; i += batchSize) {
+        const batch = slides.slice(i, i + batchSize)
+        const results = await Promise.all(
+          batch.map(async (slide, batchIdx) => {
+            const slideIdx = i + batchIdx
+            try {
+              const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text, slide.is_cta)
+              const result = await generateImagenBackground(user.id, prompt, projectId, slideIdx)
+              if ('url' in result) {
+                return { ...slide, background_url: result.url, pexels_photo_id: null }
+              }
+            } catch { /* fall through to stock fallback */ }
+            // Fallback to stock if AI fails (insufficient credits, safety filter, etc.)
+            const photos = await searchPhotos(slide.image_query, { orientation: 'portrait', per_page: 1 })
+            return {
+              ...slide,
+              background_url: photos[0]?.src.portrait ?? null,
+              pexels_photo_id: photos[0]?.id ?? null,
+            }
+          })
+        )
+        // Replace slides in array
+        for (let j = 0; j < results.length; j++) {
+          slides[i + j] = results[j]
         }
-      })
-    )
+      }
+    } else {
+      // Stock photos from Pexels (fast, parallel)
+      slides = await Promise.all(
+        carousel.slides.map(async (slide) => {
+          const photos = await searchPhotos(slide.image_query, {
+            orientation: 'portrait',
+            per_page: 1,
+          })
+          return {
+            ...slide,
+            background_url: photos[0]?.src.portrait ?? null,
+            pexels_photo_id: photos[0]?.id ?? null,
+          }
+        })
+      )
+    }
 
     // 3. Save to database
     await supabase
