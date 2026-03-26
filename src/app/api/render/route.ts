@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTemplate } from '@/lib/render/templates/index'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
+import { loadFontBuffers } from '@/lib/render/load-font'
 import { rateLimitBucket } from '@/lib/rate-limit'
 import type { Project } from '@/lib/types/project'
 import type { BrandKit } from '@/lib/types/brand-kit'
@@ -83,10 +84,12 @@ export async function GET(request: Request) {
 
   const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
   const element = buildSlideElement(slide, effectiveTemplate)
+  const fonts = await loadFontBuffers(effectiveTemplate.fontFamily)
 
   const imageResponse = new ImageResponse(element, {
     width: 1080,
     height: 1920,
+    fonts,
   })
 
   if (download) {
