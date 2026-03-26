@@ -44,7 +44,7 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
               Log In
             </Link>
             <Link
-              href="/waitlist"
+              href="/signup"
               className="bg-[#3d0000] text-white px-4 md:px-6 py-2.5 rounded-xl font-medium text-sm transition-transform active:scale-90 whitespace-nowrap"
             >
               Get Started

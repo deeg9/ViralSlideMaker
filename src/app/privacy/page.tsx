@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold text-[#3d0000] mb-3">2. Information We Collect</h2>
             <h3 className="text-base font-semibold text-[#3d0000] mb-2">Personal Information</h3>
-            <p>When you create an account or join our waitlist, we may collect:</p>
+            <p>When you create an account, we may collect:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li>Email address</li>
               <li>Name (if provided)</li>

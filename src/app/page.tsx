@@ -98,7 +98,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <a href="/waitlist" className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-bold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.15)] hover:opacity-95 transition-all active:scale-[0.98]">
+            <a href="/signup" className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-bold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.15)] hover:opacity-95 transition-all active:scale-[0.98]">
               Generate Carousel
               <Icon name="auto_awesome" />
             </a>
