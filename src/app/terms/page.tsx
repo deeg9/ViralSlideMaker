@@ -53,9 +53,9 @@ export default function TermsOfServicePage() {
               ViralSlideMaker offers Free, Plus, and Pro subscription tiers. Each tier includes a monthly allocation of carousel generation credits:
             </p>
             <ul className="list-disc pl-6 space-y-1">
-              <li><strong>Free:</strong> 5 carousels per month</li>
-              <li><strong>Plus:</strong> 12 carousels per month</li>
-              <li><strong>Pro:</strong> 30 carousels per month</li>
+              <li><strong>Free:</strong> 10 credits per month</li>
+              <li><strong>Plus:</strong> 50 credits per month</li>
+              <li><strong>Pro:</strong> 200 credits per month</li>
             </ul>
             <p className="mt-3">
               Paid subscriptions are billed on a recurring basis (monthly or annually). By subscribing, you authorize us to charge your payment method through Stripe. Credits reset at the beginning of each billing cycle and do not roll over. You may cancel your subscription at any time; access continues until the end of the current billing period.

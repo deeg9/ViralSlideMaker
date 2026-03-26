@@ -25,9 +25,9 @@ export interface CreditTransaction {
 }
 
 export const TIER_CREDITS: Record<SubscriptionTier, number> = {
-  free: 5,
-  plus: 12,
-  pro: 30,
+  free: 10,
+  plus: 50,
+  pro: 200,
 }
 
 export const FREE_PROJECT_LIMIT = 10
