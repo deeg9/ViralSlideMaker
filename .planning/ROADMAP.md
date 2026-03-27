@@ -213,8 +213,11 @@ Plans:
   2. User can click an Italic button to toggle italic on/off for any text box in the editor
   3. Bold and italic settings survive save, reload, and undo/redo without losing state
   4. A slide exported as PNG renders bold and italic text identically to the browser preview
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
+
+Plans:
+- [ ] 11-01-PLAN.md -- Extend data model with bold/italic overrides, update resolveSlideStyles + font loading, add B/I toggle buttons to editor panel
 
 ### Phase 12: Font Picker & Google Fonts
 **Goal**: Users can choose from a library of fonts for each text box, with live preview in the editor and correct rendering in exports
@@ -268,7 +271,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 8. Stripe Portal & Serverless Export | v1.2 | 0/0 | Not started | - |
 | 9. Production Deployment | v1.2 | 0/0 | Not started | - |
 | 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
-| 11. Bold & Italic | v1.3 | 0/0 | Not started | - |
+| 11. Bold & Italic | v1.3 | 0/1 | Not started | - |
 | 12. Font Picker & Google Fonts | v1.3 | 0/0 | Not started | - |
 | 13. Resizable Text Boxes | v1.3 | 0/0 | Not started | - |
 | 14. Alignment Snap Guides | v1.3 | 0/0 | Not started | - |
