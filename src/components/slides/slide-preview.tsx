@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react'
 import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 
 // Reference canvas dimensions (matches TikTok/Instagram 9:16)
 const REF_WIDTH = 1080
@@ -39,6 +40,9 @@ interface SlidePreviewProps {
 
 export function SlidePreview({ slide, template, index, editable, onPositionChange, onWidthChange }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const hookRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const { calculateSnap, activeGuides, clearGuides } = useAlignmentGuides()
   const overrides = slide.style_overrides ?? {}
 
   const textColor = overrides.text_color ?? template.textColor
@@ -239,7 +243,31 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
           bounds="parent"
           enableResizing={enableResizing}
           resizeHandleStyles={resizeHandleStyles}
+          onDrag={(_e, data) => {
+            const dragging: TextBox = {
+              id: 'hook',
+              x: data.x,
+              y: data.y,
+              width: hookWidthPx,
+              height: hookRef.current?.getBoundingClientRect().height
+                ? hookRef.current.getBoundingClientRect().height / scale
+                : 200,
+            }
+            const others: TextBox[] = slide.body_text ? [{
+              id: 'body',
+              x: bodyPixels.x,
+              y: bodyPixels.y,
+              width: bodyWidthPx,
+              height: bodyRef.current?.getBoundingClientRect().height
+                ? bodyRef.current.getBoundingClientRect().height / scale
+                : 200,
+            }] : []
+            const result = calculateSnap(dragging, others)
+            data.x = result.snappedX
+            data.y = result.snappedY
+          }}
           onDragStop={(_e, data) => {
+            clearGuides()
             if (!onPositionChange) return
             const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
             const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
@@ -257,7 +285,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
           style={{ zIndex: 10 }}
           className="hover:outline hover:outline-2 hover:outline-white/50"
         >
-          <div style={{
+          <div ref={hookRef} style={{
             width: '100%',
             cursor: 'grab',
             padding: '4px 8px',
@@ -279,7 +307,31 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             bounds="parent"
             enableResizing={enableResizing}
             resizeHandleStyles={resizeHandleStyles}
+            onDrag={(_e, data) => {
+              const dragging: TextBox = {
+                id: 'body',
+                x: data.x,
+                y: data.y,
+                width: bodyWidthPx,
+                height: bodyRef.current?.getBoundingClientRect().height
+                  ? bodyRef.current.getBoundingClientRect().height / scale
+                  : 200,
+              }
+              const others: TextBox[] = [{
+                id: 'hook',
+                x: hookPixels.x,
+                y: hookPixels.y,
+                width: hookWidthPx,
+                height: hookRef.current?.getBoundingClientRect().height
+                  ? hookRef.current.getBoundingClientRect().height / scale
+                  : 200,
+              }]
+              const result = calculateSnap(dragging, others)
+              data.x = result.snappedX
+              data.y = result.snappedY
+            }}
             onDragStop={(_e, data) => {
+              clearGuides()
               if (!onPositionChange) return
               const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
               const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
@@ -297,7 +349,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             style={{ zIndex: 10 }}
             className="hover:outline hover:outline-2 hover:outline-white/50"
           >
-            <div style={{
+            <div ref={bodyRef} style={{
               width: '100%',
               cursor: 'grab',
               padding: '4px 8px',
@@ -310,6 +362,25 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             </div>
           </Rnd>
         )}
+
+        {/* Alignment guide overlays */}
+        {activeGuides.map((guide, i) => (
+          <div
+            key={i}
+            data-testid="alignment-guide"
+            style={{
+              position: 'absolute',
+              [guide.orientation === 'vertical' ? 'left' : 'top']: guide.position,
+              [guide.orientation === 'vertical' ? 'top' : 'left']: 0,
+              [guide.orientation === 'vertical' ? 'width' : 'height']: 0,
+              [guide.orientation === 'vertical' ? 'height' : 'width']: guide.orientation === 'vertical' ? REF_HEIGHT : REF_WIDTH,
+              borderLeft: guide.orientation === 'vertical' ? '2px dashed rgba(255, 100, 100, 0.8)' : 'none',
+              borderTop: guide.orientation === 'horizontal' ? '2px dashed rgba(255, 100, 100, 0.8)' : 'none',
+              zIndex: 50,
+              pointerEvents: 'none' as const,
+            }}
+          />
+        ))}
 
         {/* Slide number badge */}
         <div style={{
