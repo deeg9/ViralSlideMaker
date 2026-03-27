@@ -82,6 +82,7 @@ None yet.
 | Phase 14-alignment-snap-guides P01 | 2min | 2 tasks | 2 files |
 | 260326-vcg | Add custom text boxes with inline content editing | 2026-03-27 | b739974 | [260326-vcg-add-custom-text-boxes-with-inline-conten](./quick/260326-vcg-add-custom-text-boxes-with-inline-conten/) |
 | 260327-do7 | Generation page advanced options + AI regenerate inputs | 2026-03-27 | 075cd8c | [260327-do7-generation-page-advanced-options-ai-rege](./quick/260327-do7-generation-page-advanced-options-ai-rege/) |
+| 260327-e4o | Add draggable resizable images/stickers on canvas | 2026-03-27 | 13f0b40 | [260327-e4o-add-draggable-resizable-images-and-stick](./quick/260327-e4o-add-draggable-resizable-images-and-stick/) |
 
 ## Session Continuity
 
