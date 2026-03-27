@@ -3,7 +3,7 @@ import type { SlideTemplate } from './templates'
 import { getFontEntry, getCssFallback, DEFAULT_FONT } from '../fonts/font-catalog'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
-const SAFE = {
+export const SAFE_ZONE = {
   x: 11,
   top: { hookY: 12, bodyY: 30 },
   center: { hookY: 30, bodyY: 48 },
@@ -23,6 +23,7 @@ export interface ResolvedSlideStyles {
   bodyFontStyle: 'normal' | 'italic'
   hookFontFamily: string
   bodyFontFamily: string
+  hookTextTransform: 'uppercase' | 'none'
   overlayOpacity: number
   hookX: number
   hookY: number
@@ -46,16 +47,22 @@ export function resolveSlideStyles(
   const hookFontSize = overrides.hook_font_size ?? (parseInt(template.hookFontSize, 10) || 64)
   const bodyFontSize = overrides.body_font_size ?? (parseInt(template.bodyFontSize, 10) || 32)
 
-  // Bold/italic (Phase 11)
+  // Bold/italic (Phase 11) — hookFontStyle also considers template.hookStyle
   const hookFontWeight = overrides.hook_font_weight ?? 900
   const bodyFontWeight = overrides.body_font_weight ?? 400
-  const hookFontStyle = overrides.hook_font_style ?? 'normal'
+  const hookFontStyle = overrides.hook_font_style
+    ?? (template.hookStyle === 'italic' ? 'italic' : 'normal')
   const bodyFontStyle = overrides.body_font_style ?? 'normal'
+  const hookTextTransform = template.hookStyle === 'uppercase' ? 'uppercase' : 'none'
 
   // Font family (Phase 12)
+  // Extract base font name from CSS font-family strings like "'Inter', sans-serif" → "Inter"
+  function extractFontName(css: string): string {
+    return css.replace(/^['"]|['"]$/g, '').split(',')[0].trim().replace(/^['"]|['"]$/g, '')
+  }
   const templateFont = template.fontFamily || DEFAULT_FONT
-  const hookFontRaw = overrides.hook_font_family ?? templateFont
-  const bodyFontRaw = overrides.body_font_family ?? templateFont
+  const hookFontRaw = overrides.hook_font_family ?? extractFontName(templateFont)
+  const bodyFontRaw = overrides.body_font_family ?? extractFontName(templateFont)
   const hookEntry = getFontEntry(hookFontRaw)
   const bodyEntry = getFontEntry(bodyFontRaw)
   const hookFontFamily = hookEntry ? `'${hookEntry.family}', ${getCssFallback(hookEntry.category)}` : `'${hookFontRaw}', sans-serif`
@@ -66,8 +73,8 @@ export function resolveSlideStyles(
     : template.overlayOpacity
 
   const posPreset = overrides.text_position ?? template.textPosition
-  const defaults = SAFE[posPreset] ?? SAFE.center
-  const defaultX = SAFE.x
+  const defaults = SAFE_ZONE[posPreset] ?? SAFE_ZONE.center
+  const defaultX = SAFE_ZONE.x
 
   const hookX = overrides.hook_position?.x ?? defaultX
   const hookY = overrides.hook_position?.y ?? defaults.hookY
@@ -110,6 +117,7 @@ export function resolveSlideStyles(
     bodyFontStyle,
     hookFontFamily,
     bodyFontFamily,
+    hookTextTransform,
     overlayOpacity,
     hookX,
     hookY,

@@ -81,7 +81,8 @@ describe('generateImagenBackground', () => {
       'user-1',
       'imagen_generation',
       expect.stringContaining('sunset background'),
-      'proj-1'
+      'proj-1',
+      3
     )
     expect(mockGenerateImages).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -99,7 +100,7 @@ describe('generateImagenBackground', () => {
 
     const result = await generateImagenBackground('user-1', 'sunset', 'proj-1', 0)
 
-    expect(result).toEqual({ error: 'Insufficient credits' })
+    expect(result).toEqual({ error: 'Insufficient credits (AI images cost 3 credits)' })
     expect(mockGenerateImages).not.toHaveBeenCalled()
   })
 
@@ -122,7 +123,7 @@ describe('generateImagenBackground', () => {
       expect.objectContaining({
         user_id: 'user-1',
         type: 'refund',
-        amount: 1,
+        amount: 3,
       })
     )
   })
@@ -141,7 +142,7 @@ describe('generateImagenBackground', () => {
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'refund',
-        amount: 1,
+        amount: 3,
       })
     )
   })

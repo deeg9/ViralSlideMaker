@@ -198,7 +198,7 @@ describe('resolveSlideStyles', () => {
       },
     }
     const styles = resolveSlideStyles(slide, baseTemplate)
-    expect(styles.hookFontFamily).toBe("'Bebas Neue', sans-serif")
+    expect(styles.hookFontFamily).toBe("'Bebas Neue', system-ui")
     expect(styles.bodyFontFamily).toBe("'Lora', serif")
   })
 })
