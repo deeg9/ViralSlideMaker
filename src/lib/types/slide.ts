@@ -16,6 +16,8 @@ export interface SlideStyleOverrides {
   hook_position?: TextPosition
   body_position?: TextPosition
   overlay_opacity?: number  // 0-100, overrides template overlayOpacity
+  hook_font_family?: string  // Google Fonts family name, e.g. "Playfair Display"
+  body_font_family?: string  // Google Fonts family name, e.g. "Montserrat"
 }
 
 export interface Slide {

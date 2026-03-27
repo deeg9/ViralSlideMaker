@@ -1,5 +1,6 @@
 import type { Slide } from '../types/slide'
 import type { SlideTemplate } from './templates'
+import { getFontEntry } from '../fonts/font-catalog'
 
 export interface ResolvedSlideStyles {
   textColor: string
@@ -52,8 +53,12 @@ export function resolveSlideStyles(slide: Slide, template: SlideTemplate): Resol
   const hookFontSize = overrides.hook_font_size ?? (parseInt(template.hookFontSize, 10) || 64)
   const bodyFontSize = overrides.body_font_size ?? (parseInt(template.bodyFontSize, 10) || 32)
 
-  const hookFontFamily = template.fontFamily
-  const bodyFontFamily = template.fontFamily
+  const hookFontFamily = overrides.hook_font_family
+    ? `'${overrides.hook_font_family}', ${getCssFallback(overrides.hook_font_family)}`
+    : template.fontFamily
+  const bodyFontFamily = overrides.body_font_family
+    ? `'${overrides.body_font_family}', ${getCssFallback(overrides.body_font_family)}`
+    : template.fontFamily
 
   const hookFontWeight = overrides.hook_font_weight ?? 900
   const bodyFontWeight = overrides.body_font_weight ?? 400
@@ -96,5 +101,20 @@ export function resolveSlideStyles(slide: Slide, template: SlideTemplate): Resol
     bodyX,
     bodyY,
     bodyWidth,
+  }
+}
+
+/**
+ * Get CSS generic fallback category for a Google Font family.
+ * Uses font-catalog metadata when available, falls back to sans-serif.
+ */
+function getCssFallback(family: string): string {
+  const entry = getFontEntry(family)
+  if (!entry) return 'sans-serif'
+  switch (entry.category) {
+    case 'serif': return 'serif'
+    case 'handwriting': return 'cursive'
+    case 'display': return 'sans-serif'
+    default: return 'sans-serif'
   }
 }
