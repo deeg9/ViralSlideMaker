@@ -1,6 +1,7 @@
 'use client'
 
 import { Icon } from '@/components/ui/icon'
+import { FontPicker } from './font-picker'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
@@ -32,6 +33,13 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
             <Icon name="auto_awesome" size="sm" />
           </button>
         </div>
+        <FontPicker
+          value={overrides.hook_font_family}
+          onChange={(family) => onUpdate({
+            style_overrides: { ...overrides, hook_font_family: family || undefined }
+          })}
+          templateFont={template.fontFamily}
+        />
         {/* Hook Style: Bold / Italic */}
         <div className="flex gap-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
@@ -83,6 +91,13 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
           rows={4}
           className="w-full bg-white border-none border-b border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
           placeholder="Enter details..."
+        />
+        <FontPicker
+          value={overrides.body_font_family}
+          onChange={(family) => onUpdate({
+            style_overrides: { ...overrides, body_font_family: family || undefined }
+          })}
+          templateFont={template.fontFamily}
         />
         {/* Body Style: Bold / Italic */}
         <div className="flex gap-2">
