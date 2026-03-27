@@ -186,7 +186,7 @@ Plans:
 - [x] **Phase 10: Foundation Refactor** - Fix export font rendering bug and extract shared style resolution utility (completed 2026-03-26)
 - [x] **Phase 11: Bold & Italic** - Toggle bold/italic per text box with correct rendering in preview and export (completed 2026-03-27)
 - [x] **Phase 12: Font Picker & Google Fonts** - Curated font selection with live preview, correct Satori TTF rendering, and server-side caching (completed 2026-03-27)
-- [ ] **Phase 13: Resizable Text Boxes** - Drag-handle resize for text boxes with persistence and correct export rendering
+- [x] **Phase 13: Resizable Text Boxes** - Drag-handle resize for text boxes with persistence and correct export rendering (completed 2026-03-27)
 - [ ] **Phase 14: Alignment Snap Guides** - Visual guide lines and snapping when positioning text boxes on slides
 
 ## Phase Details
@@ -280,5 +280,5 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
 | 11. Bold & Italic | v1.3 | 0/1 | Complete    | 2026-03-27 |
 | 12. Font Picker & Google Fonts | v1.3 | 1/2 | Complete    | 2026-03-27 |
-| 13. Resizable Text Boxes | v1.3 | 0/1 | Not started | - |
+| 13. Resizable Text Boxes | v1.3 | 0/1 | Complete    | 2026-03-27 |
 | 14. Alignment Snap Guides | v1.3 | 0/0 | Not started | - |

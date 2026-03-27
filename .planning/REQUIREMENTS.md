@@ -27,9 +27,9 @@ Requirements for Rich Text Editing milestone.
 
 ### Text Box Sizing
 
-- [ ] **RESIZE-01**: User can resize text boxes by dragging corner/edge handles
-- [ ] **RESIZE-02**: Text box dimensions persist across save/reload
-- [ ] **RESIZE-03**: Resized text boxes render correctly in PNG exports at the specified dimensions
+- [x] **RESIZE-01**: User can resize text boxes by dragging corner/edge handles
+- [x] **RESIZE-02**: Text box dimensions persist across save/reload
+- [x] **RESIZE-03**: Resized text boxes render correctly in PNG exports at the specified dimensions
 
 ### Alignment Guides
 
@@ -92,9 +92,9 @@ Requirements for Rich Text Editing milestone.
 | FONT-02 | Phase 12 | Complete |
 | FONT-03 | Phase 12 | Complete |
 | FONT-04 | Phase 12 | Complete |
-| RESIZE-01 | Phase 13 | Pending |
-| RESIZE-02 | Phase 13 | Pending |
-| RESIZE-03 | Phase 13 | Pending |
+| RESIZE-01 | Phase 13 | Complete |
+| RESIZE-02 | Phase 13 | Complete |
+| RESIZE-03 | Phase 13 | Complete |
 | ALIGN-01 | Phase 14 | Pending |
 | ALIGN-02 | Phase 14 | Pending |
 | ALIGN-03 | Phase 14 | Pending |
