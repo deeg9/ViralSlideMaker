@@ -23,6 +23,29 @@ export function getFontLink(fontFamily: string): string {
   return `<link href="https://fonts.googleapis.com/css2?family=${encoded}:wght@400;700;900&display=swap" rel="stylesheet">`
 }
 
+/**
+ * Collect all unique font families from slide (template + custom texts)
+ * and generate font link tags for each.
+ */
+function getAllFontLinks(slide: Slide, templateFontFamily: string): string {
+  const families = new Set<string>()
+  // Add template font
+  const templateMatch = templateFontFamily.match(/'([^']+)'/)
+  families.add(templateMatch ? templateMatch[1] : 'Inter')
+  // Add custom text fonts
+  for (const ct of slide.custom_texts ?? []) {
+    if (ct.font_family) {
+      families.add(ct.font_family)
+    }
+  }
+  return Array.from(families)
+    .map((name) => {
+      const encoded = name.replace(/\s+/g, '+')
+      return `<link href="https://fonts.googleapis.com/css2?family=${encoded}:wght@400;700;900&display=swap" rel="stylesheet">`
+    })
+    .join('\n  ')
+}
+
 export function buildSlideHtml(
   slide: Slide,
   template: SlideTemplate
@@ -56,11 +79,16 @@ export function buildSlideHtml(
   const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
+  // Build custom text HTML
+  const customTextHtml = (slide.custom_texts ?? []).map((ct) =>
+    `<div style="position:absolute; left:${ct.x}%; top:${ct.y}%; width:${ct.width}%; text-align:${ct.text_align ?? 'left'}; font-size:${ct.font_size ?? 48}px; font-weight:${ct.font_weight ?? 400}; font-style:${ct.font_style ?? 'normal'}; line-height:1.3; color:${ct.color ?? textColor}; z-index:2; font-family:'${ct.font_family ?? template.fontFamily}', sans-serif;">${escapeHtml(ct.text)}</div>`
+  ).join('\n  ')
+
   return `<!DOCTYPE html>
 <html>
 <head>
   <!-- Note: For server rendering with node-html-to-image, use waitUntil: 'networkidle0' to ensure font loading -->
-  ${getFontLink(template.fontFamily)}
+  ${getAllFontLinks(slide, template.fontFamily)}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -109,6 +137,7 @@ export function buildSlideHtml(
   <div class="overlay"></div>
   <div class="hook">${escapeHtml(slide.hook_text)}</div>
   <div class="body">${escapeHtml(slide.body_text)}</div>
+  ${customTextHtml}
 </body>
 </html>`
 }

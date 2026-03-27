@@ -135,6 +135,27 @@ export function buildSlideElement(
       <div style={hookStyle}>{slide.hook_text}</div>
       {/* Body text */}
       <div style={bodyStyle}>{slide.body_text}</div>
+      {/* Custom text boxes */}
+      {(slide.custom_texts ?? []).map((ct) => (
+        <div
+          key={ct.id}
+          style={{
+            position: 'absolute',
+            left: pxX(ct.x),
+            top: pxY(ct.y),
+            width: pxX(ct.width),
+            textAlign: ct.text_align ?? 'left',
+            fontSize: ct.font_size ?? 48,
+            fontWeight: ct.font_weight ?? 400,
+            fontStyle: ct.font_style ?? 'normal',
+            lineHeight: 1.3,
+            color: ct.color ?? textColor,
+            fontFamily: ct.font_family ?? template.fontFamily,
+          }}
+        >
+          {ct.text}
+        </div>
+      ))}
     </div>
   )
 }
