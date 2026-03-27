@@ -12,6 +12,8 @@ export interface SlideStyleOverrides {
   hook_position?: TextPosition
   body_position?: TextPosition
   overlay_opacity?: number  // 0-100, overrides template overlayOpacity
+  hook_width?: number   // percentage 0-100, overrides symmetric width calc
+  body_width?: number   // percentage 0-100, overrides symmetric width calc
 }
 
 export interface Slide {
