@@ -79,6 +79,11 @@ export function buildSlideHtml(
   const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
+  // Build custom image HTML
+  const customImageHtml = (slide.custom_images ?? []).map((ci) =>
+    `<img src="${ci.url}" style="position:absolute; left:${ci.x}%; top:${ci.y}%; width:${ci.width}%; height:${ci.height}%; object-fit:cover; opacity:${(ci.opacity ?? 100) / 100}; border-radius:${ci.border_radius ?? 0}px; z-index:1;" />`
+  ).join('\n  ')
+
   // Build custom text HTML
   const customTextHtml = (slide.custom_texts ?? []).map((ct) =>
     `<div style="position:absolute; left:${ct.x}%; top:${ct.y}%; width:${ct.width}%; text-align:${ct.text_align ?? 'left'}; font-size:${ct.font_size ?? 48}px; font-weight:${ct.font_weight ?? 400}; font-style:${ct.font_style ?? 'normal'}; line-height:1.3; color:${ct.color ?? textColor}; z-index:2; font-family:'${ct.font_family ?? template.fontFamily}', sans-serif;">${escapeHtml(ct.text)}</div>`
@@ -137,6 +142,7 @@ export function buildSlideHtml(
   <div class="overlay"></div>
   <div class="hook">${escapeHtml(slide.hook_text)}</div>
   <div class="body">${escapeHtml(slide.body_text)}</div>
+  ${customImageHtml}
   ${customTextHtml}
 </body>
 </html>`

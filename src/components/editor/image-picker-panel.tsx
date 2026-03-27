@@ -18,6 +18,7 @@ interface ImagePickerPanelProps {
   onUpdate: (updates: Partial<Slide>) => void
   onRegenerateText: () => void | Promise<void>
   onRegenerateImage: () => void | Promise<void>
+  onAddCanvasImage?: (url: string) => void
 }
 
 interface PexelsPhoto {
@@ -36,6 +37,7 @@ export function ImagePickerPanel({
   onUpdate,
   onRegenerateText,
   onRegenerateImage,
+  onAddCanvasImage,
 }: ImagePickerPanelProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'upload' | 'ai'>('search')
   const [query, setQuery] = useState(slide.image_query)
@@ -44,6 +46,7 @@ export function ImagePickerPanel({
   const [uploading, setUploading] = useState(false)
   const [regeneratingText, setRegeneratingText] = useState(false)
   const [regeneratingImage, setRegeneratingImage] = useState(false)
+  const [lastUploadedUrl, setLastUploadedUrl] = useState<string | null>(null)
 
   async function handleSearch() {
     if (!query.trim()) return
@@ -69,6 +72,7 @@ export function ImagePickerPanel({
       const { signedUrl, publicUrl } = await createUploadUrl(projectId, file.name)
       const res = await fetch(signedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+      setLastUploadedUrl(publicUrl)
       onUpdate({ background_url: publicUrl, pexels_photo_id: null })
     } catch (err) {
       console.error('Upload failed:', err)
@@ -178,20 +182,36 @@ export function ImagePickerPanel({
           {photos.length > 0 && (
             <div className="grid grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto">
               {photos.map((photo) => (
-                <button
+                <div
                   key={photo.id}
-                  onClick={() => handleSelectPhoto(photo)}
                   className="relative group rounded-lg overflow-hidden aspect-[9/16] hover:ring-2 hover:ring-[#3d0000] transition-all"
                 >
-                  <img
-                    src={photo.thumbnail}
-                    alt={`Photo by ${photo.photographer}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <button
+                    onClick={() => handleSelectPhoto(photo)}
+                    className="w-full h-full"
+                  >
+                    <img
+                      src={photo.thumbnail}
+                      alt={`Photo by ${photo.photographer}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                   <div className="absolute inset-x-0 bottom-0 bg-[#3d0000]/60 px-1 py-0.5 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 transition-opacity">
                     {photo.photographer}
                   </div>
-                </button>
+                  {onAddCanvasImage && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddCanvasImage(photo.url)
+                      }}
+                      className="absolute top-1 right-1 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                      title="Add to canvas"
+                    >
+                      <Icon name="add_circle" size="sm" className="text-[#3d0000]" />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -200,19 +220,33 @@ export function ImagePickerPanel({
 
       {/* Upload */}
       {activeTab === 'upload' && (
-        <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-[#dbc1bc]/30 rounded-xl cursor-pointer hover:bg-[#fff0f0] transition-colors">
-          <Icon name="cloud_upload" size="xl" className="text-[#dbc1bc]" />
-          <span className="text-xs text-[#7d6161] font-medium">
-            {uploading ? 'Uploading...' : 'Click to upload (max 5MB)'}
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="sr-only"
-          />
-        </label>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-[#dbc1bc]/30 rounded-xl cursor-pointer hover:bg-[#fff0f0] transition-colors">
+            <Icon name="cloud_upload" size="xl" className="text-[#dbc1bc]" />
+            <span className="text-xs text-[#7d6161] font-medium">
+              {uploading ? 'Uploading...' : 'Click to upload (max 5MB)'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="sr-only"
+            />
+          </label>
+          {lastUploadedUrl && onAddCanvasImage && (
+            <button
+              onClick={() => {
+                onAddCanvasImage(lastUploadedUrl)
+                setLastUploadedUrl(null)
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors"
+            >
+              <Icon name="add_circle" size="sm" />
+              Add Last Upload to Canvas
+            </button>
+          )}
+        </div>
       )}
 
       {/* AI Generate */}
