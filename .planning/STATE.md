@@ -73,6 +73,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260326-0fq | Test and fix slide editor UI for iPhone 15 mobile viewport | 2026-03-26 | 0dee8ed | [260326-0fq-test-and-fix-slide-editor-ui-for-iphone-](./quick/260326-0fq-test-and-fix-slide-editor-ui-for-iphone-/) |
 | 260326-kzh | Fix Stripe integration crashes on subscription page | 2026-03-26 | 442fd98 | [260326-kzh-fix-stripe-integration-crashes-on-subscr](./quick/260326-kzh-fix-stripe-integration-crashes-on-subscr/) |
+| 260326-vcg | Add custom text boxes with inline contentEditable editing | 2026-03-27 | 8a38106 | [260326-vcg-add-custom-text-boxes-with-inline-conten](./quick/260326-vcg-add-custom-text-boxes-with-inline-conten/) |
 | Phase 10 P01 | 6min | 2 tasks | 7 files |
 | Phase 11 P01 | 291 | 2 tasks | 8 files |
 | Phase 12 P01 | 4min | 2 tasks | 7 files |
