@@ -72,14 +72,16 @@ export default async function SubscriptionPage({
   const tier = await getUserTier(user.id)
   const balance = await getCreditBalance(user.id)
 
-  // Look up stripe_customer_id for manage subscription button
+  // Look up subscription details for manage button + cancellation banner
   const admin = createAdminClient()
   const { data: sub } = await admin
     .from('subscriptions')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, cancel_at_period_end, current_period_end')
     .eq('user_id', user.id)
     .maybeSingle()
   const hasStripeCustomer = !!sub?.stripe_customer_id
+  const isCanceling = sub?.cancel_at_period_end === true
+  const periodEnd = sub?.current_period_end ? new Date(sub.current_period_end) : null
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -108,10 +110,34 @@ export default async function SubscriptionPage({
         </div>
       )}
 
+      {/* Cancellation banner */}
+      {isCanceling && tier !== 'free' && (
+        <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <Icon name="info" size="sm" className="text-amber-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">
+                Your {tier.charAt(0).toUpperCase() + tier.slice(1)} plan has been canceled
+              </p>
+              <p className="text-sm text-amber-700 mt-1">
+                You still have access to all {tier.charAt(0).toUpperCase() + tier.slice(1)} features
+                {periodEnd ? (
+                  <> until <span className="font-semibold">{periodEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></>
+                ) : null}.
+                After that, your plan will revert to Free. You won&apos;t be charged again.
+              </p>
+              <p className="text-xs text-amber-600 mt-2">
+                Changed your mind? Click &quot;Manage Subscription&quot; below to reactivate.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Current plan badge */}
       <div className="mb-6">
         <span className="bg-[#fadbdb] text-[#3d0000] px-3 py-1 rounded-full text-sm font-bold">
-          Current Plan: {tier.charAt(0).toUpperCase() + tier.slice(1)}
+          Current Plan: {tier.charAt(0).toUpperCase() + tier.slice(1)}{isCanceling ? ' (Canceling)' : ''}
         </span>
       </div>
 
