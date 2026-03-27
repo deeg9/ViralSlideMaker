@@ -229,8 +229,12 @@ Plans:
   3. Selecting a font updates the browser preview immediately with the chosen font
   4. Exported PNG renders the user-selected font correctly (not a fallback or default)
   5. Repeated exports of the same slide do not re-download font files (server-side TTF caching works)
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 12-01-PLAN.md -- Font catalog, data model extension, dynamic server-side font loading for Satori export
+- [ ] 12-02-PLAN.md -- Font picker UI component, editor panel integration, client-side preview wiring, visual checkpoint
 
 ### Phase 13: Resizable Text Boxes
 **Goal**: Users can resize text boxes by dragging handles, with dimensions persisted and rendered correctly in exports
@@ -272,6 +276,6 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 9. Production Deployment | v1.2 | 0/0 | Not started | - |
 | 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
 | 11. Bold & Italic | v1.3 | 0/1 | Complete    | 2026-03-27 |
-| 12. Font Picker & Google Fonts | v1.3 | 0/0 | Not started | - |
+| 12. Font Picker & Google Fonts | v1.3 | 0/2 | Not started | - |
 | 13. Resizable Text Boxes | v1.3 | 0/0 | Not started | - |
 | 14. Alignment Snap Guides | v1.3 | 0/0 | Not started | - |
