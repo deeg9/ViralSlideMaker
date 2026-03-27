@@ -1,4 +1,4 @@
-import type { Slide, CustomText } from '@/lib/types/slide'
+import type { Slide, CustomText, CustomImage } from '@/lib/types/slide'
 
 export type EditorAction =
   | { type: 'ADD_SLIDE'; index: number }
@@ -10,5 +10,8 @@ export type EditorAction =
   | { type: 'ADD_CUSTOM_TEXT'; slideIndex: number }
   | { type: 'UPDATE_CUSTOM_TEXT'; slideIndex: number; textId: string; updates: Partial<CustomText> }
   | { type: 'REMOVE_CUSTOM_TEXT'; slideIndex: number; textId: string }
+  | { type: 'ADD_CUSTOM_IMAGE'; slideIndex: number; url: string }
+  | { type: 'UPDATE_CUSTOM_IMAGE'; slideIndex: number; imageId: string; updates: Partial<CustomImage> }
+  | { type: 'REMOVE_CUSTOM_IMAGE'; slideIndex: number; imageId: string }
   | { type: 'UNDO' }
   | { type: 'REDO' }
