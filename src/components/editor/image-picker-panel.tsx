@@ -97,25 +97,29 @@ export function ImagePickerPanel({
 
   return (
     <div className="flex flex-col gap-6 p-6" data-testid="image-picker-panel">
-      {/* AI Regenerate */}
+      {/* Regenerate */}
       <div className="space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] block">AI Regenerate</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] block">Regenerate</span>
         <div className="flex gap-2">
           <button
             onClick={handleRegenText}
             disabled={regeneratingText}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            title="Rewrite the text with AI — free"
           >
             <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
-            Text
+            <span>Text</span>
+            <span className="text-[8px] font-medium normal-case tracking-normal text-[#7d6161]/60">Free</span>
           </button>
           <button
             onClick={handleRegenImage}
             disabled={regeneratingImage}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            title="Find a new stock photo — free"
           >
             <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
-            Image
+            <span>Image</span>
+            <span className="text-[8px] font-medium normal-case tracking-normal text-[#7d6161]/60">New stock photo</span>
           </button>
         </div>
       </div>

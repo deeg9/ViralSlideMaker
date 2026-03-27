@@ -198,6 +198,7 @@ export default async function SubscriptionPage({
             <h3 className="text-lg font-semibold text-[#3d0000]">Need more credits?</h3>
             <p className="text-sm text-[#7d6161] mt-1">Get 10 extra credits for $4.99</p>
             <p className="text-xs text-[#7d6161] mt-1">Current balance: <span className="font-semibold text-[#3d0000]">{balance} credits</span></p>
+            <p className="text-xs text-[#7d6161]/70 mt-2">1 credit = carousel generation &middot; 3 credits = AI image &middot; Text &amp; stock image regen = free</p>
           </div>
           <form action={createCreditPackCheckout}>
             <button

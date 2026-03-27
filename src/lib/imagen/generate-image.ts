@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { deductCredit } from '@/lib/credits/check-credits'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { CREDIT_COSTS } from '@/lib/credits/types'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -12,14 +13,15 @@ export async function generateImagenBackground(
   projectId: string,
   slideIndex: number,
 ): Promise<ImagenResult> {
-  // 1. Pre-deduct credit atomically
+  // 1. Pre-deduct credits atomically (AI images cost 3 credits)
   const deducted = await deductCredit(
     userId,
     'imagen_generation',
     'AI background: ' + prompt.slice(0, 50),
     projectId,
+    CREDIT_COSTS.imagen_generation,
   )
-  if (!deducted) return { error: 'Insufficient credits' }
+  if (!deducted) return { error: 'Insufficient credits (AI images cost 3 credits)' }
 
   try {
     // 2. Truncate prompt to 350 words max (Imagen has 480-token limit)
@@ -68,7 +70,7 @@ async function refundCredit(userId: string, projectId: string) {
   await supabase.from('credit_transactions').insert({
     user_id: userId,
     type: 'refund',
-    amount: 1,
+    amount: CREDIT_COSTS.imagen_generation,
     description: 'Imagen generation failed or filtered',
     reference_id: projectId,
   })

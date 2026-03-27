@@ -26,11 +26,13 @@ export async function deductCredit(
   type: string,
   description?: string,
   referenceId?: string,
+  amount: number = 1,
 ): Promise<boolean> {
+  if (amount <= 0) return true // Free actions (text regen, stock image regen)
   const supabase = await createClient()
   const { data } = await supabase.rpc('deduct_credits', {
     p_user_id: userId,
-    p_amount: 1,
+    p_amount: amount,
     p_type: type,
     p_description: description ?? null,
     p_reference_id: referenceId ?? null,

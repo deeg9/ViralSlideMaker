@@ -30,6 +30,13 @@ export const TIER_CREDITS: Record<SubscriptionTier, number> = {
   pro: 200,
 }
 
+export const CREDIT_COSTS = {
+  carousel_generation: 1,   // Generate a carousel with stock images + text
+  imagen_generation: 3,     // AI-generate a single image (Imagen)
+  text_regeneration: 0,     // Rewrite text with AI — free
+  image_regeneration: 0,    // New stock photo — free
+} as const
+
 export const FREE_PROJECT_LIMIT = 10
 
 export function isValidTier(tier: string): tier is SubscriptionTier {
