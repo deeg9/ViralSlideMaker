@@ -17,6 +17,17 @@ export interface CustomText {
   text_align?: 'left' | 'center' | 'right'
 }
 
+export interface CustomImage {
+  id: string
+  url: string           // image URL (Pexels, upload, or AI)
+  x: number             // percentage 0-100
+  y: number             // percentage 0-100
+  width: number         // percentage 0-100
+  height: number        // percentage 0-100
+  opacity?: number      // 0-100, default 100
+  border_radius?: number // px, for rounded corners
+}
+
 export interface SlideStyleOverrides {
   hook_font_size?: number
   body_font_size?: number
@@ -50,6 +61,7 @@ export interface Slide {
   pexels_photo_id: number | null
   style_overrides?: SlideStyleOverrides
   custom_texts?: CustomText[]
+  custom_images?: CustomImage[]
 }
 
 export type SlideData = Slide[]

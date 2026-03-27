@@ -16,8 +16,9 @@ interface ImagePickerPanelProps {
   topic: string
   userTier: 'free' | 'pro' | 'plus'
   onUpdate: (updates: Partial<Slide>) => void
-  onRegenerateText: (customPrompt?: string) => void | Promise<void>
-  onRegenerateImage: (customPrompt?: string) => void | Promise<void>
+  onRegenerateText: () => void | Promise<void>
+  onRegenerateImage: () => void | Promise<void>
+  onAddCanvasImage?: (url: string) => void
 }
 
 interface PexelsPhoto {
@@ -36,6 +37,7 @@ export function ImagePickerPanel({
   onUpdate,
   onRegenerateText,
   onRegenerateImage,
+  onAddCanvasImage,
 }: ImagePickerPanelProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'upload' | 'ai'>('search')
   const [query, setQuery] = useState(slide.image_query)
@@ -44,8 +46,7 @@ export function ImagePickerPanel({
   const [uploading, setUploading] = useState(false)
   const [regeneratingText, setRegeneratingText] = useState(false)
   const [regeneratingImage, setRegeneratingImage] = useState(false)
-  const [textPrompt, setTextPrompt] = useState('')
-  const [imagePrompt, setImagePrompt] = useState('')
+  const [lastUploadedUrl, setLastUploadedUrl] = useState<string | null>(null)
 
   async function handleSearch() {
     if (!query.trim()) return
@@ -71,6 +72,7 @@ export function ImagePickerPanel({
       const { signedUrl, publicUrl } = await createUploadUrl(projectId, file.name)
       const res = await fetch(signedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+      setLastUploadedUrl(publicUrl)
       onUpdate({ background_url: publicUrl, pexels_photo_id: null })
     } catch (err) {
       console.error('Upload failed:', err)
@@ -85,12 +87,12 @@ export function ImagePickerPanel({
 
   async function handleRegenText() {
     setRegeneratingText(true)
-    try { await onRegenerateText(textPrompt || undefined); setTextPrompt('') } finally { setRegeneratingText(false) }
+    try { await onRegenerateText() } finally { setRegeneratingText(false) }
   }
 
   async function handleRegenImage() {
     setRegeneratingImage(true)
-    try { await onRegenerateImage(imagePrompt || undefined); setImagePrompt('') } finally { setRegeneratingImage(false) }
+    try { await onRegenerateImage() } finally { setRegeneratingImage(false) }
   }
 
   return (
@@ -98,43 +100,23 @@ export function ImagePickerPanel({
       {/* AI Regenerate */}
       <div className="space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] block">AI Regenerate</span>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1.5">
-            <button
-              onClick={handleRegenText}
-              disabled={regeneratingText}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
-            >
-              <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
-              Text
-            </button>
-            <input
-              type="text"
-              value={textPrompt}
-              onChange={(e) => setTextPrompt(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleRegenText()}
-              placeholder="e.g. make it more casual..."
-              className="w-full text-xs rounded-lg border border-[#dbc1bc]/30 bg-white px-3 py-1.5 text-[#3d0000] placeholder:text-[#dbc1bc] focus:border-[#3d0000] focus:ring-0"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <button
-              onClick={handleRegenImage}
-              disabled={regeneratingImage}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
-            >
-              <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
-              Image
-            </button>
-            <input
-              type="text"
-              value={imagePrompt}
-              onChange={(e) => setImagePrompt(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleRegenImage()}
-              placeholder="e.g. neon city lights..."
-              className="w-full text-xs rounded-lg border border-[#dbc1bc]/30 bg-white px-3 py-1.5 text-[#3d0000] placeholder:text-[#dbc1bc] focus:border-[#3d0000] focus:ring-0"
-            />
-          </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRegenText}
+            disabled={regeneratingText}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+          >
+            <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
+            Text
+          </button>
+          <button
+            onClick={handleRegenImage}
+            disabled={regeneratingImage}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+          >
+            <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
+            Image
+          </button>
         </div>
       </div>
 
@@ -200,20 +182,36 @@ export function ImagePickerPanel({
           {photos.length > 0 && (
             <div className="grid grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto">
               {photos.map((photo) => (
-                <button
+                <div
                   key={photo.id}
-                  onClick={() => handleSelectPhoto(photo)}
                   className="relative group rounded-lg overflow-hidden aspect-[9/16] hover:ring-2 hover:ring-[#3d0000] transition-all"
                 >
-                  <img
-                    src={photo.thumbnail}
-                    alt={`Photo by ${photo.photographer}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <button
+                    onClick={() => handleSelectPhoto(photo)}
+                    className="w-full h-full"
+                  >
+                    <img
+                      src={photo.thumbnail}
+                      alt={`Photo by ${photo.photographer}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                   <div className="absolute inset-x-0 bottom-0 bg-[#3d0000]/60 px-1 py-0.5 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 transition-opacity">
                     {photo.photographer}
                   </div>
-                </button>
+                  {onAddCanvasImage && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddCanvasImage(photo.url)
+                      }}
+                      className="absolute top-1 right-1 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                      title="Add to canvas"
+                    >
+                      <Icon name="add_circle" size="sm" className="text-[#3d0000]" />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -222,19 +220,33 @@ export function ImagePickerPanel({
 
       {/* Upload */}
       {activeTab === 'upload' && (
-        <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-[#dbc1bc]/30 rounded-xl cursor-pointer hover:bg-[#fff0f0] transition-colors">
-          <Icon name="cloud_upload" size="xl" className="text-[#dbc1bc]" />
-          <span className="text-xs text-[#7d6161] font-medium">
-            {uploading ? 'Uploading...' : 'Click to upload (max 5MB)'}
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="sr-only"
-          />
-        </label>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-[#dbc1bc]/30 rounded-xl cursor-pointer hover:bg-[#fff0f0] transition-colors">
+            <Icon name="cloud_upload" size="xl" className="text-[#dbc1bc]" />
+            <span className="text-xs text-[#7d6161] font-medium">
+              {uploading ? 'Uploading...' : 'Click to upload (max 5MB)'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="sr-only"
+            />
+          </label>
+          {lastUploadedUrl && onAddCanvasImage && (
+            <button
+              onClick={() => {
+                onAddCanvasImage(lastUploadedUrl)
+                setLastUploadedUrl(null)
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors"
+            >
+              <Icon name="add_circle" size="sm" />
+              Add Last Upload to Canvas
+            </button>
+          )}
+        </div>
       )}
 
       {/* AI Generate */}

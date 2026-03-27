@@ -135,6 +135,23 @@ export function buildSlideElement(
       <div style={hookStyle}>{slide.hook_text}</div>
       {/* Body text */}
       <div style={bodyStyle}>{slide.body_text}</div>
+      {/* Custom images (before text so text layers on top in Satori DOM order) */}
+      {(slide.custom_images ?? []).map((ci) => (
+        <img
+          key={ci.id}
+          src={ci.url}
+          style={{
+            position: 'absolute',
+            left: pxX(ci.x),
+            top: pxY(ci.y),
+            width: pxX(ci.width),
+            height: pxY(ci.height),
+            objectFit: 'cover',
+            opacity: (ci.opacity ?? 100) / 100,
+            borderRadius: ci.border_radius ?? 0,
+          }}
+        />
+      ))}
       {/* Custom text boxes */}
       {(slide.custom_texts ?? []).map((ct) => (
         <div

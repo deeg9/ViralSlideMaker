@@ -18,6 +18,11 @@ interface SlideCanvasProps {
   onCustomTextSelect?: (id: string | null) => void
   onCustomTextRemove?: (id: string) => void
   selectedCustomTextId?: string | null
+  onCustomImagePositionChange?: (id: string, position: { x: number; y: number }) => void
+  onCustomImageSizeChange?: (id: string, size: { width: number; height: number }) => void
+  onCustomImageSelect?: (id: string | null) => void
+  onCustomImageRemove?: (id: string) => void
+  selectedCustomImageId?: string | null
 }
 
 export function SlideCanvas({
@@ -33,6 +38,11 @@ export function SlideCanvas({
   onCustomTextSelect,
   onCustomTextRemove,
   selectedCustomTextId,
+  onCustomImagePositionChange,
+  onCustomImageSizeChange,
+  onCustomImageSelect,
+  onCustomImageRemove,
+  selectedCustomImageId,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   if (!currentSlide) return null
@@ -60,6 +70,11 @@ export function SlideCanvas({
             onCustomTextSelect={onCustomTextSelect}
             onCustomTextRemove={onCustomTextRemove}
             selectedCustomTextId={selectedCustomTextId}
+            onCustomImagePositionChange={onCustomImagePositionChange}
+            onCustomImageSizeChange={onCustomImageSizeChange}
+            onCustomImageSelect={onCustomImageSelect}
+            onCustomImageRemove={onCustomImageRemove}
+            selectedCustomImageId={selectedCustomImageId}
           />
         </div>
 

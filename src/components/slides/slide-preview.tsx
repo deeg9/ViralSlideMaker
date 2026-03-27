@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { Rnd } from 'react-rnd'
-import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText, CustomImage } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 
@@ -42,6 +42,11 @@ interface SlidePreviewProps {
   onCustomTextSelect?: (id: string | null) => void
   onCustomTextRemove?: (id: string) => void
   selectedCustomTextId?: string | null
+  onCustomImagePositionChange?: (id: string, position: { x: number; y: number }) => void
+  onCustomImageSizeChange?: (id: string, size: { width: number; height: number }) => void
+  onCustomImageSelect?: (id: string | null) => void
+  onCustomImageRemove?: (id: string) => void
+  selectedCustomImageId?: string | null
 }
 
 export function SlidePreview({
@@ -50,6 +55,9 @@ export function SlidePreview({
   onCustomTextPositionChange, onCustomTextWidthChange,
   onCustomTextUpdate, onCustomTextSelect, onCustomTextRemove,
   selectedCustomTextId,
+  onCustomImagePositionChange, onCustomImageSizeChange,
+  onCustomImageSelect, onCustomImageRemove,
+  selectedCustomImageId,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -115,18 +123,24 @@ export function SlidePreview({
 
   const scale = containerWidth > 0 ? containerWidth / REF_WIDTH : 0
 
-  // Delete key handler for selected custom text
+  // Delete key handler for selected custom text or custom image
   useEffect(() => {
-    if (!editable || !selectedCustomTextId || editingCustomTextId) return
+    if (!editable) return
+    if (!selectedCustomTextId && !selectedCustomImageId) return
+    if (editingCustomTextId) return
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedCustomTextId) {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
-        onCustomTextRemove?.(selectedCustomTextId)
+        if (selectedCustomImageId) {
+          onCustomImageRemove?.(selectedCustomImageId)
+        } else if (selectedCustomTextId) {
+          onCustomTextRemove?.(selectedCustomTextId)
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [editable, selectedCustomTextId, editingCustomTextId, onCustomTextRemove])
+  }, [editable, selectedCustomTextId, selectedCustomImageId, editingCustomTextId, onCustomTextRemove, onCustomImageRemove])
 
   const hookTextStyle: React.CSSProperties = {
     fontSize: `${hookFontSize}px`,
@@ -199,8 +213,18 @@ export function SlidePreview({
           : 100,
       })
     }
+    for (const ci of slide.custom_images ?? []) {
+      if (ci.id === excludeId) continue
+      others.push({
+        id: ci.id,
+        x: (ci.x / 100) * REF_WIDTH,
+        y: (ci.y / 100) * REF_HEIGHT,
+        width: (ci.width / 100) * REF_WIDTH,
+        height: (ci.height / 100) * REF_HEIGHT,
+      })
+    }
     return others
-  }, [resolvedHookX, resolvedHookY, hookWidth, resolvedBodyX, resolvedBodyY, bodyWidth, slide.body_text, slide.custom_texts, scale])
+  }, [resolvedHookX, resolvedHookY, hookWidth, resolvedBodyX, resolvedBodyY, bodyWidth, slide.body_text, slide.custom_texts, slide.custom_images, scale])
 
   // Don't render content until we have a valid scale
   if (scale === 0) {
@@ -256,6 +280,26 @@ export function SlidePreview({
             </div>
           )}
 
+          {/* Custom images (non-editable) */}
+          {(slide.custom_images ?? []).map((ci) => (
+            <img
+              key={ci.id}
+              src={ci.url}
+              draggable={false}
+              style={{
+                position: 'absolute',
+                left: `${ci.x}%`,
+                top: `${ci.y}%`,
+                width: `${ci.width}%`,
+                height: `${ci.height}%`,
+                objectFit: 'cover',
+                opacity: (ci.opacity ?? 100) / 100,
+                borderRadius: ci.border_radius ?? 0,
+                zIndex: 12,
+              }}
+            />
+          ))}
+
           {/* Custom texts (non-editable) */}
           {(slide.custom_texts ?? []).map((ct) => (
             <div
@@ -265,7 +309,7 @@ export function SlidePreview({
                 left: `${ct.x}%`,
                 top: `${ct.y}%`,
                 width: `${ct.width}%`,
-                zIndex: 10,
+                zIndex: 15,
                 textAlign: ct.text_align ?? 'left',
                 fontSize: `${ct.font_size ?? 48}px`,
                 fontFamily: ct.font_family ?? template.fontFamily,
@@ -340,9 +384,10 @@ export function SlidePreview({
       <div
         style={innerStyle}
         onClick={(e) => {
-          // Click on canvas background clears custom text selection
+          // Click on canvas background clears selections
           if (e.target === e.currentTarget) {
             onCustomTextSelect?.(null)
+            onCustomImageSelect?.(null)
           }
         }}
       >
@@ -393,7 +438,7 @@ export function SlidePreview({
               onPositionChange('hook', { x: percentX, y: percentY })
             }
           }}
-          onMouseDown={() => onCustomTextSelect?.(null)}
+          onMouseDown={() => { onCustomTextSelect?.(null); onCustomImageSelect?.(null) }}
           style={{ zIndex: 10 }}
           className="hover:outline hover:outline-2 hover:outline-white/50"
         >
@@ -450,7 +495,7 @@ export function SlidePreview({
                 onPositionChange('body', { x: percentX, y: percentY })
               }
             }}
-            onMouseDown={() => onCustomTextSelect?.(null)}
+            onMouseDown={() => { onCustomTextSelect?.(null); onCustomImageSelect?.(null) }}
             style={{ zIndex: 10 }}
             className="hover:outline hover:outline-2 hover:outline-white/50"
           >
@@ -519,6 +564,7 @@ export function SlidePreview({
               onMouseDown={(e) => {
                 e.stopPropagation()
                 onCustomTextSelect?.(ct.id)
+                onCustomImageSelect?.(null)
               }}
               style={{ zIndex: 15 }}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
@@ -558,6 +604,106 @@ export function SlidePreview({
               >
                 {ct.text}
               </div>
+            </Rnd>
+          )
+        })}
+
+        {/* Custom image boxes */}
+        {(slide.custom_images ?? []).map((ci) => {
+          const ciPixels = {
+            x: (ci.x / 100) * REF_WIDTH,
+            y: (ci.y / 100) * REF_HEIGHT,
+          }
+          const ciWidthPx = (ci.width / 100) * REF_WIDTH
+          const ciHeightPx = (ci.height / 100) * REF_HEIGHT
+          const isImageSelected = selectedCustomImageId === ci.id
+
+          const imageResizeHandleStyle: React.CSSProperties = {
+            width: 8,
+            height: 8,
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            border: '1px solid rgba(0, 0, 0, 0.3)',
+            borderRadius: 1,
+            position: 'absolute',
+          }
+
+          return (
+            <Rnd
+              key={ci.id}
+              position={ciPixels}
+              size={{ width: ciWidthPx, height: ciHeightPx }}
+              scale={scale}
+              bounds="parent"
+              lockAspectRatio={true}
+              enableResizing={{
+                top: true,
+                bottom: true,
+                left: true,
+                right: true,
+                topLeft: true,
+                topRight: true,
+                bottomLeft: true,
+                bottomRight: true,
+              }}
+              resizeHandleStyles={{
+                topLeft: { ...imageResizeHandleStyle, top: -4, left: -4 },
+                topRight: { ...imageResizeHandleStyle, top: -4, right: -4 },
+                bottomLeft: { ...imageResizeHandleStyle, bottom: -4, left: -4 },
+                bottomRight: { ...imageResizeHandleStyle, bottom: -4, right: -4 },
+                top: { ...imageResizeHandleStyle, top: -4, left: '50%', transform: 'translateX(-50%)' },
+                bottom: { ...imageResizeHandleStyle, bottom: -4, left: '50%', transform: 'translateX(-50%)' },
+                left: { ...imageResizeHandleStyle, left: -4, top: '50%', transform: 'translateY(-50%)' },
+                right: { ...imageResizeHandleStyle, right: -4, top: '50%', transform: 'translateY(-50%)' },
+              }}
+              onDrag={(_e, data) => {
+                const dragging: TextBox = {
+                  id: ci.id,
+                  x: data.x,
+                  y: data.y,
+                  width: ciWidthPx,
+                  height: ciHeightPx,
+                }
+                const others = buildOthersForSnap(ci.id)
+                const result = calculateSnap(dragging, others)
+                data.x = result.snappedX
+                data.y = result.snappedY
+              }}
+              onDragStop={(_e, data) => {
+                clearGuides()
+                const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+                const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
+                onCustomImagePositionChange?.(ci.id, { x: percentX, y: percentY })
+              }}
+              onResizeStop={(_e, _dir, ref, _delta, position) => {
+                const newWidthPct = Math.max(5, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
+                const newHeightPct = Math.max(5, Math.min(100, (parseInt(ref.style.height) / REF_HEIGHT) * 100))
+                onCustomImageSizeChange?.(ci.id, { width: Math.round(newWidthPct), height: Math.round(newHeightPct) })
+                const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+                const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+                onCustomImagePositionChange?.(ci.id, { x: percentX, y: percentY })
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation()
+                onCustomImageSelect?.(ci.id)
+                onCustomTextSelect?.(null)
+              }}
+              style={{ zIndex: 12 }}
+              className={`hover:outline hover:outline-2 hover:outline-white/50 ${
+                isImageSelected ? 'outline outline-2 outline-blue-400' : ''
+              }`}
+            >
+              <img
+                src={ci.url}
+                draggable={false}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  opacity: (ci.opacity ?? 100) / 100,
+                  borderRadius: ci.border_radius ?? 0,
+                  cursor: 'grab',
+                }}
+              />
             </Rnd>
           )
         })}

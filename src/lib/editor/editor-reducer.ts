@@ -123,6 +123,48 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, slides)
     }
 
+    case 'ADD_CUSTOM_IMAGE': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const newImage = {
+          id: crypto.randomUUID(),
+          url: action.url,
+          x: 20,
+          y: 30,
+          width: 40,
+          height: 40,
+          opacity: 100,
+        }
+        return {
+          ...slide,
+          custom_images: [...(slide.custom_images ?? []), newImage],
+        }
+      })
+      return pushHistory(state, slides)
+    }
+
+    case 'UPDATE_CUSTOM_IMAGE': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const custom_images = (slide.custom_images ?? []).map((ci) =>
+          ci.id === action.imageId ? { ...ci, ...action.updates } : ci
+        )
+        return { ...slide, custom_images }
+      })
+      return pushHistory(state, slides)
+    }
+
+    case 'REMOVE_CUSTOM_IMAGE': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const custom_images = (slide.custom_images ?? []).filter(
+          (ci) => ci.id !== action.imageId
+        )
+        return { ...slide, custom_images }
+      })
+      return pushHistory(state, slides)
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state
       const previous = state.past[state.past.length - 1]

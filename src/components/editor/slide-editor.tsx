@@ -46,6 +46,7 @@ export function SlideEditor({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [exporting, setExporting] = useState(false)
   const [selectedCustomTextId, setSelectedCustomTextId] = useState<string | null>(null)
+  const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -54,9 +55,10 @@ export function SlideEditor({
     }
   }, [slides.length, selectedIndex])
 
-  // Clear custom text selection when switching slides
+  // Clear selections when switching slides
   useEffect(() => {
     setSelectedCustomTextId(null)
+    setSelectedCustomImageId(null)
   }, [selectedIndex])
 
   const doSave = useCallback(async () => {
@@ -149,10 +151,38 @@ export function SlideEditor({
     setSelectedCustomTextId(null)
   }
 
-  async function handleRegenerateText(customPrompt?: string) {
+  // Custom image handlers
+  function handleAddCustomImage(url: string) {
+    dispatch({ type: 'ADD_CUSTOM_IMAGE', slideIndex: selectedIndex, url })
+  }
+
+  function handleCustomImagePositionChange(id: string, position: { x: number; y: number }) {
+    dispatch({
+      type: 'UPDATE_CUSTOM_IMAGE',
+      slideIndex: selectedIndex,
+      imageId: id,
+      updates: { x: position.x, y: position.y },
+    })
+  }
+
+  function handleCustomImageSizeChange(id: string, size: { width: number; height: number }) {
+    dispatch({
+      type: 'UPDATE_CUSTOM_IMAGE',
+      slideIndex: selectedIndex,
+      imageId: id,
+      updates: { width: size.width, height: size.height },
+    })
+  }
+
+  function handleRemoveCustomImage(id: string) {
+    dispatch({ type: 'REMOVE_CUSTOM_IMAGE', slideIndex: selectedIndex, imageId: id })
+    setSelectedCustomImageId(null)
+  }
+
+  async function handleRegenerateText() {
     if (!currentSlide) return
     try {
-      const result = await regenerateSlideText(projectId, selectedIndex, topic, currentSlide, customPrompt)
+      const result = await regenerateSlideText(projectId, selectedIndex, topic, currentSlide)
       dispatch({
         type: 'UPDATE_SLIDE',
         index: selectedIndex,
@@ -161,10 +191,10 @@ export function SlideEditor({
     } catch { /* silently handle */ }
   }
 
-  async function handleRegenerateImage(customPrompt?: string) {
+  async function handleRegenerateImage() {
     if (!currentSlide) return
     try {
-      const result = await regenerateSlideImageQuery(topic, currentSlide, customPrompt)
+      const result = await regenerateSlideImageQuery(topic, currentSlide)
       dispatch({
         type: 'UPDATE_SLIDE',
         index: selectedIndex,
@@ -263,6 +293,13 @@ export function SlideEditor({
               >
                 <Icon name="text_fields" size="sm" />
               </button>
+              <button
+                onClick={() => setActiveTab('images')}
+                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                title="Add Image"
+              >
+                <Icon name="add_photo_alternate" size="sm" />
+              </button>
               <div className="flex-1" />
               <button className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors" title="Help">
                 <Icon name="help" size="sm" />
@@ -285,6 +322,11 @@ export function SlideEditor({
           onCustomTextSelect={setSelectedCustomTextId}
           onCustomTextRemove={handleRemoveCustomText}
           selectedCustomTextId={selectedCustomTextId}
+          onCustomImagePositionChange={handleCustomImagePositionChange}
+          onCustomImageSizeChange={handleCustomImageSizeChange}
+          onCustomImageSelect={setSelectedCustomImageId}
+          onCustomImageRemove={handleRemoveCustomImage}
+          selectedCustomImageId={selectedCustomImageId}
         />
 
         {/* Right panel: Editor controls */}
@@ -336,6 +378,7 @@ export function SlideEditor({
                 onUpdate={handleUpdate}
                 onRegenerateText={handleRegenerateText}
                 onRegenerateImage={handleRegenerateImage}
+                onAddCanvasImage={handleAddCustomImage}
               />
             )}
 
