@@ -163,4 +163,75 @@ describe('resolveSlideStyles', () => {
     const styles = resolveSlideStyles(baseSlide, baseTemplate)
     expect(styles.bodyFontStyle).toBe('normal')
   })
+
+  // Font family override tests (Phase 12)
+  it('returns overridden hookFontFamily when hook_font_family is set', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: { hook_font_family: 'Playfair Display' },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.hookFontFamily).toBe("'Playfair Display', serif")
+  })
+
+  it('returns overridden bodyFontFamily when body_font_family is set', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: { body_font_family: 'Montserrat' },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.bodyFontFamily).toBe("'Montserrat', sans-serif")
+  })
+
+  it('returns template.fontFamily when no font_family overrides (backward compat)', () => {
+    const styles = resolveSlideStyles(baseSlide, baseTemplate)
+    expect(styles.hookFontFamily).toBe("'Inter', sans-serif")
+    expect(styles.bodyFontFamily).toBe("'Inter', sans-serif")
+  })
+
+  it('allows independent hook and body font families', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: {
+        hook_font_family: 'Bebas Neue',
+        body_font_family: 'Lora',
+      },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.hookFontFamily).toBe("'Bebas Neue', sans-serif")
+    expect(styles.bodyFontFamily).toBe("'Lora', serif")
+  })
+})
+
+// Font catalog tests (Phase 12)
+import { FONT_CATALOG, getFontEntry, DEFAULT_FONT, type FontEntry } from '../fonts/font-catalog'
+
+describe('font-catalog', () => {
+  it('getFontEntry returns Inter entry from catalog', () => {
+    const entry = getFontEntry('Inter')
+    expect(entry).toBeDefined()
+    expect(entry!.family).toBe('Inter')
+    expect(entry!.category).toBe('sans-serif')
+  })
+
+  it('getFontEntry returns undefined for nonexistent font', () => {
+    const entry = getFontEntry('NonExistent')
+    expect(entry).toBeUndefined()
+  })
+
+  it('FONT_CATALOG has at least 25 entries', () => {
+    expect(FONT_CATALOG.length).toBeGreaterThanOrEqual(25)
+  })
+
+  it('DEFAULT_FONT is Inter', () => {
+    expect(DEFAULT_FONT).toBe('Inter')
+  })
+
+  it('each entry has family, category, and variants', () => {
+    for (const entry of FONT_CATALOG) {
+      expect(entry.family).toBeTruthy()
+      expect(['sans-serif', 'serif', 'display', 'handwriting']).toContain(entry.category)
+      expect(entry.variants.length).toBeGreaterThan(0)
+    }
+  })
 })
