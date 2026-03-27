@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
 import { TemplatePicker } from './template-picker'
 import { Icon } from '@/components/ui/icon'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
+import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
 
 export type ImageSource = 'stock' | 'ai'
 
@@ -31,7 +32,20 @@ export function GenerationForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [advancedFont, setAdvancedFont] = useState<string>('')
+  const [advancedFontColor, setAdvancedFontColor] = useState<string>('')
+  const [advancedImagePrompt, setAdvancedImagePrompt] = useState('')
   const router = useRouter()
+
+  const fontsByCategory = useMemo(() => {
+    const groups: Record<string, typeof FONT_CATALOG> = {}
+    for (const font of FONT_CATALOG) {
+      if (!groups[font.category]) groups[font.category] = []
+      groups[font.category].push(font)
+    }
+    return groups
+  }, [])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,7 +54,11 @@ export function GenerationForm({
     setError(null)
     setShowUpgradePrompt(false)
     startTransition(async () => {
-      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource, slideCount)
+      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource, slideCount, {
+        font: advancedFont || undefined,
+        fontColor: advancedFontColor || undefined,
+        imagePrompt: advancedImagePrompt || undefined,
+      })
       if (!result.success) {
         setError(result.error)
         if ('upgradeEligible' in result && result.upgradeEligible) {
@@ -65,7 +83,7 @@ export function GenerationForm({
           <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. A 10-slide deck about the future of sustainable architecture in urban environments..."
+            placeholder="e.g. 5 tips for growing your Instagram following, benefits of morning routines, how to start investing..."
             rows={6}
             disabled={isPending}
             maxLength={500}
@@ -163,6 +181,103 @@ export function GenerationForm({
           <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
             Uses ~{slideCount} credits for AI backgrounds. Takes ~{Math.ceil(slideCount / 2) * 10}-{Math.ceil(slideCount / 2) * 15}s. Slides that fail will use stock photos instead.
           </p>
+        )}
+      </div>
+
+      {/* Advanced Options */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
+        >
+          Advanced Options
+          <Icon
+            name="expand_more"
+            size="sm"
+            className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {showAdvanced && (
+          <div className="mt-4 space-y-5">
+            {/* Font */}
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-2 ml-1">
+                Font
+              </label>
+              <select
+                value={advancedFont}
+                onChange={(e) => setAdvancedFont(e.target.value)}
+                disabled={isPending}
+                className="w-full bg-white rounded-xl border-b-2 border-[#dbc1bc]/30 px-4 py-3 text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 disabled:opacity-50"
+              >
+                <option value="">Template Default</option>
+                {Object.entries(fontsByCategory).map(([category, fonts]) => (
+                  <optgroup key={category} label={category.charAt(0).toUpperCase() + category.slice(1)}>
+                    {fonts.map((font) => (
+                      <option key={font.family} value={font.family}>
+                        {font.family}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
+            {/* Font Color */}
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-2 ml-1">
+                Font Color
+              </label>
+              <div className="flex items-center gap-2">
+                {['#ffffff', '#3d0000', '#000000', '#7d6161'].map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setAdvancedFontColor(color)}
+                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                      advancedFontColor === color
+                        ? 'border-[#3d0000] scale-110'
+                        : 'border-[#dbc1bc]/30 hover:border-[#dbc1bc]'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={advancedFontColor || '#000000'}
+                  onChange={(e) => setAdvancedFontColor(e.target.value)}
+                  className="w-8 h-8 rounded-full border-2 border-[#dbc1bc]/30 cursor-pointer"
+                  title="Custom color"
+                />
+                {advancedFontColor && (
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedFontColor('')}
+                    className="text-[10px] text-[#7d6161] hover:text-[#3d0000] ml-1"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* AI Image Prompt */}
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-2 ml-1">
+                AI Image Style Hint
+              </label>
+              <textarea
+                value={advancedImagePrompt}
+                onChange={(e) => setAdvancedImagePrompt(e.target.value)}
+                placeholder="e.g. minimalist watercolor illustrations, dark moody photography..."
+                rows={2}
+                disabled={isPending}
+                className="w-full bg-white rounded-xl border-b-2 border-[#dbc1bc]/30 px-4 py-3 text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 resize-none placeholder:text-[#dbc1bc] disabled:opacity-50"
+              />
+            </div>
+          </div>
         )}
       </div>
 

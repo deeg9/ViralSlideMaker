@@ -49,10 +49,14 @@ export async function generateImagePrompt(
   bodyText: string,
   isCta: boolean,
   masterStyle?: string,
+  userImagePrompt?: string,
 ): Promise<string> {
   try {
     const styleContext = masterStyle
       ? `\nMASTER VISUAL STYLE (all slides must follow this): "${masterStyle}"`
+      : ''
+    const userContext = userImagePrompt
+      ? `\nUser's visual preference: "${userImagePrompt}"`
       : ''
 
     const response = await ai.models.generateContent({
@@ -61,7 +65,7 @@ export async function generateImagePrompt(
 Topic: "${topic}"
 Hook text: "${hookText}"
 Body text: "${bodyText}"
-${isCta ? 'This is the closing CTA slide.' : ''}${styleContext}
+${isCta ? 'This is the closing CTA slide.' : ''}${styleContext}${userContext}
 
 The image should be a mood/aesthetic background that complements the text overlay.
 ${masterStyle ? 'IMPORTANT: Follow the master visual style above. Use the same color palette, art style, and mood. Vary the composition slightly for each slide but keep the overall look cohesive.' : ''}

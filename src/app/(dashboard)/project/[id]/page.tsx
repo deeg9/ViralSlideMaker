@@ -68,7 +68,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           What shall we create?
         </h1>
         <p className="text-[#55423f] max-w-lg mx-auto leading-relaxed">
-          Describe your presentation goals and our AI will curate the narrative structure and visual flow for you.
+          Describe your content idea and our AI will curate the narrative structure and visual flow for you.
         </p>
       </div>
 

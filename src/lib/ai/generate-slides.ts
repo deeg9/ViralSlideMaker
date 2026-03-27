@@ -25,10 +25,13 @@ const responseSchema: Schema = {
   required: ['title', 'slides'],
 }
 
-export async function generateSlideContent(topic: string, slideCount: number = 7): Promise<Carousel> {
+export async function generateSlideContent(topic: string, slideCount: number = 7, imageStyleHint?: string): Promise<Carousel> {
+  const imageHintText = imageStyleHint
+    ? `\n\nWhen generating image_query values, incorporate this visual preference: "${imageStyleHint}"`
+    : ''
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
-    contents: `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).`,
+    contents: `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).${imageHintText}`,
     config: {
       systemInstruction: buildSystemPrompt(),
       responseMimeType: 'application/json',

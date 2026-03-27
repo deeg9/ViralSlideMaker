@@ -16,7 +16,8 @@ export async function generateCarousel(
   topic: string,
   templateId: string,
   imageSource: 'stock' | 'ai' = 'stock',
-  slideCount: number = 7
+  slideCount: number = 7,
+  advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string }
 ): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
   const supabase = await createClient()
 
@@ -67,7 +68,7 @@ export async function generateCarousel(
 
     // 1. Generate content with Gemini
     const clampedCount = Math.max(3, Math.min(20, slideCount))
-    const carousel = await generateSlideContent(topic, clampedCount)
+    const carousel = await generateSlideContent(topic, clampedCount, advancedOptions?.imagePrompt)
 
     // 2. Fetch background images
     let slides: Slide[]
@@ -86,7 +87,7 @@ export async function generateCarousel(
           batch.map(async (slide, batchIdx) => {
             const slideIdx = i + batchIdx
             try {
-              const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text, slide.is_cta, masterStyle)
+              const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text, slide.is_cta, masterStyle, advancedOptions?.imagePrompt)
               const result = await generateImagenBackground(user.id, prompt, projectId, slideIdx)
               if ('url' in result) {
                 return { ...slide, background_url: result.url, pexels_photo_id: null }
@@ -121,6 +122,18 @@ export async function generateCarousel(
           }
         })
       )
+    }
+
+    // 2b. Apply advanced font/color overrides
+    if (advancedOptions?.font || advancedOptions?.fontColor) {
+      slides = slides.map(slide => ({
+        ...slide,
+        style_overrides: {
+          ...slide.style_overrides,
+          ...(advancedOptions.font ? { hook_font_family: advancedOptions.font, body_font_family: advancedOptions.font } : {}),
+          ...(advancedOptions.fontColor ? { hook_text_color: advancedOptions.fontColor, body_text_color: advancedOptions.fontColor } : {}),
+        },
+      }))
     }
 
     // 3. Save to database
