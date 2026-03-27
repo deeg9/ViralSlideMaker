@@ -33,9 +33,9 @@ Requirements for Rich Text Editing milestone.
 
 ### Alignment Guides
 
-- [ ] **ALIGN-01**: Visual guide lines appear when dragging a text box near the horizontal or vertical center of the slide
-- [ ] **ALIGN-02**: Visual guide lines appear when a text box edge aligns with another text box's edge
-- [ ] **ALIGN-03**: Text boxes snap to guide positions when within proximity threshold
+- [x] **ALIGN-01**: Visual guide lines appear when dragging a text box near the horizontal or vertical center of the slide
+- [x] **ALIGN-02**: Visual guide lines appear when a text box edge aligns with another text box's edge
+- [x] **ALIGN-03**: Text boxes snap to guide positions when within proximity threshold
 
 ## Previous Milestone Requirements
 
@@ -95,9 +95,9 @@ Requirements for Rich Text Editing milestone.
 | RESIZE-01 | Phase 13 | Complete |
 | RESIZE-02 | Phase 13 | Complete |
 | RESIZE-03 | Phase 13 | Complete |
-| ALIGN-01 | Phase 14 | Pending |
-| ALIGN-02 | Phase 14 | Pending |
-| ALIGN-03 | Phase 14 | Pending |
+| ALIGN-01 | Phase 14 | Complete |
+| ALIGN-02 | Phase 14 | Complete |
+| ALIGN-03 | Phase 14 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 15 total

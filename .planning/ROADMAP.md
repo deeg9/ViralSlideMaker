@@ -187,7 +187,7 @@ Plans:
 - [x] **Phase 11: Bold & Italic** - Toggle bold/italic per text box with correct rendering in preview and export (completed 2026-03-27)
 - [x] **Phase 12: Font Picker & Google Fonts** - Curated font selection with live preview, correct Satori TTF rendering, and server-side caching (completed 2026-03-27)
 - [x] **Phase 13: Resizable Text Boxes** - Drag-handle resize for text boxes with persistence and correct export rendering (completed 2026-03-27)
-- [ ] **Phase 14: Alignment Snap Guides** - Visual guide lines and snapping when positioning text boxes on slides
+- [x] **Phase 14: Alignment Snap Guides** - Visual guide lines and snapping when positioning text boxes on slides (completed 2026-03-27)
 
 ## Phase Details
 
@@ -262,7 +262,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 14-01-PLAN.md -- useAlignmentGuides hook + snap guide overlay in slide-preview.tsx
+- [x] 14-01-PLAN.md -- useAlignmentGuides hook + snap guide overlay in slide-preview.tsx
 
 ## Progress
 
@@ -284,4 +284,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 11. Bold & Italic | v1.3 | 0/1 | Complete    | 2026-03-27 |
 | 12. Font Picker & Google Fonts | v1.3 | 1/2 | Complete    | 2026-03-27 |
 | 13. Resizable Text Boxes | v1.3 | 0/1 | Complete    | 2026-03-27 |
-| 14. Alignment Snap Guides | v1.3 | 0/0 | Not started | - |
+| 14. Alignment Snap Guides | v1.3 | 1/1 | Complete   | 2026-03-27 |
