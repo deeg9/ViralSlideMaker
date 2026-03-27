@@ -67,10 +67,18 @@ export function ImagePickerPanel({
     setUploading(true)
     try {
       const { signedUrl, publicUrl } = await createUploadUrl(projectId, file.name)
-      await fetch(signedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
+      const res = await fetch(signedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
       onUpdate({ background_url: publicUrl, pexels_photo_id: null })
-    } catch { alert('Upload failed. Please try again.') }
-    finally { setUploading(false) }
+    } catch (err) {
+      console.error('Upload failed:', err)
+      alert('Upload failed. Please try again.')
+    }
+    finally {
+      setUploading(false)
+      // Reset input so same file can be re-selected
+      e.target.value = ''
+    }
   }
 
   async function handleRegenText() {
