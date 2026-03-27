@@ -258,8 +258,11 @@ Plans:
   1. A dashed guide line appears when the user drags a text box near the horizontal or vertical center of the slide
   2. Guide lines appear when a text box edge aligns with another text box's edge or center
   3. Text boxes snap into aligned positions when dragged within a proximity threshold of a guide
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
+
+Plans:
+- [ ] 14-01-PLAN.md -- useAlignmentGuides hook + snap guide overlay in slide-preview.tsx
 
 ## Progress
 
