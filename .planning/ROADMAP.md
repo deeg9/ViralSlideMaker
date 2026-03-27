@@ -3,8 +3,9 @@
 ## Milestones
 
 - v1.0 MVP - Phases 1-4 (shipped 2026-03-20)
-- v1.1 Monetization & AI Images - Phases 5-7 (in progress)
+- v1.1 Monetization & AI Images - Phases 5-7 (shipped)
 - v1.2 Launch Readiness - Phases 8-9 (planned)
+- v1.3 Rich Text Editing - Phases 10-14 (in progress)
 
 ## Phases
 
@@ -146,14 +147,13 @@ Plans:
 
 </details>
 
-### v1.2 Launch Readiness (Phases 8-9)
+<details>
+<summary>v1.2 Launch Readiness (Phases 8-9) - planned</summary>
 
 **Milestone Goal:** Get the app production-ready with Stripe Customer Portal, working export/download on Vercel serverless, and production deployment at viralslidemaker.com.
 
 - [ ] **Phase 8: Stripe Portal & Serverless Export** - Customer Portal branding, serverless-compatible image rendering, and working download flow on Vercel
 - [ ] **Phase 9: Production Deployment** - Environment variables, Stripe webhook endpoint, and domain configuration for viralslidemaker.com
-
-## Phase Details
 
 ### Phase 8: Stripe Portal & Serverless Export
 **Goal**: Users can manage their subscription through a branded portal and download slide images from the Vercel-deployed app
@@ -177,10 +177,87 @@ Plans:
   3. The app is accessible at https://viralslidemaker.com with correct NEXT_PUBLIC_APP_URL
 **Plans**: TBD
 
+</details>
+
+### v1.3 Rich Text Editing (Phases 10-14)
+
+**Milestone Goal:** Give users professional-grade text editing tools in the slide editor -- fonts, styling, alignment with snap guides, and resizable text boxes.
+
+- [x] **Phase 10: Foundation Refactor** - Fix export font rendering bug and extract shared style resolution utility (completed 2026-03-26)
+- [ ] **Phase 11: Bold & Italic** - Toggle bold/italic per text box with correct rendering in preview and export
+- [ ] **Phase 12: Font Picker & Google Fonts** - Curated font selection with live preview, correct Satori TTF rendering, and server-side caching
+- [ ] **Phase 13: Resizable Text Boxes** - Drag-handle resize for text boxes with persistence and correct export rendering
+- [ ] **Phase 14: Alignment Snap Guides** - Visual guide lines and snapping when positioning text boxes on slides
+
+## Phase Details
+
+### Phase 10: Foundation Refactor
+**Goal**: Exported slide images render in the correct template font, and all renderers share a single style resolution function
+**Depends on**: Phase 9
+**Requirements**: FOUND-01, FOUND-02
+**Success Criteria** (what must be TRUE):
+  1. User downloads a slide PNG and sees the correct template font (not Satori default Noto Sans)
+  2. Changing a template in the editor produces identical text styling in both the browser preview and the exported PNG
+  3. Adding a new style override field requires updating only one function, not multiple renderer copies
+**Plans**: 1 plan
+
+Plans:
+- [ ] 10-01-PLAN.md -- Extract resolveSlideStyles() shared utility, fix Satori font loading in render route
+
+### Phase 11: Bold & Italic
+**Goal**: Users can apply bold and italic formatting to individual text boxes and see it rendered correctly everywhere
+**Depends on**: Phase 10
+**Requirements**: STYLE-01, STYLE-02, STYLE-03
+**Success Criteria** (what must be TRUE):
+  1. User can click a Bold button to toggle bold on/off for any text box (hook or body) in the editor
+  2. User can click an Italic button to toggle italic on/off for any text box in the editor
+  3. Bold and italic settings survive save, reload, and undo/redo without losing state
+  4. A slide exported as PNG renders bold and italic text identically to the browser preview
+**Plans**: 1 plan
+**UI hint**: yes
+
+Plans:
+- [ ] 11-01-PLAN.md -- Extend data model with bold/italic overrides, update resolveSlideStyles + font loading, add B/I toggle buttons to editor panel
+
+### Phase 12: Font Picker & Google Fonts
+**Goal**: Users can choose from a library of fonts for each text box, with live preview in the editor and correct rendering in exports
+**Depends on**: Phase 11
+**Requirements**: FONT-01, FONT-02, FONT-03, FONT-04
+**Success Criteria** (what must be TRUE):
+  1. User can open a font picker dropdown and select from a curated list of Google Fonts for any text box
+  2. Each font in the dropdown renders in its own typeface so users can visually browse
+  3. Selecting a font updates the browser preview immediately with the chosen font
+  4. Exported PNG renders the user-selected font correctly (not a fallback or default)
+  5. Repeated exports of the same slide do not re-download font files (server-side TTF caching works)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 13: Resizable Text Boxes
+**Goal**: Users can resize text boxes by dragging handles, with dimensions persisted and rendered correctly in exports
+**Depends on**: Phase 12
+**Requirements**: RESIZE-01, RESIZE-02, RESIZE-03
+**Success Criteria** (what must be TRUE):
+  1. User can drag corner or edge handles on a text box to change its width
+  2. Resized text box dimensions persist after saving and reloading the project
+  3. Exported PNG renders the text box at the exact dimensions the user set in the editor
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 14: Alignment Snap Guides
+**Goal**: Users get visual alignment feedback when positioning text boxes, making professional-looking layouts easy
+**Depends on**: Phase 13
+**Requirements**: ALIGN-01, ALIGN-02, ALIGN-03
+**Success Criteria** (what must be TRUE):
+  1. A dashed guide line appears when the user drags a text box near the horizontal or vertical center of the slide
+  2. Guide lines appear when a text box edge aligns with another text box's edge or center
+  3. Text boxes snap into aligned positions when dragged within a proximity threshold of a guide
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 8 -> 9
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -193,3 +270,8 @@ Phases execute in numeric order: 8 -> 9
 | 7. AI Images & Social Captions | v1.1 | 2/2 | Complete | - |
 | 8. Stripe Portal & Serverless Export | v1.2 | 0/0 | Not started | - |
 | 9. Production Deployment | v1.2 | 0/0 | Not started | - |
+| 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
+| 11. Bold & Italic | v1.3 | 0/1 | Planned    |  |
+| 12. Font Picker & Google Fonts | v1.3 | 0/0 | Not started | - |
+| 13. Resizable Text Boxes | v1.3 | 0/0 | Not started | - |
+| 14. Alignment Snap Guides | v1.3 | 0/0 | Not started | - |

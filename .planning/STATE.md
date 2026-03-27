@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Launch Readiness
-status: Milestone complete
-stopped_at: Roadmap complete, ready to plan Phase 8
-last_updated: "2026-03-26T19:17:56.943Z"
-last_activity: 2026-03-26
+milestone: v1.3
+milestone_name: Rich Text Editing
+status: Phase complete — ready for verification
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-27T00:30:34.859Z"
+last_activity: 2026-03-27
 progress:
-  total_phases: 2
-  completed_phases: 0
-  total_plans: 3
-  completed_plans: 0
+  total_phases: 5
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 09 — production-deployment
+**Current focus:** Phase 11 — Bold & Italic
 
 ## Current Position
 
-Phase: 09
-Plan: Not started
+Phase: 11 (Bold & Italic) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -42,11 +42,14 @@ Plan: Not started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Pivoted from video output to image carousels (no Remotion, no RunPod, no video)
-- Gemini 2.5 Flash for AI text generation (cost efficiency)
-- Google Imagen 4 Fast for premium AI image generation
-- Hybrid credit model: monthly subscription allowance + purchasable credit packs
-- Stripe for payments (industry standard, good Next.js integration)
+- [v1.3]: Whole-box bold/italic only (no inline rich text) -- Satori cannot render inline spans reliably
+- [v1.3]: Google Fonts curated list (30-50 fonts), not full 1,500+ catalog
+- [v1.3]: react-rnd replaces react-draggable for combined drag+resize with scale prop
+- [v1.3]: Fix pre-existing Satori font bug before any new feature work
+- [Phase 10]: Georgia templates fall back to Inter for Satori PNG rendering (system font not on Google Fonts)
+- [Phase 10]: Font buffers cached in-memory via Map to avoid re-fetching per render request
+- [Phase 11]: Bold toggle sets font-weight 700; hook default stays 900 (template extra bold)
+- [Phase 11]: Italic toggle sets font-style italic; undefined reverts to template default
 
 ### Pending Todos
 
@@ -54,8 +57,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- Vercel plan timeout: confirm deployment tier before production (Hobby = 10s, Pro = 60s; Imagen takes 3-15s)
-- Puppeteer may not work on Vercel serverless -- EXPORT-03 requires serverless-compatible rendering alternative
+- [Pre-existing]: render/route.ts passes no `fonts` option to ImageResponse -- all exports render in Noto Sans regardless of template. Must fix in Phase 10.
+- [Phase 12]: Satori requires separate TTF files per font weight/style variant -- no faux bold/italic synthesis.
+- Vercel plan timeout: confirm deployment tier before production (Hobby = 10s, Pro = 60s)
 
 ### Quick Tasks Completed
 
@@ -63,9 +67,11 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260326-0fq | Test and fix slide editor UI for iPhone 15 mobile viewport | 2026-03-26 | 0dee8ed | [260326-0fq-test-and-fix-slide-editor-ui-for-iphone-](./quick/260326-0fq-test-and-fix-slide-editor-ui-for-iphone-/) |
 | 260326-kzh | Fix Stripe integration crashes on subscription page | 2026-03-26 | 442fd98 | [260326-kzh-fix-stripe-integration-crashes-on-subscr](./quick/260326-kzh-fix-stripe-integration-crashes-on-subscr/) |
+| Phase 10 P01 | 6min | 2 tasks | 7 files |
+| Phase 11 P01 | 291 | 2 tasks | 8 files |
 
 ## Session Continuity
 
-Last activity: 2026-03-26
-Stopped at: Completed 260326-kzh quick task
+Last activity: 2026-03-27
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
