@@ -67,6 +67,8 @@ export function SlidePreview({
   const overrides = slide.style_overrides ?? {}
 
   const [editingCustomTextId, setEditingCustomTextId] = useState<string | null>(null)
+  const [draggingElementId, setDraggingElementId] = useState<string | null>(null)
+  const [overTrash, setOverTrash] = useState(false)
 
   const textColor = overrides.text_color ?? template.textColor
   const hookTextColor = overrides.hook_text_color ?? textColor
@@ -533,6 +535,7 @@ export function SlidePreview({
               enableResizing={enableResizing}
               resizeHandleStyles={resizeHandleStyles}
               disableDragging={isEditing}
+              onDragStart={() => setDraggingElementId(ct.id)}
               onDrag={(_e, data) => {
                 const dragging: TextBox = {
                   id: ct.id,
@@ -547,9 +550,17 @@ export function SlidePreview({
                 const result = calculateSnap(dragging, others)
                 data.x = result.snappedX
                 data.y = result.snappedY
+                setOverTrash((data.y / REF_HEIGHT) * 100 > 85)
               }}
               onDragStop={(_e, data) => {
                 clearGuides()
+                const yPercent = (data.y / REF_HEIGHT) * 100
+                setDraggingElementId(null)
+                setOverTrash(false)
+                if (yPercent > 85) {
+                  onCustomTextRemove?.(ct.id)
+                  return
+                }
                 const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
                 const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
                 onCustomTextPositionChange?.(ct.id, { x: percentX, y: percentY })
@@ -655,6 +666,7 @@ export function SlidePreview({
                 left: { ...imageResizeHandleStyle, left: -4, top: '50%', transform: 'translateY(-50%)' },
                 right: { ...imageResizeHandleStyle, right: -4, top: '50%', transform: 'translateY(-50%)' },
               }}
+              onDragStart={() => setDraggingElementId(ci.id)}
               onDrag={(_e, data) => {
                 const dragging: TextBox = {
                   id: ci.id,
@@ -667,9 +679,20 @@ export function SlidePreview({
                 const result = calculateSnap(dragging, others)
                 data.x = result.snappedX
                 data.y = result.snappedY
+                // Check if over trash zone (bottom 12% of canvas)
+                const yPercent = (data.y / REF_HEIGHT) * 100
+                setOverTrash(yPercent > 85)
               }}
               onDragStop={(_e, data) => {
                 clearGuides()
+                const yPercent = (data.y / REF_HEIGHT) * 100
+                setDraggingElementId(null)
+                setOverTrash(false)
+                if (yPercent > 85) {
+                  // Dropped on trash zone — delete
+                  onCustomImageRemove?.(ci.id)
+                  return
+                }
                 const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
                 const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
                 onCustomImagePositionChange?.(ci.id, { x: percentX, y: percentY })
@@ -707,6 +730,55 @@ export function SlidePreview({
             </Rnd>
           )
         })}
+
+        {/* Trash zone — appears when dragging custom elements */}
+        {draggingElementId && (
+          <div
+            data-testid="trash-zone"
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '15%',
+              background: overTrash
+                ? 'linear-gradient(to top, rgba(220, 38, 38, 0.5), rgba(220, 38, 38, 0.1))'
+                : 'linear-gradient(to top, rgba(220, 38, 38, 0.2), transparent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 40,
+              pointerEvents: 'none',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+              opacity: overTrash ? 1 : 0.6,
+              transform: overTrash ? 'scale(1.15)' : 'scale(1)',
+              transition: 'all 0.15s ease',
+            }}>
+              <span style={{
+                fontSize: overTrash ? 48 : 36,
+                transition: 'font-size 0.15s ease',
+              }}>
+                🗑️
+              </span>
+              <span style={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: overTrash ? 'rgba(220, 38, 38, 0.9)' : 'rgba(220, 38, 38, 0.5)',
+                fontFamily: 'system-ui, sans-serif',
+                transition: 'color 0.15s ease',
+              }}>
+                {overTrash ? 'Release to delete' : 'Drag here to delete'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Alignment guide overlays */}
         {activeGuides.map((guide, i) => (
