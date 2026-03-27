@@ -5,18 +5,11 @@ import Draggable from 'react-draggable'
 import type { DraggableData, DraggableEvent } from 'react-draggable'
 import type { Slide, TextPosition } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import { resolveSlideStyles } from '@/lib/render/resolve-styles'
 
 // Reference canvas dimensions (matches TikTok/Instagram 9:16)
 const REF_WIDTH = 1080
 const REF_HEIGHT = 1920
-
-// TikTok/Instagram safe zone defaults (percentage of canvas)
-const SAFE_ZONE = {
-  x: 11,
-  top: { hookY: 12, bodyY: 30 },
-  center: { hookY: 30, bodyY: 48 },
-  bottom: { hookY: 48, bodyY: 62 },
-}
 
 interface SlidePreviewProps {
   slide: Slide
@@ -30,34 +23,10 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const overrides = slide.style_overrides ?? {}
 
-  const textColor = overrides.text_color ?? template.textColor
-  const textAlign = overrides.text_align ?? template.textAlign
-  const hookFontSize = overrides.hook_font_size ?? parseInt(template.hookFontSize)
-  const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
+  const styles = resolveSlideStyles(slide, template)
 
-  const overlayOpacity = overrides.overlay_opacity != null
-    ? overrides.overlay_opacity / 100
-    : template.overlayOpacity
-
-  const hookPos = overrides.hook_position
-  const bodyPos = overrides.body_position
-
-  const positionPreset = overrides.text_position ?? template.textPosition
-  const defaults = SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
-  const defaultX = SAFE_ZONE.x
-
-  const resolvedHookX = hookPos?.x ?? defaultX
-  const resolvedHookY = hookPos?.y ?? defaults.hookY
-  const resolvedBodyX = bodyPos?.x ?? defaultX
-  const resolvedBodyY = bodyPos?.y ?? defaults.bodyY
-
-  // Bold/italic overrides
-  const hookFontWeight = overrides.hook_font_weight ?? 900
-  const bodyFontWeight = overrides.body_font_weight ?? 400
-  const hookFontStyleOverride = overrides.hook_font_style ?? (template.hookStyle === 'italic' ? 'italic' : undefined)
-  const bodyFontStyleOverride = overrides.body_font_style ?? undefined
+  const overlayOpacity = styles.overlayOpacity
 
   // Track container width to compute scale factor
   const [containerWidth, setContainerWidth] = useState(0)
@@ -98,7 +67,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
     width: REF_WIDTH,
     height: REF_HEIGHT,
     fontFamily: template.fontFamily,
-    color: textColor,
+    color: styles.textColor,
     backgroundColor: template.backgroundColor,
     backgroundImage: slide.background_url ? `url(${slide.background_url})` : undefined,
     backgroundSize: 'cover',
@@ -111,18 +80,20 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   }
 
   // Text width: symmetric margin
-  const textWidth = 100 - resolvedHookX * 2
+  const textWidth = styles.hookWidth
 
   const hookTextStyle: React.CSSProperties = {
-    fontSize: `${hookFontSize}px`,
-    fontWeight: hookFontWeight,
-    textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
-    fontStyle: hookFontStyleOverride,
+    fontSize: `${styles.hookFontSize}px`,
+    fontFamily: styles.hookFontFamily,
+    fontWeight: styles.hookFontWeight,
+    textTransform: styles.hookTextTransform === 'uppercase' ? 'uppercase' : undefined,
+    fontStyle: styles.hookFontStyle,
   }
   const bodyTextStyle: React.CSSProperties = {
-    fontSize: `${bodyFontSize}px`,
-    fontWeight: bodyFontWeight,
-    fontStyle: bodyFontStyleOverride,
+    fontSize: `${styles.bodyFontSize}px`,
+    fontFamily: styles.bodyFontFamily,
+    fontWeight: styles.bodyFontWeight,
+    fontStyle: styles.bodyFontStyle,
   }
 
   // Don't render content until we have a valid scale
@@ -156,24 +127,24 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
           {/* Hook text */}
           <div style={{
             position: 'absolute',
-            left: `${resolvedHookX}%`,
-            top: `${resolvedHookY}%`,
+            left: `${styles.hookX}%`,
+            top: `${styles.hookY}%`,
             width: `${textWidth}%`,
             zIndex: 10,
-            textAlign,
+            textAlign: styles.textAlign,
           }}>
-            <p className="font-black" style={{ ...hookTextStyle, lineHeight: 1.1 }}>{slide.hook_text}</p>
+            <p style={{ ...hookTextStyle, lineHeight: 1.1 }}>{slide.hook_text}</p>
           </div>
 
           {/* Body text */}
           {slide.body_text && (
             <div style={{
               position: 'absolute',
-              left: `${resolvedBodyX}%`,
-              top: `${resolvedBodyY}%`,
-              width: `${textWidth}%`,
+              left: `${styles.bodyX}%`,
+              top: `${styles.bodyY}%`,
+              width: `${styles.bodyWidth}%`,
               zIndex: 10,
-              textAlign,
+              textAlign: styles.textAlign,
             }}>
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5 }}>{slide.body_text}</p>
             </div>
@@ -203,8 +174,8 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   }
 
   // Editable mode with draggable text boxes
-  const hookPixels = toRefPixels(resolvedHookX, resolvedHookY)
-  const bodyPixels = toRefPixels(resolvedBodyX, resolvedBodyY)
+  const hookPixels = toRefPixels(styles.hookX, styles.hookY)
+  const bodyPixels = toRefPixels(styles.bodyX, styles.bodyY)
 
   const textBoxStyle: React.CSSProperties = {
     position: 'absolute',
@@ -212,7 +183,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
     cursor: 'grab',
     padding: '4px 8px',
     borderRadius: '4px',
-    textAlign,
+    textAlign: styles.textAlign,
     zIndex: 10,
   }
 
@@ -244,7 +215,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             style={textBoxStyle}
             className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
           >
-            <p className="font-black" style={{ ...hookTextStyle, lineHeight: 1.1 }}>
+            <p style={{ ...hookTextStyle, lineHeight: 1.1 }}>
               {slide.hook_text}
             </p>
           </div>
