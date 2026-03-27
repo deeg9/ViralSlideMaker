@@ -44,16 +44,19 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
         <div className="flex gap-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
           <button
-            onClick={() =>
+            onClick={() => {
+              // Hook default is 900 (extra-bold). Bold toggle: 900 ↔ 400
+              const currentWeight = overrides.hook_font_weight ?? 900
+              const isBold = currentWeight >= 700
               onUpdate({
                 style_overrides: {
                   ...overrides,
-                  hook_font_weight: overrides.hook_font_weight === 700 ? undefined : 700,
+                  hook_font_weight: isBold ? 400 : 900,
                 },
               })
-            }
+            }}
             className={`p-2 rounded-lg transition-all ${
-              overrides.hook_font_weight === 700
+              (overrides.hook_font_weight ?? 900) >= 700
                 ? 'bg-[#3d0000] text-white'
                 : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
             }`}
@@ -103,16 +106,19 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
         <div className="flex gap-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
           <button
-            onClick={() =>
+            onClick={() => {
+              // Body default is 400 (normal). Bold toggle: 400 ↔ 700
+              const currentWeight = overrides.body_font_weight ?? 400
+              const isBold = currentWeight >= 700
               onUpdate({
                 style_overrides: {
                   ...overrides,
-                  body_font_weight: overrides.body_font_weight === 700 ? undefined : 700,
+                  body_font_weight: isBold ? 400 : 700,
                 },
               })
-            }
+            }}
             className={`p-2 rounded-lg transition-all ${
-              overrides.body_font_weight === 700
+              (overrides.body_font_weight ?? 400) >= 700
                 ? 'bg-[#3d0000] text-white'
                 : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
             }`}
@@ -167,35 +173,72 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
         />
       </div>
 
-      {/* Text Color Swatches */}
+      {/* Hook Text Color */}
       <div className="space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Text Color</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Hook Color</span>
         <div className="flex gap-3">
           {colorSwatches.map((color) => (
             <button
               key={color}
               onClick={() =>
                 onUpdate({
-                  style_overrides: { ...overrides, text_color: color },
+                  style_overrides: { ...overrides, hook_text_color: color },
                 })
               }
-              className={`w-8 h-8 rounded-full ${
-                (overrides.text_color ?? template.textColor) === color
-                  ? 'ring-2 ring-[#3d0000] ring-offset-2'
+              className={`w-6 h-6 rounded-full ${
+                (overrides.hook_text_color ?? overrides.text_color ?? template.textColor) === color
+                  ? 'ring-2 ring-[#3d0000] ring-offset-1'
                   : ''
               }`}
               style={{ backgroundColor: color, border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined }}
               title={color}
             />
           ))}
-          <label className="w-8 h-8 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
+          <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
             <Icon name="palette" size="sm" className="text-[#7d6161]" />
             <input
               type="color"
-              value={overrides.text_color ?? template.textColor}
+              value={overrides.hook_text_color ?? overrides.text_color ?? template.textColor}
               onChange={(e) =>
                 onUpdate({
-                  style_overrides: { ...overrides, text_color: e.target.value },
+                  style_overrides: { ...overrides, hook_text_color: e.target.value },
+                })
+              }
+              className="sr-only"
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Body Text Color */}
+      <div className="space-y-3">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Body Color</span>
+        <div className="flex gap-3">
+          {colorSwatches.map((color) => (
+            <button
+              key={color}
+              onClick={() =>
+                onUpdate({
+                  style_overrides: { ...overrides, body_text_color: color },
+                })
+              }
+              className={`w-6 h-6 rounded-full ${
+                (overrides.body_text_color ?? overrides.text_color ?? template.textColor) === color
+                  ? 'ring-2 ring-[#3d0000] ring-offset-1'
+                  : ''
+              }`}
+              style={{ backgroundColor: color, border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined }}
+              title={color}
+            />
+          ))}
+          <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
+            <Icon name="palette" size="sm" className="text-[#7d6161]" />
+            <input
+              type="color"
+              value={overrides.body_text_color ?? overrides.text_color ?? template.textColor}
+              onChange={(e) =>
+                onUpdate({
+                  style_overrides: { ...overrides, body_text_color: e.target.value },
                 })
               }
               className="sr-only"

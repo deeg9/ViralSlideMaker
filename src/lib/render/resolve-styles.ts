@@ -12,6 +12,8 @@ const SAFE = {
 
 export interface ResolvedSlideStyles {
   textColor: string
+  hookTextColor: string
+  bodyTextColor: string
   textAlign: 'left' | 'center' | 'right'
   hookFontSize: number
   bodyFontSize: number
@@ -37,6 +39,8 @@ export function resolveSlideStyles(
   const overrides = slide.style_overrides ?? {}
 
   const textColor = overrides.text_color ?? template.textColor
+  const hookTextColor = overrides.hook_text_color ?? textColor
+  const bodyTextColor = overrides.body_text_color ?? textColor
   const textAlign = overrides.text_align ?? template.textAlign
   const hookFontSize = overrides.hook_font_size ?? (parseInt(template.hookFontSize, 10) || 64)
   const bodyFontSize = overrides.body_font_size ?? (parseInt(template.bodyFontSize, 10) || 32)
@@ -76,6 +80,8 @@ export function resolveSlideStyles(
 
   return {
     textColor,
+    hookTextColor,
+    bodyTextColor,
     textAlign,
     hookFontSize,
     bodyFontSize,

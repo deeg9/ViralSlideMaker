@@ -7,6 +7,8 @@ export interface SlideStyleOverrides {
   hook_font_size?: number
   body_font_size?: number
   text_color?: string
+  hook_text_color?: string
+  body_text_color?: string
   text_position?: 'top' | 'center' | 'bottom'
   text_align?: 'left' | 'center' | 'right'
   hook_position?: TextPosition

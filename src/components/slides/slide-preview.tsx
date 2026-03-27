@@ -46,6 +46,8 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   const overrides = slide.style_overrides ?? {}
 
   const textColor = overrides.text_color ?? template.textColor
+  const hookTextColor = overrides.hook_text_color ?? textColor
+  const bodyTextColor = overrides.body_text_color ?? textColor
   const textAlign = overrides.text_align ?? template.textAlign
   const hookFontSize = overrides.hook_font_size ?? parseInt(template.hookFontSize)
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
@@ -104,12 +106,14 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
     fontWeight: hookFontWeight,
     fontStyle: hookFontStyle === 'italic' ? 'italic' : (template.hookStyle === 'italic' ? 'italic' : undefined),
     textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
+    color: hookTextColor,
   }
   const bodyTextStyle: React.CSSProperties = {
     fontSize: `${bodyFontSize}px`,
     fontFamily: bodyFontFamily,
     fontWeight: bodyFontWeight,
     fontStyle: bodyFontStyle === 'italic' ? 'italic' : undefined,
+    color: bodyTextColor,
   }
 
   // Background style (shared)
