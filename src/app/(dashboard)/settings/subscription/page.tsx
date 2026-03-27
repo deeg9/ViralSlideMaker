@@ -16,7 +16,7 @@ const plans = [
     price: '$0',
     period: '/mo',
     features: [
-      '10 credits/month',
+      '3 credits/month',
       'Basic templates',
       'Stock images',
       'Standard quality exports',
@@ -234,6 +234,41 @@ export default async function SubscriptionPage({
               Buy Credits
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* How Credits Work */}
+      <div className="bg-[#fff8f7] rounded-xl p-6 border border-[#dbc1bc]/10 mb-8">
+        <h3 className="text-lg font-semibold text-[#3d0000] mb-4">How Credits Work</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="flex items-start gap-3">
+            <Icon name="bolt" size="sm" className="text-[#3d0000] mt-0.5" />
+            <div>
+              <p className="font-semibold text-[#3d0000]">1 credit = 1 carousel</p>
+              <p className="text-[#7d6161]">Generate a full carousel with any number of slides using stock photos.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Icon name="auto_awesome" size="sm" className="text-[#3d0000] mt-0.5" />
+            <div>
+              <p className="font-semibold text-[#3d0000]">3 credits = 1 AI image</p>
+              <p className="text-[#7d6161]">AI-generated background images cost 3 credits each.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Icon name="refresh" size="sm" className="text-[#3d0000] mt-0.5" />
+            <div>
+              <p className="font-semibold text-[#3d0000]">Free: text &amp; stock image regen</p>
+              <p className="text-[#7d6161]">Rewriting text and swapping stock photos costs nothing.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Icon name="calendar_month" size="sm" className="text-[#3d0000] mt-0.5" />
+            <div>
+              <p className="font-semibold text-[#3d0000]">Credits refresh monthly</p>
+              <p className="text-[#7d6161]">Your plan credits reset at the start of each billing cycle.</p>
+            </div>
+          </div>
         </div>
       </div>
 
