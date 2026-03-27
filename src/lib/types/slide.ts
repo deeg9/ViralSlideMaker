@@ -6,18 +6,14 @@ export interface TextPosition {
 export interface SlideStyleOverrides {
   hook_font_size?: number
   body_font_size?: number
-  hook_font_weight?: number
-  body_font_weight?: number
-  hook_font_style?: 'normal' | 'italic'
-  body_font_style?: 'normal' | 'italic'
   text_color?: string
   text_position?: 'top' | 'center' | 'bottom'
   text_align?: 'left' | 'center' | 'right'
   hook_position?: TextPosition
   body_position?: TextPosition
   overlay_opacity?: number  // 0-100, overrides template overlayOpacity
-  hook_font_family?: string  // Google Fonts family name, e.g. "Playfair Display"
-  body_font_family?: string  // Google Fonts family name, e.g. "Montserrat"
+  hook_width?: number   // percentage 0-100, overrides symmetric width calc
+  body_width?: number   // percentage 0-100, overrides symmetric width calc
 }
 
 export interface Slide {
