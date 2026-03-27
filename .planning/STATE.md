@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Rich Text Editing
-status: Ready to plan
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-27T00:35:19.344Z"
+status: Executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-27T00:48:42Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 11 — Bold & Italic
+**Current focus:** Phase 12 — Font Picker & Google Fonts
 
 ## Current Position
 
 Phase: 12
-Plan: Not started
+Plan: 01 complete, 02 pending
 
 ## Performance Metrics
 
@@ -50,6 +50,8 @@ Recent decisions affecting current work:
 - [Phase 10]: Font buffers cached in-memory via Map to avoid re-fetching per render request
 - [Phase 11]: Bold toggle sets font-weight 700; hook default stays 900 (template extra bold)
 - [Phase 11]: Italic toggle sets font-style italic; undefined reverts to template default
+- [Phase 12]: Font catalog uses exact Google Fonts variant data to load only available weight/style combos
+- [Phase 12]: Display fonts map to sans-serif fallback, handwriting to cursive for CSS generic family
 
 ### Pending Todos
 
@@ -69,9 +71,10 @@ None yet.
 | 260326-kzh | Fix Stripe integration crashes on subscription page | 2026-03-26 | 442fd98 | [260326-kzh-fix-stripe-integration-crashes-on-subscr](./quick/260326-kzh-fix-stripe-integration-crashes-on-subscr/) |
 | Phase 10 P01 | 6min | 2 tasks | 7 files |
 | Phase 11 P01 | 291 | 2 tasks | 8 files |
+| Phase 12 P01 | 4min | 2 tasks | 7 files |
 
 ## Session Continuity
 
 Last activity: 2026-03-27
-Stopped at: Completed 11-01-PLAN.md
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None

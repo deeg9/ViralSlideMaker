@@ -22,8 +22,8 @@ Requirements for Rich Text Editing milestone.
 
 - [ ] **FONT-01**: User can select a font from a curated list of Google Fonts for each text box
 - [ ] **FONT-02**: Font picker shows a live preview of each font in the dropdown
-- [ ] **FONT-03**: Selected fonts render correctly in both browser preview and PNG export (Satori)
-- [ ] **FONT-04**: Server-side font loading caches TTF files to avoid re-fetching on every export
+- [x] **FONT-03**: Selected fonts render correctly in both browser preview and PNG export (Satori)
+- [x] **FONT-04**: Server-side font loading caches TTF files to avoid re-fetching on every export
 
 ### Text Box Sizing
 
@@ -90,8 +90,8 @@ Requirements for Rich Text Editing milestone.
 | STYLE-03 | Phase 11 | Complete |
 | FONT-01 | Phase 12 | Pending |
 | FONT-02 | Phase 12 | Pending |
-| FONT-03 | Phase 12 | Pending |
-| FONT-04 | Phase 12 | Pending |
+| FONT-03 | Phase 12 | Complete |
+| FONT-04 | Phase 12 | Complete |
 | RESIZE-01 | Phase 13 | Pending |
 | RESIZE-02 | Phase 13 | Pending |
 | RESIZE-03 | Phase 13 | Pending |

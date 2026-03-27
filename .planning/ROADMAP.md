@@ -276,6 +276,6 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 9. Production Deployment | v1.2 | 0/0 | Not started | - |
 | 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
 | 11. Bold & Italic | v1.3 | 0/1 | Complete    | 2026-03-27 |
-| 12. Font Picker & Google Fonts | v1.3 | 0/2 | Not started | - |
+| 12. Font Picker & Google Fonts | v1.3 | 1/2 | In progress | - |
 | 13. Resizable Text Boxes | v1.3 | 0/0 | Not started | - |
 | 14. Alignment Snap Guides | v1.3 | 0/0 | Not started | - |
