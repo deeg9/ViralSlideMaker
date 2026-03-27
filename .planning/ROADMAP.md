@@ -244,8 +244,11 @@ Plans:
   1. User can drag corner or edge handles on a text box to change its width
   2. Resized text box dimensions persist after saving and reloading the project
   3. Exported PNG renders the text box at the exact dimensions the user set in the editor
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
+
+Plans:
+- [ ] 13-01-PLAN.md -- Data model width fields, resolve-styles override support, replace react-draggable with react-rnd for drag+resize
 
 ### Phase 14: Alignment Snap Guides
 **Goal**: Users get visual alignment feedback when positioning text boxes, making professional-looking layouts easy
@@ -277,5 +280,5 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
 | 11. Bold & Italic | v1.3 | 0/1 | Complete    | 2026-03-27 |
 | 12. Font Picker & Google Fonts | v1.3 | 1/2 | Complete    | 2026-03-27 |
-| 13. Resizable Text Boxes | v1.3 | 0/0 | Not started | - |
+| 13. Resizable Text Boxes | v1.3 | 0/1 | Not started | - |
 | 14. Alignment Snap Guides | v1.3 | 0/0 | Not started | - |
