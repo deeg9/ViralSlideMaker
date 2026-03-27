@@ -20,7 +20,7 @@ export function getFontLink(fontFamily: string): string {
   const match = fontFamily.match(/'([^']+)'/)
   const fontName = match ? match[1] : 'Inter'
   const encoded = fontName.replace(/\s+/g, '+')
-  return `<link href="https://fonts.googleapis.com/css2?family=${encoded}:wght@400;700;900&display=swap" rel="stylesheet">`
+  return `<link href="https://fonts.googleapis.com/css2?family=${encoded}:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap" rel="stylesheet">`
 }
 
 export function buildSlideHtml(
@@ -55,6 +55,12 @@ export function buildSlideHtml(
   // Width is symmetric: same margin on both sides
   const textWidth = 100 - hookX * 2
 
+  // Bold/italic overrides
+  const hookFontWeight = overrides.hook_font_weight ?? 900
+  const bodyFontWeight = overrides.body_font_weight ?? 400
+  const hookFontStyle = overrides.hook_font_style ?? (template.hookStyle === 'italic' ? 'italic' : 'normal')
+  const bodyFontStyle = overrides.body_font_style ?? 'normal'
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -85,10 +91,10 @@ export function buildSlideHtml(
       text-align: ${textAlign};
       z-index: 1;
       font-size: ${hookFontSize};
-      font-weight: 900;
+      font-weight: ${hookFontWeight};
       line-height: 1.1;
       ${template.hookStyle === 'uppercase' ? 'text-transform: uppercase;' : ''}
-      ${template.hookStyle === 'italic' ? 'font-style: italic;' : ''}
+      font-style: ${hookFontStyle};
     }
     .body {
       position: absolute;
@@ -98,7 +104,8 @@ export function buildSlideHtml(
       text-align: ${textAlign};
       z-index: 1;
       font-size: ${bodyFontSize};
-      font-weight: 400;
+      font-weight: ${bodyFontWeight};
+      font-style: ${bodyFontStyle};
       line-height: 1.5;
       opacity: 0.9;
     }

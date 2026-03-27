@@ -55,6 +55,12 @@ export function buildSlideElement(
     ? overrides.overlay_opacity / 100
     : template.overlayOpacity
 
+  // Bold/italic overrides
+  const hookFontWeight = overrides.hook_font_weight ?? 900
+  const bodyFontWeight = overrides.body_font_weight ?? 400
+  const hookFontStyle = overrides.hook_font_style ?? (template.hookStyle === 'italic' ? 'italic' : 'normal')
+  const bodyFontStyle = overrides.body_font_style ?? 'normal'
+
   const hookX = overrides.hook_position?.x ?? defaultX
   const hookY = overrides.hook_position?.y ?? defaults.hookY
   const bodyX = overrides.body_position?.x ?? defaultX
@@ -90,15 +96,13 @@ export function buildSlideElement(
     width: textWidth,
     textAlign,
     fontSize: hookFontSize,
-    fontWeight: 900,
+    fontWeight: hookFontWeight,
+    fontStyle: hookFontStyle,
     lineHeight: 1.1,
   }
 
   if (template.hookStyle === 'uppercase') {
     hookStyle.textTransform = 'uppercase'
-  }
-  if (template.hookStyle === 'italic') {
-    hookStyle.fontStyle = 'italic'
   }
 
   // Body text style
@@ -109,7 +113,8 @@ export function buildSlideElement(
     width: textWidth,
     textAlign,
     fontSize: bodyFontSize,
-    fontWeight: 400,
+    fontWeight: bodyFontWeight,
+    fontStyle: bodyFontStyle,
     lineHeight: 1.5,
     opacity: 0.9,
   }

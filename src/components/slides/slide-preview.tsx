@@ -53,6 +53,12 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   const resolvedBodyX = bodyPos?.x ?? defaultX
   const resolvedBodyY = bodyPos?.y ?? defaults.bodyY
 
+  // Bold/italic overrides
+  const hookFontWeight = overrides.hook_font_weight ?? 900
+  const bodyFontWeight = overrides.body_font_weight ?? 400
+  const hookFontStyleOverride = overrides.hook_font_style ?? (template.hookStyle === 'italic' ? 'italic' : undefined)
+  const bodyFontStyleOverride = overrides.body_font_style ?? undefined
+
   // Track container width to compute scale factor
   const [containerWidth, setContainerWidth] = useState(0)
 
@@ -109,11 +115,14 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
 
   const hookTextStyle: React.CSSProperties = {
     fontSize: `${hookFontSize}px`,
+    fontWeight: hookFontWeight,
     textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
-    fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined,
+    fontStyle: hookFontStyleOverride,
   }
   const bodyTextStyle: React.CSSProperties = {
     fontSize: `${bodyFontSize}px`,
+    fontWeight: bodyFontWeight,
+    fontStyle: bodyFontStyleOverride,
   }
 
   // Don't render content until we have a valid scale
