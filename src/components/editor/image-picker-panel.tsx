@@ -16,8 +16,8 @@ interface ImagePickerPanelProps {
   topic: string
   userTier: 'free' | 'pro' | 'plus'
   onUpdate: (updates: Partial<Slide>) => void
-  onRegenerateText: () => void | Promise<void>
-  onRegenerateImage: () => void | Promise<void>
+  onRegenerateText: (customPrompt?: string) => void | Promise<void>
+  onRegenerateImage: (customPrompt?: string) => void | Promise<void>
 }
 
 interface PexelsPhoto {
@@ -44,6 +44,8 @@ export function ImagePickerPanel({
   const [uploading, setUploading] = useState(false)
   const [regeneratingText, setRegeneratingText] = useState(false)
   const [regeneratingImage, setRegeneratingImage] = useState(false)
+  const [textPrompt, setTextPrompt] = useState('')
+  const [imagePrompt, setImagePrompt] = useState('')
 
   async function handleSearch() {
     if (!query.trim()) return
@@ -83,12 +85,12 @@ export function ImagePickerPanel({
 
   async function handleRegenText() {
     setRegeneratingText(true)
-    try { await onRegenerateText() } finally { setRegeneratingText(false) }
+    try { await onRegenerateText(textPrompt || undefined); setTextPrompt('') } finally { setRegeneratingText(false) }
   }
 
   async function handleRegenImage() {
     setRegeneratingImage(true)
-    try { await onRegenerateImage() } finally { setRegeneratingImage(false) }
+    try { await onRegenerateImage(imagePrompt || undefined); setImagePrompt('') } finally { setRegeneratingImage(false) }
   }
 
   return (
@@ -96,23 +98,43 @@ export function ImagePickerPanel({
       {/* AI Regenerate */}
       <div className="space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] block">AI Regenerate</span>
-        <div className="flex gap-2">
-          <button
-            onClick={handleRegenText}
-            disabled={regeneratingText}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
-          >
-            <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
-            Text
-          </button>
-          <button
-            onClick={handleRegenImage}
-            disabled={regeneratingImage}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
-          >
-            <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
-            Image
-          </button>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <button
+              onClick={handleRegenText}
+              disabled={regeneratingText}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            >
+              <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
+              Text
+            </button>
+            <input
+              type="text"
+              value={textPrompt}
+              onChange={(e) => setTextPrompt(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleRegenText()}
+              placeholder="e.g. make it more casual..."
+              className="w-full text-xs rounded-lg border border-[#dbc1bc]/30 bg-white px-3 py-1.5 text-[#3d0000] placeholder:text-[#dbc1bc] focus:border-[#3d0000] focus:ring-0"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <button
+              onClick={handleRegenImage}
+              disabled={regeneratingImage}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            >
+              <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
+              Image
+            </button>
+            <input
+              type="text"
+              value={imagePrompt}
+              onChange={(e) => setImagePrompt(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleRegenImage()}
+              placeholder="e.g. neon city lights..."
+              className="w-full text-xs rounded-lg border border-[#dbc1bc]/30 bg-white px-3 py-1.5 text-[#3d0000] placeholder:text-[#dbc1bc] focus:border-[#3d0000] focus:ring-0"
+            />
+          </div>
         </div>
       </div>
 

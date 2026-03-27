@@ -58,15 +58,17 @@ export async function regenerateSlideText(
   projectId: string,
   slideIndex: number,
   topic: string,
-  currentSlide: Slide
+  currentSlide: Slide,
+  customPrompt?: string
 ): Promise<{ hook_text: string; body_text: string }> {
+  const userInstruction = customPrompt ? `\nUser instruction: "${customPrompt}"` : ''
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: `Generate a fresh alternative hook_text and body_text for slide ${slideIndex + 1} of a TikTok carousel about "${topic}".
 Current hook: "${currentSlide.hook_text}"
 Current body: "${currentSlide.body_text}"
 ${currentSlide.is_cta ? 'This is the closing CTA slide.' : ''}
-Provide completely different text that is equally engaging.`,
+Provide completely different text that is equally engaging.${userInstruction}`,
     config: {
       responseMimeType: 'application/json',
       responseSchema: {
@@ -87,14 +89,16 @@ Provide completely different text that is equally engaging.`,
 
 export async function regenerateSlideImageQuery(
   topic: string,
-  currentSlide: Slide
+  currentSlide: Slide,
+  customPrompt?: string
 ): Promise<{ image_query: string; background_url: string | null; pexels_photo_id: number | null }> {
+  const userInstruction = customPrompt ? `\nUser instruction for the image: "${customPrompt}"` : ''
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: `Generate a new Pexels image search query for a TikTok carousel slide about "${topic}".
 Current image query: "${currentSlide.image_query}"
 Current hook: "${currentSlide.hook_text}"
-Provide a different, specific search query that would find a great background photo.`,
+Provide a different, specific search query that would find a great background photo.${userInstruction}`,
     config: {
       responseMimeType: 'application/json',
       responseSchema: {

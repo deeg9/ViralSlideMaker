@@ -149,10 +149,10 @@ export function SlideEditor({
     setSelectedCustomTextId(null)
   }
 
-  async function handleRegenerateText() {
+  async function handleRegenerateText(customPrompt?: string) {
     if (!currentSlide) return
     try {
-      const result = await regenerateSlideText(projectId, selectedIndex, topic, currentSlide)
+      const result = await regenerateSlideText(projectId, selectedIndex, topic, currentSlide, customPrompt)
       dispatch({
         type: 'UPDATE_SLIDE',
         index: selectedIndex,
@@ -161,10 +161,10 @@ export function SlideEditor({
     } catch { /* silently handle */ }
   }
 
-  async function handleRegenerateImage() {
+  async function handleRegenerateImage(customPrompt?: string) {
     if (!currentSlide) return
     try {
-      const result = await regenerateSlideImageQuery(topic, currentSlide)
+      const result = await regenerateSlideImageQuery(topic, currentSlide, customPrompt)
       dispatch({
         type: 'UPDATE_SLIDE',
         index: selectedIndex,
