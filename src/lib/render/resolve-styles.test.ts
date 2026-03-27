@@ -105,4 +105,62 @@ describe('resolveSlideStyles', () => {
     expect(styles.hookTextTransform).toBe('uppercase')
     expect(styles.hookFontStyle).toBe('normal')
   })
+
+  // Bold/Italic override tests
+  it('returns hookFontWeight=700 when slide has hook_font_weight=700 override', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: { hook_font_weight: 700 },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.hookFontWeight).toBe(700)
+  })
+
+  it('returns hookFontWeight=900 (default) when no hook_font_weight override', () => {
+    const styles = resolveSlideStyles(baseSlide, baseTemplate)
+    expect(styles.hookFontWeight).toBe(900)
+  })
+
+  it('returns bodyFontWeight=700 when slide has body_font_weight=700 override', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: { body_font_weight: 700 },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.bodyFontWeight).toBe(700)
+  })
+
+  it('returns bodyFontWeight=400 (default) when no body_font_weight override', () => {
+    const styles = resolveSlideStyles(baseSlide, baseTemplate)
+    expect(styles.bodyFontWeight).toBe(400)
+  })
+
+  it('returns hookFontStyle=italic when slide has hook_font_style=italic override', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: { hook_font_style: 'italic' },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.hookFontStyle).toBe('italic')
+  })
+
+  it('returns hookFontStyle from template.hookStyle when no hook_font_style override', () => {
+    const template: SlideTemplate = { ...baseTemplate, hookStyle: 'italic' }
+    const styles = resolveSlideStyles(baseSlide, template)
+    expect(styles.hookFontStyle).toBe('italic')
+  })
+
+  it('returns bodyFontStyle=italic when slide has body_font_style=italic override', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: { body_font_style: 'italic' },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.bodyFontStyle).toBe('italic')
+  })
+
+  it('returns bodyFontStyle=normal (default) when no body_font_style override', () => {
+    const styles = resolveSlideStyles(baseSlide, baseTemplate)
+    expect(styles.bodyFontStyle).toBe('normal')
+  })
 })

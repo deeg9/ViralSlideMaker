@@ -55,13 +55,13 @@ export function resolveSlideStyles(slide: Slide, template: SlideTemplate): Resol
   const hookFontFamily = template.fontFamily
   const bodyFontFamily = template.fontFamily
 
-  const hookFontWeight = 900
-  const bodyFontWeight = 400
+  const hookFontWeight = overrides.hook_font_weight ?? 900
+  const bodyFontWeight = overrides.body_font_weight ?? 400
 
-  const hookFontStyle: 'normal' | 'italic' = template.hookStyle === 'italic' ? 'italic' : 'normal'
+  const hookFontStyle: 'normal' | 'italic' = overrides.hook_font_style ?? (template.hookStyle === 'italic' ? 'italic' : 'normal')
   const hookTextTransform: 'uppercase' | 'none' = template.hookStyle === 'uppercase' ? 'uppercase' : 'none'
 
-  const bodyFontStyle: 'normal' | 'italic' = 'normal'
+  const bodyFontStyle: 'normal' | 'italic' = overrides.body_font_style ?? 'normal'
 
   // Resolve positions from preset + overrides
   const posPreset = overrides.text_position ?? template.textPosition

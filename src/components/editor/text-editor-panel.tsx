@@ -32,6 +32,46 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
             <Icon name="auto_awesome" size="sm" />
           </button>
         </div>
+        {/* Hook Style: Bold / Italic */}
+        <div className="flex gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
+          <button
+            onClick={() =>
+              onUpdate({
+                style_overrides: {
+                  ...overrides,
+                  hook_font_weight: overrides.hook_font_weight === 700 ? undefined : 700,
+                },
+              })
+            }
+            className={`p-2 rounded-lg transition-all ${
+              overrides.hook_font_weight === 700
+                ? 'bg-[#3d0000] text-white'
+                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+            }`}
+            title="Bold"
+          >
+            <Icon name="format_bold" size="sm" />
+          </button>
+          <button
+            onClick={() =>
+              onUpdate({
+                style_overrides: {
+                  ...overrides,
+                  hook_font_style: overrides.hook_font_style === 'italic' ? undefined : 'italic',
+                },
+              })
+            }
+            className={`p-2 rounded-lg transition-all ${
+              overrides.hook_font_style === 'italic'
+                ? 'bg-[#3d0000] text-white'
+                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+            }`}
+            title="Italic"
+          >
+            <Icon name="format_italic" size="sm" />
+          </button>
+        </div>
       </div>
 
       {/* Body Text */}
@@ -44,6 +84,46 @@ export function TextEditorPanel({ slide, template, onUpdate }: TextEditorPanelPr
           className="w-full bg-white border-none border-b border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
           placeholder="Enter details..."
         />
+        {/* Body Style: Bold / Italic */}
+        <div className="flex gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
+          <button
+            onClick={() =>
+              onUpdate({
+                style_overrides: {
+                  ...overrides,
+                  body_font_weight: overrides.body_font_weight === 700 ? undefined : 700,
+                },
+              })
+            }
+            className={`p-2 rounded-lg transition-all ${
+              overrides.body_font_weight === 700
+                ? 'bg-[#3d0000] text-white'
+                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+            }`}
+            title="Bold"
+          >
+            <Icon name="format_bold" size="sm" />
+          </button>
+          <button
+            onClick={() =>
+              onUpdate({
+                style_overrides: {
+                  ...overrides,
+                  body_font_style: overrides.body_font_style === 'italic' ? undefined : 'italic',
+                },
+              })
+            }
+            className={`p-2 rounded-lg transition-all ${
+              overrides.body_font_style === 'italic'
+                ? 'bg-[#3d0000] text-white'
+                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+            }`}
+            title="Italic"
+          >
+            <Icon name="format_italic" size="sm" />
+          </button>
+        </div>
       </div>
 
       {/* Font Size */}

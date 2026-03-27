@@ -1,7 +1,15 @@
 import type { SlideTemplate } from './templates'
 import type { Slide } from '../types/slide'
-import { resolveSlideStyles } from './resolve-styles'
 import React from 'react'
+
+// TikTok/Instagram safe zones on 1080x1920 canvas
+// Same constants as render-slide.ts for consistency
+const SAFE = {
+  x: 11, // percentage from left
+  top: { hookY: 12, bodyY: 30 },
+  center: { hookY: 30, bodyY: 48 },
+  bottom: { hookY: 48, bodyY: 62 },
+}
 
 const W = 1080
 const H = 1920
@@ -27,7 +35,39 @@ export function buildSlideElement(
   slide: Slide,
   template: SlideTemplate
 ): React.ReactElement {
-  const styles = resolveSlideStyles(slide, template)
+  const overrides = slide.style_overrides ?? {}
+
+  const textColor = overrides.text_color ?? template.textColor
+  const textAlign = overrides.text_align ?? template.textAlign
+  const hookFontSize = overrides.hook_font_size
+    ? overrides.hook_font_size
+    : parseInt(template.hookFontSize, 10) || 64
+  const bodyFontSize = overrides.body_font_size
+    ? overrides.body_font_size
+    : parseInt(template.bodyFontSize, 10) || 32
+
+  // Resolve text positions using safe-zone defaults
+  const posPreset = overrides.text_position ?? template.textPosition
+  const defaults = SAFE[posPreset] ?? SAFE.center
+  const defaultX = SAFE.x
+
+  const overlayOpacity = overrides.overlay_opacity != null
+    ? overrides.overlay_opacity / 100
+    : template.overlayOpacity
+
+  // Bold/italic overrides
+  const hookFontWeight = overrides.hook_font_weight ?? 900
+  const bodyFontWeight = overrides.body_font_weight ?? 400
+  const hookFontStyle = overrides.hook_font_style ?? (template.hookStyle === 'italic' ? 'italic' : 'normal')
+  const bodyFontStyle = overrides.body_font_style ?? 'normal'
+
+  const hookX = overrides.hook_position?.x ?? defaultX
+  const hookY = overrides.hook_position?.y ?? defaults.hookY
+  const bodyX = overrides.body_position?.x ?? defaultX
+  const bodyY = overrides.body_position?.y ?? defaults.bodyY
+
+  // Width is symmetric: same margin on both sides
+  const textWidth = pxX(100 - hookX * 2)
 
   // Root background style
   const rootStyle: React.CSSProperties = {
@@ -36,8 +76,8 @@ export function buildSlideElement(
     display: 'flex',
     position: 'relative',
     overflow: 'hidden',
-    fontFamily: styles.hookFontFamily,
-    color: styles.textColor,
+    fontFamily: template.fontFamily,
+    color: textColor,
   }
 
   if (slide.background_url) {
@@ -51,27 +91,30 @@ export function buildSlideElement(
   // Hook text style
   const hookStyle: React.CSSProperties = {
     position: 'absolute',
-    left: pxX(styles.hookX),
-    top: pxY(styles.hookY),
-    width: pxX(styles.hookWidth),
-    textAlign: styles.textAlign,
-    fontSize: styles.hookFontSize,
-    fontWeight: styles.hookFontWeight,
-    fontStyle: styles.hookFontStyle,
-    textTransform: styles.hookTextTransform === 'uppercase' ? 'uppercase' : undefined,
+    left: pxX(hookX),
+    top: pxY(hookY),
+    width: textWidth,
+    textAlign,
+    fontSize: hookFontSize,
+    fontWeight: hookFontWeight,
+    fontStyle: hookFontStyle,
     lineHeight: 1.1,
+  }
+
+  if (template.hookStyle === 'uppercase') {
+    hookStyle.textTransform = 'uppercase'
   }
 
   // Body text style
   const bodyStyle: React.CSSProperties = {
     position: 'absolute',
-    left: pxX(styles.bodyX),
-    top: pxY(styles.bodyY),
-    width: pxX(styles.bodyWidth),
-    textAlign: styles.textAlign,
-    fontSize: styles.bodyFontSize,
-    fontWeight: styles.bodyFontWeight,
-    fontStyle: styles.bodyFontStyle,
+    left: pxX(bodyX),
+    top: pxY(bodyY),
+    width: textWidth,
+    textAlign,
+    fontSize: bodyFontSize,
+    fontWeight: bodyFontWeight,
+    fontStyle: bodyFontStyle,
     lineHeight: 1.5,
     opacity: 0.9,
   }
@@ -87,7 +130,7 @@ export function buildSlideElement(
           right: 0,
           bottom: 0,
           backgroundColor: template.overlayColor,
-          opacity: styles.overlayOpacity,
+          opacity: overlayOpacity,
         }}
       />
       {/* Hook text */}

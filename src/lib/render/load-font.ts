@@ -70,6 +70,8 @@ export async function loadFontBuffers(
     { weight: 400, style: 'normal' },
     { weight: 700, style: 'normal' },
     { weight: 900, style: 'normal' },
+    { weight: 400, style: 'italic' },
+    { weight: 700, style: 'italic' },
   ]
 
   const results = await Promise.all(

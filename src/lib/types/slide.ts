@@ -6,6 +6,10 @@ export interface TextPosition {
 export interface SlideStyleOverrides {
   hook_font_size?: number
   body_font_size?: number
+  hook_font_weight?: number
+  body_font_weight?: number
+  hook_font_style?: 'normal' | 'italic'
+  body_font_style?: 'normal' | 'italic'
   text_color?: string
   text_position?: 'top' | 'center' | 'bottom'
   text_align?: 'left' | 'center' | 'right'
