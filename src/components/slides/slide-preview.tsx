@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { Rnd } from 'react-rnd'
-import type { Slide, TextPosition } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 
@@ -36,14 +36,29 @@ interface SlidePreviewProps {
   editable?: boolean
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
+  onCustomTextPositionChange?: (id: string, position: TextPosition) => void
+  onCustomTextWidthChange?: (id: string, width: number) => void
+  onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
+  onCustomTextSelect?: (id: string | null) => void
+  onCustomTextRemove?: (id: string) => void
+  selectedCustomTextId?: string | null
 }
 
-export function SlidePreview({ slide, template, index, editable, onPositionChange, onWidthChange }: SlidePreviewProps) {
+export function SlidePreview({
+  slide, template, index, editable,
+  onPositionChange, onWidthChange,
+  onCustomTextPositionChange, onCustomTextWidthChange,
+  onCustomTextUpdate, onCustomTextSelect, onCustomTextRemove,
+  selectedCustomTextId,
+}: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const customTextRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const { calculateSnap, activeGuides, clearGuides } = useAlignmentGuides()
   const overrides = slide.style_overrides ?? {}
+
+  const [editingCustomTextId, setEditingCustomTextId] = useState<string | null>(null)
 
   const textColor = overrides.text_color ?? template.textColor
   const hookTextColor = overrides.hook_text_color ?? textColor
@@ -100,6 +115,19 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
 
   const scale = containerWidth > 0 ? containerWidth / REF_WIDTH : 0
 
+  // Delete key handler for selected custom text
+  useEffect(() => {
+    if (!editable || !selectedCustomTextId || editingCustomTextId) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedCustomTextId) {
+        e.preventDefault()
+        onCustomTextRemove?.(selectedCustomTextId)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [editable, selectedCustomTextId, editingCustomTextId, onCustomTextRemove])
+
   const hookTextStyle: React.CSSProperties = {
     fontSize: `${hookFontSize}px`,
     fontFamily: hookFontFamily,
@@ -132,6 +160,47 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
     transform: `scale(${scale})`,
     transformOrigin: 'top left',
   }
+
+  // Helper: build "others" array for snap calculations including custom texts
+  const buildOthersForSnap = useCallback((excludeId: string): TextBox[] => {
+    const others: TextBox[] = []
+    if (excludeId !== 'hook') {
+      others.push({
+        id: 'hook',
+        x: (resolvedHookX / 100) * REF_WIDTH,
+        y: (resolvedHookY / 100) * REF_HEIGHT,
+        width: (hookWidth / 100) * REF_WIDTH,
+        height: hookRef.current?.getBoundingClientRect().height
+          ? hookRef.current.getBoundingClientRect().height / scale
+          : 200,
+      })
+    }
+    if (excludeId !== 'body' && slide.body_text) {
+      others.push({
+        id: 'body',
+        x: (resolvedBodyX / 100) * REF_WIDTH,
+        y: (resolvedBodyY / 100) * REF_HEIGHT,
+        width: (bodyWidth / 100) * REF_WIDTH,
+        height: bodyRef.current?.getBoundingClientRect().height
+          ? bodyRef.current.getBoundingClientRect().height / scale
+          : 200,
+      })
+    }
+    for (const ct of slide.custom_texts ?? []) {
+      if (ct.id === excludeId) continue
+      const ref = customTextRefs.current[ct.id]
+      others.push({
+        id: ct.id,
+        x: (ct.x / 100) * REF_WIDTH,
+        y: (ct.y / 100) * REF_HEIGHT,
+        width: (ct.width / 100) * REF_WIDTH,
+        height: ref?.getBoundingClientRect().height
+          ? ref.getBoundingClientRect().height / scale
+          : 100,
+      })
+    }
+    return others
+  }, [resolvedHookX, resolvedHookY, hookWidth, resolvedBodyX, resolvedBodyY, bodyWidth, slide.body_text, slide.custom_texts, scale])
 
   // Don't render content until we have a valid scale
   if (scale === 0) {
@@ -186,6 +255,29 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5 }}>{slide.body_text}</p>
             </div>
           )}
+
+          {/* Custom texts (non-editable) */}
+          {(slide.custom_texts ?? []).map((ct) => (
+            <div
+              key={ct.id}
+              style={{
+                position: 'absolute',
+                left: `${ct.x}%`,
+                top: `${ct.y}%`,
+                width: `${ct.width}%`,
+                zIndex: 10,
+                textAlign: ct.text_align ?? 'left',
+                fontSize: `${ct.font_size ?? 48}px`,
+                fontFamily: ct.font_family ?? template.fontFamily,
+                fontWeight: ct.font_weight ?? 400,
+                fontStyle: ct.font_style ?? 'normal',
+                color: ct.color ?? textColor,
+                lineHeight: 1.3,
+              }}
+            >
+              {ct.text}
+            </div>
+          ))}
 
           {/* Slide number badge */}
           <div style={{
@@ -245,7 +337,15 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
       data-testid="slide-preview"
       className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
     >
-      <div style={innerStyle}>
+      <div
+        style={innerStyle}
+        onClick={(e) => {
+          // Click on canvas background clears custom text selection
+          if (e.target === e.currentTarget) {
+            onCustomTextSelect?.(null)
+          }
+        }}
+      >
         {/* Overlay */}
         <div style={{
           position: 'absolute',
@@ -272,15 +372,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
                 ? hookRef.current.getBoundingClientRect().height / scale
                 : 200,
             }
-            const others: TextBox[] = slide.body_text ? [{
-              id: 'body',
-              x: bodyPixels.x,
-              y: bodyPixels.y,
-              width: bodyWidthPx,
-              height: bodyRef.current?.getBoundingClientRect().height
-                ? bodyRef.current.getBoundingClientRect().height / scale
-                : 200,
-            }] : []
+            const others = buildOthersForSnap('hook')
             const result = calculateSnap(dragging, others)
             data.x = result.snappedX
             data.y = result.snappedY
@@ -301,6 +393,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
               onPositionChange('hook', { x: percentX, y: percentY })
             }
           }}
+          onMouseDown={() => onCustomTextSelect?.(null)}
           style={{ zIndex: 10 }}
           className="hover:outline hover:outline-2 hover:outline-white/50"
         >
@@ -336,15 +429,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
                   ? bodyRef.current.getBoundingClientRect().height / scale
                   : 200,
               }
-              const others: TextBox[] = [{
-                id: 'hook',
-                x: hookPixels.x,
-                y: hookPixels.y,
-                width: hookWidthPx,
-                height: hookRef.current?.getBoundingClientRect().height
-                  ? hookRef.current.getBoundingClientRect().height / scale
-                  : 200,
-              }]
+              const others = buildOthersForSnap('body')
               const result = calculateSnap(dragging, others)
               data.x = result.snappedX
               data.y = result.snappedY
@@ -365,6 +450,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
                 onPositionChange('body', { x: percentX, y: percentY })
               }
             }}
+            onMouseDown={() => onCustomTextSelect?.(null)}
             style={{ zIndex: 10 }}
             className="hover:outline hover:outline-2 hover:outline-white/50"
           >
@@ -381,6 +467,100 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             </div>
           </Rnd>
         )}
+
+        {/* Custom text boxes */}
+        {(slide.custom_texts ?? []).map((ct) => {
+          const ctPixels = {
+            x: (ct.x / 100) * REF_WIDTH,
+            y: (ct.y / 100) * REF_HEIGHT,
+          }
+          const ctWidthPx = (ct.width / 100) * REF_WIDTH
+          const isSelected = selectedCustomTextId === ct.id
+          const isEditing = editingCustomTextId === ct.id
+
+          return (
+            <Rnd
+              key={ct.id}
+              position={ctPixels}
+              size={{ width: ctWidthPx, height: 'auto' as unknown as number }}
+              scale={scale}
+              bounds="parent"
+              enableResizing={enableResizing}
+              resizeHandleStyles={resizeHandleStyles}
+              disableDragging={isEditing}
+              onDrag={(_e, data) => {
+                const dragging: TextBox = {
+                  id: ct.id,
+                  x: data.x,
+                  y: data.y,
+                  width: ctWidthPx,
+                  height: customTextRefs.current[ct.id]?.getBoundingClientRect().height
+                    ? customTextRefs.current[ct.id]!.getBoundingClientRect().height / scale
+                    : 100,
+                }
+                const others = buildOthersForSnap(ct.id)
+                const result = calculateSnap(dragging, others)
+                data.x = result.snappedX
+                data.y = result.snappedY
+              }}
+              onDragStop={(_e, data) => {
+                clearGuides()
+                const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+                const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
+                onCustomTextPositionChange?.(ct.id, { x: percentX, y: percentY })
+              }}
+              onResizeStop={(_e, _dir, ref, _delta, position) => {
+                const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
+                onCustomTextWidthChange?.(ct.id, Math.round(newWidthPct))
+                const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+                const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+                onCustomTextPositionChange?.(ct.id, { x: percentX, y: percentY })
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation()
+                onCustomTextSelect?.(ct.id)
+              }}
+              style={{ zIndex: 15 }}
+              className={`hover:outline hover:outline-2 hover:outline-white/50 ${
+                isSelected ? 'outline outline-2 outline-blue-400' : ''
+              }`}
+            >
+              <div
+                ref={(el) => {
+                  customTextRefs.current[ct.id] = el
+                  // Auto-focus when entering edit mode
+                  if (isEditing && el) {
+                    requestAnimationFrame(() => el.focus())
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  cursor: isEditing ? 'text' : 'grab',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  textAlign: ct.text_align ?? 'left',
+                  fontSize: `${ct.font_size ?? 48}px`,
+                  fontFamily: ct.font_family ?? template.fontFamily,
+                  fontWeight: ct.font_weight ?? 400,
+                  fontStyle: ct.font_style ?? 'normal',
+                  color: ct.color ?? textColor,
+                  lineHeight: 1.3,
+                  outline: 'none',
+                }}
+                onDoubleClick={() => setEditingCustomTextId(ct.id)}
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => {
+                  const newText = (e.currentTarget as HTMLDivElement).innerText
+                  onCustomTextUpdate?.(ct.id, { text: newText })
+                  setEditingCustomTextId(null)
+                }}
+              >
+                {ct.text}
+              </div>
+            </Rnd>
+          )
+        })}
 
         {/* Alignment guide overlays */}
         {activeGuides.map((guide, i) => (

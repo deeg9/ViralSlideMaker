@@ -2,7 +2,7 @@
 
 import { Icon } from '@/components/ui/icon'
 import { SlidePreview } from '@/components/slides/slide-preview'
-import type { Slide, TextPosition } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
 interface SlideCanvasProps {
@@ -12,6 +12,12 @@ interface SlideCanvasProps {
   onSelectIndex: (index: number) => void
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
+  onCustomTextPositionChange?: (id: string, position: TextPosition) => void
+  onCustomTextWidthChange?: (id: string, width: number) => void
+  onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
+  onCustomTextSelect?: (id: string | null) => void
+  onCustomTextRemove?: (id: string) => void
+  selectedCustomTextId?: string | null
 }
 
 export function SlideCanvas({
@@ -21,6 +27,12 @@ export function SlideCanvas({
   onSelectIndex,
   onPositionChange,
   onWidthChange,
+  onCustomTextPositionChange,
+  onCustomTextWidthChange,
+  onCustomTextUpdate,
+  onCustomTextSelect,
+  onCustomTextRemove,
+  selectedCustomTextId,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   if (!currentSlide) return null
@@ -42,6 +54,12 @@ export function SlideCanvas({
             editable={true}
             onPositionChange={onPositionChange}
             onWidthChange={onWidthChange}
+            onCustomTextPositionChange={onCustomTextPositionChange}
+            onCustomTextWidthChange={onCustomTextWidthChange}
+            onCustomTextUpdate={onCustomTextUpdate}
+            onCustomTextSelect={onCustomTextSelect}
+            onCustomTextRemove={onCustomTextRemove}
+            selectedCustomTextId={selectedCustomTextId}
           />
         </div>
 
@@ -65,7 +83,7 @@ export function SlideCanvas({
         </button>
       </div>
 
-      {/* Slide counter — below the canvas */}
+      {/* Slide counter -- below the canvas */}
       <div className="mt-4 bg-white px-4 py-2 rounded-full flex items-center gap-4 shadow-sm border border-[#dbc1bc]/10">
         <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-widest">
           Slide {selectedIndex + 1} / {slides.length}

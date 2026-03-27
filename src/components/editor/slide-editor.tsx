@@ -17,7 +17,7 @@ import {
   regenerateSlideText,
   regenerateSlideImageQuery,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
-import type { Slide, TextPosition } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 
 interface SlideEditorProps {
   initialSlides: Slide[]
@@ -45,6 +45,7 @@ export function SlideEditor({
   const [showCaptions, setShowCaptions] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [exporting, setExporting] = useState(false)
+  const [selectedCustomTextId, setSelectedCustomTextId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -52,6 +53,11 @@ export function SlideEditor({
       setSelectedIndex(Math.max(0, slides.length - 1))
     }
   }, [slides.length, selectedIndex])
+
+  // Clear custom text selection when switching slides
+  useEffect(() => {
+    setSelectedCustomTextId(null)
+  }, [selectedIndex])
 
   const doSave = useCallback(async () => {
     setSaveStatus('saving')
@@ -106,6 +112,43 @@ export function SlideEditor({
     })
   }
 
+  // Custom text handlers
+  function handleAddCustomText() {
+    dispatch({ type: 'ADD_CUSTOM_TEXT', slideIndex: selectedIndex })
+  }
+
+  function handleCustomTextPositionChange(id: string, position: TextPosition) {
+    dispatch({
+      type: 'UPDATE_CUSTOM_TEXT',
+      slideIndex: selectedIndex,
+      textId: id,
+      updates: { x: position.x, y: position.y },
+    })
+  }
+
+  function handleCustomTextWidthChange(id: string, width: number) {
+    dispatch({
+      type: 'UPDATE_CUSTOM_TEXT',
+      slideIndex: selectedIndex,
+      textId: id,
+      updates: { width },
+    })
+  }
+
+  function handleCustomTextUpdate(id: string, updates: Partial<CustomText>) {
+    dispatch({
+      type: 'UPDATE_CUSTOM_TEXT',
+      slideIndex: selectedIndex,
+      textId: id,
+      updates,
+    })
+  }
+
+  function handleRemoveCustomText(id: string) {
+    dispatch({ type: 'REMOVE_CUSTOM_TEXT', slideIndex: selectedIndex, textId: id })
+    setSelectedCustomTextId(null)
+  }
+
   async function handleRegenerateText() {
     if (!currentSlide) return
     try {
@@ -136,7 +179,7 @@ export function SlideEditor({
 
   return (
     <div className="flex flex-col bg-[#fff8f7] h-[calc(100vh-140px)] lg:h-[calc(100vh-80px)]">
-      {/* Three-panel layout — no top toolbar */}
+      {/* Three-panel layout -- no top toolbar */}
       <div
         className="grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] flex-1 overflow-hidden gap-0 lg:gap-3 px-0 lg:px-2 py-0 lg:py-2"
         data-testid="editor-grid"
@@ -213,6 +256,13 @@ export function SlideEditor({
               >
                 <Icon name="delete" size="sm" />
               </button>
+              <button
+                onClick={handleAddCustomText}
+                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                title="Add Text Box"
+              >
+                <Icon name="text_fields" size="sm" />
+              </button>
               <div className="flex-1" />
               <button className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors" title="Help">
                 <Icon name="help" size="sm" />
@@ -229,6 +279,12 @@ export function SlideEditor({
           onSelectIndex={setSelectedIndex}
           onPositionChange={handlePositionChange}
           onWidthChange={handleWidthChange}
+          onCustomTextPositionChange={handleCustomTextPositionChange}
+          onCustomTextWidthChange={handleCustomTextWidthChange}
+          onCustomTextUpdate={handleCustomTextUpdate}
+          onCustomTextSelect={setSelectedCustomTextId}
+          onCustomTextRemove={handleRemoveCustomText}
+          selectedCustomTextId={selectedCustomTextId}
         />
 
         {/* Right panel: Editor controls */}
@@ -264,6 +320,10 @@ export function SlideEditor({
                 slide={currentSlide}
                 template={template}
                 onUpdate={handleUpdate}
+                selectedCustomTextId={selectedCustomTextId}
+                customTexts={currentSlide.custom_texts}
+                onCustomTextUpdate={handleCustomTextUpdate}
+                onCustomTextRemove={handleRemoveCustomText}
               />
             )}
             {currentSlide && activeTab === 'images' && (
@@ -279,7 +339,7 @@ export function SlideEditor({
               />
             )}
 
-            {/* Footer: undo/redo, export, save — inside scroll area */}
+            {/* Footer: undo/redo, export, save -- inside scroll area */}
             <div className="p-4 bg-[#fff0f0] border-t border-[#dbc1bc]/10 space-y-3 mt-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
