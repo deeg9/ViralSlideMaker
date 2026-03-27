@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Rich Text Editing
 status: Executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-27T00:48:42Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-03-27T01:00:00Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 ## Current Position
 
 Phase: 12
-Plan: 01 complete, 02 pending
+Plan: 01 complete, 02 complete
 
 ## Performance Metrics
 
@@ -52,6 +52,8 @@ Recent decisions affecting current work:
 - [Phase 11]: Italic toggle sets font-style italic; undefined reverts to template default
 - [Phase 12]: Font catalog uses exact Google Fonts variant data to load only available weight/style combos
 - [Phase 12]: Display fonts map to sans-serif fallback, handwriting to cursive for CSS generic family
+- [Phase 12]: Native select with optgroup for font picker -- simpler and more accessible than custom dropdown
+- [Phase 12]: resolveSlideStyles used as single source of truth in both preview and export renderers
 
 ### Pending Todos
 
@@ -72,9 +74,10 @@ None yet.
 | Phase 10 P01 | 6min | 2 tasks | 7 files |
 | Phase 11 P01 | 291 | 2 tasks | 8 files |
 | Phase 12 P01 | 4min | 2 tasks | 7 files |
+| Phase 12 P02 | 5min | 3 tasks | 4 files |
 
 ## Session Continuity
 
 Last activity: 2026-03-27
-Stopped at: Completed 12-01-PLAN.md
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
