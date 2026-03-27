@@ -11,6 +11,7 @@ interface SlideCanvasProps {
   selectedIndex: number
   onSelectIndex: (index: number) => void
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
+  onWidthChange?: (field: 'hook' | 'body', width: number) => void
 }
 
 export function SlideCanvas({
@@ -19,6 +20,7 @@ export function SlideCanvas({
   selectedIndex,
   onSelectIndex,
   onPositionChange,
+  onWidthChange,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   if (!currentSlide) return null
@@ -39,6 +41,7 @@ export function SlideCanvas({
             index={selectedIndex}
             editable={true}
             onPositionChange={onPositionChange}
+            onWidthChange={onWidthChange}
           />
         </div>
 

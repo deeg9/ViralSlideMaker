@@ -52,8 +52,9 @@ export function buildSlideHtml(
   const bodyX = overrides.body_position?.x ?? defaultX
   const bodyY = overrides.body_position?.y ?? defaults.bodyY
 
-  // Width is symmetric: same margin on both sides
-  const textWidth = 100 - hookX * 2
+  // Width: override wins, fall back to symmetric calc, min 20%
+  const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
+  const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
   return `<!DOCTYPE html>
 <html>
@@ -81,7 +82,7 @@ export function buildSlideHtml(
       position: absolute;
       left: ${hookX}%;
       top: ${hookY}%;
-      width: ${textWidth}%;
+      width: ${hookWidth}%;
       text-align: ${textAlign};
       z-index: 1;
       font-size: ${hookFontSize};
@@ -94,7 +95,7 @@ export function buildSlideHtml(
       position: absolute;
       left: ${bodyX}%;
       top: ${bodyY}%;
-      width: ${textWidth}%;
+      width: ${bodyWidth}%;
       text-align: ${textAlign};
       z-index: 1;
       font-size: ${bodyFontSize};

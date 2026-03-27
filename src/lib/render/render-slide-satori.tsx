@@ -60,8 +60,11 @@ export function buildSlideElement(
   const bodyX = overrides.body_position?.x ?? defaultX
   const bodyY = overrides.body_position?.y ?? defaults.bodyY
 
-  // Width is symmetric: same margin on both sides
-  const textWidth = pxX(100 - hookX * 2)
+  // Width: override wins, fall back to symmetric calc, min 20%
+  const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
+  const bodyWidthPct = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
+  const hookTextWidth = pxX(hookWidth)
+  const bodyTextWidth = pxX(bodyWidthPct)
 
   // Root background style
   const rootStyle: React.CSSProperties = {
@@ -87,7 +90,7 @@ export function buildSlideElement(
     position: 'absolute',
     left: pxX(hookX),
     top: pxY(hookY),
-    width: textWidth,
+    width: hookTextWidth,
     textAlign,
     fontSize: hookFontSize,
     fontWeight: 900,
@@ -106,7 +109,7 @@ export function buildSlideElement(
     position: 'absolute',
     left: pxX(bodyX),
     top: pxY(bodyY),
-    width: textWidth,
+    width: bodyTextWidth,
     textAlign,
     fontSize: bodyFontSize,
     fontWeight: 400,

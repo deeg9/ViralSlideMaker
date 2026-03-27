@@ -95,6 +95,17 @@ export function SlideEditor({
     })
   }
 
+  function handleWidthChange(field: 'hook' | 'body', width: number) {
+    if (!currentSlide) return
+    const overrides = currentSlide.style_overrides ?? {}
+    const key = field === 'hook' ? 'hook_width' : 'body_width'
+    dispatch({
+      type: 'UPDATE_SLIDE',
+      index: selectedIndex,
+      updates: { style_overrides: { ...overrides, [key]: width } },
+    })
+  }
+
   async function handleRegenerateText() {
     if (!currentSlide) return
     try {
@@ -217,6 +228,7 @@ export function SlideEditor({
           selectedIndex={selectedIndex}
           onSelectIndex={setSelectedIndex}
           onPositionChange={handlePositionChange}
+          onWidthChange={handleWidthChange}
         />
 
         {/* Right panel: Editor controls */}

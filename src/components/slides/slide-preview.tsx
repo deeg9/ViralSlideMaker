@@ -1,8 +1,7 @@
 'use client'
 
-import { useRef, useCallback, useState, useEffect } from 'react'
-import Draggable from 'react-draggable'
-import type { DraggableData, DraggableEvent } from 'react-draggable'
+import { useRef, useState, useEffect } from 'react'
+import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
@@ -18,18 +17,28 @@ const SAFE_ZONE = {
   bottom: { hookY: 48, bodyY: 62 },
 }
 
+// Resize handle visual affordance
+const resizeHandleStyle: React.CSSProperties = {
+  width: 4,
+  height: 40,
+  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  borderRadius: 2,
+  position: 'absolute',
+  top: '50%',
+  transform: 'translateY(-50%)',
+}
+
 interface SlidePreviewProps {
   slide: Slide
   template: SlideTemplate
   index: number
   editable?: boolean
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
+  onWidthChange?: (field: 'hook' | 'body', width: number) => void
 }
 
-export function SlidePreview({ slide, template, index, editable, onPositionChange }: SlidePreviewProps) {
+export function SlidePreview({ slide, template, index, editable, onPositionChange, onWidthChange }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const hookRef = useRef<HTMLDivElement>(null)
-  const bodyRef = useRef<HTMLDivElement>(null)
   const overrides = slide.style_overrides ?? {}
 
   const textColor = overrides.text_color ?? template.textColor
@@ -53,6 +62,10 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   const resolvedBodyX = bodyPos?.x ?? defaultX
   const resolvedBodyY = bodyPos?.y ?? defaults.bodyY
 
+  // Width: use override or symmetric calc, min 20%
+  const hookWidth = Math.max(20, overrides.hook_width ?? (100 - resolvedHookX * 2))
+  const bodyWidth = Math.max(20, overrides.body_width ?? (100 - resolvedBodyX * 2))
+
   // Track container width to compute scale factor
   const [containerWidth, setContainerWidth] = useState(0)
 
@@ -71,21 +84,14 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
 
   const scale = containerWidth > 0 ? containerWidth / REF_WIDTH : 0
 
-  // Convert percentage to pixels in reference coordinate space
-  const toRefPixels = useCallback((pctX: number, pctY: number) => {
-    return {
-      x: (pctX / 100) * REF_WIDTH,
-      y: (pctY / 100) * REF_HEIGHT,
-    }
-  }, [])
-
-  // Convert reference pixels to percentage on drag stop
-  const handleStop = useCallback((field: 'hook' | 'body') => (_e: DraggableEvent, data: DraggableData) => {
-    if (!onPositionChange) return
-    const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
-    const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
-    onPositionChange(field, { x: percentX, y: percentY })
-  }, [onPositionChange])
+  const hookTextStyle: React.CSSProperties = {
+    fontSize: `${hookFontSize}px`,
+    textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
+    fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined,
+  }
+  const bodyTextStyle: React.CSSProperties = {
+    fontSize: `${bodyFontSize}px`,
+  }
 
   // Background style (shared)
   const innerStyle: React.CSSProperties = {
@@ -102,18 +108,6 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
     left: 0,
     transform: `scale(${scale})`,
     transformOrigin: 'top left',
-  }
-
-  // Text width: symmetric margin
-  const textWidth = 100 - resolvedHookX * 2
-
-  const hookTextStyle: React.CSSProperties = {
-    fontSize: `${hookFontSize}px`,
-    textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
-    fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined,
-  }
-  const bodyTextStyle: React.CSSProperties = {
-    fontSize: `${bodyFontSize}px`,
   }
 
   // Don't render content until we have a valid scale
@@ -149,7 +143,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             position: 'absolute',
             left: `${resolvedHookX}%`,
             top: `${resolvedHookY}%`,
-            width: `${textWidth}%`,
+            width: `${hookWidth}%`,
             zIndex: 10,
             textAlign,
           }}>
@@ -162,7 +156,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
               position: 'absolute',
               left: `${resolvedBodyX}%`,
               top: `${resolvedBodyY}%`,
-              width: `${textWidth}%`,
+              width: `${bodyWidth}%`,
               zIndex: 10,
               textAlign,
             }}>
@@ -193,18 +187,33 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
     )
   }
 
-  // Editable mode with draggable text boxes
-  const hookPixels = toRefPixels(resolvedHookX, resolvedHookY)
-  const bodyPixels = toRefPixels(resolvedBodyX, resolvedBodyY)
+  // Editable mode with react-rnd drag+resize text boxes
+  const hookPixels = {
+    x: (resolvedHookX / 100) * REF_WIDTH,
+    y: (resolvedHookY / 100) * REF_HEIGHT,
+  }
+  const bodyPixels = {
+    x: (resolvedBodyX / 100) * REF_WIDTH,
+    y: (resolvedBodyY / 100) * REF_HEIGHT,
+  }
 
-  const textBoxStyle: React.CSSProperties = {
-    position: 'absolute',
-    width: `${textWidth}%`,
-    cursor: 'grab',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    textAlign,
-    zIndex: 10,
+  const hookWidthPx = (hookWidth / 100) * REF_WIDTH
+  const bodyWidthPx = (bodyWidth / 100) * REF_WIDTH
+
+  const enableResizing = {
+    left: true,
+    right: true,
+    top: false,
+    bottom: false,
+    topLeft: false,
+    topRight: false,
+    bottomLeft: false,
+    bottomRight: false,
+  }
+
+  const resizeHandleStyles = {
+    left: { ...resizeHandleStyle, left: -2 },
+    right: { ...resizeHandleStyle, right: -2 },
   }
 
   return (
@@ -222,44 +231,84 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
           opacity: overlayOpacity,
         }} />
 
-        {/* Draggable hook text */}
-        <Draggable
-          nodeRef={hookRef as React.RefObject<HTMLElement>}
-          bounds="parent"
+        {/* Resizable + Draggable hook text */}
+        <Rnd
           position={hookPixels}
-          onStop={handleStop('hook')}
+          size={{ width: hookWidthPx, height: 'auto' as unknown as number }}
           scale={scale}
+          bounds="parent"
+          enableResizing={enableResizing}
+          resizeHandleStyles={resizeHandleStyles}
+          onDragStop={(_e, data) => {
+            if (!onPositionChange) return
+            const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+            const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
+            onPositionChange('hook', { x: percentX, y: percentY })
+          }}
+          onResizeStop={(_e, _dir, ref, _delta, position) => {
+            const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
+            onWidthChange?.('hook', Math.round(newWidthPct))
+            if (onPositionChange) {
+              const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+              const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+              onPositionChange('hook', { x: percentX, y: percentY })
+            }
+          }}
+          style={{ zIndex: 10 }}
+          className="hover:outline hover:outline-2 hover:outline-white/50"
         >
-          <div
-            ref={hookRef}
-            style={textBoxStyle}
-            className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
-          >
+          <div style={{
+            width: '100%',
+            cursor: 'grab',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            textAlign,
+          }}>
             <p className="font-black" style={{ ...hookTextStyle, lineHeight: 1.1 }}>
               {slide.hook_text}
             </p>
           </div>
-        </Draggable>
+        </Rnd>
 
-        {/* Draggable body text */}
+        {/* Resizable + Draggable body text */}
         {slide.body_text && (
-          <Draggable
-            nodeRef={bodyRef as React.RefObject<HTMLElement>}
-            bounds="parent"
+          <Rnd
             position={bodyPixels}
-            onStop={handleStop('body')}
+            size={{ width: bodyWidthPx, height: 'auto' as unknown as number }}
             scale={scale}
+            bounds="parent"
+            enableResizing={enableResizing}
+            resizeHandleStyles={resizeHandleStyles}
+            onDragStop={(_e, data) => {
+              if (!onPositionChange) return
+              const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+              const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
+              onPositionChange('body', { x: percentX, y: percentY })
+            }}
+            onResizeStop={(_e, _dir, ref, _delta, position) => {
+              const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
+              onWidthChange?.('body', Math.round(newWidthPct))
+              if (onPositionChange) {
+                const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+                const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+                onPositionChange('body', { x: percentX, y: percentY })
+              }
+            }}
+            style={{ zIndex: 10 }}
+            className="hover:outline hover:outline-2 hover:outline-white/50"
           >
-            <div
-              ref={bodyRef}
-              style={textBoxStyle}
-              className="hover:outline hover:outline-2 hover:outline-white/50 active:cursor-grabbing"
-            >
+            <div style={{
+              width: '100%',
+              cursor: 'grab',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              textAlign,
+            }}>
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5 }}>
                 {slide.body_text}
               </p>
             </div>
-          </Draggable>
+          </Rnd>
         )}
 
         {/* Slide number badge */}
