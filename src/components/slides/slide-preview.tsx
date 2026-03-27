@@ -50,6 +50,16 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
   const hookFontSize = overrides.hook_font_size ?? parseInt(template.hookFontSize)
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
+  // Font family overrides (Phase 12)
+  const hookFontFamily = overrides.hook_font_family ?? template.fontFamily
+  const bodyFontFamily = overrides.body_font_family ?? template.fontFamily
+
+  // Bold/italic overrides (Phase 11)
+  const hookFontWeight = overrides.hook_font_weight ?? 900
+  const bodyFontWeight = overrides.body_font_weight ?? 400
+  const hookFontStyle = overrides.hook_font_style ?? 'normal'
+  const bodyFontStyle = overrides.body_font_style ?? 'normal'
+
   const overlayOpacity = overrides.overlay_opacity != null
     ? overrides.overlay_opacity / 100
     : template.overlayOpacity
@@ -90,11 +100,16 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
 
   const hookTextStyle: React.CSSProperties = {
     fontSize: `${hookFontSize}px`,
+    fontFamily: hookFontFamily,
+    fontWeight: hookFontWeight,
+    fontStyle: hookFontStyle === 'italic' ? 'italic' : (template.hookStyle === 'italic' ? 'italic' : undefined),
     textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
-    fontStyle: template.hookStyle === 'italic' ? 'italic' : undefined,
   }
   const bodyTextStyle: React.CSSProperties = {
     fontSize: `${bodyFontSize}px`,
+    fontFamily: bodyFontFamily,
+    fontWeight: bodyFontWeight,
+    fontStyle: bodyFontStyle === 'italic' ? 'italic' : undefined,
   }
 
   // Background style (shared)
@@ -151,7 +166,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             zIndex: 10,
             textAlign,
           }}>
-            <p className="font-black" style={{ ...hookTextStyle, lineHeight: 1.1 }}>{slide.hook_text}</p>
+            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1 }}>{slide.hook_text}</p>
           </div>
 
           {/* Body text */}
@@ -292,7 +307,7 @@ export function SlidePreview({ slide, template, index, editable, onPositionChang
             borderRadius: '4px',
             textAlign,
           }}>
-            <p className="font-black" style={{ ...hookTextStyle, lineHeight: 1.1 }}>
+            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1 }}>
               {slide.hook_text}
             </p>
           </div>
