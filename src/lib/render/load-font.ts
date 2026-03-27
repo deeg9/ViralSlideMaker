@@ -1,3 +1,8 @@
+import type { Slide } from '../types/slide'
+import type { SlideTemplate } from './templates'
+import { resolveSlideStyles } from './resolve-styles'
+import { getFontEntry } from '../fonts/font-catalog'
+
 // Map of "fontName:weight:style" -> ArrayBuffer
 const fontCache = new Map<string, ArrayBuffer>()
 
@@ -53,7 +58,8 @@ async function fetchFontBuffer(
  *
  * Note: Georgia is a system font not available on Google Fonts.
  * Templates using Georgia fall back to Inter for Satori rendering.
- * Phase 12 (Font Picker) will replace all template fonts with Google Fonts equivalents.
+ *
+ * @deprecated Prefer loadFontBuffersForSlide() which loads per-slide font overrides.
  */
 type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
 
@@ -87,4 +93,60 @@ export async function loadFontBuffers(
   )
 
   return results.filter((r): r is NonNullable<typeof r> => r !== null)
+}
+
+/**
+ * Load font buffers for a specific slide, using resolved font families.
+ * Loads only the variants that actually exist per the font catalog.
+ * Falls back to default variant set for fonts not in the catalog.
+ */
+export async function loadFontBuffersForSlide(
+  slide: Slide,
+  template: SlideTemplate
+): Promise<Array<{ name: string; data: ArrayBuffer; weight: FontWeight; style: 'normal' | 'italic' }>> {
+  const styles = resolveSlideStyles(slide, template)
+
+  const hookFontName = extractFontName(styles.hookFontFamily)
+  const bodyFontName = extractFontName(styles.bodyFontFamily)
+
+  // Collect unique font names (hook and body may be the same)
+  const uniqueFonts = new Set([hookFontName, bodyFontName])
+
+  // System fonts that need fallback to Inter
+  const systemFonts = ['Georgia', 'Times New Roman', 'Arial', 'Helvetica']
+
+  const allResults: Array<{ name: string; data: ArrayBuffer; weight: FontWeight; style: 'normal' | 'italic' }> = []
+
+  for (const fontName of uniqueFonts) {
+    const actualFontName = systemFonts.includes(fontName) ? 'Inter' : fontName
+    const entry = getFontEntry(actualFontName)
+
+    // Use catalog variants if available, otherwise fall back to default set
+    const variants: Array<{ weight: FontWeight; style: 'normal' | 'italic' }> = entry
+      ? entry.variants.map(v => ({ weight: v.weight as FontWeight, style: v.style }))
+      : [
+          { weight: 400 as FontWeight, style: 'normal' as const },
+          { weight: 700 as FontWeight, style: 'normal' as const },
+          { weight: 900 as FontWeight, style: 'normal' as const },
+          { weight: 400 as FontWeight, style: 'italic' as const },
+          { weight: 700 as FontWeight, style: 'italic' as const },
+        ]
+
+    const results = await Promise.all(
+      variants.map(async (v) => {
+        try {
+          const data = await fetchFontBuffer(actualFontName, v.weight, v.style)
+          return { name: actualFontName, data, weight: v.weight, style: v.style }
+        } catch {
+          return null
+        }
+      })
+    )
+
+    for (const r of results) {
+      if (r) allResults.push(r)
+    }
+  }
+
+  return allResults
 }
