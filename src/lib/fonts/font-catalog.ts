@@ -330,3 +330,12 @@ export const FONT_CATALOG: FontEntry[] = [
 export function getFontEntry(family: string): FontEntry | undefined {
   return FONT_CATALOG.find((f) => f.family === family)
 }
+
+export function getCssFallback(category: FontEntry['category']): string {
+  switch (category) {
+    case 'serif': return 'serif'
+    case 'handwriting': return 'cursive'
+    case 'display': return 'system-ui'
+    default: return 'sans-serif'
+  }
+}

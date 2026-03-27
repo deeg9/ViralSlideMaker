@@ -1,5 +1,6 @@
 import type { Slide } from '../types/slide'
 import type { SlideTemplate } from './templates'
+import { getFontEntry, getCssFallback, DEFAULT_FONT } from '../fonts/font-catalog'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 const SAFE = {
@@ -14,6 +15,12 @@ export interface ResolvedSlideStyles {
   textAlign: 'left' | 'center' | 'right'
   hookFontSize: number
   bodyFontSize: number
+  hookFontWeight: number
+  bodyFontWeight: number
+  hookFontStyle: 'normal' | 'italic'
+  bodyFontStyle: 'normal' | 'italic'
+  hookFontFamily: string
+  bodyFontFamily: string
   overlayOpacity: number
   hookX: number
   hookY: number
@@ -33,6 +40,21 @@ export function resolveSlideStyles(
   const textAlign = overrides.text_align ?? template.textAlign
   const hookFontSize = overrides.hook_font_size ?? (parseInt(template.hookFontSize, 10) || 64)
   const bodyFontSize = overrides.body_font_size ?? (parseInt(template.bodyFontSize, 10) || 32)
+
+  // Bold/italic (Phase 11)
+  const hookFontWeight = overrides.hook_font_weight ?? 900
+  const bodyFontWeight = overrides.body_font_weight ?? 400
+  const hookFontStyle = overrides.hook_font_style ?? 'normal'
+  const bodyFontStyle = overrides.body_font_style ?? 'normal'
+
+  // Font family (Phase 12)
+  const templateFont = template.fontFamily || DEFAULT_FONT
+  const hookFontRaw = overrides.hook_font_family ?? templateFont
+  const bodyFontRaw = overrides.body_font_family ?? templateFont
+  const hookEntry = getFontEntry(hookFontRaw)
+  const bodyEntry = getFontEntry(bodyFontRaw)
+  const hookFontFamily = hookEntry ? `'${hookEntry.family}', ${getCssFallback(hookEntry.category)}` : `'${hookFontRaw}', sans-serif`
+  const bodyFontFamily = bodyEntry ? `'${bodyEntry.family}', ${getCssFallback(bodyEntry.category)}` : `'${bodyFontRaw}', sans-serif`
 
   const overlayOpacity = overrides.overlay_opacity != null
     ? overrides.overlay_opacity / 100
@@ -57,6 +79,12 @@ export function resolveSlideStyles(
     textAlign,
     hookFontSize,
     bodyFontSize,
+    hookFontWeight,
+    bodyFontWeight,
+    hookFontStyle,
+    bodyFontStyle,
+    hookFontFamily,
+    bodyFontFamily,
     overlayOpacity,
     hookX,
     hookY,

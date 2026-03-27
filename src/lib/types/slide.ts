@@ -12,6 +12,15 @@ export interface SlideStyleOverrides {
   hook_position?: TextPosition
   body_position?: TextPosition
   overlay_opacity?: number  // 0-100, overrides template overlayOpacity
+  // Phase 11: Bold/italic
+  hook_font_weight?: number
+  body_font_weight?: number
+  hook_font_style?: 'normal' | 'italic'
+  body_font_style?: 'normal' | 'italic'
+  // Phase 12: Font family
+  hook_font_family?: string
+  body_font_family?: string
+  // Phase 13: Text box width
   hook_width?: number   // percentage 0-100, overrides symmetric width calc
   body_width?: number   // percentage 0-100, overrides symmetric width calc
 }
