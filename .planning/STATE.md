@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Rich Text Editing
 status: Ready to plan
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-03-26T23:27:21.164Z"
-last_activity: 2026-03-26
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-27T00:35:19.344Z"
+last_activity: 2026-03-27
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -20,11 +20,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 10 — Foundation Refactor
+**Current focus:** Phase 11 — Bold & Italic
 
 ## Current Position
 
-Phase: 11
+Phase: 12
 Plan: Not started
 
 ## Performance Metrics
@@ -48,6 +48,8 @@ Recent decisions affecting current work:
 - [v1.3]: Fix pre-existing Satori font bug before any new feature work
 - [Phase 10]: Georgia templates fall back to Inter for Satori PNG rendering (system font not on Google Fonts)
 - [Phase 10]: Font buffers cached in-memory via Map to avoid re-fetching per render request
+- [Phase 11]: Bold toggle sets font-weight 700; hook default stays 900 (template extra bold)
+- [Phase 11]: Italic toggle sets font-style italic; undefined reverts to template default
 
 ### Pending Todos
 
@@ -66,9 +68,10 @@ None yet.
 | 260326-0fq | Test and fix slide editor UI for iPhone 15 mobile viewport | 2026-03-26 | 0dee8ed | [260326-0fq-test-and-fix-slide-editor-ui-for-iphone-](./quick/260326-0fq-test-and-fix-slide-editor-ui-for-iphone-/) |
 | 260326-kzh | Fix Stripe integration crashes on subscription page | 2026-03-26 | 442fd98 | [260326-kzh-fix-stripe-integration-crashes-on-subscr](./quick/260326-kzh-fix-stripe-integration-crashes-on-subscr/) |
 | Phase 10 P01 | 6min | 2 tasks | 7 files |
+| Phase 11 P01 | 291 | 2 tasks | 8 files |
 
 ## Session Continuity
 
-Last activity: 2026-03-26
-Stopped at: Completed 10-01-PLAN.md
+Last activity: 2026-03-27
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None

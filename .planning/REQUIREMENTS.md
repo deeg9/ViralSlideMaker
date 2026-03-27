@@ -9,14 +9,14 @@ Requirements for Rich Text Editing milestone.
 
 ### Foundation
 
-- [ ] **FOUND-01**: Exported PNG slides render in the correct template font (fix Satori font loading bug)
-- [ ] **FOUND-02**: Style resolution logic is consolidated into a shared `resolveSlideStyles()` utility used by all renderers
+- [x] **FOUND-01**: Exported PNG slides render in the correct template font (fix Satori font loading bug)
+- [x] **FOUND-02**: Style resolution logic is consolidated into a shared `resolveSlideStyles()` utility used by all renderers
 
 ### Text Styling
 
-- [ ] **STYLE-01**: User can toggle bold on/off for each text box (hook text, body text)
-- [ ] **STYLE-02**: User can toggle italic on/off for each text box
-- [ ] **STYLE-03**: Bold and italic settings persist across save/reload and render correctly in PNG exports
+- [x] **STYLE-01**: User can toggle bold on/off for each text box (hook text, body text)
+- [x] **STYLE-02**: User can toggle italic on/off for each text box
+- [x] **STYLE-03**: Bold and italic settings persist across save/reload and render correctly in PNG exports
 
 ### Font Selection
 
@@ -83,11 +83,11 @@ Requirements for Rich Text Editing milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 10 | Pending |
-| FOUND-02 | Phase 10 | Pending |
-| STYLE-01 | Phase 11 | Pending |
-| STYLE-02 | Phase 11 | Pending |
-| STYLE-03 | Phase 11 | Pending |
+| FOUND-01 | Phase 10 | Complete |
+| FOUND-02 | Phase 10 | Complete |
+| STYLE-01 | Phase 11 | Complete |
+| STYLE-02 | Phase 11 | Complete |
+| STYLE-03 | Phase 11 | Complete |
 | FONT-01 | Phase 12 | Pending |
 | FONT-02 | Phase 12 | Pending |
 | FONT-03 | Phase 12 | Pending |
