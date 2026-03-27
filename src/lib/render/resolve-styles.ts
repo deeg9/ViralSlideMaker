@@ -1,4 +1,4 @@
-import type { Slide } from '../types/slide'
+import type { Slide, CustomText } from '../types/slide'
 import type { SlideTemplate } from './templates'
 import { getFontEntry, getCssFallback, DEFAULT_FONT } from '../fonts/font-catalog'
 
@@ -30,6 +30,7 @@ export interface ResolvedSlideStyles {
   bodyY: number
   hookWidth: number  // percentage 0-100
   bodyWidth: number  // percentage 0-100
+  customTexts: Array<CustomText & { resolvedFontFamily: string }>
 }
 
 export function resolveSlideStyles(
@@ -78,6 +79,24 @@ export function resolveSlideStyles(
   const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
+  // Resolve custom texts
+  const customTexts = (slide.custom_texts ?? []).map((ct) => {
+    const ctFontRaw = ct.font_family ?? templateFont
+    const ctEntry = getFontEntry(ctFontRaw)
+    const resolvedFontFamily = ctEntry
+      ? `'${ctEntry.family}', ${getCssFallback(ctEntry.category)}`
+      : `'${ctFontRaw}', sans-serif`
+    return {
+      ...ct,
+      font_size: ct.font_size ?? 48,
+      font_weight: ct.font_weight ?? 400,
+      font_style: (ct.font_style ?? 'normal') as 'normal' | 'italic',
+      color: ct.color ?? textColor,
+      text_align: (ct.text_align ?? 'left') as 'left' | 'center' | 'right',
+      resolvedFontFamily,
+    }
+  })
+
   return {
     textColor,
     hookTextColor,
@@ -98,5 +117,6 @@ export function resolveSlideStyles(
     bodyY,
     hookWidth,
     bodyWidth,
+    customTexts,
   }
 }

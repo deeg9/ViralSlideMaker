@@ -80,6 +80,49 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, action.slides)
     }
 
+    case 'ADD_CUSTOM_TEXT': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const newText = {
+          id: crypto.randomUUID(),
+          text: 'New Text',
+          x: 20,
+          y: 50,
+          width: 60,
+          font_size: 48,
+          font_weight: 400,
+          color: slide.style_overrides?.text_color ?? '#ffffff',
+        }
+        return {
+          ...slide,
+          custom_texts: [...(slide.custom_texts ?? []), newText],
+        }
+      })
+      return pushHistory(state, slides)
+    }
+
+    case 'UPDATE_CUSTOM_TEXT': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const custom_texts = (slide.custom_texts ?? []).map((ct) =>
+          ct.id === action.textId ? { ...ct, ...action.updates } : ct
+        )
+        return { ...slide, custom_texts }
+      })
+      return pushHistory(state, slides)
+    }
+
+    case 'REMOVE_CUSTOM_TEXT': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const custom_texts = (slide.custom_texts ?? []).filter(
+          (ct) => ct.id !== action.textId
+        )
+        return { ...slide, custom_texts }
+      })
+      return pushHistory(state, slides)
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state
       const previous = state.past[state.past.length - 1]

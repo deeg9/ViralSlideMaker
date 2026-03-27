@@ -3,6 +3,20 @@ export interface TextPosition {
   y: number  // percentage 0-100, from top
 }
 
+export interface CustomText {
+  id: string
+  text: string
+  x: number        // percentage 0-100
+  y: number        // percentage 0-100
+  width: number    // percentage 0-100
+  font_family?: string
+  font_size?: number    // px in 1080x1920 reference
+  font_weight?: number
+  font_style?: 'normal' | 'italic'
+  color?: string
+  text_align?: 'left' | 'center' | 'right'
+}
+
 export interface SlideStyleOverrides {
   hook_font_size?: number
   body_font_size?: number
@@ -35,6 +49,7 @@ export interface Slide {
   background_url: string | null
   pexels_photo_id: number | null
   style_overrides?: SlideStyleOverrides
+  custom_texts?: CustomText[]
 }
 
 export type SlideData = Slide[]
