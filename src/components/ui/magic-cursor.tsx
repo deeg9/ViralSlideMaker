@@ -152,18 +152,21 @@ const MouseSparkles = React.forwardRef<HTMLDivElement, MouseSparklesProps>(
     );
 
     React.useEffect(() => {
-      const handleTouchMove = (e: TouchEvent) => handleOnMove(e.touches[0]);
+      // Disable sparkles on touch devices — the effect is mouse-only
+      // and the touchmove listener causes double-tap issues on mobile buttons
+      const isTouchDevice =
+        "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      if (isTouchDevice) return;
+
       const handleMouseLeave = () => {
         lastRef.current.mousePosition = { x: 0, y: 0 };
       };
 
       window.addEventListener("mousemove", handleOnMove);
-      window.addEventListener("touchmove", handleTouchMove);
       document.body.addEventListener("mouseleave", handleMouseLeave);
 
       return () => {
         window.removeEventListener("mousemove", handleOnMove);
-        window.removeEventListener("touchmove", handleTouchMove);
         document.body.removeEventListener("mouseleave", handleMouseLeave);
       };
     }, [handleOnMove]);

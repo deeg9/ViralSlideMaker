@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   title: 'ViralSlideMaker — AI Carousel Creator',
   description: 'Transform your ideas into editorial-grade carousel presentations instantly',
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: '/favicon.ico',
+    apple: '/apple-icon.png',
   },
 }
 
