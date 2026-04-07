@@ -3,6 +3,7 @@ import { authenticateApiKey } from '@/lib/api/auth'
 import { checkRateLimit } from '@/lib/api/rate-limit'
 import { generateCarouselService } from '@/lib/services/carousel'
 import { apiError } from '@/lib/api/errors'
+import { buildResponseHeaders, corsOptions } from '@/lib/api/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
@@ -20,17 +21,8 @@ const carouselSchema = z.object({
     .optional(),
 })
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-}
-
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: CORS_HEADERS,
-  })
+  return corsOptions()
 }
 
 export async function POST(req: NextRequest) {
@@ -60,7 +52,7 @@ export async function POST(req: NextRequest) {
     if (projectError) {
       return NextResponse.json(
         { error: { code: 'INTERNAL_ERROR', message: 'Failed to create project' } },
-        { status: 500, headers: CORS_HEADERS }
+        { status: 500, headers: await buildResponseHeaders(auth.userId, 0, { limit, remaining }) }
       )
     }
 
@@ -78,21 +70,13 @@ export async function POST(req: NextRequest) {
       { adminClient }
     )
 
-    // 6. Return result with rate limit headers
+    // 6. Return result with credit and rate limit headers
+    const headers = await buildResponseHeaders(auth.userId, 1, { limit, remaining })
     return NextResponse.json(result, {
       status: result.success ? 200 : 422,
-      headers: {
-        ...CORS_HEADERS,
-        'X-RateLimit-Limit': String(limit),
-        'X-RateLimit-Remaining': String(remaining),
-      },
+      headers,
     })
   } catch (err) {
-    const response = apiError(err)
-    // Add CORS headers to error responses
-    CORS_HEADERS && Object.entries(CORS_HEADERS).forEach(([key, value]) => {
-      response.headers.set(key, value)
-    })
-    return response
+    return apiError(err)
   }
 }

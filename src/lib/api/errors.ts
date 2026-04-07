@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { CORS_HEADERS } from './headers'
 
 type ErrorCode =
   | 'UNAUTHORIZED'
@@ -6,6 +7,8 @@ type ErrorCode =
   | 'VALIDATION_ERROR'
   | 'INTERNAL_ERROR'
   | 'INSUFFICIENT_CREDITS'
+  | 'NOT_FOUND'
+  | 'FORBIDDEN'
 
 const STATUS_MAP: Record<ErrorCode, number> = {
   UNAUTHORIZED: 401,
@@ -13,6 +16,8 @@ const STATUS_MAP: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400,
   INTERNAL_ERROR: 500,
   INSUFFICIENT_CREDITS: 402,
+  NOT_FOUND: 404,
+  FORBIDDEN: 403,
 }
 
 export class ApiError extends Error {
@@ -48,6 +53,7 @@ export function apiError(err: unknown): NextResponse {
       {
         status: err.status,
         headers: {
+          ...CORS_HEADERS,
           'Retry-After': String(err.retryAfter),
           'X-RateLimit-Limit': String(err.limit),
           'X-RateLimit-Remaining': String(err.remaining),
@@ -59,7 +65,7 @@ export function apiError(err: unknown): NextResponse {
   if (err instanceof ApiError) {
     return NextResponse.json(
       { error: { code: err.code, message: err.message } },
-      { status: err.status }
+      { status: err.status, headers: { ...CORS_HEADERS } }
     )
   }
 
@@ -69,7 +75,7 @@ export function apiError(err: unknown): NextResponse {
     const message = issues.map(i => i.message).join(', ')
     return NextResponse.json(
       { error: { code: 'VALIDATION_ERROR', message } },
-      { status: 400 }
+      { status: 400, headers: { ...CORS_HEADERS } }
     )
   }
 
@@ -77,6 +83,6 @@ export function apiError(err: unknown): NextResponse {
   console.error('Unhandled API error:', err)
   return NextResponse.json(
     { error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } },
-    { status: 500 }
+    { status: 500, headers: { ...CORS_HEADERS } }
   )
 }
