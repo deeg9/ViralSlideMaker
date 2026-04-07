@@ -48,11 +48,11 @@ Exceptions: none
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px | 400 (regular) | 1.5 |
-| Label | 14px | 500 (medium) | 1.4 |
+| Label | 14px | 400 (regular) | 1.4 |
 | Heading | 20px | 700 (bold) | 1.2 |
 | Display | 28px | 700 (bold) | 1.2 |
 
-Note: Settings pages use Heading (20px) for section titles. Display (28px) is not used in this phase. Label (14px medium) is used for form labels, table headers, and key metadata.
+Note: Settings pages use Heading (20px) for section titles. Display (28px) is not used in this phase. Label (14px regular) is used for form labels, table headers, and key metadata -- differentiated from Body by context and color (muted-foreground for metadata), not weight.
 
 ---
 
@@ -121,11 +121,12 @@ Accent reserved for: "Create API Key" primary CTA button, copy-key-to-clipboard 
 | Create dialog submit | "Create Key" |
 | Key created heading | "Your API key" |
 | Key created warning | "Copy this key now. You won't be able to see it again." |
-| Key created copy button | "Copy" / "Copied!" (toggles on click) |
-| Key created done button | "Done" |
+| Key created copy button | "Copy Key" / "Copied!" (toggles on click) |
+| Key created copy button (icon-only) | `aria-label="Copy API key"` |
+| Key created done button | "Close Dialog" |
 | Revoke confirmation title | "Revoke API key?" |
 | Revoke confirmation body | "Any application using \"{key_label}\" will immediately lose API access. This cannot be undone." |
-| Revoke confirmation cancel | "Cancel" |
+| Revoke confirmation cancel | "Keep Key" |
 | Revoke confirmation confirm | "Revoke Key" |
 | Max keys reached | "You've reached the maximum of 3 API keys. Revoke an existing key to create a new one." |
 | Error: creation failed | "Failed to create API key. Please try again." |
@@ -193,7 +194,7 @@ Position: after "Brand Kit" (last item in nav).
 
 - Centered vertically and horizontally within content area
 - Icon: `vpn_key` at xl size, muted-foreground color
-- Heading: 16px semibold, foreground color
+- Heading: 16px bold, foreground color
 - Body: 14px regular, muted-foreground, max-width 320px, text-center
 - CTA button: primary variant
 
@@ -225,25 +226,25 @@ Position: after "Brand Kit" (last item in nav).
 |     be able to see it again.       |
 |                                    |
 | +--------------------------------+ |
-| | vsl_a8k2m9x...full key    [Copy]| |
+| | vsl_a8k2m9x...full key [Copy Key]| |
 | +--------------------------------+ |
 |                                    |
-|                           [Done]   |
+|                     [Close Dialog] |
 +------------------------------------+
 ```
 
 - Warning: destructive color text, 14px, with `warning` Material Symbol icon
 - Key display: monospace font, full key text in a bordered box with copy button
-- Copy button: icon-only (`content_copy` icon), shows "Copied!" tooltip on click for 2 seconds
-- Done button: primary variant, closes dialog
-- Dialog is NOT dismissible by clicking outside or pressing Escape while key is displayed (user must click Done)
+- Copy button: icon-only (`content_copy` icon), `aria-label="Copy API key"`, shows "Copied!" tooltip on click for 2 seconds
+- Close Dialog button: primary variant, closes dialog
+- Dialog is NOT dismissible by clicking outside or pressing Escape while key is displayed (user must click Close Dialog)
 
 ### Revoke Key Dialog
 
 - Standard shadcn AlertDialog
 - Title: "Revoke API key?"
 - Body: destructive context copy with key label interpolated
-- Cancel: outline variant
+- Cancel: outline variant, label "Keep Key"
 - Confirm: destructive variant ("Revoke Key")
 
 ---
@@ -252,8 +253,8 @@ Position: after "Brand Kit" (last item in nav).
 
 | Interaction | Behavior |
 |-------------|----------|
-| Create key | Opens dialog -> enter label -> submit -> loading spinner on button -> success shows key -> copy -> done |
-| Copy key | Click copy icon -> key copied to clipboard -> icon changes to checkmark for 2s -> sonner toast "API key copied to clipboard" |
+| Create key | Opens dialog -> enter label -> submit -> loading spinner on button -> success shows key -> copy -> close dialog |
+| Copy key | Click copy icon (`aria-label="Copy API key"`) -> key copied to clipboard -> icon changes to checkmark for 2s -> sonner toast "API key copied to clipboard" |
 | Revoke key | Click "Revoke" -> AlertDialog opens -> confirm -> loading spinner -> row updates to revoked state with badge |
 | Max keys reached | "Create API Key" button disabled, tooltip shows max-keys-reached message |
 | Keyboard | Dialog traps focus, Escape closes (except key-created state), Enter submits form |
