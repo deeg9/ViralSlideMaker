@@ -1,11 +1,49 @@
-# Requirements: ViralSlideMaker
+# Requirements: Viral Slide Maker
 
-**Defined:** 2026-03-26
+**Defined:** 2026-04-07
 **Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
 
-## v1.3 Requirements
+## v2.0 Requirements
 
-Requirements for Rich Text Editing milestone.
+Requirements for API & MCP Platform milestone. Each maps to roadmap phases.
+
+### API Auth
+
+- [ ] **AAUTH-01**: Developer can generate API keys from account settings page
+- [ ] **AAUTH-02**: Developer can revoke/delete API keys from settings
+- [ ] **AAUTH-03**: API requests authenticate via Bearer token in Authorization header
+- [ ] **AAUTH-04**: API keys are SHA-256 hashed in storage (shown once on creation, never again)
+- [ ] **AAUTH-05**: API requests are rate-limited per key via Upstash Redis (serverless-safe)
+- [ ] **AAUTH-06**: API calls deduct credits from the developer's existing credit balance
+
+### REST API
+
+- [ ] **REST-01**: Developer can generate a full carousel from a text prompt in one API call (one-shot)
+- [ ] **REST-02**: Developer can list available templates via API
+- [ ] **REST-03**: Developer can create/list/get/delete projects via API
+- [ ] **REST-04**: Developer can edit individual slides (change text, swap image, restyle) via API
+- [ ] **REST-05**: Developer can trigger render and download carousel images (individual or ZIP) via API
+- [ ] **REST-06**: API responses include credit usage headers (x-credits-remaining, x-credits-used)
+
+### MCP Server
+
+- [ ] **MCP-01**: AI agents can create carousels via MCP `create_carousel` tool
+- [ ] **MCP-02**: AI agents can edit individual slides via MCP `edit_slide` tool
+- [ ] **MCP-03**: AI agents can render and download carousels via MCP `render_carousel` tool
+- [ ] **MCP-04**: AI agents can list available templates via MCP `list_templates` tool
+- [ ] **MCP-05**: MCP server deploys as Streamable HTTP endpoint inside Next.js app
+- [ ] **MCP-06**: MCP server is publishable as npm package for local stdio transport
+
+### Documentation
+
+- [ ] **DOCS-01**: OpenAPI spec auto-generated from API route schemas
+- [ ] **DOCS-02**: Interactive API documentation via Scalar playground
+- [ ] **DOCS-03**: MCP server connection instructions for Claude Code and other AI agents
+
+## Previous Milestone Requirements
+
+<details>
+<summary>v1.3 Rich Text Editing (Complete)</summary>
 
 ### Foundation
 
@@ -37,31 +75,17 @@ Requirements for Rich Text Editing milestone.
 - [x] **ALIGN-02**: Visual guide lines appear when a text box edge aligns with another text box's edge
 - [x] **ALIGN-03**: Text boxes snap to guide positions when within proximity threshold
 
-## Previous Milestone Requirements
-
-<details>
-<summary>v1.2 Launch Readiness</summary>
-
-### Stripe Portal
-
-- [ ] **PORTAL-01**: User can manage their subscription via Stripe Customer Portal (cancel, update payment method)
-- [ ] **PORTAL-02**: Stripe Customer Portal is configured with branding (ViralSlideMaker name/colors)
-
-### Export
-
-- [ ] **EXPORT-01**: User can download individual slide as PNG via the Export button
-- [ ] **EXPORT-02**: User can download all slides as a ZIP file
-- [ ] **EXPORT-03**: Export/render works on Vercel serverless (serverless-compatible image rendering)
-
-### Production
-
-- [ ] **PROD-01**: All environment variables configured for production (viralslidemaker.com)
-- [ ] **PROD-02**: Stripe webhook endpoint configured for production URL
-- [ ] **PROD-03**: NEXT_PUBLIC_APP_URL set to https://viralslidemaker.com in production
-
 </details>
 
 ## Future Requirements
+
+### API Extensions
+
+- **AEXT-01**: Webhook notifications when async generation jobs complete
+- **AEXT-02**: TypeScript/Python SDK client libraries
+- **AEXT-03**: Developer portal landing page with signup flow
+- **AEXT-04**: Standalone API-only pricing plans (separate from web subscription)
+- **AEXT-05**: OAuth2 flow for third-party app integrations
 
 ### Growth
 
@@ -73,37 +97,47 @@ Requirements for Rich Text Editing milestone.
 
 | Feature | Reason |
 |---------|--------|
+| Scheduled/recurring generation | Claude Code and other agents handle scheduling, not our API |
+| GraphQL API | Unnecessary complexity -- REST is simpler and sufficient for this surface area |
+| Image hosting/CDN | Rendered images returned as download URLs with TTL, not permanently hosted |
+| Real-time streaming (SSE) | Generation is fast enough for sync responses; async pattern only if timeout hit |
+| OAuth2 provider | Complex, low value for v2.0 -- API keys are sufficient |
+| Separate API pricing tiers | API shares existing subscription credit pool -- avoid billing complexity |
 | Video export | Image carousels only -- no video pipeline |
-| Auto-posting | Complex OAuth, defer to v2+ |
-| iOS app | Web first, validated before mobile |
-| Inline rich text | Per-word bold/italic within a text box -- too complex for short carousel text, breaks Satori rendering |
-| Full rich text editor (TipTap/Slate) | Overkill for 5-15 word text boxes, adds massive complexity |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 10 | Complete |
-| FOUND-02 | Phase 10 | Complete |
-| STYLE-01 | Phase 11 | Complete |
-| STYLE-02 | Phase 11 | Complete |
-| STYLE-03 | Phase 11 | Complete |
-| FONT-01 | Phase 12 | Complete |
-| FONT-02 | Phase 12 | Complete |
-| FONT-03 | Phase 12 | Complete |
-| FONT-04 | Phase 12 | Complete |
-| RESIZE-01 | Phase 13 | Complete |
-| RESIZE-02 | Phase 13 | Complete |
-| RESIZE-03 | Phase 13 | Complete |
-| ALIGN-01 | Phase 14 | Complete |
-| ALIGN-02 | Phase 14 | Complete |
-| ALIGN-03 | Phase 14 | Complete |
+| AAUTH-01 | Phase 15 | Pending |
+| AAUTH-02 | Phase 15 | Pending |
+| AAUTH-03 | Phase 15 | Pending |
+| AAUTH-04 | Phase 15 | Pending |
+| AAUTH-05 | Phase 15 | Pending |
+| AAUTH-06 | Phase 15 | Pending |
+| REST-01 | Phase 16 | Pending |
+| REST-02 | Phase 16 | Pending |
+| REST-03 | Phase 16 | Pending |
+| REST-04 | Phase 16 | Pending |
+| REST-05 | Phase 16 | Pending |
+| REST-06 | Phase 16 | Pending |
+| MCP-01 | Phase 17 | Pending |
+| MCP-02 | Phase 17 | Pending |
+| MCP-03 | Phase 17 | Pending |
+| MCP-04 | Phase 17 | Pending |
+| MCP-05 | Phase 17 | Pending |
+| MCP-06 | Phase 17 | Pending |
+| DOCS-01 | Phase 18 | Pending |
+| DOCS-02 | Phase 18 | Pending |
+| DOCS-03 | Phase 18 | Pending |
 
 **Coverage:**
-- v1.3 requirements: 15 total
-- Mapped to phases: 15
+- v2.0 requirements: 21 total
+- Mapped to phases: 21
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after v1.3 roadmap creation*
+*Requirements defined: 2026-04-07*
+*Last updated: 2026-04-06 after roadmap creation for v2.0*
