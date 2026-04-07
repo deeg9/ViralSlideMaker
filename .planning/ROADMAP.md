@@ -272,7 +272,7 @@ Plans:
 
 - [x] **Phase 15: Service Extraction & API Auth** - Extract Server Actions into shared services, API key management, rate limiting via Upstash Redis
 - [x] **Phase 16: REST API Endpoints** - One-shot and granular carousel endpoints with credit metering headers
-- [ ] **Phase 17: MCP Server** - MCP tools wrapping REST API for AI agent integration via Streamable HTTP and npm package
+- [x] **Phase 17: MCP Server** - MCP tools wrapping REST API for AI agent integration via Streamable HTTP and npm package (completed 2026-04-07)
 - [ ] **Phase 18: API Documentation** - OpenAPI spec generation, interactive Scalar playground, and MCP connection guide
 
 ## Phase Details
@@ -315,7 +315,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 17-01-PLAN.md -- MCP server route + 4 tool definitions (Streamable HTTP at /api/mcp)
+- [x] 17-01-PLAN.md -- MCP server route + 4 tool definitions (Streamable HTTP at /api/mcp)
 - [ ] 17-02-PLAN.md -- npm package entry point with stdio transport (HTTP client wrapper)
 
 ### Phase 18: API Documentation
@@ -351,5 +351,5 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 14. Alignment Snap Guides | v1.3 | 1/1 | Complete | 2026-03-27 |
 | 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 16. REST API Endpoints | v2.0 | 3/3 | Complete | 2026-04-07 |
-| 17. MCP Server | v2.0 | 0/0 | Not started | - |
+| 17. MCP Server | v2.0 | 1/2 | Complete    | 2026-04-07 |
 | 18. API Documentation | v2.0 | 0/0 | Not started | - |
