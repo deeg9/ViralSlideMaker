@@ -5,6 +5,7 @@ import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition, CustomText, CustomImage } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
+import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 
 // Reference canvas dimensions (matches TikTok/Instagram 9:16)
 const REF_WIDTH = 1080
@@ -106,6 +107,24 @@ export function SlidePreview({
   // Width: use override or symmetric calc, min 20%
   const hookWidth = Math.max(20, overrides.hook_width ?? (100 - resolvedHookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - resolvedBodyX * 2))
+
+  // Phase 20: Resolve text effects via resolveSlideStyles
+  const resolved = resolveSlideStyles(slide, template)
+
+  // Helper: extract CSS properties from resolved effects (excluding highlight which is handled via wrappers)
+  function effectToCSS(effects: ResolvedTextEffectStyles): React.CSSProperties {
+    return {
+      ...(effects.textShadow && { textShadow: effects.textShadow }),
+      ...(effects.WebkitTextStrokeWidth && {
+        WebkitTextStrokeWidth: effects.WebkitTextStrokeWidth,
+        WebkitTextStrokeColor: effects.WebkitTextStrokeColor,
+        paintOrder: effects.paintOrder,
+      }),
+    }
+  }
+
+  const hookEffectCSS = effectToCSS(resolved.hookEffects)
+  const bodyEffectCSS = effectToCSS(resolved.bodyEffects)
 
   // Track container width to compute scale factor
   const [containerWidth, setContainerWidth] = useState(0)
@@ -264,8 +283,15 @@ export function SlidePreview({
             width: `${hookWidth}%`,
             zIndex: 10,
             textAlign,
+            ...(resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'full'
+              ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
+              : {}),
           }}>
-            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1 }}>{slide.hook_text}</p>
+            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
+              {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
+                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{slide.hook_text}</span>
+                : slide.hook_text}
+            </p>
           </div>
 
           {/* Body text */}
@@ -277,8 +303,15 @@ export function SlidePreview({
               width: `${bodyWidth}%`,
               zIndex: 10,
               textAlign,
+              ...(resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'full'
+                ? { backgroundColor: resolved.bodyEffects.highlight.color, padding: `${resolved.bodyEffects.highlight.padding}px` }
+                : {}),
             }}>
-              <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5 }}>{slide.body_text}</p>
+              <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
+                {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
+                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{slide.body_text}</span>
+                  : slide.body_text}
+              </p>
             </div>
           )}
 
@@ -303,27 +336,38 @@ export function SlidePreview({
           ))}
 
           {/* Custom texts (non-editable) */}
-          {(slide.custom_texts ?? []).map((ct) => (
-            <div
-              key={ct.id}
-              style={{
-                position: 'absolute',
-                left: `${ct.x}%`,
-                top: `${ct.y}%`,
-                width: `${ct.width}%`,
-                zIndex: 15,
-                textAlign: ct.text_align ?? 'left',
-                fontSize: `${ct.font_size ?? 48}px`,
-                fontFamily: ct.font_family ?? template.fontFamily,
-                fontWeight: ct.font_weight ?? 400,
-                fontStyle: ct.font_style ?? 'normal',
-                color: ct.color ?? textColor,
-                lineHeight: 1.3,
-              }}
-            >
-              {ct.text}
-            </div>
-          ))}
+          {(slide.custom_texts ?? []).map((ct) => {
+            const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
+            const ctEffectCSS = resolvedCt ? effectToCSS(resolvedCt.resolvedEffects) : {}
+            const ctHighlight = resolvedCt?.resolvedEffects.highlight
+            return (
+              <div
+                key={ct.id}
+                style={{
+                  position: 'absolute',
+                  left: `${ct.x}%`,
+                  top: `${ct.y}%`,
+                  width: `${ct.width}%`,
+                  zIndex: 15,
+                  textAlign: ct.text_align ?? 'left',
+                  fontSize: `${ct.font_size ?? 48}px`,
+                  fontFamily: ct.font_family ?? template.fontFamily,
+                  fontWeight: ct.font_weight ?? 400,
+                  fontStyle: ct.font_style ?? 'normal',
+                  color: ct.color ?? textColor,
+                  lineHeight: 1.3,
+                  ...ctEffectCSS,
+                  ...(ctHighlight?.enabled && ctHighlight.style === 'full'
+                    ? { backgroundColor: ctHighlight.color, padding: `${ctHighlight.padding}px` }
+                    : {}),
+                }}
+              >
+                {ctHighlight?.enabled && ctHighlight.style === 'tight'
+                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{ct.text}</span>
+                  : ct.text}
+              </div>
+            )
+          })}
 
           {/* Slide number badge */}
           <div style={{
@@ -450,9 +494,14 @@ export function SlidePreview({
             padding: '4px 8px',
             borderRadius: '4px',
             textAlign,
+            ...(resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'full'
+              ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
+              : {}),
           }}>
-            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1 }}>
-              {slide.hook_text}
+            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
+              {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
+                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{slide.hook_text}</span>
+                : slide.hook_text}
             </p>
           </div>
         </Rnd>
@@ -507,9 +556,14 @@ export function SlidePreview({
               padding: '4px 8px',
               borderRadius: '4px',
               textAlign,
+              ...(resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'full'
+                ? { backgroundColor: resolved.bodyEffects.highlight.color, padding: `${resolved.bodyEffects.highlight.padding}px` }
+                : {}),
             }}>
-              <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5 }}>
-                {slide.body_text}
+              <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
+                {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
+                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{slide.body_text}</span>
+                  : slide.body_text}
               </p>
             </div>
           </Rnd>
@@ -524,6 +578,9 @@ export function SlidePreview({
           const ctWidthPx = (ct.width / 100) * REF_WIDTH
           const isSelected = selectedCustomTextId === ct.id
           const isEditing = editingCustomTextId === ct.id
+          const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
+          const ctEffectCSS = resolvedCt ? effectToCSS(resolvedCt.resolvedEffects) : {}
+          const ctHighlight = resolvedCt?.resolvedEffects.highlight
 
           return (
             <Rnd
@@ -603,6 +660,10 @@ export function SlidePreview({
                   color: ct.color ?? textColor,
                   lineHeight: 1.3,
                   outline: 'none',
+                  ...ctEffectCSS,
+                  ...(ctHighlight?.enabled && ctHighlight.style === 'full'
+                    ? { backgroundColor: ctHighlight.color, padding: `${ctHighlight.padding}px` }
+                    : {}),
                 }}
                 onDoubleClick={() => setEditingCustomTextId(ct.id)}
                 contentEditable={isEditing}
@@ -613,7 +674,9 @@ export function SlidePreview({
                   setEditingCustomTextId(null)
                 }}
               >
-                {ct.text}
+                {ctHighlight?.enabled && ctHighlight.style === 'tight'
+                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{ct.text}</span>
+                  : ct.text}
               </div>
             </Rnd>
           )
