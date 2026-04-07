@@ -287,7 +287,11 @@ Plans:
   3. An API request with a valid Bearer token authenticates successfully; an invalid or revoked token returns 401
   4. API requests exceeding the per-key rate limit receive a 429 response with retry-after information
   5. Each authenticated API request that consumes resources deducts credits from the developer's balance
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 15-01-PLAN.md -- Service extraction, API infra (auth, rate-limit, errors, crypto), API key CRUD actions, one-shot carousel endpoint
+- [ ] 15-02-PLAN.md -- API Keys settings UI (create dialog, key list table, revoke confirmation, empty state)
 
 **UI hint**: yes
 
