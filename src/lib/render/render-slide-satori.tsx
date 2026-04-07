@@ -85,6 +85,8 @@ export function buildSlideElement(
     rootStyle.backgroundColor = template.backgroundColor
   }
 
+  const textShadowValue = overrides.text_shadow ? '0 2px 8px rgba(0,0,0,0.7)' : undefined
+
   // Hook text style
   const hookStyle: React.CSSProperties = {
     position: 'absolute',
@@ -95,6 +97,7 @@ export function buildSlideElement(
     fontSize: hookFontSize,
     fontWeight: 900,
     lineHeight: 1.1,
+    textShadow: textShadowValue,
   }
 
   if (template.hookStyle === 'uppercase') {
@@ -115,6 +118,7 @@ export function buildSlideElement(
     fontWeight: 400,
     lineHeight: 1.5,
     opacity: 0.9,
+    textShadow: textShadowValue,
   }
 
   return (
@@ -168,6 +172,7 @@ export function buildSlideElement(
             lineHeight: 1.3,
             color: ct.color ?? textColor,
             fontFamily: ct.font_family ?? template.fontFamily,
+            textShadow: textShadowValue,
           }}
         >
           {ct.text}

@@ -61,6 +61,8 @@ export function buildSlideHtml(
     ? overrides.overlay_opacity / 100
     : template.overlayOpacity
 
+  const textShadowCss = overrides.text_shadow ? 'text-shadow: 0 2px 8px rgba(0,0,0,0.7);' : ''
+
   const backgroundCss = slide.background_url
     ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
     : `background-color: ${template.backgroundColor};`
@@ -86,7 +88,7 @@ export function buildSlideHtml(
 
   // Build custom text HTML
   const customTextHtml = (slide.custom_texts ?? []).map((ct) =>
-    `<div style="position:absolute; left:${ct.x}%; top:${ct.y}%; width:${ct.width}%; text-align:${ct.text_align ?? 'left'}; font-size:${ct.font_size ?? 48}px; font-weight:${ct.font_weight ?? 400}; font-style:${ct.font_style ?? 'normal'}; line-height:1.3; color:${ct.color ?? textColor}; z-index:2; font-family:'${ct.font_family ?? template.fontFamily}', sans-serif;">${escapeHtml(ct.text)}</div>`
+    `<div style="position:absolute; left:${ct.x}%; top:${ct.y}%; width:${ct.width}%; text-align:${ct.text_align ?? 'left'}; font-size:${ct.font_size ?? 48}px; font-weight:${ct.font_weight ?? 400}; font-style:${ct.font_style ?? 'normal'}; line-height:1.3; color:${ct.color ?? textColor}; z-index:2; font-family:'${ct.font_family ?? template.fontFamily}', sans-serif; ${textShadowCss}">${escapeHtml(ct.text)}</div>`
   ).join('\n  ')
 
   return `<!DOCTYPE html>
@@ -123,6 +125,7 @@ export function buildSlideHtml(
       line-height: 1.1;
       ${template.hookStyle === 'uppercase' ? 'text-transform: uppercase;' : ''}
       ${template.hookStyle === 'italic' ? 'font-style: italic;' : ''}
+      ${textShadowCss}
     }
     .body {
       position: absolute;
@@ -135,6 +138,7 @@ export function buildSlideHtml(
       font-weight: 400;
       line-height: 1.5;
       opacity: 0.9;
+      ${textShadowCss}
     }
   </style>
 </head>

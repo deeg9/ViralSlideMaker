@@ -144,6 +144,8 @@ export function SlidePreview({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [editable, selectedCustomTextId, selectedCustomImageId, editingCustomTextId, onCustomTextRemove, onCustomImageRemove])
 
+  const textShadowStyle = overrides.text_shadow ? '0 2px 8px rgba(0,0,0,0.7)' : undefined
+
   const hookTextStyle: React.CSSProperties = {
     fontSize: `${hookFontSize}px`,
     fontFamily: hookFontFamily,
@@ -151,6 +153,7 @@ export function SlidePreview({
     fontStyle: hookFontStyle === 'italic' ? 'italic' : (template.hookStyle === 'italic' ? 'italic' : undefined),
     textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
     color: hookTextColor,
+    textShadow: textShadowStyle,
   }
   const bodyTextStyle: React.CSSProperties = {
     fontSize: `${bodyFontSize}px`,
@@ -158,6 +161,7 @@ export function SlidePreview({
     fontWeight: bodyFontWeight,
     fontStyle: bodyFontStyle === 'italic' ? 'italic' : undefined,
     color: bodyTextColor,
+    textShadow: textShadowStyle,
   }
 
   // Background style (shared)
@@ -319,6 +323,7 @@ export function SlidePreview({
                 fontStyle: ct.font_style ?? 'normal',
                 color: ct.color ?? textColor,
                 lineHeight: 1.3,
+                textShadow: textShadowStyle,
               }}
             >
               {ct.text}
@@ -603,6 +608,7 @@ export function SlidePreview({
                   color: ct.color ?? textColor,
                   lineHeight: 1.3,
                   outline: 'none',
+                  textShadow: textShadowStyle,
                 }}
                 onDoubleClick={() => setEditingCustomTextId(ct.id)}
                 contentEditable={isEditing}
