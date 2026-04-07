@@ -361,7 +361,11 @@ Plans:
   1. A test slide rendered through /api/render confirms that Satori natively applies textShadow and WebkitTextStrokeWidth without duplicate-element workarounds
   2. TextEffects type hierarchy is defined and effect settings persist across project save and reload
   3. Hook, body, and each custom text box have independent effect settings in the data model (changing one does not affect others)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 19-01-PLAN.md -- Satori text effects validation spike (textShadow + WebkitTextStroke confirmation)
+- [ ] 19-02-PLAN.md -- TextEffects type hierarchy, resolveTextEffects() utility, resolveSlideStyles() extension (TDD)
 
 ### Phase 20: Renderer Implementation
 **Goal**: Text effects (shadow, outline, and highlight) render correctly across all three renderers for all text element types, using the shared resolveTextEffects() utility
