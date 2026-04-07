@@ -273,7 +273,7 @@ Plans:
 - [x] **Phase 15: Service Extraction & API Auth** - Extract Server Actions into shared services, API key management, rate limiting via Upstash Redis
 - [x] **Phase 16: REST API Endpoints** - One-shot and granular carousel endpoints with credit metering headers
 - [x] **Phase 17: MCP Server** - MCP tools wrapping REST API for AI agent integration via Streamable HTTP and npm package (completed 2026-04-07)
-- [ ] **Phase 18: API Documentation** - OpenAPI spec generation, interactive Scalar playground, and MCP connection guide
+- [x] **Phase 18: API Documentation** - OpenAPI spec generation, interactive Scalar playground, and MCP connection guide (completed 2026-04-07)
 
 ## Phase Details
 
@@ -355,4 +355,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 16. REST API Endpoints | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 17. MCP Server | v2.0 | 1/2 | Complete    | 2026-04-07 |
-| 18. API Documentation | v2.0 | 0/1 | Not started | - |
+| 18. API Documentation | v2.0 | 0/1 | Complete    | 2026-04-07 |
