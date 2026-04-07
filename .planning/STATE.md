@@ -1,31 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: API & MCP Platform
-status: v2.0 milestone complete
-stopped_at: Completed 260327-do7 (advanced options + AI regenerate inputs)
-last_updated: "2026-04-07T18:55:24.247Z"
+milestone: v2.1
+milestone_name: Text Effects
+status: Defining requirements
+stopped_at: null
+last_updated: "2026-04-07"
 last_activity: 2026-04-07
 progress:
-  total_phases: 4
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
-  completed_plans: 1
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-26)
+See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 18 — API Documentation
+**Current focus:** Milestone v2.1 — Text Effects
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-07 — Milestone v2.1 started
 
 ## Performance Metrics
 
@@ -56,6 +58,9 @@ Recent decisions affecting current work:
 - [Phase 12]: resolveSlideStyles used as single source of truth in both preview and export renderers
 - [Phase 13]: Replaced react-draggable with react-rnd for combined drag+resize text boxes
 - [Phase 14-alignment-snap-guides]: 10 ref pixel snap threshold for alignment guides (~5 screen px at typical scale)
+- [v2.1]: Text effects stay on Satori pipeline -- shadow/outline faked with duplicate elements, highlight with inline backgrounds
+- [v2.1]: Per-element independence for all effects (hook, body, each custom text box)
+- [v2.1]: Gradient text, neon glow, blur effects deferred -- require Playwright rendering switch
 
 ### Pending Todos
 
@@ -67,25 +72,8 @@ None yet.
 - [Phase 12]: Satori requires separate TTF files per font weight/style variant -- no faux bold/italic synthesis.
 - Vercel plan timeout: confirm deployment tier before production (Hobby = 10s, Pro = 60s)
 
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260326-0fq | Test and fix slide editor UI for iPhone 15 mobile viewport | 2026-03-26 | 0dee8ed | [260326-0fq-test-and-fix-slide-editor-ui-for-iphone-](./quick/260326-0fq-test-and-fix-slide-editor-ui-for-iphone-/) |
-| 260326-kzh | Fix Stripe integration crashes on subscription page | 2026-03-26 | 442fd98 | [260326-kzh-fix-stripe-integration-crashes-on-subscr](./quick/260326-kzh-fix-stripe-integration-crashes-on-subscr/) |
-| 260326-vcg | Add custom text boxes with inline contentEditable editing | 2026-03-27 | 8a38106 | [260326-vcg-add-custom-text-boxes-with-inline-conten](./quick/260326-vcg-add-custom-text-boxes-with-inline-conten/) |
-| Phase 10 P01 | 6min | 2 tasks | 7 files |
-| Phase 11 P01 | 291 | 2 tasks | 8 files |
-| Phase 12 P01 | 4min | 2 tasks | 7 files |
-| Phase 12 P02 | 5min | 3 tasks | 4 files |
-| Phase 13 P01 | 4min | 2 tasks | 8 files |
-| Phase 14-alignment-snap-guides P01 | 2min | 2 tasks | 2 files |
-| 260326-vcg | Add custom text boxes with inline content editing | 2026-03-27 | b739974 | [260326-vcg-add-custom-text-boxes-with-inline-conten](./quick/260326-vcg-add-custom-text-boxes-with-inline-conten/) |
-| 260327-do7 | Generation page advanced options + AI regenerate inputs | 2026-03-27 | 075cd8c | [260327-do7-generation-page-advanced-options-ai-rege](./quick/260327-do7-generation-page-advanced-options-ai-rege/) |
-| 260327-e4o | Add draggable resizable images/stickers on canvas | 2026-03-27 | 13f0b40 | [260327-e4o-add-draggable-resizable-images-and-stick](./quick/260327-e4o-add-draggable-resizable-images-and-stick/) |
-
 ## Session Continuity
 
 Last activity: 2026-04-07
-Stopped at: Completed 260327-do7 (advanced options + AI regenerate inputs)
+Stopped at: Milestone v2.1 started, defining requirements
 Resume file: None
