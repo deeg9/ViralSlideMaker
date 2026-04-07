@@ -7,7 +7,7 @@
 - v1.2 Launch Readiness - Phases 8-9 (planned)
 - v1.3 Rich Text Editing - Phases 10-14 (shipped 2026-03-27)
 - v2.0 API & MCP Platform - Phases 15-18 (shipped 2026-04-07)
-- v2.1 Text Effects - Phases 19-21 (in progress)
+- v2.1 Text Effects - Phases 19-21 (shipped 2026-04-07)
 
 ## Phases
 
@@ -343,61 +343,18 @@ Plans:
 
 </details>
 
-### v2.1 Text Effects (Phases 19-21)
+<details>
+<summary>v2.1 Text Effects (Phases 19-21) - SHIPPED 2026-04-07</summary>
 
 **Milestone Goal:** Add text shadow, outline, and background highlight effects to make text stand out over images -- per-element controls, Satori-compatible rendering, zero new dependencies.
 
 - [x] **Phase 19: Validation Spike & Data Model** - Confirm native Satori CSS support, define TextEffects type hierarchy, build shared resolveTextEffects() utility (completed 2026-04-07)
-- [x] **Phase 20: Renderer Implementation** - Shadow, outline, and highlight rendering across all three renderers (preview, Satori PNG, HTML export) for all text element types (completed 2026-04-07)
-- [ ] **Phase 21: Editor UI & Tight Highlight** - Text effects control panel with toggles/pickers/sliders, tight highlight mode with Satori fallback
+- [x] **Phase 20: Renderer Implementation** - Shadow, outline, and highlight rendering across all three renderers (completed 2026-04-07)
+- [x] **Phase 21: Editor UI & Tight Highlight** - Text effects control panel with toggles/pickers/sliders (completed 2026-04-07)
 
-## Phase Details
+See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 
-### Phase 19: Validation Spike & Data Model
-**Goal**: The rendering strategy is confirmed and all text effect types, persistence, and shared resolution logic are in place before any renderer work begins
-**Depends on**: Phase 18
-**Requirements**: VAL-01, FX-01, FX-02
-**Success Criteria** (what must be TRUE):
-  1. A test slide rendered through /api/render confirms that Satori natively applies textShadow and WebkitTextStrokeWidth without duplicate-element workarounds
-  2. TextEffects type hierarchy is defined and effect settings persist across project save and reload
-  3. Hook, body, and each custom text box have independent effect settings in the data model (changing one does not affect others)
-**Plans**: 2 plans
-
-Plans:
-- [x] 19-01-PLAN.md -- Satori text effects validation spike (textShadow + WebkitTextStroke confirmation)
-- [x] 19-02-PLAN.md -- TextEffects type hierarchy, resolveTextEffects() utility, resolveSlideStyles() extension (TDD)
-
-### Phase 20: Renderer Implementation
-**Goal**: Text effects (shadow, outline, and highlight) render correctly across all three renderers for all text element types, using the shared resolveTextEffects() utility
-**Depends on**: Phase 19
-**Requirements**: REND-01, REND-02, REND-03, REND-04
-**Success Criteria** (what must be TRUE):
-  1. A slide with shadow, outline, and full-width highlight enabled renders visually correct in the editor preview
-  2. The same slide exported as PNG via Satori shows matching shadow, outline, and full-width highlight effects
-  3. The same slide exported as HTML shows matching shadow, outline, and highlight effects
-  4. Tight highlight gracefully falls back to full-width in the Satori PNG export while rendering per-line in preview and HTML export
-  5. Effects render correctly on hook text, body text, and custom text boxes (not just hook/body)
-**Plans**: 2 plans
-
-Plans:
-- [x] 20-01-PLAN.md -- Preview renderer: text effects (shadow, outline, highlight) in editor preview
-- [x] 20-02-PLAN.md -- Export renderers: text effects in Satori PNG and HTML export
-
-### Phase 21: Editor UI & Tight Highlight
-**Goal**: Users can control all text effects through intuitive editor controls -- toggles, color pickers, size presets, and sliders -- for any text element
-**Depends on**: Phase 20
-**Requirements**: SHAD-01, SHAD-02, SHAD-03, OUT-01, OUT-02, OUT-03, HL-01, HL-02, HL-03, HL-04
-**Success Criteria** (what must be TRUE):
-  1. User can toggle shadow on/off, pick a shadow color, and select S/M/L size presets for any text element
-  2. User can toggle outline on/off, pick an outline color, and adjust thickness from 1-8px via slider for any text element
-  3. User can toggle highlight on/off, pick a highlight color, choose tight or full-width style, and adjust padding via slider for any text element
-  4. Effect controls appear for hook text, body text, and the currently selected custom text box in the editor panel
-  5. Toggling an effect off and back on restores the previous settings (toggle does not reset color/size choices)
-**Plans**: 1 plan
-**UI hint**: yes
-
-Plans:
-- [ ] 21-01-PLAN.md -- TextEffectsControls component + wiring into editor panel for hook, body, and custom text
+</details>
 
 ## Progress
 
@@ -426,4 +383,4 @@ Phases execute in numeric order: 19 -> 20 -> 21
 | 18. API Documentation | v2.0 | 1/1 | Complete | 2026-04-07 |
 | 19. Validation Spike & Data Model | v2.1 | 2/2 | Complete   | 2026-04-07 |
 | 20. Renderer Implementation | v2.1 | 2/2 | Complete   | 2026-04-07 |
-| 21. Editor UI & Tight Highlight | v2.1 | 0/1 | Not started | - |
+| 21. Editor UI & Tight Highlight | v2.1 | 1/1 | Complete   | 2026-04-07 |
