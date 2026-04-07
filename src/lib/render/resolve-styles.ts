@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { Slide, CustomText, TextEffects } from '../types/slide'
 import type { SlideTemplate } from './templates'
 import { getFontEntry, getCssFallback, DEFAULT_FONT } from '../fonts/font-catalog'
@@ -181,5 +182,29 @@ export function resolveSlideStyles(
     hookEffects,
     bodyEffects,
     customTexts,
+  }
+}
+
+export function buildHighlightWrapperStyle(
+  highlight: ResolvedTextEffectStyles['highlight'],
+  mode: 'tight' | 'full-width-fallback'
+): CSSProperties | null {
+  if (!highlight?.enabled) return null
+
+  const effectiveStyle = mode === 'full-width-fallback' ? 'full' : highlight.style
+
+  if (effectiveStyle === 'tight') {
+    return {
+      backgroundColor: highlight.color,
+      padding: `${highlight.padding}px ${highlight.padding}px`,
+      boxDecorationBreak: 'clone' as const,
+      WebkitBoxDecorationBreak: 'clone' as const,
+    }
+  }
+
+  // full-width: background on the container div
+  return {
+    backgroundColor: highlight.color,
+    padding: `${highlight.padding}px`,
   }
 }
