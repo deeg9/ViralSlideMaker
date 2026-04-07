@@ -2,9 +2,13 @@
   "name": "tiktok-slideshow-temp",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "viralslidemaker-mcp": "./dist/mcp/index.js"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
+    "build:mcp": "tsup src/mcp/index.ts --format esm --outDir dist/mcp --dts",
     "start": "next start",
     "lint": "eslint"
   },
@@ -60,6 +64,7 @@
     "eslint-config-next": "15.5.13",
     "jsdom": "^29.0.0",
     "tailwindcss": "^4",
+    "tsup": "^8.5.1",
     "typescript": "^5",
     "vitest": "^4.1.0"
   }
