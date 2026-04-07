@@ -326,7 +326,10 @@ Plans:
   1. An OpenAPI spec is auto-generated from API route schemas and stays in sync with code changes
   2. Developer can explore and test all API endpoints in an interactive Scalar playground at /docs
   3. MCP connection instructions explain how to configure Claude Code, Cursor, and other AI agents to connect to the MCP server
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 18-01-PLAN.md -- OpenAPI spec, Scalar playground, and MCP connection guide
 
 ## Progress
 
@@ -352,4 +355,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 16. REST API Endpoints | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 17. MCP Server | v2.0 | 1/2 | Complete    | 2026-04-07 |
-| 18. API Documentation | v2.0 | 0/0 | Not started | - |
+| 18. API Documentation | v2.0 | 0/1 | Not started | - |
