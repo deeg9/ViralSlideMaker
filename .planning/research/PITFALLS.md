@@ -1,269 +1,298 @@
-# Domain Pitfalls: Rich Text Editing (v1.3)
+# Pitfalls Research
 
-**Domain:** Adding font picker, bold/italic, alignment guides, and resizable text boxes to carousel slide editor
-**Researched:** 2026-03-26
-**Confidence:** HIGH (verified against codebase + Satori documentation)
-
----
+**Domain:** Adding REST API + MCP Server to existing Next.js SaaS on Vercel
+**Researched:** 2026-04-06
+**Confidence:** HIGH (verified against codebase, official docs, and multiple sources)
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, broken exports, or visual inconsistency between preview and download.
+### Pitfall 1: In-Memory Rate Limiter Does Not Work Across Serverless Instances
 
-### Pitfall 1: Satori Does Not Use CSS Font Names -- It Needs Raw Font Files
+**What goes wrong:**
+The existing `src/lib/rate-limit.ts` uses an in-memory `Map` for rate limiting. On Vercel, each serverless function invocation can run on a different instance. Two concurrent API requests from the same user may hit different instances, each with its own empty Map, bypassing rate limits entirely. With a public REST API, this becomes an abuse vector -- automated callers can burn through credits or hammer the render pipeline unchecked.
 
-**What goes wrong:** The browser preview renders fonts using CSS `fontFamily` strings (e.g., `'Playfair Display', serif`), which the browser resolves via Google Fonts `<link>` tags or `@font-face` rules. But Satori (used via `next/og` `ImageResponse`) completely ignores CSS font names. It requires raw font file ArrayBuffers passed in the `fonts` option. If you add a font picker to the browser but do not also fetch and pass the corresponding `.ttf`/`.otf` file to Satori, **every exported image will render in Satori's default font (Noto Sans), not the user's chosen font.**
+**Why it happens:**
+In-memory state worked acceptably for the web UI where requests are infrequent and user-initiated. A public API with programmatic callers makes this a real exploit path.
 
-**Why it happens:** Satori is not a browser. It has its own text layout engine (based on Yoga/Flexbox) and needs font binary data to measure and render glyphs. The current codebase already has this bug -- templates specify `fontFamily: "'Inter', sans-serif"` but the render route passes no `fonts` option to `ImageResponse`, meaning exports likely render in Noto Sans already.
+**How to avoid:**
+Replace the in-memory rate limiter with Upstash Redis (`@upstash/ratelimit`) before exposing public API endpoints. Upstash provides an edge-compatible, serverless-friendly rate limiter with sliding window support. The existing `rateLimitBucket` and `rateLimit` functions can keep their signatures -- just swap the backing store.
 
-**Consequences:** Users see one font in the editor, a different font in their downloaded images. This is a trust-destroying bug for a design tool.
+**Warning signs:**
+- Credit balance dropping faster than expected for API users
+- No 429 responses in logs despite heavy API traffic
+- Multiple concurrent requests from same API key all succeeding
 
-**Prevention:**
-1. Build a server-side font registry that maps font names to their `.ttf` file URLs (Google Fonts API provides these).
-2. When rendering, fetch the required font files as ArrayBuffers and pass them in the `fonts` option of `ImageResponse`.
-3. For each font weight/style variant (regular, bold, italic, bold-italic), you need a separate font file. Satori does NOT synthesize bold or italic -- it needs the actual variant file.
-4. Cache font files aggressively (they are immutable). Store in memory or on disk, not fetched per-render.
-
-**Detection:** Compare browser preview screenshot with downloaded PNG side-by-side. If fonts differ, this pitfall is active. The current codebase likely already has this issue.
-
-**Phase:** Must be solved in the very first phase, before any font picker UI work. Fix the existing font loading gap first.
-
-### Pitfall 2: Satori Cannot Synthesize Bold/Italic -- Each Variant Needs Its Own Font File
-
-**What goes wrong:** In browsers, setting `font-weight: 700` on a font that only has a regular weight causes the browser to algorithmically "fake bold" the text (faux bold). Satori does NOT do this. If you pass only the regular weight file for Inter but set `fontWeight: 700`, Satori will render it in regular weight. The text will not look bold.
-
-**Why it happens:** Satori uses a font matching algorithm that selects the closest available font file. If only weight 400 is loaded, weight 700 requests will silently fall back to 400. There is no warning or error.
-
-**Consequences:** Bold text appears bold in the browser preview but renders as regular weight in exports. Italic text appears italic in browser but upright in exports. Users will report "my styling disappeared in the download."
-
-**Prevention:**
-1. For every font offered in the picker, pre-register which variants are available (regular, bold, italic, bold-italic).
-2. When a user applies bold, load the bold variant file. When italic, load the italic variant.
-3. Pass ALL needed variant files to `ImageResponse({ fonts: [...] })`.
-4. If a font does not have a bold variant, either disable the bold button for that font or show a warning.
-5. Google Fonts API provides variant availability metadata -- use it to gate the UI.
-
-**Detection:** Apply bold to text in editor, export, compare. If bold is missing in export, this is active.
-
-**Phase:** Must be solved alongside the font picker. Bold/italic UI controls and font file loading are tightly coupled.
-
-### Pitfall 3: Browser Preview and Satori Render Text Layout Differently
-
-**What goes wrong:** The browser preview uses standard CSS layout with `position: absolute` and percentage-based coordinates. Satori uses its own Yoga-based flexbox engine with pixel-based absolute positioning. Text wrapping, line breaking, letter spacing, and font metrics differ between the two engines. A text block that fits neatly in the browser preview may overflow or have different line breaks in the Satori render.
-
-**Why it happens:** Satori explicitly notes it uses a subset of CSS. It does not support `z-index`, has different text shaping, no OpenType features, no kerning, and no ligatures. Line-height calculations, word-break behavior, and text measurement all differ from browser rendering.
-
-**Consequences:** Text position drift between preview and export. Text that fits in preview overflows in export (or vice versa). Users perceive the tool as broken because "what I see is not what I get."
-
-**Prevention:**
-1. Use the SAME font files for both preview and export. Load Google Fonts via their `.ttf` files (not the CSS API) and use `@font-face` in the browser with the same files Satori will use.
-2. Keep text styling simple -- avoid advanced CSS properties Satori does not support.
-3. Add a "preview render" button that generates the actual Satori output so users can verify before downloading all slides.
-4. Test every template with long text, short text, and multi-line text to identify layout drift.
-5. Consider using Satori for both preview AND export (render SVG in browser) for pixel-perfect consistency, though this adds complexity and latency.
-
-**Detection:** Overlay browser screenshot on Satori output at same resolution. Any text position or wrapping difference indicates this pitfall.
-
-**Phase:** Ongoing concern. Initial fix: use identical font files. Long-term: consider Satori-based preview.
+**Phase to address:**
+Phase 1 (API Foundation) -- must be in place before any public endpoint goes live.
 
 ---
 
-## High Pitfalls
+### Pitfall 2: Vercel Timeout Kills One-Shot Carousel Generation
 
-Mistakes that cause significant UX issues or require substantial rework.
+**What goes wrong:**
+The "one-shot" endpoint (topic in, carousel images out) chains: Gemini AI generation (2-8s) + Pexels image search (1-3s) + rendering N slides via Satori (2-5s each for 5-8 slides = 10-40s). Total: 13-51s. On Hobby plan (10s limit), this always fails. On Pro plan (60s limit with `maxDuration = 60`), it fails for larger carousels or when Gemini is slow.
 
-### Pitfall 4: Font Loading Race Conditions in Browser Preview
+**Why it happens:**
+Each step is individually fast enough, but chaining them sequentially in one serverless invocation exceeds timeout limits. The existing render route already sets `maxDuration = 60`, indicating awareness of this constraint.
 
-**What goes wrong:** User selects a font from the picker. The font CSS is injected via a `<link>` tag or `@font-face` rule. The slide preview re-renders immediately, but the font file has not finished downloading yet. The preview briefly shows the fallback font, then jumps to the correct font once loaded (FOUT -- Flash of Unstyled Text). During this flash, any text measurement (for resize handles, alignment guides) is wrong.
+**How to avoid:**
+Two strategies (use both):
+1. **Async job pattern:** The one-shot endpoint returns a job ID immediately (`202 Accepted`), then processes in the background using Vercel's `waitUntil()` (Fluid Compute) or an external queue (Upstash QueueStash / Inngest). Client polls a `/api/v1/jobs/{id}` status endpoint.
+2. **Render slides individually, not in batch:** The one-shot endpoint generates content + fetches images within timeout, saves the project, then returns slide render URLs that clients fetch individually from the existing render endpoint (which handles one slide at a time within timeout).
 
-**Why it happens:** Google Fonts are loaded asynchronously. The browser does not block rendering to wait for fonts. React re-renders do not wait for font loads.
+Option 2 is simpler and avoids new infrastructure. The "one-shot" endpoint generates content and returns a project with render URLs; it does not need to pre-render all images.
 
-**Consequences:** Jarring visual flash on every font change. Incorrect text box dimensions during the flash. Alignment guides snap to wrong positions.
+**Warning signs:**
+- 504 Gateway Timeout errors in Vercel function logs
+- One-shot endpoint works in dev (no timeout) but fails in production
+- Works for 3-slide carousels but fails for 7+
 
-**Prevention:**
-1. Use the `document.fonts.load()` API or `FontFace` API to preload fonts before applying them. Only update the slide's font after the promise resolves.
-2. Show a loading indicator on the font picker while the font downloads.
-3. Preload the most popular fonts (top 10-20) during initial page load so they are instant.
-4. Use `font-display: block` in `@font-face` rules to prevent FOUT (the text will be invisible briefly instead of flashing).
-
-**Detection:** Select a font on a slow connection (throttle in DevTools). Observe the preview for flashes or layout jumps.
-
-**Phase:** Font picker implementation phase. Must be addressed when building the font selection UI.
-
-### Pitfall 5: Data Model Migration Breaks Existing Projects
-
-**What goes wrong:** Adding new fields to `SlideStyleOverrides` (e.g., `font_family`, `font_weight`, `font_style`) seems straightforward since they are optional fields on an interface. But existing slide data in Supabase has `style_overrides` as a JSON column. If the code starts reading new fields without defaults, existing projects may render differently or crash.
-
-**Why it happens:** The current `SlideStyleOverrides` interface uses optional fields with nullish coalescing (`??`) to fall back to template values. This pattern is safe IF consistently applied. The risk is adding a new field and forgetting the fallback, or changing the default behavior.
-
-**Consequences:** Existing projects render with wrong fonts/styles after code update. Users open old projects and they look different.
-
-**Prevention:**
-1. Every new field in `SlideStyleOverrides` MUST be optional and MUST have a fallback to the template value using `??`.
-2. Write a migration test: load a slide with empty `style_overrides` and verify it renders identically to before the change.
-3. Do NOT rename or restructure existing fields. Only add new ones.
-4. The `deepCloneSlide` in the editor reducer uses `JSON.parse(JSON.stringify())` which handles new optional fields correctly (they will be `undefined` and thus omitted), but verify this.
-
-**Detection:** Open an existing project after deploying new code. Compare with a screenshot taken before the deploy.
-
-**Phase:** First phase, before any UI work. Define the data model extension upfront.
-
-### Pitfall 6: Resizable Text Boxes -- Coordinate System Confusion
-
-**What goes wrong:** The current system uses percentage-based positioning (`TextPosition` with `x: 0-100, y: 0-100`) but renders at a reference resolution of 1080x1920 with CSS `transform: scale()`. Adding resize handles introduces a width/height dimension to text boxes, which must also work in this scaled coordinate system. Resize drag deltas reported by the DOM are in screen pixels, but must be converted to reference pixels, then stored as percentages.
-
-**Why it happens:** Three coordinate systems are in play: (1) screen pixels (what the user drags), (2) reference pixels (1080x1920 canvas), (3) percentages (stored in data model). The existing code handles this for position via the `scale` prop on `react-draggable`, but resize handles from a different library may not have built-in scale awareness.
-
-**Consequences:** Resize handles feel "off" -- dragging 100 screen pixels moves the handle by a different visual amount depending on the canvas scale. On mobile (smaller canvas), the problem is worse. Text boxes jump or resize incorrectly.
-
-**Prevention:**
-1. Use `react-rnd` (react-resizable-and-draggable) which handles both drag and resize in a single component, with scale support.
-2. OR continue with `react-draggable` and add `react-resizable`, but manually apply the scale factor to resize deltas.
-3. Store text box dimensions as percentages of the canvas (width%, height%) in the data model, same as position.
-4. Test at multiple canvas scales (mobile, tablet, desktop) to verify consistent behavior.
-5. Add minimum size constraints to prevent text boxes from being resized to zero.
-
-**Detection:** Resize a text box at different browser window sizes. If the resize feels faster/slower at different scales, the coordinate conversion is wrong.
-
-**Phase:** Resizable text boxes phase. Must be carefully implemented with coordinate system awareness.
-
-### Pitfall 7: Alignment Guides -- Snapping to Wrong Positions Due to Text Box Dimensions
-
-**What goes wrong:** Alignment guides (snap lines like Canva/Figma) need to know the bounding box of each text element -- not just its position, but also its rendered width and height. Currently, text boxes have a position but no explicit size; their height depends on content and font size. If alignment guides calculate snapping based on the position point only (top-left corner), the visual alignment will be wrong -- elements will appear "close to center" but not actually centered.
-
-**Why it happens:** Text box height is content-dependent and font-dependent. Without measuring the actual rendered text, the alignment system cannot know where the bottom or right edge of a text box is.
-
-**Consequences:** "Center alignment" snaps the top-left corner to center, not the visual center of the text block. Users expect Canva-like precision but get approximate alignment.
-
-**Prevention:**
-1. Measure actual rendered text box dimensions using `getBoundingClientRect()` after the font loads and content renders.
-2. Calculate snap points from the center and edges of the measured bounding box, not from the position origin.
-3. Snap to: canvas center (H/V), other text box edges (top/bottom/left/right), other text box centers.
-4. Use a threshold (e.g., 5-10 reference pixels) for snapping activation.
-5. Show visual guide lines only when within snap threshold.
-
-**Detection:** Add two text boxes with different content lengths. Try to center-align them. If they are visually offset, the bounding box measurement is wrong.
-
-**Phase:** Alignment guides phase. Depends on text box dimensions being available (requires either explicit sizes from resize feature, or runtime measurement).
+**Phase to address:**
+Phase 1 (API Foundation) -- the one-shot endpoint design must account for this from the start.
 
 ---
 
-## Moderate Pitfalls
+### Pitfall 3: MCP Server Using Deprecated SSE Transport on Serverless
 
-### Pitfall 8: Google Fonts API Rate Limiting and Loading Strategy
+**What goes wrong:**
+The legacy MCP transport (HTTP+SSE, from the 2024-11-05 spec) requires persistent server connections. This is fundamentally incompatible with Vercel serverless -- the function terminates after responding, killing the SSE stream. Developers often copy MCP server examples that use the old SSE transport and wonder why it fails on Vercel.
 
-**What goes wrong:** Fetching font metadata and font files from Google Fonts on every render request (server-side) hits rate limits or adds latency. Each font family can have 10+ variants (weights x styles), and fetching all variants on every export is slow.
+**Why it happens:**
+Many MCP tutorials and examples still show SSE transport. The protocol moved to Streamable HTTP (2025-03-26 spec) but awareness lags.
 
-**Prevention:**
-1. Cache the Google Fonts metadata (family list, available variants) at build time or in a long-lived server cache.
-2. Cache font file ArrayBuffers in memory (they are immutable, ~50-200KB each).
-3. Only fetch the specific variants used in the slide (not all variants of a family).
-4. Bundle the 5-10 most popular fonts with the app to avoid network requests entirely.
-5. The Google Fonts API key has a daily quota -- monitor usage.
+**How to avoid:**
+Use Streamable HTTP transport exclusively. It works as standard request/response, which is natively compatible with Vercel serverless functions. The MCP server is just a Next.js API route at `/api/mcp` that handles POST requests. Use the official `@modelcontextprotocol/sdk` package with Streamable HTTP transport.
 
-**Phase:** Font picker + server-side rendering integration phase.
+Key implementation detail: MCP with Streamable HTTP is essentially stateless request/response. Each tool call is an independent HTTP POST. This maps perfectly to serverless. Do NOT try to maintain session state across invocations.
 
-### Pitfall 9: Font Picker UI Overwhelming Users
+**Warning signs:**
+- MCP server works locally (stdio) but fails when deployed
+- "Connection closed" errors from MCP clients
+- Server starts but tools never respond
 
-**What goes wrong:** Google Fonts has 1,500+ families. Showing all of them in a dropdown creates an unusable UI. Loading font previews for all of them consumes bandwidth and memory.
-
-**Prevention:**
-1. Curate a list of 30-50 fonts that work well for social media content (readable at mobile sizes, have bold/italic variants).
-2. Show font previews using the actual font (lazy-load font files as user scrolls).
-3. Add a search/filter to find fonts by name.
-4. Group by category: sans-serif, serif, display, handwriting.
-5. Show which fonts have bold/italic variants available.
-
-**Phase:** Font picker UI phase. Design decision, not a technical blocker.
-
-### Pitfall 10: Undo/Redo Stack Bloat with Frequent Style Changes
-
-**What goes wrong:** The current undo/redo system stores full slide array snapshots (`Slide[][]`). Every font change, color pick, or resize drag pushes a new snapshot. Using a color picker (which fires on every mouse move) can generate hundreds of undo states per second.
-
-**Prevention:**
-1. Debounce style changes before pushing to undo stack. Only commit to history on `onChangeComplete` (color picker), `onStop` (resize), or `onChange` with a 300ms debounce (font selector).
-2. The current `MAX_HISTORY = 50` provides a cap, but rapid changes will flush meaningful history.
-3. Consider coalescing consecutive changes of the same type (e.g., multiple font-size adjustments before moving on).
-
-**Phase:** All phases. Must be considered when implementing any new interactive control.
-
-### Pitfall 11: Bold/Italic Partial Text (Rich Text Within a Text Box)
-
-**What goes wrong:** If bold/italic is implemented per-text-box (the whole box is bold or not), it is straightforward. If the intent is to allow bold/italic on individual words WITHIN a text box (rich text), the complexity explodes. Satori supports inline `<span>` elements with different styles, but the editor needs a rich text editing engine (contenteditable, Slate, TipTap, etc.).
-
-**Prevention:**
-1. Start with per-text-box styling: the entire hook or body text is bold/italic/normal. This maps cleanly to the current data model (`font_weight` and `font_style` on `SlideStyleOverrides`).
-2. Do NOT add inline rich text (per-word bold) in v1.3. It requires a rich text editor, a more complex data model (serialized rich text nodes instead of plain strings), and Satori JSX generation from rich text nodes.
-3. If rich text is needed later, use TipTap (modern, React-native, good API) and serialize to a portable format.
-
-**Phase:** v1.3 should be per-text-box only. Rich text is a v2 feature.
+**Phase to address:**
+Phase 2 (MCP Server) -- critical architectural decision at the start of MCP implementation.
 
 ---
 
-## Minor Pitfalls
+### Pitfall 4: API Keys Stored in Plaintext in Database
 
-### Pitfall 12: Font Family String Format Inconsistency
+**What goes wrong:**
+Storing raw API keys in Supabase means a database breach (SQL injection, leaked credentials, Supabase dashboard access) exposes every user's API key. Since API keys grant access to credit-consuming operations, this is a direct financial exposure.
 
-**What goes wrong:** Templates store `fontFamily` as CSS strings like `"'Inter', sans-serif"`. The brand kit stores `font_family` as a plain name like `"Inter"`. The merge function wraps it: `'${brandKit.font_family}', sans-serif`. If the font picker stores the value differently (e.g., `"Inter"` vs `"inter"` vs `"'Inter'"` vs `"Inter, sans-serif"`), comparisons and lookups break.
+**Why it happens:**
+It is simpler to store and lookup plaintext keys. Hashing adds complexity to the lookup flow since you cannot do `WHERE api_key = $1` on a hash.
 
-**Prevention:** Normalize to a canonical format. Store the Google Fonts family name exactly as the API returns it (e.g., `"Inter"`, `"Playfair Display"`). Convert to CSS string only at render time.
+**How to avoid:**
+Use the prefix + hash pattern:
+1. Generate key: `vsl_` prefix + 32 random bytes (base62 encoded)
+2. Store: `prefix` (first 8 chars, for listing/identification) + `key_hash` (SHA-256 of full key)
+3. Show the full key to the user exactly once at creation
+4. On each API request: hash the provided key, lookup by hash
+5. Index the `key_hash` column for fast lookups
 
-### Pitfall 13: Mobile Touch Targets for Resize Handles
+This is the same pattern used by GitHub (`ghp_`), Stripe (`sk_`), and OpenAI (`sk-`). SHA-256 is sufficient since API keys have high entropy (unlike passwords).
 
-**What goes wrong:** Resize handles that work fine with a mouse cursor are too small for touch on mobile. The current app targets mobile-first (TikTok creators on phones).
+**Warning signs:**
+- A `SELECT * FROM api_keys` shows readable key values
+- No hash column in the api_keys table schema
+- Key lookup uses `WHERE key = $1` instead of `WHERE key_hash = $1`
 
-**Prevention:** Make resize handles at least 44x44px touch target (iOS HIG). Consider showing handles only when the text box is selected, to avoid visual clutter.
-
-### Pitfall 14: Template hookStyle Conflicts with New Bold/Italic Controls
-
-**What goes wrong:** Templates already have `hookStyle: 'uppercase' | 'normal' | 'italic'` which forces italic on the hook text. If the user also has a bold/italic toggle, the interaction between template `hookStyle` and user `font_style` override is ambiguous. Does the user's choice override the template? Are they additive?
-
-**Prevention:** Define clear precedence: `slide.style_overrides.font_style` overrides `template.hookStyle` for italic. If the user explicitly sets font_style, use it. If not set (undefined), fall back to template hookStyle. Document this in code comments.
+**Phase to address:**
+Phase 1 (API Foundation) -- API key table schema must be correct from the start. Migrating from plaintext to hashed keys after users have saved them is painful.
 
 ---
 
-## Phase-Specific Warnings
+### Pitfall 5: Dual Auth Paths Create Authorization Bypass
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|---|---|---|
-| Font picker UI | Font loading FOUT (Pitfall 4), overwhelming choices (Pitfall 9) | Preload popular fonts, curate list, use `document.fonts.load()` |
-| Font rendering in export | Missing font files in Satori (Pitfall 1), no bold/italic synthesis (Pitfall 2) | Build server-side font registry, load variant files per-render |
-| Bold/italic controls | Scope creep to inline rich text (Pitfall 11), template conflict (Pitfall 14) | Per-text-box only, clear override precedence |
-| Data model changes | Breaking existing projects (Pitfall 5), format inconsistency (Pitfall 12) | All new fields optional with fallbacks, normalize font names |
-| Resizable text boxes | Coordinate system confusion (Pitfall 6), undo stack bloat (Pitfall 10) | Use react-rnd with scale, debounce history pushes |
-| Alignment guides | Wrong snap due to unknown box size (Pitfall 7) | Measure rendered bounding boxes, snap from center/edges |
-| Browser/export parity | Text layout drift (Pitfall 3) | Use same font files, test extensively, consider Satori-based preview |
+**What goes wrong:**
+The existing app uses Supabase cookie-based auth (via middleware). The new API uses Bearer token / API key auth. When both auth paths exist, it is easy to have routes that check one but not the other, or to have the middleware interfere with API key auth. The existing middleware runs on ALL routes (broad matcher) and calls `updateSession` -- this will fail or behave unexpectedly for API key requests that have no Supabase session.
 
-## Existing Codebase Issue (Pre-existing)
+**Why it happens:**
+The middleware at `src/middleware.ts` runs a Supabase session update on every request except `/api/webhooks`. API routes using API key auth will hit this middleware, which tries to read/refresh a non-existent Supabase cookie session.
 
-The current render route (`src/app/api/render/route.ts`) creates `ImageResponse` with **no `fonts` option**. Templates specify `fontFamily` strings like `'Inter', sans-serif` but no font files are loaded server-side. This means exports are already rendering in Satori's default font (Noto Sans), not the template's specified font. **This must be fixed before adding a font picker** -- it is the foundation that all font work builds on.
+**How to avoid:**
+1. Update `middleware.ts` to skip Supabase session handling for API routes (e.g., skip `/api/v1/*` paths, similar to how `/api/webhooks` is already skipped)
+2. Create a dedicated `validateApiKey()` utility that API routes call directly
+3. Never rely on middleware alone for auth (CVE-2025-29927 proved middleware can be bypassed via `x-middleware-subrequest` header, CVSS 9.1)
+4. Create a shared `getAuthenticatedUser()` function that checks both auth methods and returns a normalized user object with `userId` and `authMethod` fields
 
+**Warning signs:**
+- API key requests returning 401 intermittently
+- Supabase middleware errors in logs for API routes
+- Routes that work with session auth but fail with API key auth (or vice versa)
+
+**Phase to address:**
+Phase 1 (API Foundation) -- the auth architecture must be decided before building any API endpoints.
+
+---
+
+### Pitfall 6: Credit Deduction Race Condition Under Concurrent API Calls
+
+**What goes wrong:**
+The existing credit system uses Postgres RPC (`deduct_credits`) which is atomic for a single call. But the check-then-deduct pattern (`checkCredits()` then `deductCredit()`) is NOT atomic across the two calls. With a public API, an automated client can fire 10 concurrent requests. All 10 check credits (balance: 5), all 10 see "allowed: true", then all 10 deduct -- resulting in a negative balance.
+
+**Why it happens:**
+The web UI naturally serializes requests (user clicks, waits for result). API clients do not. Checking `balance > 0` separately before calling `deductCredit()` creates a TOCTOU (time-of-check-time-of-use) race.
+
+**How to avoid:**
+The `deduct_credits` RPC must be the ONLY check. It should atomically check AND deduct in a single operation, returning false if insufficient balance. Do NOT call `checkCredits()` before `deductCredit()` in API routes -- just call `deductCredit()` and handle the false return. Verify the Postgres function uses `UPDATE ... WHERE balance >= amount RETURNING *` or equivalent single-statement atomicity.
+
+**Warning signs:**
+- Negative credit balances in the database
+- Users getting more API calls than their credit balance should allow
+- Credit balance inconsistencies between what users see and actual usage
+
+**Phase to address:**
+Phase 1 (API Foundation) -- verify and tighten the credit deduction flow before API launch.
+
+---
+
+### Pitfall 7: Exposing Internal Project Data Through API Responses
+
+**What goes wrong:**
+The existing project data model stores everything in one blob (`slide_data` JSONB). Returning this directly from the API leaks internal fields (user_id, internal IDs, potentially uploaded image URLs with signed tokens). API responses that mirror internal data structures are fragile -- any internal schema change breaks API consumers.
+
+**Why it happens:**
+It is fast to just `return project` from an API route. The web UI does not care about response shape since it is the same codebase. External API consumers are a different contract.
+
+**How to avoid:**
+Create explicit API response DTOs (Data Transfer Objects) that map internal models to stable, documented API shapes. Use a transform layer:
 ```typescript
-// Current code (line 87-90 of route.ts) -- no fonts passed:
-const imageResponse = new ImageResponse(element, {
-  width: 1080,
-  height: 1920,
-})
-
-// Required fix:
-const imageResponse = new ImageResponse(element, {
-  width: 1080,
-  height: 1920,
-  fonts: [
-    { name: 'Inter', data: interRegularBuffer, weight: 400, style: 'normal' },
-    { name: 'Inter', data: interBoldBuffer, weight: 700, style: 'normal' },
-    // ... all needed variants
-  ],
-})
+function toApiProject(project: Project): ApiProjectResponse {
+  return {
+    id: project.id,
+    title: project.title,
+    slides: project.slide_data.map(toApiSlide),
+    template_id: project.template_id,
+    created_at: project.created_at,
+    // Explicitly omit user_id, internal fields
+  }
+}
 ```
+
+**Warning signs:**
+- API responses contain `user_id` or other user-specific fields
+- API schema changes when internal data model changes
+- Signed URLs or internal storage paths visible in API responses
+
+**Phase to address:**
+Phase 1 (API Foundation) -- define API response shapes before building endpoints.
+
+---
+
+## Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| In-memory rate limiter for API | No Redis dependency | Bypass under concurrent load | Never for public API; OK for internal/web UI only |
+| Returning raw project objects from API | Fast to implement | Breaking changes leak to consumers, security exposure | Only in prototype/alpha, never in documented API |
+| Single API route file with all endpoints | Quick to build | Unmaintainable 500+ line file | Never -- use route groups from day 1 |
+| Skipping API versioning (`/api/v1/`) | One less URL segment | Cannot evolve API without breaking consumers | Never -- always version from the start |
+| Using Supabase client auth for API routes | Reuses existing auth | API keys need different auth flow, breaks for non-browser clients | Never for public API |
+| Hardcoding credit costs per endpoint | Simple, no config needed | Changing pricing requires code deploy | Acceptable for MVP; move to config/DB for production |
+
+## Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| MCP + Vercel | Using SSE transport (requires persistent connection) | Use Streamable HTTP transport (stateless, serverless-compatible) |
+| MCP + API Keys | Embedding API key in MCP server config as static credential | MCP server should accept dynamic credentials per-session via initialization params or header-based auth |
+| Supabase + API Key Auth | Using `createClient()` (cookie-based) for API key routes | Use `createAdminClient()` or service role for API key-authenticated operations, after validating the API key yourself |
+| Gemini API + One-Shot | Calling Gemini synchronously in a long request chain | Return job ID immediately; process Gemini call in background, or design the one-shot to return content without pre-rendering images |
+| Pexels API + Bulk Requests | Hitting Pexels rate limit (200 req/hr) with concurrent API users | Cache Pexels results aggressively; pool requests; consider pre-fetching for common topics |
+| Stripe + API Plans | Creating separate Stripe products for API vs web | Reuse existing subscription tiers, add API access as a feature flag on tiers |
+| Next.js Middleware + API routes | Middleware applying Supabase session refresh to API key requests | Exclude `/api/v1/*` from middleware matcher, same as existing `/api/webhooks` exclusion |
+
+## Performance Traps
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Rendering all slides synchronously in one-shot | Timeout for 5+ slide carousels | Return project + render URLs; client fetches renders individually | At 5+ slides (>30s total render time) |
+| No caching on rendered slide images | Same slide re-rendered on every request | Cache rendered PNGs in Vercel Blob or Supabase Storage with content-hash key | At 10+ API users rendering similar content |
+| Font loading on every render | Each render fetches Google Fonts over network | Bundle critical fonts as static assets or cache font buffers in memory/edge cache | At 50+ renders/minute |
+| Supabase client creation per request | Connection overhead on every API call | Reuse admin client instance where possible; Supabase's built-in Supavisor handles connection pooling | At 100+ concurrent API requests |
+| No pagination on project/slide list endpoints | Slow response, high memory for users with many projects | Default limit 20, max 100, cursor-based pagination | At 50+ projects per user |
+
+## Security Mistakes
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| API keys in query params | Keys logged in server logs, browser history, CDN logs | Always use `Authorization: Bearer <key>` header |
+| No API key rotation/revocation | Compromised key has unlimited lifetime | Support multiple active keys per user + revocation endpoint |
+| Middleware as sole auth check | CVE-2025-29927 bypass (CVSS 9.1) -- attacker sends `x-middleware-subrequest` header to skip middleware entirely | Always validate auth in route handler, not just middleware |
+| Returning detailed error messages | Internal paths, stack traces leak to API consumers | Use generic error codes with documentation; log details server-side only |
+| No request body size limit | Large payloads can DOS serverless functions | Validate content-length; reject bodies over 1MB |
+| API key with full account access | Stolen key allows account changes, not just carousel creation | Scope API keys to specific permissions (read, create, render) |
+| MCP server without input validation | Malicious AI agents send crafted inputs (prompt injection via tool arguments) | Validate and sanitize all MCP tool inputs; do not trust tool arguments as safe |
+| No CORS on API routes | Cross-origin requests blocked for legitimate API consumers | Return proper CORS headers (`Access-Control-Allow-Origin`, etc.) on `/api/v1/*` routes |
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| No API key management UI | Users must contact support to manage keys | Build a dashboard page for key creation, listing (showing prefix only), revocation |
+| Unclear credit costs in API docs | Users surprised by credit deductions | Document credit cost per endpoint prominently; return `x-credits-remaining` in response headers |
+| No usage dashboard for API | Users cannot see how credits are being consumed | API usage page with per-endpoint breakdown and daily/weekly graphs |
+| MCP server with no error context | AI agents get opaque failures, cannot self-correct | Return descriptive error messages in MCP tool responses (e.g., "Insufficient credits. Balance: 2, required: 5") |
+| API returns image URLs that expire | Clients store URLs that stop working after signed URL expiry | Use stable, long-lived URLs or clearly document TTL in response |
+| No API playground or examples | Developers cannot try the API without writing code | Provide curl examples in docs; consider a simple web-based API playground |
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **API Key Auth:** Often missing key rotation, revocation, and listing endpoints -- verify all CRUD operations exist
+- [ ] **Rate Limiting:** Often per-IP only, missing per-API-key limits -- verify both layers exist
+- [ ] **Error Responses:** Often inconsistent shape across endpoints -- verify all errors use same `{ error: { code, message } }` format
+- [ ] **Credit Deduction:** Often missing idempotency -- verify duplicate requests with same idempotency key do not double-charge
+- [ ] **MCP Server:** Often tested only with one client (Claude Desktop) -- verify with at least 2 MCP clients (Claude Code, Cursor, etc.)
+- [ ] **API Versioning:** Often present in URL but not in response -- verify `x-api-version` header in responses
+- [ ] **CORS:** Often missing for API routes -- verify API routes return proper CORS headers for cross-origin requests
+- [ ] **One-Shot Endpoint:** Often "works" but returns partial results on timeout -- verify graceful handling when Gemini is slow
+- [ ] **Webhook/callback support:** Often forgotten -- verify consumers can get notified when async jobs complete, not just poll
+- [ ] **API docs:** Often incomplete -- verify every endpoint has request/response examples and error codes documented
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Plaintext API keys in DB | MEDIUM | Generate new hashed keys for all users, invalidate old ones, notify users to update |
+| No API versioning | HIGH | Introduce `/v2/` alongside unversioned routes, deprecation period, client migration |
+| In-memory rate limiter exploited | LOW | Swap to Redis-backed limiter, no API change needed |
+| Credit race condition (negative balances) | MEDIUM | Fix RPC, audit and correct negative balances, add monitoring alert |
+| Leaked internal data in API responses | MEDIUM | Add DTO layer, publish API schema change as minor version bump |
+| SSE-based MCP server deployed | LOW | Rewrite transport layer to Streamable HTTP, same tool definitions reused |
+| Middleware auth bypass exploited | HIGH | Patch Next.js immediately, add route-level auth checks, audit access logs |
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| In-memory rate limiter | Phase 1: API Foundation | Load test with 50 concurrent requests; verify 429s are consistent |
+| Vercel timeout on one-shot | Phase 1: API Foundation | Test one-shot with 8-slide carousel on Pro plan; verify no 504 |
+| SSE transport on MCP | Phase 2: MCP Server | Deploy to Vercel; verify tool calls work from Claude Code |
+| Plaintext API keys | Phase 1: API Foundation | `SELECT * FROM api_keys` shows only hash and prefix, no raw key |
+| Dual auth bypass | Phase 1: API Foundation | Test API route with no cookie and valid API key; test with invalid key |
+| Credit race condition | Phase 1: API Foundation | Fire 20 concurrent requests with balance of 5; verify exactly 5 succeed |
+| Internal data leakage | Phase 1: API Foundation | Review all API response bodies; no `user_id` or internal fields |
+| MCP tested with one client only | Phase 2: MCP Server | Test with Claude Code AND at least one other MCP client |
 
 ## Sources
 
-- [Satori README -- supported CSS, font requirements](https://github.com/vercel/satori/blob/main/README.md)
-- [Satori font weight resolution issue #263](https://github.com/vercel/satori/issues/263)
-- [Satori text and fonts -- DeepWiki](https://deepwiki.com/vercel/satori/3.3-text-and-fonts)
-- [Next.js ImageResponse docs](https://nextjs.org/docs/app/api-reference/functions/image-response)
-- [Using custom fonts in OG Image -- Vercel KB](https://vercel.com/kb/guide/using-custom-font)
-- [Custom Fonts causing fetch errors -- Satori discussion #662](https://github.com/vercel/satori/discussions/662)
-- [react-rnd -- resizable and draggable component](https://github.com/bokuweb/react-rnd)
-- [Satori CSS support -- DeepWiki](https://deepwiki.com/vercel/satori/4-advanced-usage)
+- [Vercel function timeout documentation](https://vercel.com/docs/functions/configuring-functions/duration)
+- [Vercel function limits](https://vercel.com/docs/limits)
+- [MCP specification (2025-11-25)](https://modelcontextprotocol.io/specification/2025-11-25)
+- [Why MCP deprecated SSE for Streamable HTTP](https://blog.fka.dev/blog/2025-06-06-why-mcp-deprecated-sse-and-go-with-streamable-http/)
+- [Building efficient MCP servers on Vercel](https://vercel.com/blog/building-efficient-mcp-servers)
+- [Building Streamable HTTP MCP server for Vercel serverless](https://dev.to/rafsilva85/building-a-streamable-http-mcp-server-from-stdio-to-vercel-serverless-497o)
+- [MCP security risks and controls (Red Hat)](https://www.redhat.com/en/blog/model-context-protocol-mcp-understanding-security-risks-and-controls)
+- [MCP production growing pains (The New Stack)](https://thenewstack.io/model-context-protocol-roadmap-2026/)
+- [MCP auth spec updates (Auth0)](https://auth0.com/blog/mcp-specs-update-all-about-auth/)
+- [API key management best practices](https://oneuptime.com/blog/post/2026-02-20-api-key-management-best-practices/view)
+- [Best practices for building secure API keys (freeCodeCamp)](https://www.freecodecamp.org/news/best-practices-for-building-api-keys-97c26eabfea9/)
+- [Next.js security guide 2025 (TurboStarter)](https://www.turbostarter.dev/blog/complete-nextjs-security-guide-2025-authentication-api-protection-and-best-practices)
+- [Next.js security best practices 2026 (Authgear)](https://www.authgear.com/post/nextjs-security-best-practices) -- CVE-2025-29927 middleware bypass
+- Codebase analysis: `src/lib/rate-limit.ts`, `src/lib/credits/check-credits.ts`, `src/middleware.ts`, `src/app/api/render/route.ts`
+
+---
+*Pitfalls research for: REST API + MCP Server addition to existing Next.js SaaS on Vercel*
+*Researched: 2026-04-06*

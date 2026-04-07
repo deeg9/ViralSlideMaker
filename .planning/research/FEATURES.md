@@ -1,200 +1,127 @@
-# Feature Research: Rich Text Editing in Carousel Slide Editor
+# Feature Landscape
 
-**Domain:** Design tool text editing (Canva/Figma-like carousel editor)
-**Researched:** 2026-03-26
-**Confidence:** HIGH (well-established UX patterns, mature ecosystem)
+**Domain:** REST API & MCP Server for AI Carousel Generation Platform
+**Researched:** 2026-04-06
 
-## Feature Landscape
+## Table Stakes
 
-### Table Stakes (Users Expect These)
+Features developers and AI agents expect. Missing = platform feels incomplete or unusable.
 
-Features users assume exist when they see a text editor in a design tool. Missing these = product feels incomplete or broken.
+| Feature | Why Expected | Complexity | Dependencies | Notes |
+|---------|--------------|------------|--------------|-------|
+| One-shot carousel endpoint | Core value prop -- topic in, images out. Every AI generation API has a single-call option (OpenAI, Replicate, etc.) | Medium | Existing `generateCarousel` server action, render pipeline | Wraps existing logic: generate content, fetch images, render PNGs, return ZIP/URLs. `POST /api/v1/carousels` |
+| API key authentication | Industry standard for programmatic access. Every developer platform uses API keys for M2M auth | Medium | Supabase (new `api_keys` table), crypto for key generation | Prefix keys with `vsm_` for easy identification. Hash stored keys (SHA-256). Support multiple keys per user |
+| Credit deduction on API calls | Existing credit system must gate API usage identically to web UI. Users will game any gap | Low | Existing `deductCredit` RPC, credit ledger | Reuse `deduct_credits` Postgres RPC. Add `api_carousel_generation` to `CreditTransactionType` |
+| Rate limiting per API key | Every public API rate-limits. Without it, a single user can DOS the service | Low | Existing `rateLimitBucket` utility | Tier-based: free=5/min, plus=20/min, pro=60/min. Return `X-RateLimit-Remaining`, `X-RateLimit-Limit`, `X-RateLimit-Reset` headers |
+| JSON error responses with HTTP status codes | Developers expect structured errors, not HTML error pages or vague messages | Low | None | `{ "error": { "code": "insufficient_credits", "message": "..." } }` with appropriate 4xx/5xx codes |
+| Credit balance endpoint | Developers need to check remaining credits before making expensive generation calls | Low | Existing `getCreditBalance` | `GET /api/v1/credits` -- trivial to build, high utility |
+| OpenAPI/Swagger spec | Non-negotiable in 2026 for any developer-facing API. AI agents use machine-readable schemas to understand what endpoints do | Medium | Authored alongside endpoints | Maintain as YAML. Use Scalar for hosted interactive docs |
+| MCP server with `generate_carousel` tool | Primary reason for this milestone -- AI agents (Claude Code, OpenAI agents) need to call carousel generation via MCP protocol | Medium | REST API (MCP wraps it), `@modelcontextprotocol/sdk` | Thin wrapper: MCP tool validates params then calls REST endpoint. Use stdio transport for local, Streamable HTTP for remote |
+| Versioned API path (`/api/v1/`) | Breaking changes happen. Without versioning from day one, migration is painful for every consumer | Low | None | URL-based versioning is simplest and most widely understood |
+| Render and download endpoint | The whole point -- users and agents need the actual PNG files back | Low | Existing `/api/render` route already renders individual slides | Extend existing render endpoint to accept API key auth. Add bulk download (ZIP) endpoint |
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Font picker dropdown with search | Every design tool (Canva, Figma, Adobe) has font search. Users choose fonts by name. | MEDIUM | Google Fonts API provides ~1,500 free fonts. Need curated subset (~30-50 popular fonts) for the dropdown, with search for the full library. Currently `fontFamily` is set per-template and brand kit but not per-text-box. |
-| Bold toggle (B button) | Universal text formatting control. Users see it in every text editor from Google Docs to Canva. | LOW | Add `font_weight` to `SlideStyleOverrides`. Hook text is already `font-weight: 900`; need per-box override. Body text defaults to 400. Toggle between 400/700 (or 900 for hook). |
-| Italic toggle (I button) | Universal text formatting control alongside bold. | LOW | Add `font_style` to `SlideStyleOverrides`. Currently `hookStyle: 'italic'` exists at template level but not user-togglable per text box. |
-| Resizable text boxes with drag handles | Canva, Figma, and every design tool let you resize text boxes. Users drag corners/edges to control text width. | MEDIUM | Currently text width is calculated symmetrically from X position (`100 - hookX * 2`). Need independent width per text box. Corner handles for proportional resize, edge handles for width-only. |
-| Text alignment buttons (left/center/right) | Already built. Confirming it as table stakes. | DONE | Already implemented in `text-editor-panel.tsx`. |
-| Font size control | Already built via slider. Table stakes confirmed. | DONE | Already implemented for hook and body text. |
-| Text color picker | Already built with swatches + custom color. | DONE | Already implemented in `text-editor-panel.tsx`. |
+## Differentiators
 
-### Differentiators (Competitive Advantage)
+Features that set the platform apart. Not expected, but create competitive advantage or developer delight.
 
-Features that elevate beyond basic text editing. Not required for v1.3 but create a polished, professional feel.
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| Granular slide editing endpoints | Most AI generation APIs are one-shot-only black boxes. Exposing edit operations (swap image, change text, restyle individual slides) lets agents iterate on output -- a unique capability | High | All editor actions need API equivalents | `PATCH /api/v1/projects/:id/slides/:index` for text/style changes, `PUT .../slides/:index/background` for image swap. Large surface area but high value |
+| MCP Resources for project data | Expose projects and slides as MCP Resources so agents can read carousel state naturally, without needing separate API calls | Low | MCP server, project read logic | `resource://projects/{id}` returns project JSON, `resource://projects/{id}/slides` returns slide array |
+| MCP Prompts for common workflows | Pre-built prompt templates guide agents toward good results. Reduces trial-and-error for agent developers | Low | MCP server | 2-3 prompts: `create_carousel` (topic + style), `edit_carousel` (project ID + instructions), `regenerate_slide` (slide index + feedback) |
+| Template listing endpoint | Agents need to discover available visual styles to make informed template choices, not guess template IDs | Low | Existing template registry in code | `GET /api/v1/templates` returns IDs, names, and preview thumbnail URLs |
+| Project CRUD via API | Full project lifecycle management -- create, list, get, delete. Lets agents manage a workspace of carousels | Medium | Existing Supabase project queries | Standard REST: `POST/GET/GET:id/DELETE /api/v1/projects` |
+| Webhook notifications | Push notification when async generation completes. Superior to polling for integrations and automation pipelines | Medium | New webhook registration table, delivery queue with retry | Not needed for v1 if one-shot generation completes in <30s synchronously. Add when batch operations or longer AI image generation arrive |
+| Batch generation endpoint | Generate multiple carousels in one API call. Valuable for agencies and automation workflows | Medium | Queue/job system, async status tracking | `POST /api/v1/batch/carousels` returns job ID, poll `GET /api/v1/jobs/:id` for status. Defer to v2.1 |
+| TypeScript SDK / client library | Typed client makes integration frictionless. Every mature platform (OpenAI, Stripe, Replicate) ships an SDK | Medium | Stable API surface | Auto-generate from OpenAPI spec with codegen tooling. Ship as npm package `@viralsidemaker/sdk` |
+| Interactive API playground | Let developers test endpoints in-browser without writing code first | Low | OpenAPI spec file | Scalar (free, modern, good DX) reads the OpenAPI spec and generates a try-it UI automatically |
+| Usage analytics dashboard | Show API consumers their call history, credit burn rate, and top endpoints. Builds trust and reduces support burden | Medium | Logging API calls to a table | Track every API call: endpoint, status, credits consumed, latency. Surface in settings page |
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Snap alignment guides (center/edge) | Visual guide lines appear when dragging text near canvas center or edges. Creates the "it just works" feel of Canva/Figma. Users feel precision without effort. | MEDIUM | Implement on `dragmove` events from existing `react-draggable`. Calculate proximity to canvas center (50%, 50%), edges, and other text boxes. Show dashed lines at 50% horizontal/vertical and at safe zone boundaries. Snap threshold ~5-10px. |
-| Font preview in dropdown | Show each font name rendered in its own typeface inside the picker. Canva does this. Lets users visually browse without applying. | LOW | Lazy-load font preview CSS. Only load the font file when it appears in the scrollable list viewport. |
-| Curated font categories | Group fonts by style: "Sans Serif", "Serif", "Display", "Handwritten". Faster than scrolling 1,500 fonts. | LOW | Static categorization of top ~50 fonts. Matches Canva's approach. |
-| Recently used fonts | Show last 5-10 fonts at top of picker. Reduces repetitive searching. | LOW | Store in localStorage or user preferences. |
-| Cross-text-box snapping | When dragging one text box, snap guides also show alignment with the other text box (hook aligns with body edge, etc.). | MEDIUM | Extension of basic snap guides. Calculate edges/centers of all text boxes, not just canvas. |
-| Letter spacing control | Adjust tracking for design-forward titles. Common in Canva for headline styling. | LOW | Add `letter_spacing` to `SlideStyleOverrides`. Simple CSS property. |
-| Line height control | Fine-tune vertical spacing within text blocks. | LOW | Already hardcoded (1.1 for hook, 1.5 for body). Expose as slider. |
+## Anti-Features
 
-### Anti-Features (Commonly Requested, Often Problematic)
+Features to explicitly NOT build in this milestone.
 
-Features that seem good but create significant complexity without proportional value for a carousel creator.
-
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Rich text within a single text box (mixed bold/italic/color per word) | Power users want inline formatting like Google Docs. | Requires a rich text engine (Slate.js, ProseMirror, or Tiptap). Massively increases complexity. Server-side rendering with Satori becomes much harder -- Satori does not support rich text spans natively. The HTML renderer would need to parse styled spans. Undo/redo becomes complex (character-level vs box-level). For carousel slides with short text (5-15 words), per-word styling is rarely needed. | Apply bold/italic to entire text box. Users can split text into multiple boxes if they need mixed styles. |
-| Custom font uploads | Users want to upload their own .ttf/.otf files. | Font hosting, validation, licensing concerns, server-side rendering needs font file access. Google Fonts covers 99% of use cases for social media carousels. | Offer 50-100 curated Google Fonts. Add brand kit font field for specific Google Font names. |
-| Underline and strikethrough | Feels like a "complete" text editor should have these. | Almost never used in social media carousel design. Adds toolbar clutter. Underline is a web anti-pattern (looks like a link). | Omit. If users request, add underline only as a v2 feature. |
-| Text on a path / curved text | Trendy design feature. | Very high complexity. Satori does not support SVG text paths. Would need entirely different rendering approach for server-side. | Not worth it for carousel use case. Defer indefinitely. |
-| Full WYSIWYG text editing on canvas | Click text on canvas to edit inline, like Figma. | Current architecture uses separate text panel (textarea) + canvas preview. Inline editing requires contentEditable, which is notoriously buggy. The scaled canvas (`transform: scale()`) makes cursor positioning unreliable. | Keep the side-panel text editing approach. It works well for short carousel text. |
-| Text effects (shadow, outline, glow) | Canva has these, users may expect them. | Each effect needs both client-side CSS preview AND server-side rendering parity. Satori supports `textShadow` but not all effects. Scope creep risk -- "just one more effect" compounds. | Defer to v1.4+. Add text shadow first (easiest, Satori-compatible), then evaluate demand. |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| OAuth 2.0 / third-party auth flows | Massive complexity (token exchange, refresh flows, scopes, consent screens) for a platform with zero third-party integrations today. API keys are the right tool for M2M auth at this scale | API keys with `vsm_` prefix + SHA-256 hashing. Revisit OAuth only if a marketplace or partner integration model emerges |
+| Real-time streaming of generation progress | Generation takes 5-15 seconds. Building SSE/WebSocket infrastructure for progress updates adds significant complexity with minimal user value for this duration | Return synchronous response. The one-shot endpoint blocks until generation completes. If generation gets slower (AI images), switch to async job + polling |
+| GraphQL API | REST is simpler, more widely understood by AI agents, and sufficient for this resource model. GraphQL adds schema complexity, client library requirements, and caching headaches | REST with well-designed resource endpoints. The data model (projects containing slides) is flat enough that REST handles it cleanly |
+| Public API without authentication | "Free API access without keys" invites abuse and bot scraping. Every generation call costs money (Gemini API, Pexels, server compute) | All API access requires an API key. Free tier users get API keys but are limited to their existing 3 credits/month |
+| Image hosting / CDN for rendered PNGs | Serving and storing rendered images indefinitely is expensive and creates an unbounded storage liability | Return PNG binary directly in response, or short-lived signed URLs (1-24 hours). Consumers store images in their own infrastructure |
+| Multi-user / team API keys | Organizational key management (teams, roles, permissions) is complex. The audience is solo creators and individual developers | One user account = one set of API keys sharing the same credit pool. Team features are a separate milestone |
+| Separate API-only pricing tiers | Maintaining two distinct pricing models (web subscriptions vs API plans) creates confusion, billing edge cases, and support burden | API uses the exact same subscription tiers (free/plus/pro) and credit pool. An API key is just another interface to spend the same credits |
+| Auto-posting to social platforms | Frequently requested, but TikTok/Instagram OAuth is complex, rate-limited, and fragile. Different product category | Return downloadable images. Users or their automation tools handle posting. Suggest Zapier/Make integrations in docs |
 
 ## Feature Dependencies
 
 ```
-Font Picker
-    |-- requires --> Google Fonts loading infrastructure
-    |                    |-- requires --> Font loading in slide-preview.tsx (client)
-    |                    |-- requires --> Font loading in render-slide.ts (server HTML)
-    |                    |-- requires --> Font binary fetching for render-slide-satori.tsx (server Satori)
-    |                    |-- requires --> getFontLink() update for dynamic fonts
-    |
-    |-- enhances --> Brand Kit font selection (existing font_family field)
-
-Bold/Italic Toggles
-    |-- requires --> SlideStyleOverrides type extension (font_weight, font_style)
-    |-- requires --> slide-preview.tsx style application
-    |-- requires --> render-slide.ts + render-slide-satori.tsx parity
-    |-- independent of --> Font Picker (can ship separately)
-
-Resizable Text Boxes
-    |-- requires --> Per-text-box width in SlideStyleOverrides
-    |-- requires --> Drag handle UI on canvas (new component)
-    |-- enhances --> Existing draggable text positioning
-    |-- conflicts with --> Symmetric text width calculation (100 - hookX * 2)
-    |                      Must migrate to explicit width per box
-
-Snap Alignment Guides
-    |-- requires --> Draggable text boxes (already exists via react-draggable)
-    |-- enhances --> Text positioning UX
-    |-- independent of --> Resizable text boxes (but better together)
+API Key Auth system
+  |
+  v
+Rate Limiting (per API key) -----> All API Endpoints
+  |                                    ^
+Credit Balance Check ----------------/
+  |
+  v
+One-Shot Carousel Endpoint
+  |-- wraps: existing generateCarousel() server action
+  |-- calls: Gemini 2.5 Flash (content), Pexels (images), render pipeline (PNGs)
+  |-- deducts: 1 credit via existing deduct_credits RPC
+  |-- returns: project ID + slide data + download URLs
+  |
+  v
+Render / Download Endpoints
+  |-- extends: existing /api/render route (add API key auth path)
+  |-- adds: bulk ZIP download endpoint
+  |
+  v
+Template Listing + Credit Balance (lightweight reads, no dependencies beyond auth)
+  |
+  v
+Granular Edit Endpoints (requires project to exist)
+  |-- PATCH slides/:index (text, style)
+  |-- PUT slides/:index/background (image swap)
+  |-- POST slides (add slide)
+  |-- DELETE slides/:index (remove slide)
+  |
+  v
+MCP Server (wraps all REST endpoints)
+  |-- Tools: generate_carousel, edit_slide, list_templates, render_slides
+  |-- Resources: project data, slide data
+  |-- Prompts: create_carousel, edit_carousel
+  |
+  v
+OpenAPI Spec + Docs (document stable surface last)
 ```
 
-### Dependency Notes
+## MVP Recommendation
 
-- **Font Picker requires font loading infrastructure:** The hardest part is not the UI dropdown -- it is ensuring fonts load correctly in three places: (1) the client-side `slide-preview.tsx` for live preview, (2) the `render-slide.ts` HTML template for Puppeteer rendering, and (3) the `render-slide-satori.tsx` for Satori rendering (which requires font binary data, not CSS links). This is the riskiest dependency.
-- **Bold/Italic is independent:** Can ship without font picker. Just extends `SlideStyleOverrides` and adds toolbar buttons. Low risk.
-- **Resizable text boxes conflict with symmetric width:** Current `textWidth = 100 - hookX * 2` calculates width from position. Resizable boxes need independent width storage. This is a data model change that affects all three renderers.
-- **Snap guides enhance dragging:** Works with existing `react-draggable` by adding visual feedback on `onDrag` events. Independent feature, no blockers.
+Build in this order (each step depends on the previous):
 
-## Milestone v1.3 Definition
+1. **API Key Auth system** -- everything depends on it. New `api_keys` table in Supabase (id, user_id, key_hash, prefix, name, created_at, last_used_at, revoked_at). Key generation endpoint in settings. Middleware that validates `Authorization: Bearer vsm_...` header, resolves to user_id
+2. **One-shot carousel endpoint** -- `POST /api/v1/carousels` accepting `{ topic, template_id, slide_count, image_source }`. Wraps existing `generateCarousel` logic. Returns `{ project_id, title, slides: [...], download_url }`. This IS the product
+3. **Credit deduction + rate limiting** -- Extend existing credit system with `api_carousel_generation` transaction type. Apply `rateLimitBucket` keyed on API key. Return `X-RateLimit-*` headers on every response
+4. **Credit balance + template listing** -- Two lightweight GET endpoints. `GET /api/v1/credits` and `GET /api/v1/templates`. High utility for agents deciding what to generate
+5. **Render/download endpoints** -- Extend existing `/api/render` to accept API key auth. Add `GET /api/v1/projects/:id/download` for ZIP of all slides
+6. **MCP server** -- Thin wrapper over REST endpoints using `@modelcontextprotocol/sdk`. Start with `generate_carousel` tool + `list_templates` tool. Add project resources. Use stdio transport (npm package for local use)
+7. **OpenAPI spec + interactive docs** -- Document the now-stable API surface. Host with Scalar for free interactive playground
+8. **Granular edit endpoints** -- `PATCH /api/v1/projects/:id/slides/:index` for text/style, image swap. Largest surface area, build after core proves valuable
 
-### Must Ship (P1)
-
-- [ ] **Bold/italic toggles** -- Lowest complexity, highest user expectation. Two buttons in toolbar, two new fields in `SlideStyleOverrides`. Ship first.
-- [ ] **Font picker with Google Fonts** -- Core user request. Start with curated list of ~40 popular fonts with search. Must solve Satori font loading (fetch font binary from Google Fonts CDN and pass to Satori options).
-- [ ] **Resizable text boxes** -- Users expect drag handles on selected text. Add width/height override to `SlideStyleOverrides`, render corner/edge handles on the canvas.
-- [ ] **Snap alignment guides** -- Visual polish that makes positioning feel professional. Center lines + edge snap at minimum.
-
-### Add After v1.3 Ships (v1.4)
-
-- [ ] **Font preview in dropdown** -- Nice visual polish but requires lazy font loading. Add when core font picker works.
-- [ ] **Letter spacing / line height controls** -- Low complexity, add when toolbar has room.
-- [ ] **Text shadow** -- Most requested text effect, Satori-compatible. Evaluate demand first.
-- [ ] **Recently used fonts** -- UX convenience, trivial to add once font picker exists.
-
-### Future Consideration (v2+)
-
-- [ ] **Custom font uploads** -- Requires font hosting infrastructure. Evaluate if Google Fonts coverage is insufficient.
-- [ ] **Rich text (mixed formatting within a text box)** -- Requires rich text engine. Only if carousel text gets longer/more complex.
-- [ ] **Text effects beyond shadow** -- Outline, glow, gradient text. Each needs render parity.
-
-## Feature Prioritization Matrix
-
-| Feature | User Value | Implementation Cost | Risk | Priority |
-|---------|------------|---------------------|------|----------|
-| Bold/italic toggles | HIGH | LOW | LOW | P1 |
-| Font picker (curated Google Fonts) | HIGH | MEDIUM | MEDIUM (Satori font loading) | P1 |
-| Snap alignment guides | HIGH | MEDIUM | LOW | P1 |
-| Resizable text boxes | HIGH | MEDIUM | MEDIUM (data model change) | P1 |
-| Font preview in dropdown | MEDIUM | LOW | LOW | P2 |
-| Letter spacing | MEDIUM | LOW | LOW | P2 |
-| Line height control | MEDIUM | LOW | LOW | P2 |
-| Recently used fonts | LOW | LOW | LOW | P2 |
-| Text shadow | MEDIUM | MEDIUM | LOW | P3 |
-
-**Priority key:**
-- P1: Must have for v1.3 milestone
-- P2: Should have, add in v1.4 when P1 is solid
-- P3: Nice to have, future consideration
-
-## Competitor Feature Analysis
-
-| Feature | Canva | Figma | BigMotion (inspiration) | Our Approach |
-|---------|-------|-------|------------------------|--------------|
-| Font picker | Full Google Fonts + premium fonts, visual preview, categories, recently used | System fonts + Google Fonts, no preview | Limited/no font selection | Curated ~40 Google Fonts with search, visual preview deferred to P2 |
-| Bold/italic | Per-character (rich text) | Per-character (rich text) | Basic/none | Per-text-box toggle (simpler, sufficient for carousel) |
-| Text resize | Drag handles on all sides + corners, auto-resize option | Drag handles, auto-width/fixed-width modes | Unknown | Corner + edge handles, fixed height (auto based on content) |
-| Snap guides | Center, edges, other elements, spacing guides, rotation snap | Center, edges, other elements, distribution guides | None observed | Canvas center + edges + other text box alignment |
-| Text effects | Shadow, outline, glow, curved, neon, splice | Shadow only (via plugin) | None | Defer to v1.4+ (shadow first) |
-| Inline editing | Click-to-edit on canvas | Click-to-edit on canvas | Unknown | Side-panel editing (simpler, avoids contentEditable bugs at scale) |
-
-## Implementation Complexity Notes
-
-### Font Picker -- Key Technical Challenge: Satori Font Loading
-
-The `render-slide-satori.tsx` renderer uses Satori which requires font binary data (ArrayBuffer), not CSS `@font-face` declarations. For dynamic user-selected fonts:
-
-1. Fetch the Google Fonts CSS to get the `.woff2` URL
-2. Fetch the `.woff2` binary
-3. Pass it to Satori's `fonts` option
-
-This means the server-side render API needs to dynamically fetch and cache font files. The HTML renderer (`render-slide.ts`) is simpler -- just update the `getFontLink()` function.
-
-**Recommendation:** Cache fetched font binaries on the server (filesystem or memory cache with LRU eviction). Google Fonts URLs are stable per font+weight combination.
-
-### Resizable Text Boxes -- Data Model Impact
-
-Current `SlideStyleOverrides` calculates text width from position. New model needs:
-
-```typescript
-// Add to SlideStyleOverrides
-hook_width?: number    // percentage 0-100 (default: 78, matching current 100 - 11*2)
-body_width?: number    // percentage 0-100
-hook_height?: number   // percentage, optional (auto-height from content is usually better)
-body_height?: number
-```
-
-All three renderers must honor these new fields. Existing slides without these fields should fall back to current symmetric calculation for backwards compatibility.
-
-### Snap Guides -- Implementation Pattern
-
-Use the `onDrag` callback from `react-draggable` (not just `onStop`):
-
-1. On each drag frame, calculate distances to snap targets (canvas center, edges, other text box edges/centers)
-2. If distance < threshold (~5px in reference coordinates), snap position to target
-3. Render guide lines as absolutely-positioned `<div>` elements in the canvas layer
-4. Remove guides on `onStop`
-
-Snap targets for a 1080x1920 canvas:
-- Horizontal center: x = 50%
-- Vertical center: y = 50%
-- Safe zone edges: x = 11%, x = 89%
-- Top safe: y = 10.4%
-- Other text box edges and centers
+Defer to next iteration:
+- **Webhook notifications**: Only valuable with async/batch operations
+- **Batch generation**: Agency use case, not solo creator MVP
+- **TypeScript SDK**: Auto-generate from OpenAPI once API is stable
+- **Usage analytics dashboard**: Build when there are actual API consumers to serve
 
 ## Sources
 
-- [Canva Help Center - Add and Edit Text](https://www.canva.com/help/add-and-edit-text/)
-- [Canva Help Center - Format Text](https://www.canva.com/help/format-text/)
-- [Canva Help Center - Text and Fonts](https://www.canva.com/help/text-fonts/)
-- [Canva Apps SDK - Creating Text](https://www.canva.dev/docs/apps/creating-text/)
-- [Canva Apps SDK - Fonts Example](https://www.canva.dev/docs/apps/examples/fonts/)
-- [Next.js Font Optimization Docs](https://nextjs.org/docs/app/getting-started/fonts)
-- [Next.js Dynamic Font Loading Discussion](https://github.com/vercel/next.js/discussions/40345)
-- [React Konva Snap Guides Implementation](https://www.bigbinary.com/blog/shape-snapping-with-react-konva)
-- [Fabric.js SnappyRect Snapping Guide](https://dinesh-rawat.medium.com/enhancing-object-snapping-in-fabric-js-introducing-the-snappyrect-class-2c406d8a4965)
-- [Konva.js Resize Snapping Docs](https://konvajs.org/docs/select_and_transform/Resize_Snaps.html)
-- [tldraw Infinite Canvas SDK](https://tldraw.dev/features/composable-primitives/layout-and-composition)
-
----
-*Feature research for: Rich text editing in carousel slide editor (v1.3)*
-*Researched: 2026-03-26*
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) -- official SDK for tools, resources, prompts
+- [MCP Best Practices](https://modelcontextprotocol.info/docs/best-practices/) -- server architecture guidance
+- [MCP 2026 Roadmap](http://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/) -- Streamable HTTP transport, .well-known discovery
+- [Build an MCP Server](https://modelcontextprotocol.io/docs/develop/build-server) -- official implementation guide
+- [API Credits Billing for Startups](https://colorwhistle.com/api-credits-billing-tech-startups/) -- credit metering patterns
+- [OpenAI Rate Limits](https://developers.openai.com/api/docs/guides/rate-limits) -- rate limit header conventions
+- [Scalar](https://scalar.com/) -- free OpenAPI documentation and interactive playground
+- [API Key vs JWT for SaaS](https://www.scalekit.com/blog/apikey-jwt-comparison) -- authentication pattern comparison
+- [Asynchronous AI: Event Callbacks](https://hookdeck.com/blog/asynchronous-ai) -- async generation patterns
+- [RESTful API Design Best Practices 2026](https://dasroot.net/posts/2026/01/restful-api-design-best-practices-2026/) -- versioning, pagination, error handling

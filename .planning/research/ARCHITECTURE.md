@@ -1,498 +1,465 @@
-# Architecture Research: Rich Text Editing Integration
+# Architecture Research
 
-**Domain:** Slide editor rich text features (font picker, bold/italic, alignment guides, resizable text boxes)
-**Researched:** 2026-03-26
+**Domain:** REST API & MCP Server for Carousel Image Creator
+**Researched:** 2026-04-06
 **Confidence:** HIGH
 
-## Current Architecture Summary
-
-The slide editor has a clean three-layer rendering pipeline:
+## System Overview
 
 ```
-Data Layer (Slide type + SlideStyleOverrides)
-    |
-    v
-Editor Layer (useSlideEditor reducer + TextEditorPanel controls)
-    |
-    v
-Rendering Layer (two parallel renderers reading same data)
-    |--- SlidePreview (React + react-draggable, client-side preview)
-    |--- buildSlideElement (Satori JSX, server-side PNG via next/og ImageResponse)
-    |--- buildSlideHtml (HTML string renderer, present but secondary)
+                              Consumers
+          ┌─────────────────────┬──────────────────────┐
+          │                     │                      │
+     Web App (existing)   REST API Clients    MCP Clients (Claude, etc.)
+          │                     │                      │
+          │              Bearer API Key         stdio / Streamable HTTP
+          │                     │                      │
+          ▼                     ▼                      ▼
+    ┌──────────┐      ┌──────────────────┐    ┌──────────────────┐
+    │ Server   │      │  /api/v1/*       │    │ /api/mcp/[trans] │
+    │ Actions  │      │  Route Handlers  │    │  mcp-handler     │
+    │(existing)│      │  (NEW)           │    │  (NEW)           │
+    └────┬─────┘      └────────┬─────────┘    └────────┬─────────┘
+         │                     │                       │
+         │              ┌──────┴───────┐               │
+         │              │ API Auth     │               │
+         │              │ Middleware   │◄──────────────┘
+         │              │ (NEW)        │
+         │              └──────┬───────┘
+         │                     │
+    ┌────┴─────────────────────┴──────────────────────────┐
+    │                  Service Layer (NEW)                  │
+    │  ┌────────────┐ ┌────────────┐ ┌─────────────────┐  │
+    │  │ carousel   │ │ project    │ │ render           │  │
+    │  │ service    │ │ service    │ │ service           │  │
+    │  └────────────┘ └────────────┘ └─────────────────┘  │
+    ├──────────────────────────────────────────────────────┤
+    │                  Existing Infrastructure              │
+    │  ┌──────────┐ ┌──────────┐ ┌──────┐ ┌───────────┐  │
+    │  │ Gemini   │ │ Pexels   │ │Satori│ │ Supabase  │  │
+    │  │ 2.5 Flash│ │ API      │ │/next │ │ (DB+Auth) │  │
+    │  │          │ │          │ │ /og  │ │           │  │
+    │  └──────────┘ └──────────┘ └──────┘ └───────────┘  │
+    │  ┌──────────┐ ┌──────────────────────────────────┐  │
+    │  │ Stripe   │ │ Credit System (Postgres RPC)     │  │
+    │  └──────────┘ └──────────────────────────────────┘  │
+    └──────────────────────────────────────────────────────┘
 ```
 
-**Critical constraint:** Any data model change must render identically in both `SlidePreview` (client React component) and `buildSlideElement` (Satori JSX for `next/og` ImageResponse). Satori has significant CSS limitations: no z-index, inline styles only, limited CSS subset (flexbox + absolute positioning). All style resolution logic is currently duplicated across these renderers.
+### Component Responsibilities
 
-### Current Data Model
+| Component | Responsibility | Status |
+|-----------|----------------|--------|
+| `/api/v1/*` Route Handlers | REST API endpoints (auth, CRUD, generation, render) | NEW |
+| `/api/mcp/[transport]` | MCP protocol endpoint via `mcp-handler` | NEW |
+| API Auth Middleware (`lib/api/auth.ts`) | Validate API keys via Bearer token, resolve to userId | NEW |
+| Service Layer (`lib/services/`) | Shared business logic extracted from Server Actions | NEW (refactor) |
+| `api_keys` table | Store hashed API keys, link to users, track usage | NEW |
+| Server Actions (existing) | Continue serving web UI unchanged (thin wrappers) | MODIFY (extract logic) |
+| Credit System (existing) | Meter API usage, same deduct_credits RPC | REUSE |
+| Rate Limiter (existing) | Protect API endpoints | MODIFY (upgrade to Redis) |
+| Render Route (existing `/api/render`) | PNG image generation via Satori/next-og | REUSE |
 
+## Recommended Project Structure
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── v1/                          # NEW: REST API v1
+│   │   │   ├── carousels/
+│   │   │   │   ├── route.ts             # POST /api/v1/carousels (one-shot)
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.ts          # GET /api/v1/carousels/:id
+│   │   │   │       ├── slides/
+│   │   │   │       │   └── [index]/
+│   │   │   │       │       ├── route.ts  # PATCH slide text/image
+│   │   │   │       │       └── render/
+│   │   │   │       │           └── route.ts  # GET rendered PNG
+│   │   │   │       └── render/
+│   │   │   │           └── route.ts      # GET all slides as ZIP
+│   │   │   ├── templates/
+│   │   │   │   └── route.ts             # GET available templates
+│   │   │   └── me/
+│   │   │       └── route.ts             # GET current user info + credits
+│   │   ├── mcp/
+│   │   │   └── [transport]/
+│   │   │       └── route.ts             # MCP protocol handler
+│   │   ├── render/
+│   │   │   └── route.ts                 # EXISTING: image render
+│   │   └── webhooks/
+│   │       └── stripe/
+│   │           └── route.ts             # EXISTING: Stripe webhooks
+│   └── (dashboard)/                     # EXISTING: web UI (unchanged)
+├── lib/
+│   ├── api/                             # NEW: API-specific utilities
+│   │   ├── auth.ts                      # API key validation + user resolution
+│   │   ├── errors.ts                    # Standardized API error responses
+│   │   └── response.ts                  # JSON response helpers
+│   ├── services/                        # NEW: extracted business logic
+│   │   ├── carousel-service.ts          # Generate carousel (from actions.ts)
+│   │   ├── project-service.ts           # CRUD projects
+│   │   ├── slide-service.ts             # Edit individual slides
+│   │   └── render-service.ts            # Render slides to PNG
+│   ├── mcp/                             # NEW: MCP tool definitions
+│   │   └── tools.ts                     # Register MCP tools
+│   ├── ai/                              # EXISTING (unchanged)
+│   ├── credits/                         # EXISTING (unchanged)
+│   ├── render/                          # EXISTING (unchanged)
+│   ├── pexels/                          # EXISTING (unchanged)
+│   └── supabase/                        # EXISTING (unchanged)
+```
+
+### Structure Rationale
+
+- **`/api/v1/`**: Version prefix from day one. Folder-based versioning is the Next.js App Router convention. Cheap to add now, painful to retrofit later.
+- **`/lib/services/`**: Extract business logic from Server Actions into plain async functions. Server Actions become thin wrappers. API routes call the same services. Single source of truth for all business logic.
+- **`/api/mcp/[transport]/`**: Uses Vercel's `mcp-handler` package which needs a dynamic `[transport]` segment to handle both Streamable HTTP and SSE transports.
+- **`/lib/api/`**: API-specific concerns (key validation, error formatting) kept separate from core business logic.
+
+## Architectural Patterns
+
+### Pattern 1: Service Extraction (Critical First Step)
+
+**What:** Extract business logic from Server Actions into framework-agnostic service functions. Server Actions and API routes both call the same services.
+**When to use:** Before building any API routes. This is the foundation.
+**Trade-offs:** Small refactor cost upfront, but prevents duplicating logic between Server Actions and API routes.
+
+**Current state (Server Actions contain all logic):**
 ```typescript
-// src/lib/types/slide.ts
-interface SlideStyleOverrides {
-  hook_font_size?: number
-  body_font_size?: number
-  text_color?: string
-  text_position?: 'top' | 'center' | 'bottom'
-  text_align?: 'left' | 'center' | 'right'
-  hook_position?: TextPosition   // { x: number, y: number } as percentages
-  body_position?: TextPosition
-  overlay_opacity?: number
-}
-
-interface Slide {
-  hook_text: string              // plain string, NOT rich text
-  body_text: string              // plain string, NOT rich text
-  image_query: string
-  is_cta: boolean
-  background_url: string | null
-  pexels_photo_id: number | null
-  style_overrides?: SlideStyleOverrides
-}
-```
-
-Slides are stored as `jsonb` in Postgres (`projects.slide_data`). New optional fields are backward-compatible -- existing slides without them render with template defaults.
-
-### Current Rendering Coordinate System
-
-The canvas uses a 1080x1920 reference space scaled down to the container width via CSS `transform: scale(factor)`. Text positions are stored as percentages (0-100). `react-draggable` handles position changes with the scale factor passed in. Text width is currently computed as `100 - hookX * 2` (symmetric margins, same width for both text boxes).
-
-## Integration Analysis by Feature
-
-### 1. Bold/Italic Text Styling
-
-**Impact: LOW -- purely additive style fields, zero external dependencies**
-
-| Layer | Component | Change Type | Details |
-|-------|-----------|-------------|---------|
-| Data | `SlideStyleOverrides` | ADD fields | `hook_font_weight?: number`, `hook_font_style?: 'normal' \| 'italic'`, same for `body_*` |
-| Data | `SlideTemplate` | NO CHANGE | `hookStyle` already has `'uppercase' \| 'normal' \| 'italic'` at template level |
-| Editor | `TextEditorPanel` | ADD controls | Bold (B) and Italic (I) toggle buttons per text box |
-| Preview | `SlidePreview` | MODIFY | Apply `fontWeight` and `fontStyle` from overrides to text element styles |
-| Render | `buildSlideElement` | MODIFY | Same override resolution for Satori inline styles |
-| Render | Font loading | NOTE | Must ensure bold (700/900) and italic variants are loaded for selected font |
-
-**Design decision -- whole-box styling, NOT inline rich text:**
-
-Apply bold/italic to the entire hook or body text box. Do NOT implement inline rich text (e.g., "some **bold** words"). Reasons:
-1. Satori cannot reliably render mixed-weight `<span>` elements within a text block
-2. Current data model stores `hook_text` and `body_text` as plain strings -- inline formatting would require migrating to a rich text format (Slate nodes, ProseMirror doc, or HTML)
-3. Inline rich text requires a full editor library (Slate, TipTap, ProseMirror) -- massive complexity for short slide text (1-3 sentences)
-4. Canva-style slide editors apply formatting to entire text boxes, not inline -- this is the right UX for short-form carousel content
-
-**Implementation:** Toggle buttons that set `fontWeight: 700` (bold on) / `undefined` (bold off, inherit from template) and `fontStyle: 'italic'` / `undefined`. User overrides compose with template's `hookStyle` -- if template says `hookStyle: 'italic'` and user toggles italic off, the override wins.
-
-### 2. Font Picker (Google Fonts)
-
-**Impact: MEDIUM -- requires font infrastructure for both client preview and server rendering**
-
-| Layer | Component | Change Type | Details |
-|-------|-----------|-------------|---------|
-| Data | `SlideStyleOverrides` | ADD fields | `hook_font_family?: string`, `body_font_family?: string` |
-| Data | `SlideTemplate` | NO CHANGE | Already has `fontFamily` field used as default |
-| Editor | `TextEditorPanel` | ADD section | Font picker dropdown with search, grouped by category |
-| Preview | `SlidePreview` | MODIFY | Dynamically inject Google Fonts `<link>` tag for custom font |
-| Render | `buildSlideElement` | MODIFY | Read font family override, apply to Satori styles |
-| Render | `render/route.ts` | MODIFY | Fetch font file buffers and pass to ImageResponse `fonts` option |
-| New | `font-catalog.ts` | NEW | Static list of curated fonts with metadata |
-| New | `load-font.ts` | NEW | Fetch Google Font .ttf buffers for Satori |
-| New | `font-picker.tsx` | NEW | Searchable font dropdown component |
-
-**Critical integration point -- Satori font loading:**
-
-Satori (used by `next/og` ImageResponse) does NOT use CSS `@font-face` or Google Fonts `<link>` tags. It requires raw font file ArrayBuffers passed to the constructor:
-
-```typescript
-// Current -- no custom fonts, uses system fallback
-new ImageResponse(element, { width: 1080, height: 1920 })
-
-// Required for custom fonts
-new ImageResponse(element, {
-  width: 1080,
-  height: 1920,
-  fonts: [
-    {
-      name: 'Montserrat',
-      data: fontBuffer,       // ArrayBuffer from .ttf/.woff file
-      weight: 400,
-      style: 'normal',
-    },
-    {
-      name: 'Montserrat',
-      data: boldFontBuffer,
-      weight: 700,
-      style: 'normal',
-    },
-  ],
-})
-```
-
-**Font loading strategy for server rendering:**
-1. Google Fonts CSS API returns `@font-face` declarations with URLs to `.woff2`/`.ttf` files
-2. Parse those URLs from the CSS response
-3. Fetch the binary font file
-4. Cache the buffer (in-memory or on disk) -- fonts are immutable, cache indefinitely
-5. Pass to ImageResponse
-
-**Client preview font loading:** Inject a `<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap">` tag into `<head>` dynamically. This is simple and well-supported.
-
-**Curated font list -- not open search:**
-Limit to 20-30 popular Google Fonts grouped by category (sans-serif, serif, display, handwriting). Reasons:
-- Most of Google Fonts' 1400+ fonts are low quality
-- Each unique font in a project requires a buffer fetch at render time
-- Font previews for 1400 fonts would be slow to render
-- A curated list provides a better UX (less choice paralysis)
-
-### 3. Resizable Text Boxes
-
-**Impact: MEDIUM -- modifies core text box rendering and breaks symmetric width assumption**
-
-| Layer | Component | Change Type | Details |
-|-------|-----------|-------------|---------|
-| Data | `SlideStyleOverrides` | ADD fields | `hook_width?: number` (percentage 0-100), `body_width?: number` |
-| Editor | `SlidePreview` | MODIFY | Replace symmetric width calc, add resize drag handles |
-| Preview | `SlidePreview` (non-editable) | MODIFY | Read per-box width from overrides |
-| Render | `buildSlideElement` | MODIFY | Read per-box width overrides |
-| Render | `buildSlideHtml` | MODIFY | Same |
-| New | Resize interaction code | NEW | Mouse/touch handlers for resize handles |
-
-**Breaking the symmetric width assumption:**
-
-Currently ALL renderers compute text width as `100 - hookX * 2` -- a symmetric margin. With per-box widths, this changes to:
-
-```typescript
-// Current (all renderers)
-const textWidth = 100 - hookX * 2
-
-// New
-const hookWidth = overrides.hook_width ?? (100 - hookX * 2)  // fallback to symmetric
-const bodyWidth = overrides.body_width ?? (100 - bodyX * 2)
-```
-
-This change touches `SlidePreview` (editable and non-editable modes) and both server renderers. All must be updated together.
-
-**Width only, NOT height:** Text boxes auto-size height based on content (text wraps naturally). Users resize width; height follows. This matches Canva/Figma behavior for text boxes and avoids the complexity of overflow/truncation.
-
-**Implementation -- custom resize handles, not a library:**
-
-Do NOT add `react-resizable` or `re-resizable`. Reasons:
-- The text boxes are already absolutely positioned in a scaled coordinate system with `react-draggable`
-- Adding a resize library creates two competing coordinate/event systems on the same DOM elements
-- The existing scale factor math (container width / 1080) must be applied to resize deltas too
-
-Instead, add 8x8px drag handles at the left and right edges of each text box. On mousedown, track mouse movement, convert pixel deltas to percentage deltas using the same scale factor, and dispatch `UPDATE_SLIDE` with new width values.
-
-### 4. Alignment Guides (Snap Lines)
-
-**Impact: LOW -- purely visual, no data model or server rendering changes**
-
-| Layer | Component | Change Type | Details |
-|-------|-----------|-------------|---------|
-| Data | None | NO CHANGE | Guides are ephemeral UI state, not persisted |
-| Editor | `SlidePreview` | MODIFY | Add `onDrag` handler (currently only uses `onStop`), render guide overlays |
-| New | `use-alignment-guides.ts` | NEW | Hook: calculate guide positions, detect proximity, return active guides |
-| New | Overlay divs in `SlidePreview` | NEW | Thin colored lines shown during drag |
-
-**Key change to react-draggable usage:**
-
-Currently the component only uses `onStop` to persist final position. Must add `onDrag` handler to compute snap positions in real-time during drag. The `Draggable` component already supports both callbacks.
-
-```
-User drags text box
-    |
-    v
-onDrag fires continuously
-    |
-    v
-useAlignmentGuides calculates nearest guides from current position
-    |
-    v
-If within snap threshold (e.g., 8-10px in reference space):
-    - Snap position to guide
-    - Show guide line overlay
-    |
-    v
-onStop: persist final snapped position (existing flow)
-```
-
-**Guide lines to implement:**
-- Canvas horizontal center (y = 50%)
-- Canvas vertical center (x = 50%)
-- Top/bottom safe zone boundaries (y = 12%, y = 75%)
-- Left/right safe zone boundaries (x = 11%, x = 89%)
-- Cross-box alignment: hook aligns to body's x position, and vice versa
-
-## Data Model Changes (Complete)
-
-```typescript
-// Proposed SlideStyleOverrides for v1.3
-export interface SlideStyleOverrides {
-  // Existing fields (unchanged)
-  hook_font_size?: number
-  body_font_size?: number
-  text_color?: string
-  text_position?: 'top' | 'center' | 'bottom'
-  text_align?: 'left' | 'center' | 'right'
-  hook_position?: TextPosition
-  body_position?: TextPosition
-  overlay_opacity?: number
-
-  // NEW: Font picker
-  hook_font_family?: string       // Google Font name, e.g. "Montserrat"
-  body_font_family?: string
-
-  // NEW: Bold/italic
-  hook_font_weight?: number       // 400 | 700 | 900
-  hook_font_style?: 'normal' | 'italic'
-  body_font_weight?: number
-  body_font_style?: 'normal' | 'italic'
-
-  // NEW: Resizable width
-  hook_width?: number             // percentage 0-100
-  body_width?: number             // percentage 0-100
+// app/(dashboard)/project/[id]/actions.ts — currently 165 lines
+'use server'
+export async function generateCarousel(projectId, topic, ...) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  // auth check, credit check, AI generation, image fetch, DB write — all mixed together
 }
 ```
 
-**Database impact:** NONE. All fields are optional within the `style_overrides` object inside the `slide_data` jsonb column. Fully backward-compatible -- old slides render with template defaults for missing fields.
-
-## Editor State Changes
-
-The existing reducer pattern requires NO structural changes. All new fields flow through `SlideStyleOverrides`, which is already handled by the `UPDATE_SLIDE` action's merge logic:
-
+**Target state (Service layer + thin wrappers):**
 ```typescript
-// Existing code in editor-reducer.ts -- already handles new fields
-case 'UPDATE_SLIDE': {
-  if (action.updates.style_overrides && slide.style_overrides) {
-    updated.style_overrides = {
-      ...slide.style_overrides,
-      ...action.updates.style_overrides,
-    }
+// lib/services/carousel-service.ts — pure business logic
+export async function generateCarousel(
+  userId: string,
+  params: GenerateCarouselParams
+): Promise<CarouselResult> {
+  // No auth — caller handles that. Just business logic.
+  await ensureSubscription(userId)
+  const credits = await checkCreditsForUser(userId)
+  if (!credits.allowed) throw new InsufficientCreditsError(credits)
+  const carousel = await generateSlideContent(params.topic, params.slideCount)
+  // ... image fetch, DB write ...
+}
+
+// app/(dashboard)/project/[id]/actions.ts — thin wrapper
+'use server'
+export async function generateCarouselAction(projectId, topic, ...) {
+  const user = await requireAuth()  // Supabase cookie auth
+  return carouselService.generateCarousel(user.id, { projectId, topic, ... })
+}
+
+// app/api/v1/carousels/route.ts — thin wrapper
+export async function POST(request: Request) {
+  const { userId } = await requireApiKey(request)  // Bearer token auth
+  const body = await parseBody(request, CreateCarouselSchema)
+  return json(await carouselService.generateCarousel(userId, body))
+}
+```
+
+**What to extract:** The following Server Action files contain extractable business logic:
+- `src/app/(dashboard)/project/[id]/actions.ts` → `carousel-service.ts` (generateCarousel)
+- `src/app/(dashboard)/project/[id]/editor-actions.ts` → `slide-service.ts` (saveSlideData, regenerateSlideText, regenerateSlideImageQuery, searchBackgroundPhotos, createUploadUrl, saveTemplateId)
+- `src/app/(dashboard)/dashboard/actions.ts` → `project-service.ts` (CRUD operations)
+
+### Pattern 2: Dual Auth (Cookie + API Key)
+
+**What:** Web UI continues using Supabase cookie auth. API routes use Bearer token with API keys stored in a new `api_keys` table. Both resolve to a `userId` before entering the service layer.
+**When to use:** Every API route needs this.
+**Trade-offs:** Requires a new DB table and key management UI, but cleanly separates web auth from programmatic auth.
+
+**Implementation:**
+```typescript
+// lib/api/auth.ts
+import { createAdminClient } from '@/lib/supabase/admin'
+import crypto from 'crypto'
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string) { super(message) }
+}
+
+export async function requireApiKey(request: Request): Promise<{ id: string; userId: string }> {
+  const header = request.headers.get('Authorization')
+  if (!header?.startsWith('Bearer vsm_')) {
+    throw new ApiError(401, 'Missing or invalid Authorization header. Use: Bearer vsm_...')
   }
+
+  const key = header.slice(7)
+  const keyHash = crypto.createHash('sha256').update(key).digest('hex')
+
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('api_keys')
+    .select('id, user_id, revoked_at')
+    .eq('key_hash', keyHash)
+    .is('revoked_at', null)
+    .single()
+
+  if (!data) throw new ApiError(401, 'Invalid or revoked API key')
+
+  // Update last_used_at (fire-and-forget, don't block response)
+  supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', data.id).then()
+
+  return { id: data.id, userId: data.user_id }
 }
 ```
 
-Undo/redo works automatically because the reducer snapshots the entire slide array in `past[]`. No new action types needed.
+**API key format:** `vsm_` prefix + 32 random hex chars. Prefix makes keys identifiable in logs and secret scanners. Only the SHA-256 hash is stored in DB — the plaintext key is shown once at creation.
 
-## Architectural Pattern: Shared Style Resolution
+### Pattern 3: MCP as Embedded Next.js Route (Not Separate Process)
 
-**This is the most important refactor before adding features.**
+**What:** MCP server runs inside the Next.js app via Vercel's `mcp-handler`. Tools call the service layer directly — no HTTP roundtrips.
+**When to use:** This is the recommended approach for this project.
+**Trade-offs:** Simplest deployment (same Vercel project). If a standalone CLI-installable MCP server is needed later (stdio for local Claude Desktop), use `mcp-remote` to proxy to the hosted endpoint.
 
-Currently, override resolution (e.g., `overrides.text_color ?? template.textColor`) is duplicated across three renderers:
-1. `SlidePreview` (editable mode)
-2. `SlidePreview` (non-editable/thumbnail mode)
-3. `buildSlideElement` (Satori server render)
-4. `buildSlideHtml` (HTML renderer)
+**Decision rationale:**
+- `mcp-handler` is Vercel's official MCP adapter for Next.js App Router
+- Single deployment target (one Vercel project, zero new infrastructure)
+- MCP tools call service functions directly — zero network overhead
+- Supports Streamable HTTP transport (what remote MCP clients use)
+- No Redis needed unless using SSE transport with resumability
 
-With 8 new override fields, this duplication becomes a guaranteed source of preview-vs-export bugs.
+**Implementation:**
+```typescript
+// app/api/mcp/[transport]/route.ts
+import { createMcpHandler } from 'mcp-handler'
+import { registerTools } from '@/lib/mcp/tools'
 
-**Solution:** Extract `resolveSlideStyles(slide, template)` that ALL renderers consume:
+const handler = createMcpHandler(
+  (server) => registerTools(server),
+  { name: 'viral-slide-maker', version: '1.0.0' },
+  { basePath: '/api/mcp', maxDuration: 60 }
+)
+
+export { handler as GET, handler as POST }
+
+// lib/mcp/tools.ts
+export function registerTools(server: McpServer) {
+  server.registerTool('create_carousel', {
+    description: 'Generate a complete TikTok/Instagram carousel from a topic.',
+    parameters: z.object({
+      topic: z.string(),
+      slide_count: z.number().min(3).max(20).default(7),
+      template: z.string().default('bold-minimal'),
+      image_source: z.enum(['stock', 'ai']).default('stock'),
+    }),
+  }, async (args) => {
+    const result = await carouselService.generateCarousel(userId, args)
+    return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+  })
+
+  server.registerTool('edit_slide', { ... }, async (args) => { ... })
+  server.registerTool('render_carousel', { ... }, async (args) => { ... })
+  server.registerTool('list_templates', { ... }, async (args) => { ... })
+}
+```
+
+**MCP Auth:** MCP clients authenticate via the same API key mechanism. The `mcp-handler` passes headers through — the tool implementation extracts the Bearer token and resolves the user. This needs to be wired into the tool context.
+
+### Pattern 4: Standardized API Error Responses
+
+**What:** All API errors use a consistent JSON shape with machine-readable error codes.
+**When to use:** Every API route and MCP tool error.
 
 ```typescript
-// src/lib/render/resolve-styles.ts
-export interface ResolvedSlideStyles {
-  textColor: string
-  textAlign: 'left' | 'center' | 'right'
-  overlayOpacity: number
-
-  hookFontSize: number
-  hookFontFamily: string
-  hookFontWeight: number
-  hookFontStyle: 'normal' | 'italic'
-  hookX: number           // percentage
-  hookY: number           // percentage
-  hookWidth: number       // percentage
-
-  bodyFontSize: number
-  bodyFontFamily: string
-  bodyFontWeight: number
-  bodyFontStyle: 'normal' | 'italic'
-  bodyX: number
-  bodyY: number
-  bodyWidth: number
+// lib/api/errors.ts
+export function errorResponse(status: number, code: string, message: string) {
+  return Response.json({ error: { code, message } }, { status })
 }
 
-export function resolveSlideStyles(
-  slide: Slide,
-  template: SlideTemplate
-): ResolvedSlideStyles {
-  const overrides = slide.style_overrides ?? {}
-  const posPreset = overrides.text_position ?? template.textPosition
-  const defaults = SAFE_ZONE[posPreset] ?? SAFE_ZONE.center
-
-  return {
-    textColor: overrides.text_color ?? template.textColor,
-    textAlign: overrides.text_align ?? template.textAlign,
-    overlayOpacity: overrides.overlay_opacity != null
-      ? overrides.overlay_opacity / 100
-      : template.overlayOpacity,
-
-    hookFontSize: overrides.hook_font_size ?? parseInt(template.hookFontSize),
-    hookFontFamily: overrides.hook_font_family
-      ? `'${overrides.hook_font_family}', sans-serif`
-      : template.fontFamily,
-    hookFontWeight: overrides.hook_font_weight ?? 900,
-    hookFontStyle: overrides.hook_font_style
-      ?? (template.hookStyle === 'italic' ? 'italic' : 'normal'),
-    hookX: overrides.hook_position?.x ?? SAFE_ZONE.x,
-    hookY: overrides.hook_position?.y ?? defaults.hookY,
-    hookWidth: overrides.hook_width ?? (100 - (overrides.hook_position?.x ?? SAFE_ZONE.x) * 2),
-
-    bodyFontSize: overrides.body_font_size ?? parseInt(template.bodyFontSize),
-    bodyFontFamily: overrides.body_font_family
-      ? `'${overrides.body_font_family}', sans-serif`
-      : template.fontFamily,
-    bodyFontWeight: overrides.body_font_weight ?? 400,
-    bodyFontStyle: overrides.body_font_style ?? 'normal',
-    bodyX: overrides.body_position?.x ?? SAFE_ZONE.x,
-    bodyY: overrides.body_position?.y ?? defaults.bodyY,
-    bodyWidth: overrides.body_width ?? (100 - (overrides.body_position?.x ?? SAFE_ZONE.x) * 2),
-  }
+// Usage in route handler
+try {
+  const { userId } = await requireApiKey(request)
+  const body = await parseBody(request, schema)
+  const result = await carouselService.generateCarousel(userId, body)
+  return Response.json({ data: result })
+} catch (err) {
+  if (err instanceof ApiError) return errorResponse(err.status, 'AUTH_ERROR', err.message)
+  if (err instanceof InsufficientCreditsError) return errorResponse(402, 'INSUFFICIENT_CREDITS', err.message)
+  if (err instanceof ZodError) return errorResponse(400, 'VALIDATION_ERROR', err.message)
+  return errorResponse(500, 'INTERNAL_ERROR', 'An unexpected error occurred')
 }
 ```
 
-## New Files
+## Data Flow
 
-| File | Type | Purpose |
-|------|------|---------|
-| `src/lib/render/resolve-styles.ts` | NEW | Shared style resolution -- single source of truth for all renderers |
-| `src/lib/fonts/font-catalog.ts` | NEW | Static array of 20-30 curated Google Fonts with metadata (name, weights, category) |
-| `src/lib/fonts/load-font.ts` | NEW | Fetch Google Font .ttf buffer for Satori rendering, with in-memory cache |
-| `src/components/editor/font-picker.tsx` | NEW | Searchable dropdown of curated fonts with live preview text |
-| `src/lib/editor/use-alignment-guides.ts` | NEW | Hook: calculate snap guide positions, detect proximity, return active guide lines |
-
-## Modified Files
-
-| File | Change | Why |
-|------|--------|-----|
-| `src/lib/types/slide.ts` | Add 8 new optional fields to `SlideStyleOverrides` | Data model for all new features |
-| `src/components/editor/text-editor-panel.tsx` | Add font picker component, bold/italic toggle buttons | Editor controls for new features |
-| `src/components/slides/slide-preview.tsx` | Consume `resolveSlideStyles()`, add resize handles, add alignment guide overlay, add `onDrag` to Draggable, dynamic Google Font `<link>` injection | Preview rendering + interaction |
-| `src/lib/render/render-slide-satori.tsx` | Consume `resolveSlideStyles()`, apply font family/weight/style to JSX styles | Server rendering parity |
-| `src/lib/render/render-slide.ts` | Consume `resolveSlideStyles()`, apply new CSS properties | HTML renderer parity |
-| `src/app/api/render/route.ts` | Detect custom fonts from slide overrides, fetch font buffers, pass to ImageResponse `fonts` option | Font loading for server-side PNG export |
-
-## Recommended Build Order
-
-Order is driven by dependencies. Each feature can ship independently.
-
-### Step 0: Extract `resolveSlideStyles()` (prerequisite refactor)
-
-**Why first:** This is a pure refactor with no behavior change. It eliminates the style resolution duplication BEFORE adding new fields. All subsequent features benefit from a single source of truth.
-
-1. Create `src/lib/render/resolve-styles.ts` with current fields only
-2. Refactor `SlidePreview` to consume it
-3. Refactor `buildSlideElement` to consume it
-4. Refactor `buildSlideHtml` to consume it
-5. Verify all tests pass -- rendering should be byte-identical
-
-**Risk:** LOW. Pure refactor, no new behavior.
-
-### Step 1: Bold/Italic (simplest feature, validates override pattern)
-
-**Why next:** Zero external dependencies. Tests the pattern of adding new override fields end-to-end through `resolveSlideStyles()`.
-
-1. Add `hook_font_weight`, `hook_font_style`, `body_font_weight`, `body_font_style` to `SlideStyleOverrides`
-2. Add resolution logic to `resolveSlideStyles()`
-3. Add toggle buttons to `TextEditorPanel`
-4. Verify preview and export render identically
-5. Verify undo/redo works (automatic via existing reducer)
-
-**Risk:** LOW. Identical pattern to existing `hook_font_size` override.
-
-### Step 2: Font Picker (requires font infrastructure)
-
-**Why next:** Builds the font loading infrastructure needed for proper bold/italic weight availability. Also the highest user-perceived-value feature.
-
-1. Create `font-catalog.ts` with curated font list
-2. Create `load-font.ts` for fetching/caching .ttf buffers
-3. Build `FontPicker` component with search and category grouping
-4. Add `hook_font_family`, `body_font_family` to `SlideStyleOverrides` and `resolveSlideStyles()`
-5. Wire into `TextEditorPanel`
-6. Update `SlidePreview` to dynamically load fonts via `<link>` tag
-7. Update `render/route.ts` to fetch font buffers and pass to ImageResponse
-
-**Risk:** MEDIUM. Satori font buffer loading is the trickiest integration point in the entire milestone. Test server-side rendering early with a single custom font before building the full picker UI.
-
-### Step 3: Resizable Text Boxes
-
-**Why next:** Modifies text box dimensions, which alignment guides need to understand.
-
-1. Add `hook_width`, `body_width` to `SlideStyleOverrides` and `resolveSlideStyles()`
-2. Update all renderers to use per-box width instead of symmetric calculation
-3. Add resize handles (small squares) on left/right edges of text boxes in editable mode
-4. Implement mousedown/mousemove/mouseup handlers with scale-factor conversion
-5. Dispatch `UPDATE_SLIDE` with new width on resize end
-
-**Risk:** MEDIUM. The scaled coordinate system makes pixel-to-percentage conversion non-trivial. Same pattern as existing drag, but adds the width dimension.
-
-### Step 4: Alignment Guides
-
-**Why last:** Purely visual polish. No data model impact. Benefits from stable text box dimensions (after resize is done).
-
-1. Build `useAlignmentGuides` hook with guide line definitions and proximity detection
-2. Add `onDrag` handler to existing `Draggable` components
-3. Implement snap logic with 8-10px threshold (in 1080x1920 reference space)
-4. Render guide line overlays as absolutely-positioned colored divs
-5. Optional: snap during resize operations too
-
-**Risk:** LOW. Client-side only, no persistence, no server rendering impact.
+### One-Shot Carousel Generation (REST API)
 
 ```
-[Step 0: resolveSlideStyles refactor]
-    |
-    v
-[Step 1: Bold/Italic] --> [Step 2: Font Picker] --> [Step 3: Resize] --> [Step 4: Guides]
-                                                          |                    |
-                                              (guides benefit from stable box sizes)
+Client: POST /api/v1/carousels
+  Headers: { Authorization: "Bearer vsm_abc123..." }
+  Body: { topic: "5 Morning Habits", slide_count: 7, template: "bold-minimal" }
+    │
+    ▼
+Route Handler (app/api/v1/carousels/route.ts)
+    │ 1. requireApiKey(request) → { userId }
+    │ 2. parseBody(request, CreateCarouselSchema) → validated params
+    ▼
+carouselService.generateCarousel(userId, params)
+    │ 3. ensureSubscription(userId)
+    │ 4. deductCredit(userId, 'api_carousel_generation', ...)
+    │ 5. generateSlideContent(topic) → Gemini 2.5 Flash → structured slides
+    │ 6. searchPhotos() per slide → Pexels background images
+    │ 7. INSERT project into Supabase
+    ▼
+Response: { data: { project_id, title, slides[], render_url_template } }
 ```
 
-## Anti-Patterns to Avoid
+### MCP Tool Invocation
 
-### Anti-Pattern 1: Inline Rich Text Editor
+```
+AI Agent connects via Streamable HTTP to /api/mcp/mcp
+    │ Auth header: Bearer vsm_abc123...
+    │ Tool call: create_carousel({ topic: "5 Morning Habits" })
+    ▼
+mcp-handler routes to registered create_carousel tool
+    │ Extract API key from request context
+    │ requireApiKey() → { userId }
+    ▼
+carouselService.generateCarousel(userId, params)
+    │ (identical flow as REST)
+    ▼
+MCP response: { content: [{ type: "text", text: "{ project_id: ..., slides: [...] }" }] }
+```
 
-**What people do:** Add Slate.js, TipTap, or ProseMirror for inline bold/italic within text
-**Why it's wrong:** Slide text is 1-3 sentences. Inline formatting requires: rich text serialization format, Satori rendering of mixed-style spans, migration of all existing plain string data, contenteditable bugs on mobile, and a complete data model redesign from `string` to a node tree. 10x the complexity for minimal value.
-**Do this instead:** Whole-box bold/italic toggles. Apply to entire hook or body text box.
+### Key Data Flows
 
-### Anti-Pattern 2: Open Font Search (All 1400+ Google Fonts)
+1. **Service layer is the convergence point:** Web UI Server Actions, REST API routes, and MCP tools all call the same service functions. Auth is resolved before entering services — services receive `userId`, never raw tokens.
+2. **Credit deduction is atomic and reused:** The existing Postgres RPC `deduct_credits` handles race conditions. API calls use the exact same credit system as web — no separate metering needed. A new credit type `'api_carousel_generation'` distinguishes API usage in billing reports.
+3. **Render is already an API route:** The existing `/api/render` endpoint returns PNG images given a projectId and slide index. The REST API can expose this with API key auth at `/api/v1/carousels/:id/slides/:index/render`.
 
-**What people do:** Let users search the full Google Fonts library
-**Why it's wrong:** Most fonts are low quality. Loading previews for 1400 fonts is slow. Each unique font requires a .ttf buffer fetch at render time. More fonts means more render failures and slower exports.
-**Do this instead:** Curate 20-30 popular fonts grouped by category. Cover the 80% case. Can expand later if users request specific fonts.
+## New Database Objects
 
-### Anti-Pattern 3: Using a Resize Library (react-resizable, re-resizable)
+### `api_keys` table
 
-**What people do:** Install a resize library alongside react-draggable
-**Why it's wrong:** Two libraries competing over the same DOM element in a scaled coordinate system. The resize library won't know about the scale factor, producing incorrect sizes. Event handler conflicts between drag and resize.
-**Do this instead:** Build resize handles with raw mouse event handlers, reusing the existing scale-factor math from the drag implementation.
+```sql
+CREATE TABLE api_keys (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name text NOT NULL,                    -- user-friendly label ("My CLI Key")
+  key_prefix text NOT NULL,              -- first 8 chars for display ("vsm_a1b2...")
+  key_hash text NOT NULL UNIQUE,         -- SHA-256 of full key
+  scopes text[] DEFAULT '{}',            -- future: granular permissions
+  revoked_at timestamptz,
+  last_used_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
 
-### Anti-Pattern 4: Divergent Override Resolution
+CREATE INDEX idx_api_keys_hash ON api_keys (key_hash) WHERE revoked_at IS NULL;
 
-**What people do:** Add new override fields to one renderer but forget another, so preview and export look different
-**Why it's wrong:** The current codebase already has 3 copies of style resolution logic. Adding 8 fields to 3 places creates 24 potential divergence points. Users see one thing in preview and get something different on export.
-**Do this instead:** Extract `resolveSlideStyles()` BEFORE adding any new fields. All renderers consume the same resolved output.
+ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own keys" ON api_keys
+  FOR ALL USING (auth.uid() = user_id);
+```
 
-## Satori-Specific Constraints
+### Middleware Changes Required
 
-These constraints affect what is possible in server-side PNG rendering:
+The existing `src/middleware.ts` redirects unauthenticated users to `/login`. API routes must be excluded:
 
-| Feature | Satori Support | Notes |
-|---------|---------------|-------|
-| `fontWeight` | YES | Requires matching weight in the `fonts` buffer array |
-| `fontStyle: 'italic'` | YES | Requires italic variant in font buffers |
-| Custom font families | YES | Requires font ArrayBuffer passed to ImageResponse |
-| Per-box width | YES | Absolute positioning with explicit width works |
-| Text alignment | YES | `textAlign` in inline styles works |
-| Alignment guides | N/A | Editor-only feature, never rendered to PNG |
-| `textTransform: uppercase` | YES | Already used for hook text |
-| Inline `<span>` with mixed styles | PARTIAL | Works for simple cases but unreliable for complex mixed-weight text |
+```typescript
+// middleware.ts — add these to the early return
+if (request.nextUrl.pathname.startsWith('/api/v1') ||
+    request.nextUrl.pathname.startsWith('/api/mcp')) {
+  return  // API routes handle their own auth via Bearer tokens
+}
+```
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-1k API users | Current architecture works. In-memory rate limiter is unreliable on Vercel but acceptable at low scale. |
+| 1k-10k API users | MUST replace in-memory rate limiter with Upstash Redis. Add API key hash caching (in-memory LRU, 60s TTL). |
+| 10k+ API users | Consider async generation with job queue. Return 202 Accepted + polling endpoint for long-running carousels. |
+
+### Scaling Priorities
+
+1. **First bottleneck: Rate limiting.** The current in-memory rate limiter (`src/lib/rate-limit.ts`) uses `Map` objects that reset on every cold start and are per-instance on Vercel. This is a known issue (noted in the code: "For production with multiple serverless instances, replace with Upstash Redis"). Must fix before API launch.
+2. **Second bottleneck: Vercel function timeout.** One-shot carousel generation (Gemini AI + 7 Pexels requests + DB write) takes 10-20s typically. The 60s maxDuration is set. AI image generation (Imagen) can push this higher. Monitor and consider async pattern if timeouts occur.
+3. **Third bottleneck: API key lookups.** Every API request hits Supabase to validate the key hash. At high volume, add an in-memory LRU cache with short TTL (60s). Key revocation is eventually consistent but acceptable.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Duplicating Logic in API Routes
+
+**What people do:** Copy-paste generation logic from `actions.ts` into API route handlers.
+**Why it's wrong:** Two copies drift apart. Credit deduction logic diverges. Bugs fixed in one place aren't fixed in the other.
+**Do this instead:** Extract to service layer first. Both Server Actions and API routes are thin auth wrappers delegating to the same service.
+
+### Anti-Pattern 2: 1:1 REST-to-MCP Mapping
+
+**What people do:** Create one MCP tool per REST endpoint (create_project, set_template, generate_content, search_photos, swap_image, regenerate_text, render_slide, download_zip).
+**Why it's wrong:** AI agents perform better with high-level, intention-based tools. Too many granular tools confuse LLMs and increase error rates.
+**Do this instead:** Create 3-5 curated MCP tools: `create_carousel` (one-shot), `edit_slide` (modify text/image), `render_carousel` (get images), `list_templates`. Let agents complete common workflows in 1-2 tool calls.
+
+### Anti-Pattern 3: MCP Server as Separate Process
+
+**What people do:** Build the MCP server as a standalone Node.js package that calls the REST API over HTTP.
+**Why it's wrong:** For this project size, it adds deployment complexity (two services), network latency on every tool call, and CORS/auth complications. Over-engineering.
+**Do this instead:** Use `mcp-handler` to embed MCP inside the Next.js app. Same deployment, same services, zero network overhead. If a standalone stdio MCP server is needed later for Claude Desktop, use `mcp-remote` to proxy to the hosted Streamable HTTP endpoint.
+
+### Anti-Pattern 4: API Keys in Supabase RLS Context
+
+**What people do:** Try to use Supabase Row Level Security policies with API key auth.
+**Why it's wrong:** RLS is tied to Supabase Auth JWTs. API keys bypass Supabase Auth entirely — there is no JWT.
+**Do this instead:** API key validation uses the admin client (service role key). The service layer handles authorization checks manually (e.g., "does this user_id own this project?").
+
+### Anti-Pattern 5: Blocking on Rate Limiter Migration
+
+**What people do:** Delay API launch until Redis rate limiting is perfectly implemented.
+**Why it's wrong:** At launch scale (dozens of users), the in-memory rate limiter works well enough. Premature optimization.
+**Do this instead:** Launch with in-memory rate limiter. Upgrade to Upstash Redis when usage grows or when you observe rate limit bypasses in logs. Budget 1-2 hours for the migration — Upstash Redis is a drop-in replacement.
+
+## Zod Version Compatibility Note
+
+The project uses Zod 4.x (`"zod": "^4.3.6"`). `mcp-handler` requires `zod@^3`. Zod 4 ships a `zod/v3` compatibility export that should satisfy this requirement. Verify during implementation:
+
+```typescript
+// If mcp-handler fails with Zod 4, try:
+import { z } from 'zod/v3'
+// Pass this z to mcp-handler tool definitions
+```
+
+If incompatible, install `zod@3` as a separate dependency for MCP tools only. This is a known friction point.
+
+## Required New Packages
+
+```bash
+npm install mcp-handler @modelcontextprotocol/sdk
+# Zod already installed (check v3 compat)
+# @upstash/redis — add when upgrading rate limiter
+```
+
+## Suggested Build Order
+
+Based on dependency analysis, each step builds on the previous:
+
+1. **Service extraction** — Extract business logic from Server Actions into `lib/services/`. Pure refactor, no new features. All existing behavior must be preserved. This unblocks everything else.
+2. **API key infrastructure** — `api_keys` table + migration, key generation utility, `requireApiKey()` auth function, key management page in settings UI.
+3. **REST API routes** — Build `/api/v1/` endpoints using the service layer. Start with read-only (GET project, GET templates, GET credits), then one-shot generation (POST carousels), then granular edits (PATCH slide), then render endpoints.
+4. **MCP server** — Register 3-5 curated tools in `mcp-handler` calling the same services. Test with Claude Code.
+5. **Rate limiting upgrade** — Replace in-memory limiter with Upstash Redis before scaling API access publicly.
 
 ## Sources
 
-- Codebase analysis: `src/lib/types/slide.ts`, `src/components/slides/slide-preview.tsx`, `src/lib/render/render-slide-satori.tsx`, `src/app/api/render/route.ts`, `src/lib/editor/editor-reducer.ts`, `src/components/editor/text-editor-panel.tsx`
-- Satori limitations: Documented in `buildSlideElement` code comments -- no z-index, inline styles only, limited CSS subset
-- `next/og` ImageResponse API: Font buffer loading via `fonts` option in ImageResponse constructor
-- react-draggable: Already used in `SlidePreview`, supports `onDrag` callback in addition to `onStop`
-- Google Fonts CSS API: Returns `@font-face` declarations with `.woff2`/`.ttf` URLs for font buffer fetching
+- [Vercel mcp-handler](https://github.com/vercel/mcp-handler) — Official Vercel MCP adapter for Next.js (HIGH confidence)
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) — Official MCP SDK (HIGH confidence)
+- [MCP SDK Server Docs](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/server.md) — Server implementation guide (HIGH confidence)
+- [Building APIs with Next.js](https://nextjs.org/blog/building-apis-with-nextjs) — Next.js API best practices (HIGH confidence)
+- [Next.js Route Handlers Guide](https://makerkit.dev/blog/tutorials/nextjs-api-best-practices) — App Router API patterns (MEDIUM confidence)
+- [Transform REST API to MCP Server](https://dzone.com/articles/transform-nodejs-rest-api-to-mcp-server) — Pattern for wrapping REST APIs as MCP (MEDIUM confidence)
+- [Building Custom MCP Servers with Next.js](https://www.trevorlasn.com/blog/building-custom-mcp-servers-with-nextjs-and-mcp-handler) — Practical mcp-handler tutorial (MEDIUM confidence)
+- Codebase analysis: `src/app/api/render/route.ts`, `src/app/(dashboard)/project/[id]/actions.ts`, `src/app/(dashboard)/project/[id]/editor-actions.ts`, `src/lib/credits/check-credits.ts`, `src/lib/rate-limit.ts`, `src/middleware.ts`
 
 ---
-*Architecture research for: v1.3 Rich Text Editing milestone*
-*Researched: 2026-03-26*
+*Architecture research for: v2.0 REST API & MCP Platform integration with existing Next.js carousel creator*
+*Researched: 2026-04-06*
