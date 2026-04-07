@@ -9,6 +9,7 @@ const settingsNav = [
   { href: '/settings/notifications', icon: 'notifications', label: 'Notifications' },
   { href: '/settings/subscription', icon: 'credit_card', label: 'Manage Subscription' },
   { href: '/settings/brand-kit', icon: 'palette', label: 'Brand Kit' },
+  { href: '/settings/api-keys', icon: 'key', label: 'API Keys' },
 ]
 
 export default function SettingsLayout({
