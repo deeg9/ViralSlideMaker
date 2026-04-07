@@ -12,6 +12,17 @@ vi.mock('@/lib/supabase/admin', () => {
   }
 })
 
+// Mock next/og ImageResponse
+vi.mock('next/og', () => {
+  class MockImageResponse {
+    arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8))
+    constructor(_element: unknown, _options: unknown) {}
+  }
+  return {
+    ImageResponse: MockImageResponse,
+  }
+})
+
 // Mock render pipeline
 vi.mock('@/lib/render/render-slide-satori', () => ({
   buildSlideElement: vi.fn().mockReturnValue('<div>slide</div>'),
@@ -43,11 +54,12 @@ vi.mock('@/lib/brand-kit/get-effective-template', () => ({
 vi.mock('jszip', () => {
   const mockFile = vi.fn()
   const mockGenerateAsync = vi.fn().mockResolvedValue(new ArrayBuffer(16))
+  class MockJSZip {
+    file = mockFile
+    generateAsync = mockGenerateAsync
+  }
   return {
-    default: vi.fn().mockImplementation(() => ({
-      file: mockFile,
-      generateAsync: mockGenerateAsync,
-    })),
+    default: MockJSZip,
     _mocks: { mockFile, mockGenerateAsync },
   }
 })
