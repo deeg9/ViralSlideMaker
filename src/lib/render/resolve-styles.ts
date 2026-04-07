@@ -1,4 +1,4 @@
-import type { Slide, CustomText } from '../types/slide'
+import type { Slide, CustomText, TextEffects } from '../types/slide'
 import type { SlideTemplate } from './templates'
 import { getFontEntry, getCssFallback, DEFAULT_FONT } from '../fonts/font-catalog'
 
@@ -9,6 +9,52 @@ export const SAFE_ZONE = {
   center: { hookY: 30, bodyY: 48 },
   bottom: { hookY: 48, bodyY: 62 },
 } as const
+
+// Phase 19: Text effect resolution
+export const SHADOW_PRESETS = {
+  sm: { offsetX: 1, offsetY: 1, blur: 2 },
+  md: { offsetX: 2, offsetY: 2, blur: 4 },
+  lg: { offsetX: 3, offsetY: 4, blur: 8 },
+} as const
+
+export interface ResolvedTextEffectStyles {
+  textShadow?: string
+  WebkitTextStrokeWidth?: string
+  WebkitTextStrokeColor?: string
+  paintOrder?: 'stroke'
+  highlight?: {
+    enabled: boolean
+    color: string
+    style: 'tight' | 'full'
+    padding: number
+  }
+}
+
+export function resolveTextEffects(effects?: TextEffects): ResolvedTextEffectStyles {
+  const result: ResolvedTextEffectStyles = {}
+
+  if (effects?.shadow?.enabled) {
+    const preset = SHADOW_PRESETS[effects.shadow.size]
+    result.textShadow = `${preset.offsetX}px ${preset.offsetY}px ${preset.blur}px ${effects.shadow.color}`
+  }
+
+  if (effects?.outline?.enabled) {
+    result.WebkitTextStrokeWidth = `${effects.outline.width}px`
+    result.WebkitTextStrokeColor = effects.outline.color
+    result.paintOrder = 'stroke'
+  }
+
+  if (effects?.highlight?.enabled) {
+    result.highlight = {
+      enabled: true,
+      color: effects.highlight.color,
+      style: effects.highlight.style,
+      padding: effects.highlight.padding,
+    }
+  }
+
+  return result
+}
 
 export interface ResolvedSlideStyles {
   textColor: string
@@ -31,7 +77,9 @@ export interface ResolvedSlideStyles {
   bodyY: number
   hookWidth: number  // percentage 0-100
   bodyWidth: number  // percentage 0-100
-  customTexts: Array<CustomText & { resolvedFontFamily: string }>
+  hookEffects: ResolvedTextEffectStyles
+  bodyEffects: ResolvedTextEffectStyles
+  customTexts: Array<CustomText & { resolvedFontFamily: string; resolvedEffects: ResolvedTextEffectStyles }>
 }
 
 export function resolveSlideStyles(
@@ -101,8 +149,13 @@ export function resolveSlideStyles(
       color: ct.color ?? textColor,
       text_align: (ct.text_align ?? 'left') as 'left' | 'center' | 'right',
       resolvedFontFamily,
+      resolvedEffects: resolveTextEffects(ct.text_effects),
     }
   })
+
+  // Phase 19: Resolve text effects for hook and body
+  const hookEffects = resolveTextEffects(overrides.hook_text_effects)
+  const bodyEffects = resolveTextEffects(overrides.body_text_effects)
 
   return {
     textColor,
@@ -125,6 +178,8 @@ export function resolveSlideStyles(
     bodyY,
     hookWidth,
     bodyWidth,
+    hookEffects,
+    bodyEffects,
     customTexts,
   }
 }
