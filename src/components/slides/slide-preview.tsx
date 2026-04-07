@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { Rnd } from 'react-rnd'
-import type { Slide, TextPosition, CustomText, CustomImage } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'

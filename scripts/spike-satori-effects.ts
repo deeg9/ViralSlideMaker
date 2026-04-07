@@ -18,7 +18,7 @@ const OUT_DIR = join(__dirname, 'spike-output')
 
 mkdirSync(OUT_DIR, { recursive: true })
 
-function h(tag: string, props: Record<string, unknown>, ...children: unknown[]) {
+function h(tag: string, props: Record<string, unknown>, ...children: React.ReactNode[]) {
   return React.createElement(tag, props, ...children)
 }
 

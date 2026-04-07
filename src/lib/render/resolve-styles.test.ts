@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveSlideStyles, resolveTextEffects, SAFE_ZONE, SHADOW_PRESETS, type ResolvedSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
+import { resolveSlideStyles, resolveTextEffects, SAFE_ZONE, SHADOW_PRESETS } from './resolve-styles'
 import type { Slide, TextEffects } from '../types/slide'
 import type { SlideTemplate } from './templates'
 
@@ -388,7 +388,7 @@ describe('resolveTextEffects', () => {
 })
 
 // Font catalog tests (Phase 12)
-import { FONT_CATALOG, getFontEntry, DEFAULT_FONT, type FontEntry } from '../fonts/font-catalog'
+import { FONT_CATALOG, getFontEntry, DEFAULT_FONT } from '../fonts/font-catalog'
 
 describe('font-catalog', () => {
   it('getFontEntry returns Inter entry from catalog', () => {
