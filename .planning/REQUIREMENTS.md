@@ -1,11 +1,51 @@
 # Requirements: ViralSlideMaker
 
-**Defined:** 2026-03-26
+**Defined:** 2026-04-07
 **Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
 
-## v1.3 Requirements
+## v2.1 Requirements
 
-Requirements for Rich Text Editing milestone.
+Requirements for Text Effects milestone.
+
+### Text Effects Data Model
+
+- [ ] **FX-01**: User's text effect settings (shadow, outline, highlight) persist across save/load
+- [ ] **FX-02**: Each text element (hook, body, custom text boxes) has independent effect settings
+
+### Text Shadow
+
+- [ ] **SHAD-01**: User can toggle text shadow on/off for any text element
+- [ ] **SHAD-02**: User can pick shadow color via swatches and custom color picker
+- [ ] **SHAD-03**: User can select shadow size from S/M/L presets
+
+### Text Outline
+
+- [ ] **OUT-01**: User can toggle text outline on/off for any text element
+- [ ] **OUT-02**: User can pick outline color via swatches and custom color picker
+- [ ] **OUT-03**: User can adjust outline thickness via slider (1-8px)
+
+### Background Highlight
+
+- [ ] **HL-01**: User can toggle background highlight on/off for any text element
+- [ ] **HL-02**: User can pick highlight color via swatches and custom color picker
+- [ ] **HL-03**: User can choose between tight (marker) and full-width (banner) highlight styles
+- [ ] **HL-04**: User can adjust highlight padding via slider (4-24px)
+
+### Rendering
+
+- [ ] **REND-01**: Text effects render correctly in the editor preview (real CSS)
+- [ ] **REND-02**: Text effects render correctly in Satori PNG export (native textShadow/WebkitTextStroke)
+- [ ] **REND-03**: Text effects render correctly in HTML export
+- [ ] **REND-04**: Tight highlight gracefully falls back to full-width in Satori export if needed
+
+### Validation
+
+- [ ] **VAL-01**: Validation spike confirms native Satori support for textShadow and WebkitTextStroke before full implementation
+
+## Previous Milestone Requirements
+
+<details>
+<summary>v1.3 Rich Text Editing</summary>
 
 ### Foundation
 
@@ -37,7 +77,7 @@ Requirements for Rich Text Editing milestone.
 - [x] **ALIGN-02**: Visual guide lines appear when a text box edge aligns with another text box's edge
 - [x] **ALIGN-03**: Text boxes snap to guide positions when within proximity threshold
 
-## Previous Milestone Requirements
+</details>
 
 <details>
 <summary>v1.2 Launch Readiness</summary>
@@ -69,6 +109,12 @@ Requirements for Rich Text Editing milestone.
 - **GROWTH-02**: Analytics dashboard for carousel performance
 - **GROWTH-03**: Native iOS app (Expo/React Native)
 
+### Advanced Text Effects
+
+- **ADV-FX-01**: Gradient text fill
+- **ADV-FX-02**: Neon glow effect with blur
+- **ADV-FX-03**: Curved text
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -78,32 +124,36 @@ Requirements for Rich Text Editing milestone.
 | iOS app | Web first, validated before mobile |
 | Inline rich text | Per-word bold/italic within a text box -- too complex for short carousel text, breaks Satori rendering |
 | Full rich text editor (TipTap/Slate) | Overkill for 5-15 word text boxes, adds massive complexity |
+| Gradient text / neon glow / blur | Requires rendering pipeline switch to Playwright -- defer until after v2.1 feedback |
+| Curved text | Not supported by Satori -- requires rendering pipeline switch |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 10 | Complete |
-| FOUND-02 | Phase 10 | Complete |
-| STYLE-01 | Phase 11 | Complete |
-| STYLE-02 | Phase 11 | Complete |
-| STYLE-03 | Phase 11 | Complete |
-| FONT-01 | Phase 12 | Complete |
-| FONT-02 | Phase 12 | Complete |
-| FONT-03 | Phase 12 | Complete |
-| FONT-04 | Phase 12 | Complete |
-| RESIZE-01 | Phase 13 | Complete |
-| RESIZE-02 | Phase 13 | Complete |
-| RESIZE-03 | Phase 13 | Complete |
-| ALIGN-01 | Phase 14 | Complete |
-| ALIGN-02 | Phase 14 | Complete |
-| ALIGN-03 | Phase 14 | Complete |
+| FX-01 | Pending | Pending |
+| FX-02 | Pending | Pending |
+| SHAD-01 | Pending | Pending |
+| SHAD-02 | Pending | Pending |
+| SHAD-03 | Pending | Pending |
+| OUT-01 | Pending | Pending |
+| OUT-02 | Pending | Pending |
+| OUT-03 | Pending | Pending |
+| HL-01 | Pending | Pending |
+| HL-02 | Pending | Pending |
+| HL-03 | Pending | Pending |
+| HL-04 | Pending | Pending |
+| REND-01 | Pending | Pending |
+| REND-02 | Pending | Pending |
+| REND-03 | Pending | Pending |
+| REND-04 | Pending | Pending |
+| VAL-01 | Pending | Pending |
 
 **Coverage:**
-- v1.3 requirements: 15 total
-- Mapped to phases: 15
-- Unmapped: 0
+- v2.1 requirements: 17 total
+- Mapped to phases: 0
+- Unmapped: 17
 
 ---
-*Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after v1.3 roadmap creation*
+*Requirements defined: 2026-04-07*
+*Last updated: 2026-04-07 after v2.1 requirements definition*
