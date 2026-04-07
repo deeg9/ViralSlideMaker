@@ -2,13 +2,9 @@
   "name": "tiktok-slideshow-temp",
   "version": "0.1.0",
   "private": true,
-  "bin": {
-    "viralslidemaker-mcp": "./dist/mcp/index.js"
-  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "build:mcp": "tsup src/mcp/index.ts --format esm --outDir dist/mcp --dts",
     "start": "next start",
     "lint": "eslint"
   },
@@ -18,11 +14,11 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@google/genai": "^1.46.0",
-    "@modelcontextprotocol/sdk": "^1.26.0",
     "@number-flow/react": "^0.6.0",
     "@playwright/test": "^1.58.2",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-switch": "^1.2.6",
+    "@scalar/nextjs-api-reference": "^0.10.6",
     "@splinetool/react-spline": "^4.1.0",
     "@splinetool/runtime": "^1.12.70",
     "@stripe/stripe-js": "^8.11.0",
@@ -35,7 +31,6 @@
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "lucide-react": "^0.577.0",
-    "mcp-handler": "^1.1.0",
     "motion": "^12.38.0",
     "next": "15.5.13",
     "pexels": "^1.4.0",
@@ -64,7 +59,6 @@
     "eslint-config-next": "15.5.13",
     "jsdom": "^29.0.0",
     "tailwindcss": "^4",
-    "tsup": "^8.5.1",
     "typescript": "^5",
     "vitest": "^4.1.0"
   }

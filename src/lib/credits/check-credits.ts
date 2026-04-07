@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SubscriptionTier, CreditStatus } from './types'
 
 export { isValidTier } from './types'
@@ -16,8 +15,8 @@ export async function getUserTier(userId: string): Promise<SubscriptionTier> {
   return (data?.tier as SubscriptionTier) ?? 'free'
 }
 
-export async function getCreditBalance(userId: string, adminClient?: SupabaseClient): Promise<number> {
-  const supabase = adminClient ?? await createClient()
+export async function getCreditBalance(userId: string): Promise<number> {
+  const supabase = await createClient()
   const { data } = await supabase.rpc('get_credit_balance', { p_user_id: userId })
   return data ?? 0
 }
@@ -28,10 +27,9 @@ export async function deductCredit(
   description?: string,
   referenceId?: string,
   amount: number = 1,
-  adminClient?: SupabaseClient,
 ): Promise<boolean> {
   if (amount <= 0) return true // Free actions (text regen, stock image regen)
-  const supabase = adminClient ?? await createClient()
+  const supabase = await createClient()
   const { data } = await supabase.rpc('deduct_credits', {
     p_user_id: userId,
     p_amount: amount,
