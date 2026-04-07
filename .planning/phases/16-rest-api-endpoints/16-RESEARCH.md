@@ -603,14 +603,14 @@ export async function updateSlide(
 | A4 | Slide editing via API is 0-cost (no credit deduction) | Endpoint Map | If edits should cost credits, need deduction logic in editor service |
 | A5 | 15-minute TTL for presigned download URLs is appropriate | CONTEXT.md specifics | Too short = users can't download; too long = security concern |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Presigned URL mechanism for ZIP downloads**
+1. **Presigned URL mechanism for ZIP downloads** (RESOLVED)
    - What we know: CONTEXT.md says "presigned URL" for ZIP downloads
    - What's unclear: Whether to upload the rendered ZIP to Supabase Storage and return a signed URL, or return the ZIP directly as a binary response body
    - Recommendation: Return ZIP directly as binary response with `Content-Disposition: attachment`. Uploading to storage adds complexity and latency with no benefit. Reserve presigned URLs for very large files that would exceed response size limits.
 
-2. **Credit deduction for one-shot endpoint already happens inside service**
+2. **Credit deduction for one-shot endpoint already happens inside service** (RESOLVED)
    - What we know: `generateCarouselService` calls `deductCredit` internally
    - What's unclear: How to extract the credits-used count for the response header
    - Recommendation: Have the service return `{ success: true, slideCount: N, creditsUsed: 1 }` and use that value in the header.

@@ -305,9 +305,10 @@ Plans:
   2. Developer can create a project, list templates, edit individual slides, and trigger renders through separate granular endpoints
   3. Developer can download rendered carousel images (individual PNGs or ZIP) via API response URLs
   4. Every API response includes x-credits-remaining and x-credits-used headers reflecting accurate credit state
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
+- [ ] 16-00-PLAN.md -- Wave 0 test stubs for all REST API requirements (REST-01 through REST-06)
 - [ ] 16-01-PLAN.md -- API headers utility, extended errors, project CRUD service, templates + projects routes, carousel credit headers
 - [ ] 16-02-PLAN.md -- Editor service, render service, slide editing route, render/download routes
 
