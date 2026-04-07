@@ -83,9 +83,10 @@ None yet.
 | 260326-vcg | Add custom text boxes with inline content editing | 2026-03-27 | b739974 | [260326-vcg-add-custom-text-boxes-with-inline-conten](./quick/260326-vcg-add-custom-text-boxes-with-inline-conten/) |
 | 260327-do7 | Generation page advanced options + AI regenerate inputs | 2026-03-27 | 075cd8c | [260327-do7-generation-page-advanced-options-ai-rege](./quick/260327-do7-generation-page-advanced-options-ai-rege/) |
 | 260327-e4o | Add draggable resizable images/stickers on canvas | 2026-03-27 | 13f0b40 | [260327-e4o-add-draggable-resizable-images-and-stick](./quick/260327-e4o-add-draggable-resizable-images-and-stick/) |
+| 260406-umb | Improve text readability and add body text size slider in carousel editor | 2026-04-07 | 23f8f4b | [260406-umb-improve-text-readability-and-add-body-te](./quick/260406-umb-improve-text-readability-and-add-body-te/) |
 
 ## Session Continuity
 
-Last activity: 2026-03-27
-Stopped at: Completed 260327-do7 (advanced options + AI regenerate inputs)
+Last activity: 2026-04-07 - Completed quick task 260406-umb: Improve text readability and add body text size slider in carousel editor
+Stopped at: Completed 260406-umb (text readability + body size slider)
 Resume file: None
