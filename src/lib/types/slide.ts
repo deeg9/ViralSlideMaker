@@ -50,8 +50,6 @@ export interface SlideStyleOverrides {
   // Phase 13: Text box width
   hook_width?: number   // percentage 0-100, overrides symmetric width calc
   body_width?: number   // percentage 0-100, overrides symmetric width calc
-  // Text readability
-  text_shadow?: boolean
 }
 
 export interface Slide {
