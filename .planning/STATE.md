@@ -1,31 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Rich Text Editing
-status: Milestone complete
-stopped_at: Completed 14-01-PLAN.md (alignment snap guides)
-last_updated: "2026-03-27T01:40:10.314Z"
-last_activity: 2026-03-27
+milestone: v2.0
+milestone_name: API & MCP Platform
+status: Defining requirements
+stopped_at: null
+last_updated: "2026-04-07"
+last_activity: 2026-04-07
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-26)
+See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 14 — Alignment Snap Guides
+**Current focus:** Defining requirements for v2.0 API & MCP Platform
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-07 — Milestone v2.0 started
 
 ## Performance Metrics
 
