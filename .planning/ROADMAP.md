@@ -5,8 +5,7 @@
 - v1.0 MVP - Phases 1-4 (shipped 2026-03-20)
 - v1.1 Monetization & AI Images - Phases 5-7 (shipped)
 - v1.2 Launch Readiness - Phases 8-9 (planned)
-- v1.3 Rich Text Editing - Phases 10-14 (shipped 2026-03-27)
-- v2.0 API & MCP Platform - Phases 15-18 (in progress)
+- v1.3 Rich Text Editing - Phases 10-14 (in progress)
 
 ## Phases
 
@@ -34,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can create a new slideshow project, see it on a dashboard, and delete it
   4. User can save a project and return to it later with all data intact
   5. App has a clean, minimal design aesthetic consistent across all pages
-**Plans**: 3 plans
+**Plans**: 2 plans
 
 Plans:
 - [x] 01-01-PLAN.md -- Scaffold Next.js app, Supabase auth setup, login/signup/logout flows
@@ -50,7 +49,7 @@ Plans:
   3. User can choose a visual style template before generating, and slides render in that style
   4. Slides render as 1080x1920 images with text overlays baked in, consistent across devices
   5. User can download all slides as a ZIP or download individual slide images
-**Plans**: 3 plans
+**Plans**: 2 plans
 
 Plans:
 - [x] 02-01-PLAN.md -- Types, schemas, templates, AI generation + Pexels integration, generation server action
@@ -66,7 +65,7 @@ Plans:
   3. User can search Pexels stock photos and swap a slide's background, or upload their own image
   4. User can regenerate a single slide's text or image query without affecting other slides
   5. User can undo and redo editing actions, and the app works on desktop and tablet browsers
-**Plans**: 3 plans
+**Plans**: 2 plans
 
 Plans:
 - [x] 03-01-PLAN.md -- Editor state foundation: extended types, reducer with undo/redo, useSlideEditor hook (TDD)
@@ -80,7 +79,7 @@ Plans:
   1. User can switch templates after generation and all slides re-render in the new style
   2. User can save a brand kit (custom colors, fonts, logo) to their account
   3. Brand kit settings apply automatically when the user generates new slideshows
-**Plans**: 3 plans
+**Plans**: 2 plans
 
 Plans:
 - [x] 04-01-PLAN.md -- Template switching in editor, brand kit DB schema/types/merge function
@@ -107,7 +106,7 @@ Plans:
   3. Credits deduct atomically before AI operations with no possibility of double-spend under concurrent requests
   4. User can view a credit usage history showing date, action type, and amount for each transaction
   5. Free tier users hit a clear usage limit on project count and AI text generations per month
-**Plans**: 3 plans
+**Plans**: 2 plans
 
 Plans:
 - [x] 05-01-PLAN.md -- Database schema (subscriptions, credit_transactions, stripe_events), atomic RPC functions, credit service rewrite, tests
@@ -123,7 +122,7 @@ Plans:
   3. User can open Stripe Customer Portal to upgrade, downgrade, or cancel their subscription
   4. Free users see contextual upgrade prompts when they hit usage limits (not random nag screens)
   5. User can purchase extra credit packs via one-time Stripe payment and credits appear in their balance
-**Plans**: 3 plans
+**Plans**: 2 plans
 
 Plans:
 - [x] 06-01-PLAN.md -- Stripe SDK setup, webhook Route Handler with signature verification and idempotency, event-type-dispatched sync handlers, unit tests
@@ -139,7 +138,7 @@ Plans:
   3. User can preview and edit the auto-generated Imagen prompt before spending a credit
   4. Free users see an "Upgrade to AI" button on slides instead of the generate option, serving as a low-friction upsell
   5. User can generate social media captions (TikTok, Instagram, LinkedIn) that reference actual slide content, not just the topic
-**Plans**: 3 plans
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
@@ -180,8 +179,7 @@ Plans:
 
 </details>
 
-<details>
-<summary>v1.3 Rich Text Editing (Phases 10-14) - SHIPPED 2026-03-27</summary>
+### v1.3 Rich Text Editing (Phases 10-14)
 
 **Milestone Goal:** Give users professional-grade text editing tools in the slide editor -- fonts, styling, alignment with snap guides, and resizable text boxes.
 
@@ -190,6 +188,8 @@ Plans:
 - [x] **Phase 12: Font Picker & Google Fonts** - Curated font selection with live preview, correct Satori TTF rendering, and server-side caching (completed 2026-03-27)
 - [x] **Phase 13: Resizable Text Boxes** - Drag-handle resize for text boxes with persistence and correct export rendering (completed 2026-03-27)
 - [x] **Phase 14: Alignment Snap Guides** - Visual guide lines and snapping when positioning text boxes on slides (completed 2026-03-27)
+
+## Phase Details
 
 ### Phase 10: Foundation Refactor
 **Goal**: Exported slide images render in the correct template font, and all renderers share a single style resolution function
@@ -202,7 +202,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [x] 10-01-PLAN.md -- Extract resolveSlideStyles() shared utility, fix Satori font loading in render route
+- [ ] 10-01-PLAN.md -- Extract resolveSlideStyles() shared utility, fix Satori font loading in render route
 
 ### Phase 11: Bold & Italic
 **Goal**: Users can apply bold and italic formatting to individual text boxes and see it rendered correctly everywhere
@@ -217,7 +217,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [x] 11-01-PLAN.md -- Extend data model with bold/italic overrides, update resolveSlideStyles + font loading, add B/I toggle buttons to editor panel
+- [ ] 11-01-PLAN.md -- Extend data model with bold/italic overrides, update resolveSlideStyles + font loading, add B/I toggle buttons to editor panel
 
 ### Phase 12: Font Picker & Google Fonts
 **Goal**: Users can choose from a library of fonts for each text box, with live preview in the editor and correct rendering in exports
@@ -229,12 +229,12 @@ Plans:
   3. Selecting a font updates the browser preview immediately with the chosen font
   4. Exported PNG renders the user-selected font correctly (not a fallback or default)
   5. Repeated exports of the same slide do not re-download font files (server-side TTF caching works)
-**Plans**: 3 plans
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
 - [x] 12-01-PLAN.md -- Font catalog, data model extension, dynamic server-side font loading for Satori export
-- [x] 12-02-PLAN.md -- Font picker UI component, editor panel integration, client-side preview wiring, visual checkpoint
+- [ ] 12-02-PLAN.md -- Font picker UI component, editor panel integration, client-side preview wiring, visual checkpoint
 
 ### Phase 13: Resizable Text Boxes
 **Goal**: Users can resize text boxes by dragging handles, with dimensions persisted and rendered correctly in exports
@@ -248,7 +248,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [x] 13-01-PLAN.md -- Data model width fields, resolve-styles override support, replace react-draggable with react-rnd for drag+resize
+- [ ] 13-01-PLAN.md -- Data model width fields, resolve-styles override support, replace react-draggable with react-rnd for drag+resize
 
 ### Phase 14: Alignment Snap Guides
 **Goal**: Users get visual alignment feedback when positioning text boxes, making professional-looking layouts easy
@@ -264,80 +264,10 @@ Plans:
 Plans:
 - [x] 14-01-PLAN.md -- useAlignmentGuides hook + snap guide overlay in slide-preview.tsx
 
-</details>
-
-### v2.0 API & MCP Platform (Phases 15-18)
-
-**Milestone Goal:** Expose Viral Slide Maker as a developer platform with REST API endpoints and an MCP server, so AI agents can create carousels programmatically.
-
-- [x] **Phase 15: Service Extraction & API Auth** - Extract Server Actions into shared services, API key management, rate limiting via Upstash Redis (completed 2026-04-07)
-- [ ] **Phase 16: REST API Endpoints** - One-shot and granular carousel endpoints with credit metering headers
-- [ ] **Phase 17: MCP Server** - MCP tools wrapping REST API for AI agent integration via Streamable HTTP and npm package
-- [ ] **Phase 18: API Documentation** - OpenAPI spec generation, interactive Scalar playground, and MCP connection guide
-
-## Phase Details
-
-### Phase 15: Service Extraction & API Auth
-**Goal**: Developers can create and manage API keys that authenticate requests with rate limiting and credit deduction
-**Depends on**: Phase 14
-**Requirements**: AAUTH-01, AAUTH-02, AAUTH-03, AAUTH-04, AAUTH-05, AAUTH-06
-**Success Criteria** (what must be TRUE):
-  1. Developer can generate an API key from account settings and sees the key exactly once at creation time
-  2. Developer can view a list of their API keys (masked) and revoke any key, immediately blocking further requests with that key
-  3. An API request with a valid Bearer token authenticates successfully; an invalid or revoked token returns 401
-  4. API requests exceeding the per-key rate limit receive a 429 response with retry-after information
-  5. Each authenticated API request that consumes resources deducts credits from the developer's balance
-**Plans**: 3 plans
-
-Plans:
-- [x] 15-00-PLAN.md -- Wave 0 test stubs for security-critical API modules
-- [x] 15-01-PLAN.md -- Service extraction, API infra (auth, rate-limit, errors, crypto), API key CRUD actions, one-shot carousel endpoint
-- [x] 15-02-PLAN.md -- API Keys settings UI (create dialog, key list table, revoke confirmation, empty state)
-
-**UI hint**: yes
-
-### Phase 16: REST API Endpoints
-**Goal**: Developers can create, edit, render, and download carousels entirely through REST API calls
-**Depends on**: Phase 15
-**Requirements**: REST-01, REST-02, REST-03, REST-04, REST-05, REST-06
-**Success Criteria** (what must be TRUE):
-  1. Developer can POST a topic string and receive a complete carousel (generated content + rendered images) in a single API call
-  2. Developer can create a project, list templates, edit individual slides, and trigger renders through separate granular endpoints
-  3. Developer can download rendered carousel images (individual PNGs or ZIP) via API response URLs
-  4. Every API response includes x-credits-remaining and x-credits-used headers reflecting accurate credit state
-**Plans**: 3 plans
-
-Plans:
-- [ ] 16-00-PLAN.md -- Wave 0 test stubs for all REST API requirements (REST-01 through REST-06)
-- [ ] 16-01-PLAN.md -- API headers utility, extended errors, project CRUD service, templates + projects routes, carousel credit headers
-- [ ] 16-02-PLAN.md -- Editor service, render service, slide editing route, render/download routes
-
-### Phase 17: MCP Server
-**Goal**: AI agents (Claude Code, OpenAI agents, etc.) can create and manage carousels through MCP tool calls
-**Depends on**: Phase 16
-**Requirements**: MCP-01, MCP-02, MCP-03, MCP-04, MCP-05, MCP-06
-**Success Criteria** (what must be TRUE):
-  1. An AI agent can call create_carousel with a topic and receive rendered carousel image URLs back
-  2. An AI agent can call edit_slide and render_carousel to modify and re-render individual slides
-  3. An AI agent can call list_templates to discover available visual styles before creating a carousel
-  4. The MCP server is accessible as a Streamable HTTP endpoint deployed inside the Next.js app
-  5. The MCP server is installable as an npm package and works via stdio transport for local AI agent use
-**Plans**: TBD
-
-### Phase 18: API Documentation
-**Goal**: Developers and AI agent builders have complete, interactive documentation to integrate with the API and MCP server
-**Depends on**: Phase 17
-**Requirements**: DOCS-01, DOCS-02, DOCS-03
-**Success Criteria** (what must be TRUE):
-  1. An OpenAPI spec is auto-generated from API route schemas and stays in sync with code changes
-  2. Developer can explore and test all API endpoints in an interactive Scalar playground at /docs
-  3. MCP connection instructions explain how to configure Claude Code, Cursor, and other AI agents to connect to the MCP server
-**Plans**: TBD
-
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 -> 16 -> 17 -> 18
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -350,12 +280,8 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 7. AI Images & Social Captions | v1.1 | 2/2 | Complete | - |
 | 8. Stripe Portal & Serverless Export | v1.2 | 0/0 | Not started | - |
 | 9. Production Deployment | v1.2 | 0/0 | Not started | - |
-| 10. Foundation Refactor | v1.3 | 1/1 | Complete | 2026-03-26 |
-| 11. Bold & Italic | v1.3 | 1/1 | Complete | 2026-03-27 |
-| 12. Font Picker & Google Fonts | v1.3 | 2/2 | Complete | 2026-03-27 |
-| 13. Resizable Text Boxes | v1.3 | 1/1 | Complete | 2026-03-27 |
-| 14. Alignment Snap Guides | v1.3 | 1/1 | Complete | 2026-03-27 |
-| 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete    | 2026-04-07 |
-| 16. REST API Endpoints | v2.0 | 0/0 | Not started | - |
-| 17. MCP Server | v2.0 | 0/0 | Not started | - |
-| 18. API Documentation | v2.0 | 0/0 | Not started | - |
+| 10. Foundation Refactor | v1.3 | 0/1 | Complete    | 2026-03-26 |
+| 11. Bold & Italic | v1.3 | 0/1 | Complete    | 2026-03-27 |
+| 12. Font Picker & Google Fonts | v1.3 | 1/2 | Complete    | 2026-03-27 |
+| 13. Resizable Text Boxes | v1.3 | 0/1 | Complete    | 2026-03-27 |
+| 14. Alignment Snap Guides | v1.3 | 1/1 | Complete    | 2026-03-27 |
