@@ -6,7 +6,8 @@
 - v1.1 Monetization & AI Images - Phases 5-7 (shipped)
 - v1.2 Launch Readiness - Phases 8-9 (planned)
 - v1.3 Rich Text Editing - Phases 10-14 (shipped 2026-03-27)
-- v2.0 API & MCP Platform - Phases 15-18 (in progress)
+- v2.0 API & MCP Platform - Phases 15-18 (shipped 2026-04-07)
+- v2.1 Text Effects - Phases 19-21 (in progress)
 
 ## Phases
 
@@ -266,7 +267,8 @@ Plans:
 
 </details>
 
-### v2.0 API & MCP Platform (Phases 15-18)
+<details>
+<summary>v2.0 API & MCP Platform (Phases 15-18) - SHIPPED 2026-04-07</summary>
 
 **Milestone Goal:** Expose Viral Slide Maker as a developer platform with REST API endpoints and an MCP server, so AI agents can create carousels programmatically.
 
@@ -274,8 +276,6 @@ Plans:
 - [x] **Phase 16: REST API Endpoints** - One-shot and granular carousel endpoints with credit metering headers
 - [x] **Phase 17: MCP Server** - MCP tools wrapping REST API for AI agent integration via Streamable HTTP and npm package (completed 2026-04-07)
 - [x] **Phase 18: API Documentation** - OpenAPI spec generation, interactive Scalar playground, and MCP connection guide (completed 2026-04-07)
-
-## Phase Details
 
 ### Phase 15: Service Extraction & API Auth
 **Goal**: Developers can create and manage API keys that authenticate requests with rate limiting and credit deduction
@@ -287,7 +287,12 @@ Plans:
   3. An API request with a valid Bearer token authenticates successfully; an invalid or revoked token returns 401
   4. API requests exceeding the per-key rate limit receive a 429 response with retry-after information
   5. Each authenticated API request that consumes resources deducts credits from the developer's balance
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 15-01-PLAN.md -- Service extraction
+- [x] 15-02-PLAN.md -- API auth + rate limiting
+- [x] 15-03-PLAN.md -- API key management UI
 
 **UI hint**: yes
 
@@ -300,7 +305,12 @@ Plans:
   2. Developer can create a project, list templates, edit individual slides, and trigger renders through separate granular endpoints
   3. Developer can download rendered carousel images (individual PNGs or ZIP) via API response URLs
   4. Every API response includes x-credits-remaining and x-credits-used headers reflecting accurate credit state
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 16-01-PLAN.md -- One-shot endpoint
+- [x] 16-02-PLAN.md -- Granular CRUD endpoints
+- [x] 16-03-PLAN.md -- Render + download endpoints
 
 ### Phase 17: MCP Server
 **Goal**: AI agents (Claude Code, OpenAI agents, etc.) can create and manage carousels through MCP tool calls
@@ -316,7 +326,7 @@ Plans:
 
 Plans:
 - [x] 17-01-PLAN.md -- MCP server route + 4 tool definitions (Streamable HTTP at /api/mcp)
-- [ ] 17-02-PLAN.md -- npm package entry point with stdio transport (HTTP client wrapper)
+- [x] 17-02-PLAN.md -- npm package entry point with stdio transport (HTTP client wrapper)
 
 ### Phase 18: API Documentation
 **Goal**: Developers and AI agent builders have complete, interactive documentation to integrate with the API and MCP server
@@ -329,12 +339,59 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 18-01-PLAN.md -- OpenAPI spec, Scalar playground, and MCP connection guide
+- [x] 18-01-PLAN.md -- OpenAPI spec, Scalar playground, and MCP connection guide
+
+</details>
+
+### v2.1 Text Effects (Phases 19-21)
+
+**Milestone Goal:** Add text shadow, outline, and background highlight effects to make text stand out over images -- per-element controls, Satori-compatible rendering, zero new dependencies.
+
+- [ ] **Phase 19: Validation Spike & Data Model** - Confirm native Satori CSS support, define TextEffects type hierarchy, build shared resolveTextEffects() utility
+- [ ] **Phase 20: Renderer Implementation** - Shadow, outline, and highlight rendering across all three renderers (preview, Satori PNG, HTML export) for all text element types
+- [ ] **Phase 21: Editor UI & Tight Highlight** - Text effects control panel with toggles/pickers/sliders, tight highlight mode with Satori fallback
+
+## Phase Details
+
+### Phase 19: Validation Spike & Data Model
+**Goal**: The rendering strategy is confirmed and all text effect types, persistence, and shared resolution logic are in place before any renderer work begins
+**Depends on**: Phase 18
+**Requirements**: VAL-01, FX-01, FX-02
+**Success Criteria** (what must be TRUE):
+  1. A test slide rendered through /api/render confirms that Satori natively applies textShadow and WebkitTextStrokeWidth without duplicate-element workarounds
+  2. TextEffects type hierarchy is defined and effect settings persist across project save and reload
+  3. Hook, body, and each custom text box have independent effect settings in the data model (changing one does not affect others)
+**Plans**: TBD
+
+### Phase 20: Renderer Implementation
+**Goal**: Text effects (shadow, outline, and highlight) render correctly across all three renderers for all text element types, using the shared resolveTextEffects() utility
+**Depends on**: Phase 19
+**Requirements**: REND-01, REND-02, REND-03, REND-04
+**Success Criteria** (what must be TRUE):
+  1. A slide with shadow, outline, and full-width highlight enabled renders visually correct in the editor preview
+  2. The same slide exported as PNG via Satori shows matching shadow, outline, and full-width highlight effects
+  3. The same slide exported as HTML shows matching shadow, outline, and highlight effects
+  4. Tight highlight gracefully falls back to full-width in the Satori PNG export while rendering per-line in preview and HTML export
+  5. Effects render correctly on hook text, body text, and custom text boxes (not just hook/body)
+**Plans**: TBD
+
+### Phase 21: Editor UI & Tight Highlight
+**Goal**: Users can control all text effects through intuitive editor controls -- toggles, color pickers, size presets, and sliders -- for any text element
+**Depends on**: Phase 20
+**Requirements**: SHAD-01, SHAD-02, SHAD-03, OUT-01, OUT-02, OUT-03, HL-01, HL-02, HL-03, HL-04
+**Success Criteria** (what must be TRUE):
+  1. User can toggle shadow on/off, pick a shadow color, and select S/M/L size presets for any text element
+  2. User can toggle outline on/off, pick an outline color, and adjust thickness from 1-8px via slider for any text element
+  3. User can toggle highlight on/off, pick a highlight color, choose tight or full-width style, and adjust padding via slider for any text element
+  4. Effect controls appear for hook text, body text, and the currently selected custom text box in the editor panel
+  5. Toggling an effect off and back on restores the previous settings (toggle does not reset color/size choices)
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 -> 16 -> 17 -> 18
+Phases execute in numeric order: 19 -> 20 -> 21
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -354,5 +411,8 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 14. Alignment Snap Guides | v1.3 | 1/1 | Complete | 2026-03-27 |
 | 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 16. REST API Endpoints | v2.0 | 3/3 | Complete | 2026-04-07 |
-| 17. MCP Server | v2.0 | 1/2 | Complete    | 2026-04-07 |
-| 18. API Documentation | v2.0 | 0/1 | Complete    | 2026-04-07 |
+| 17. MCP Server | v2.0 | 2/2 | Complete | 2026-04-07 |
+| 18. API Documentation | v2.0 | 1/1 | Complete | 2026-04-07 |
+| 19. Validation Spike & Data Model | v2.1 | 0/0 | Not started | - |
+| 20. Renderer Implementation | v2.1 | 0/0 | Not started | - |
+| 21. Editor UI & Tight Highlight | v2.1 | 0/0 | Not started | - |

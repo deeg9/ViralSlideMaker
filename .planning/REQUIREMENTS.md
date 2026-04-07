@@ -131,29 +131,29 @@ Requirements for Text Effects milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FX-01 | Pending | Pending |
-| FX-02 | Pending | Pending |
-| SHAD-01 | Pending | Pending |
-| SHAD-02 | Pending | Pending |
-| SHAD-03 | Pending | Pending |
-| OUT-01 | Pending | Pending |
-| OUT-02 | Pending | Pending |
-| OUT-03 | Pending | Pending |
-| HL-01 | Pending | Pending |
-| HL-02 | Pending | Pending |
-| HL-03 | Pending | Pending |
-| HL-04 | Pending | Pending |
-| REND-01 | Pending | Pending |
-| REND-02 | Pending | Pending |
-| REND-03 | Pending | Pending |
-| REND-04 | Pending | Pending |
-| VAL-01 | Pending | Pending |
+| VAL-01 | Phase 19 | Pending |
+| FX-01 | Phase 19 | Pending |
+| FX-02 | Phase 19 | Pending |
+| SHAD-01 | Phase 21 | Pending |
+| SHAD-02 | Phase 21 | Pending |
+| SHAD-03 | Phase 21 | Pending |
+| OUT-01 | Phase 21 | Pending |
+| OUT-02 | Phase 21 | Pending |
+| OUT-03 | Phase 21 | Pending |
+| HL-01 | Phase 21 | Pending |
+| HL-02 | Phase 21 | Pending |
+| HL-03 | Phase 21 | Pending |
+| HL-04 | Phase 21 | Pending |
+| REND-01 | Phase 20 | Pending |
+| REND-02 | Phase 20 | Pending |
+| REND-03 | Phase 20 | Pending |
+| REND-04 | Phase 20 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-07*
-*Last updated: 2026-04-07 after v2.1 requirements definition*
+*Last updated: 2026-04-07 after v2.1 roadmap creation*
