@@ -1,6 +1,7 @@
 import type { SlideTemplate } from './templates'
 import type { Slide } from '../types/slide'
 import React from 'react'
+import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -21,6 +22,32 @@ function pxY(pct: number) {
   return Math.round(H * pct / 100)
 }
 
+/** Build Satori-safe CSS properties from resolved text effects */
+function satoriEffectStyles(effects: ResolvedTextEffectStyles): React.CSSProperties {
+  const css: React.CSSProperties = {}
+  if (effects.textShadow) css.textShadow = effects.textShadow
+  if (effects.WebkitTextStrokeWidth) {
+    css.WebkitTextStrokeWidth = effects.WebkitTextStrokeWidth
+    css.WebkitTextStrokeColor = effects.WebkitTextStrokeColor
+    css.paintOrder = effects.paintOrder
+  }
+  return css
+}
+
+/**
+ * Build highlight style for Satori (always full-width).
+ * REND-04: Satori does not support box-decoration-break: clone,
+ * so tight highlight gracefully falls back to full-width.
+ */
+function satoriHighlightStyle(effects: ResolvedTextEffectStyles): React.CSSProperties | null {
+  if (!effects.highlight?.enabled) return null
+  // REND-04: Always use full-width in Satori (tight not supported without box-decoration-break)
+  return {
+    backgroundColor: effects.highlight.color,
+    padding: `${effects.highlight.padding}px`,
+  }
+}
+
 /**
  * Build a Satori-compatible React element for a slide.
  * Satori converts this JSX to SVG, which is then rasterized to PNG via resvg-wasm.
@@ -36,6 +63,7 @@ export function buildSlideElement(
   template: SlideTemplate
 ): React.ReactElement {
   const overrides = slide.style_overrides ?? {}
+  const resolved = resolveSlideStyles(slide, template)
 
   const textColor = overrides.text_color ?? template.textColor
   const textAlign = overrides.text_align ?? template.textAlign
@@ -104,6 +132,12 @@ export function buildSlideElement(
     hookStyle.fontStyle = 'italic'
   }
 
+  // Apply text effects to hook
+  const hookEffectCSS = satoriEffectStyles(resolved.hookEffects)
+  Object.assign(hookStyle, hookEffectCSS)
+  const hookHighlight = satoriHighlightStyle(resolved.hookEffects)
+  if (hookHighlight) Object.assign(hookStyle, hookHighlight)
+
   // Body text style
   const bodyStyle: React.CSSProperties = {
     position: 'absolute',
@@ -116,6 +150,12 @@ export function buildSlideElement(
     lineHeight: 1.5,
     opacity: 0.9,
   }
+
+  // Apply text effects to body
+  const bodyEffectCSS = satoriEffectStyles(resolved.bodyEffects)
+  Object.assign(bodyStyle, bodyEffectCSS)
+  const bodyHighlight = satoriHighlightStyle(resolved.bodyEffects)
+  if (bodyHighlight) Object.assign(bodyStyle, bodyHighlight)
 
   return (
     <div style={rootStyle}>
@@ -153,26 +193,33 @@ export function buildSlideElement(
         />
       ))}
       {/* Custom text boxes */}
-      {(slide.custom_texts ?? []).map((ct) => (
-        <div
-          key={ct.id}
-          style={{
-            position: 'absolute',
-            left: pxX(ct.x),
-            top: pxY(ct.y),
-            width: pxX(ct.width),
-            textAlign: ct.text_align ?? 'left',
-            fontSize: ct.font_size ?? 48,
-            fontWeight: ct.font_weight ?? 400,
-            fontStyle: ct.font_style ?? 'normal',
-            lineHeight: 1.3,
-            color: ct.color ?? textColor,
-            fontFamily: ct.font_family ?? template.fontFamily,
-          }}
-        >
-          {ct.text}
-        </div>
-      ))}
+      {(slide.custom_texts ?? []).map((ct) => {
+        const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
+        const ctEffects = resolvedCt ? satoriEffectStyles(resolvedCt.resolvedEffects) : {}
+        const ctHighlight = resolvedCt ? satoriHighlightStyle(resolvedCt.resolvedEffects) : null
+        return (
+          <div
+            key={ct.id}
+            style={{
+              position: 'absolute',
+              left: pxX(ct.x),
+              top: pxY(ct.y),
+              width: pxX(ct.width),
+              textAlign: ct.text_align ?? 'left',
+              fontSize: ct.font_size ?? 48,
+              fontWeight: ct.font_weight ?? 400,
+              fontStyle: ct.font_style ?? 'normal',
+              lineHeight: 1.3,
+              color: ct.color ?? textColor,
+              fontFamily: ct.font_family ?? template.fontFamily,
+              ...ctEffects,
+              ...(ctHighlight ?? {}),
+            }}
+          >
+            {ct.text}
+          </div>
+        )
+      })}
     </div>
   )
 }
