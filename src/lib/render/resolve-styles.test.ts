@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { resolveSlideStyles, SAFE_ZONE, type ResolvedSlideStyles } from './resolve-styles'
-import type { Slide } from '../types/slide'
+import { resolveSlideStyles, resolveTextEffects, SAFE_ZONE, SHADOW_PRESETS, type ResolvedSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
+import type { Slide, TextEffects } from '../types/slide'
 import type { SlideTemplate } from './templates'
 
 const baseSlide: Slide = {
@@ -200,6 +200,190 @@ describe('resolveSlideStyles', () => {
     const styles = resolveSlideStyles(slide, baseTemplate)
     expect(styles.hookFontFamily).toBe("'Bebas Neue', system-ui")
     expect(styles.bodyFontFamily).toBe("'Lora', serif")
+  })
+
+  // Phase 19: Text effects integration tests
+  it('returns empty hookEffects and bodyEffects when no effects are set', () => {
+    const styles = resolveSlideStyles(baseSlide, baseTemplate)
+    expect(styles.hookEffects).toEqual({})
+    expect(styles.bodyEffects).toEqual({})
+  })
+
+  it('returns hookEffects with textShadow when hook_text_effects has shadow', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: {
+        hook_text_effects: {
+          shadow: { enabled: true, color: '#00000080', size: 'md' },
+        },
+      },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.hookEffects.textShadow).toBe('2px 2px 4px #00000080')
+  })
+
+  it('returns bodyEffects with outline when body_text_effects has outline', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: {
+        body_text_effects: {
+          outline: { enabled: true, color: '#FF0000', width: 3 },
+        },
+      },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.bodyEffects.WebkitTextStrokeWidth).toBe('3px')
+    expect(styles.bodyEffects.WebkitTextStrokeColor).toBe('#FF0000')
+    expect(styles.bodyEffects.paintOrder).toBe('stroke')
+  })
+
+  it('returns resolvedEffects on custom texts with text_effects', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      custom_texts: [
+        {
+          id: 'ct1',
+          text: 'Custom',
+          x: 10,
+          y: 10,
+          width: 80,
+          text_effects: {
+            shadow: { enabled: true, color: '#00000080', size: 'sm' },
+          },
+        },
+      ],
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.customTexts[0].resolvedEffects.textShadow).toBe('1px 1px 2px #00000080')
+  })
+
+  it('returns empty resolvedEffects on custom texts without text_effects', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      custom_texts: [
+        { id: 'ct1', text: 'Custom', x: 10, y: 10, width: 80 },
+      ],
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.customTexts[0].resolvedEffects).toEqual({})
+  })
+
+  it('allows hook and body to have different effects simultaneously (FX-02)', () => {
+    const slide: Slide = {
+      ...baseSlide,
+      style_overrides: {
+        hook_text_effects: {
+          shadow: { enabled: true, color: '#00000080', size: 'lg' },
+        },
+        body_text_effects: {
+          outline: { enabled: true, color: '#FF0000', width: 2 },
+        },
+      },
+    }
+    const styles = resolveSlideStyles(slide, baseTemplate)
+    expect(styles.hookEffects.textShadow).toBe('3px 4px 8px #00000080')
+    expect(styles.hookEffects.WebkitTextStrokeWidth).toBeUndefined()
+    expect(styles.bodyEffects.WebkitTextStrokeWidth).toBe('2px')
+    expect(styles.bodyEffects.textShadow).toBeUndefined()
+  })
+})
+
+describe('resolveTextEffects', () => {
+  it('returns empty object for undefined effects', () => {
+    expect(resolveTextEffects(undefined)).toEqual({})
+  })
+
+  it('returns empty object for disabled shadow', () => {
+    const effects: TextEffects = {
+      shadow: { enabled: false, color: '#000', size: 'md' },
+    }
+    expect(resolveTextEffects(effects)).toEqual({})
+  })
+
+  it('returns textShadow for enabled shadow (sm)', () => {
+    const effects: TextEffects = {
+      shadow: { enabled: true, color: '#00000080', size: 'sm' },
+    }
+    const result = resolveTextEffects(effects)
+    expect(result.textShadow).toBe('1px 1px 2px #00000080')
+  })
+
+  it('returns textShadow for enabled shadow (md)', () => {
+    const effects: TextEffects = {
+      shadow: { enabled: true, color: '#00000080', size: 'md' },
+    }
+    const result = resolveTextEffects(effects)
+    expect(result.textShadow).toBe('2px 2px 4px #00000080')
+  })
+
+  it('returns textShadow for enabled shadow (lg)', () => {
+    const effects: TextEffects = {
+      shadow: { enabled: true, color: '#00000080', size: 'lg' },
+    }
+    const result = resolveTextEffects(effects)
+    expect(result.textShadow).toBe('3px 4px 8px #00000080')
+  })
+
+  it('returns outline properties for enabled outline', () => {
+    const effects: TextEffects = {
+      outline: { enabled: true, color: '#FF0000', width: 3 },
+    }
+    const result = resolveTextEffects(effects)
+    expect(result.WebkitTextStrokeWidth).toBe('3px')
+    expect(result.WebkitTextStrokeColor).toBe('#FF0000')
+    expect(result.paintOrder).toBe('stroke')
+  })
+
+  it('returns empty object for disabled outline', () => {
+    const effects: TextEffects = {
+      outline: { enabled: false, color: '#FF0000', width: 3 },
+    }
+    expect(resolveTextEffects(effects)).toEqual({})
+  })
+
+  it('returns highlight data for enabled highlight', () => {
+    const effects: TextEffects = {
+      highlight: { enabled: true, color: '#000000CC', style: 'full', padding: 8 },
+    }
+    const result = resolveTextEffects(effects)
+    expect(result.highlight).toEqual({
+      enabled: true,
+      color: '#000000CC',
+      style: 'full',
+      padding: 8,
+    })
+  })
+
+  it('returns empty object for disabled highlight', () => {
+    const effects: TextEffects = {
+      highlight: { enabled: false, color: '#000000CC', style: 'full', padding: 8 },
+    }
+    expect(resolveTextEffects(effects)).toEqual({})
+  })
+
+  it('combines all three enabled effects', () => {
+    const effects: TextEffects = {
+      shadow: { enabled: true, color: '#00000080', size: 'md' },
+      outline: { enabled: true, color: '#FF0000', width: 2 },
+      highlight: { enabled: true, color: '#000000CC', style: 'tight', padding: 12 },
+    }
+    const result = resolveTextEffects(effects)
+    expect(result.textShadow).toBe('2px 2px 4px #00000080')
+    expect(result.WebkitTextStrokeWidth).toBe('2px')
+    expect(result.WebkitTextStrokeColor).toBe('#FF0000')
+    expect(result.paintOrder).toBe('stroke')
+    expect(result.highlight).toEqual({
+      enabled: true,
+      color: '#000000CC',
+      style: 'tight',
+      padding: 12,
+    })
+  })
+
+  it('SHADOW_PRESETS has sm, md, lg with correct values', () => {
+    expect(SHADOW_PRESETS.sm).toEqual({ offsetX: 1, offsetY: 1, blur: 2 })
+    expect(SHADOW_PRESETS.md).toEqual({ offsetX: 2, offsetY: 2, blur: 4 })
+    expect(SHADOW_PRESETS.lg).toEqual({ offsetX: 3, offsetY: 4, blur: 8 })
   })
 })
 
