@@ -350,7 +350,7 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 12. Font Picker & Google Fonts | v1.3 | 2/2 | Complete | 2026-03-27 |
 | 13. Resizable Text Boxes | v1.3 | 1/1 | Complete | 2026-03-27 |
 | 14. Alignment Snap Guides | v1.3 | 1/1 | Complete | 2026-03-27 |
-| 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete   | 2026-04-07 |
+| 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete    | 2026-04-07 |
 | 16. REST API Endpoints | v2.0 | 0/0 | Not started | - |
 | 17. MCP Server | v2.0 | 0/0 | Not started | - |
 | 18. API Documentation | v2.0 | 0/0 | Not started | - |
