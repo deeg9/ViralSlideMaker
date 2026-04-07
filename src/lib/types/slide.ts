@@ -15,6 +15,7 @@ export interface CustomText {
   font_style?: 'normal' | 'italic'
   color?: string
   text_align?: 'left' | 'center' | 'right'
+  text_effects?: TextEffects
 }
 
 export interface CustomImage {
@@ -26,6 +27,32 @@ export interface CustomImage {
   height: number        // percentage 0-100
   opacity?: number      // 0-100, default 100
   border_radius?: number // px, for rounded corners
+}
+
+// Phase 19: Text effects
+export interface TextShadowEffect {
+  enabled: boolean
+  color: string          // 8-digit hex e.g. '#00000080' (NOT rgba)
+  size: 'sm' | 'md' | 'lg'
+}
+
+export interface TextOutlineEffect {
+  enabled: boolean
+  color: string          // hex e.g. '#000000'
+  width: number          // 1-8 px
+}
+
+export interface TextHighlightEffect {
+  enabled: boolean
+  color: string          // 8-digit hex with alpha e.g. '#000000CC'
+  style: 'tight' | 'full'
+  padding: number        // 4-24 px
+}
+
+export interface TextEffects {
+  shadow?: TextShadowEffect
+  outline?: TextOutlineEffect
+  highlight?: TextHighlightEffect
 }
 
 export interface SlideStyleOverrides {
@@ -50,6 +77,9 @@ export interface SlideStyleOverrides {
   // Phase 13: Text box width
   hook_width?: number   // percentage 0-100, overrides symmetric width calc
   body_width?: number   // percentage 0-100, overrides symmetric width calc
+  // Phase 19: Text effects
+  hook_text_effects?: TextEffects
+  body_text_effects?: TextEffects
 }
 
 export interface Slide {
