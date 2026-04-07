@@ -312,7 +312,11 @@ Plans:
   3. An AI agent can call list_templates to discover available visual styles before creating a carousel
   4. The MCP server is accessible as a Streamable HTTP endpoint deployed inside the Next.js app
   5. The MCP server is installable as an npm package and works via stdio transport for local AI agent use
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 17-01-PLAN.md -- MCP server route + 4 tool definitions (Streamable HTTP at /api/mcp)
+- [ ] 17-02-PLAN.md -- npm package entry point with stdio transport (HTTP client wrapper)
 
 ### Phase 18: API Documentation
 **Goal**: Developers and AI agent builders have complete, interactive documentation to integrate with the API and MCP server
