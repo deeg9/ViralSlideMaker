@@ -347,7 +347,7 @@ Plans:
 
 **Milestone Goal:** Add text shadow, outline, and background highlight effects to make text stand out over images -- per-element controls, Satori-compatible rendering, zero new dependencies.
 
-- [ ] **Phase 19: Validation Spike & Data Model** - Confirm native Satori CSS support, define TextEffects type hierarchy, build shared resolveTextEffects() utility
+- [x] **Phase 19: Validation Spike & Data Model** - Confirm native Satori CSS support, define TextEffects type hierarchy, build shared resolveTextEffects() utility (completed 2026-04-07)
 - [ ] **Phase 20: Renderer Implementation** - Shadow, outline, and highlight rendering across all three renderers (preview, Satori PNG, HTML export) for all text element types
 - [ ] **Phase 21: Editor UI & Tight Highlight** - Text effects control panel with toggles/pickers/sliders, tight highlight mode with Satori fallback
 
@@ -364,8 +364,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 19-01-PLAN.md -- Satori text effects validation spike (textShadow + WebkitTextStroke confirmation)
-- [ ] 19-02-PLAN.md -- TextEffects type hierarchy, resolveTextEffects() utility, resolveSlideStyles() extension (TDD)
+- [x] 19-01-PLAN.md -- Satori text effects validation spike (textShadow + WebkitTextStroke confirmation)
+- [x] 19-02-PLAN.md -- TextEffects type hierarchy, resolveTextEffects() utility, resolveSlideStyles() extension (TDD)
 
 ### Phase 20: Renderer Implementation
 **Goal**: Text effects (shadow, outline, and highlight) render correctly across all three renderers for all text element types, using the shared resolveTextEffects() utility
@@ -377,7 +377,11 @@ Plans:
   3. The same slide exported as HTML shows matching shadow, outline, and highlight effects
   4. Tight highlight gracefully falls back to full-width in the Satori PNG export while rendering per-line in preview and HTML export
   5. Effects render correctly on hook text, body text, and custom text boxes (not just hook/body)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 20-01-PLAN.md -- Preview renderer: text effects (shadow, outline, highlight) in editor preview
+- [ ] 20-02-PLAN.md -- Export renderers: text effects in Satori PNG and HTML export
 
 ### Phase 21: Editor UI & Tight Highlight
 **Goal**: Users can control all text effects through intuitive editor controls -- toggles, color pickers, size presets, and sliders -- for any text element
@@ -417,6 +421,6 @@ Phases execute in numeric order: 19 -> 20 -> 21
 | 16. REST API Endpoints | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 17. MCP Server | v2.0 | 2/2 | Complete | 2026-04-07 |
 | 18. API Documentation | v2.0 | 1/1 | Complete | 2026-04-07 |
-| 19. Validation Spike & Data Model | v2.1 | 0/0 | Not started | - |
-| 20. Renderer Implementation | v2.1 | 0/0 | Not started | - |
+| 19. Validation Spike & Data Model | v2.1 | 2/2 | Complete   | 2026-04-07 |
+| 20. Renderer Implementation | v2.1 | 0/2 | Not started | - |
 | 21. Editor UI & Tight Highlight | v2.1 | 0/0 | Not started | - |
