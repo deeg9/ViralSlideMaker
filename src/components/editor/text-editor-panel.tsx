@@ -185,32 +185,6 @@ export function TextEditorPanel({
         />
       </div>
 
-      {/* Body Size */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Body Size</span>
-          <span className="text-[10px] font-bold text-[#3d0000]">
-            {overrides.body_font_size ?? template.bodyFontSize}
-          </span>
-        </div>
-        <input
-          type="range"
-          min={12}
-          max={56}
-          step={2}
-          value={overrides.body_font_size ?? parseInt(template.bodyFontSize)}
-          onChange={(e) =>
-            onUpdate({
-              style_overrides: {
-                ...overrides,
-                body_font_size: Number(e.target.value),
-              },
-            })
-          }
-          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
-        />
-      </div>
-
       {/* Hook Text Color */}
       <div className="space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Hook Color</span>
@@ -373,22 +347,6 @@ export function TextEditorPanel({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Text Shadow */}
-      <div className="space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Text Shadow</span>
-        <button
-          onClick={() => onUpdate({ style_overrides: { ...overrides, text_shadow: !overrides.text_shadow } })}
-          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
-            overrides.text_shadow
-              ? 'bg-[#3d0000] text-white'
-              : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-          }`}
-        >
-          {overrides.text_shadow ? 'On' : 'Off'}
-        </button>
-        <p className="text-[9px] text-[#7d6161]">Adds shadow behind text for readability over images</p>
       </div>
 
       {/* Custom Texts Section */}

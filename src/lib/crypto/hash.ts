@@ -1,5 +1,7 @@
-// Stub: Will be implemented in Plan 01
-// SHA-256 hashing for API keys
 export async function hashApiKey(key: string): Promise<string> {
-  throw new Error('Not implemented -- Plan 01 will implement this')
+  const encoder = new TextEncoder()
+  const data = encoder.encode(key)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }

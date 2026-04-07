@@ -31,7 +31,6 @@ export interface ResolvedSlideStyles {
   bodyY: number
   hookWidth: number  // percentage 0-100
   bodyWidth: number  // percentage 0-100
-  textShadow: boolean
   customTexts: Array<CustomText & { resolvedFontFamily: string }>
 }
 
@@ -87,8 +86,6 @@ export function resolveSlideStyles(
   const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
-  const textShadow = overrides.text_shadow ?? false
-
   // Resolve custom texts
   const customTexts = (slide.custom_texts ?? []).map((ct) => {
     const ctFontRaw = ct.font_family ?? templateFont
@@ -128,7 +125,6 @@ export function resolveSlideStyles(
     bodyY,
     hookWidth,
     bodyWidth,
-    textShadow,
     customTexts,
   }
 }
