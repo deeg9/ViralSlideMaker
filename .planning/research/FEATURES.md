@@ -1,200 +1,136 @@
-# Feature Research: Rich Text Editing in Carousel Slide Editor
+# Feature Landscape: Text Effects (v2.1)
 
-**Domain:** Design tool text editing (Canva/Figma-like carousel editor)
-**Researched:** 2026-03-26
-**Confidence:** HIGH (well-established UX patterns, mature ecosystem)
+**Domain:** Text effects for TikTok/Instagram carousel slide creator
+**Researched:** 2026-04-07
+**Overall confidence:** HIGH
 
-## Feature Landscape
+## Table Stakes
 
-### Table Stakes (Users Expect These)
-
-Features users assume exist when they see a text editor in a design tool. Missing these = product feels incomplete or broken.
+Features users expect from any design tool offering text effects. Missing = the feature feels half-baked.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Font picker dropdown with search | Every design tool (Canva, Figma, Adobe) has font search. Users choose fonts by name. | MEDIUM | Google Fonts API provides ~1,500 free fonts. Need curated subset (~30-50 popular fonts) for the dropdown, with search for the full library. Currently `fontFamily` is set per-template and brand kit but not per-text-box. |
-| Bold toggle (B button) | Universal text formatting control. Users see it in every text editor from Google Docs to Canva. | LOW | Add `font_weight` to `SlideStyleOverrides`. Hook text is already `font-weight: 900`; need per-box override. Body text defaults to 400. Toggle between 400/700 (or 900 for hook). |
-| Italic toggle (I button) | Universal text formatting control alongside bold. | LOW | Add `font_style` to `SlideStyleOverrides`. Currently `hookStyle: 'italic'` exists at template level but not user-togglable per text box. |
-| Resizable text boxes with drag handles | Canva, Figma, and every design tool let you resize text boxes. Users drag corners/edges to control text width. | MEDIUM | Currently text width is calculated symmetrically from X position (`100 - hookX * 2`). Need independent width per text box. Corner handles for proportional resize, edge handles for width-only. |
-| Text alignment buttons (left/center/right) | Already built. Confirming it as table stakes. | DONE | Already implemented in `text-editor-panel.tsx`. |
-| Font size control | Already built via slider. Table stakes confirmed. | DONE | Already implemented for hook and body text. |
-| Text color picker | Already built with swatches + custom color. | DONE | Already implemented in `text-editor-panel.tsx`. |
+| Text shadow with color control | Every design tool (Canva, Adobe Express, Figma) offers shadow with color. Users will compare. | Low | Satori's bundled version in `next/og` (v0.7.2, Next.js 15.5.13) **natively supports `textShadow`** -- no duplicate-element workaround needed. Verified in compiled source. |
+| Text outline with color + thickness | Canva "Hollow" and "Splice" effects, Adobe Express outline -- second most-used text effect after shadow. | Low-Med | Satori natively supports `WebkitTextStrokeWidth` + `WebkitTextStrokeColor` (merged Nov 2024, present in bundled build). Should work directly. |
+| Background highlight behind text | Standard readability technique for text over photos. Canva calls it "Background" effect. Essential for carousel slides where text sits on busy images. | Med | Two sub-styles needed: tight (inline marker) and full-width (banner). Tight is harder in Satori -- see Differentiators. |
+| Per-element independence | Each text box (hook, body, custom) must have its own independent effect settings. Shared global effects would be a dealbreaker. | Low | Already planned in the `TextEffects` interface on `SlideStyleOverrides` and `CustomText`. No extra complexity. |
+| Toggle on/off per effect | Users must be able to enable/disable each effect independently without losing their settings (color, size). | Low | Standard boolean toggle pattern. Sub-controls hidden when toggle is off. |
+| Color picker for each effect | Shadow, outline, and highlight all need color control. Swatch presets + full picker. | Low | Reuse existing color swatch + picker pattern from text color controls in `text-editor-panel.tsx`. |
 
-### Differentiators (Competitive Advantage)
+## Differentiators
 
-Features that elevate beyond basic text editing. Not required for v1.3 but create a polished, professional feel.
+Features that set the product apart from carousel-specific competitors. PostNitro, aiCarousels, and PostWaffle have **zero** text effects -- shipping any of these puts the product ahead.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Snap alignment guides (center/edge) | Visual guide lines appear when dragging text near canvas center or edges. Creates the "it just works" feel of Canva/Figma. Users feel precision without effort. | MEDIUM | Implement on `dragmove` events from existing `react-draggable`. Calculate proximity to canvas center (50%, 50%), edges, and other text boxes. Show dashed lines at 50% horizontal/vertical and at safe zone boundaries. Snap threshold ~5-10px. |
-| Font preview in dropdown | Show each font name rendered in its own typeface inside the picker. Canva does this. Lets users visually browse without applying. | LOW | Lazy-load font preview CSS. Only load the font file when it appears in the scrollable list viewport. |
-| Curated font categories | Group fonts by style: "Sans Serif", "Serif", "Display", "Handwritten". Faster than scrolling 1,500 fonts. | LOW | Static categorization of top ~50 fonts. Matches Canva's approach. |
-| Recently used fonts | Show last 5-10 fonts at top of picker. Reduces repetitive searching. | LOW | Store in localStorage or user preferences. |
-| Cross-text-box snapping | When dragging one text box, snap guides also show alignment with the other text box (hook aligns with body edge, etc.). | MEDIUM | Extension of basic snap guides. Calculate edges/centers of all text boxes, not just canvas. |
-| Letter spacing control | Adjust tracking for design-forward titles. Common in Canva for headline styling. | LOW | Add `letter_spacing` to `SlideStyleOverrides`. Simple CSS property. |
-| Line height control | Fine-tune vertical spacing within text blocks. | LOW | Already hardcoded (1.1 for hook, 1.5 for body). Expose as slider. |
+| Shadow size presets (S/M/L) | Simpler than Canva's offset-x/offset-y/blur/spread sliders. Faster for carousel creators who want "good enough" quickly. Three presets mapping to offset values (2px/4px/6px) is the right abstraction level. | Low | Canva uses 4 sliders (offset, direction, blur, transparency). Our preset approach trades flexibility for speed -- correct tradeoff for the carousel use case. |
+| Tight highlight ("marker" style) | Text with per-line background color, like a highlighter pen. Very popular on Instagram/TikTok carousels for readability. Most carousel tools lack this. | Med-High | Requires `box-decoration-break: clone` on inline `<span>` elements in browser renderers (preview + HTML export). Satori likely does NOT support `box-decoration-break` for inline elements -- will need a per-line-wrapping workaround or accept full-width-only in PNG export. **This is the hardest feature in the set.** |
+| Full-width highlight (banner style) | Colored rectangle behind entire text box. Simpler variant of highlight. | Low | Just a `<div>` with `backgroundColor` and padding behind the text. Works in all three renderers including Satori. |
+| Highlight padding control | Slider for padding around highlighted text (4-24px). Gives users fine control over how much "breathing room" the highlight has. | Low | Simple numeric slider mapped to padding value. |
+| Effect combinations | Shadow + outline + highlight can all be enabled simultaneously on the same text element. | Low | Each effect is independent in the data model. CSS properties and Satori styles compose naturally. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+## Anti-Features
 
-Features that seem good but create significant complexity without proportional value for a carousel creator.
+Features to explicitly NOT build in this milestone.
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Rich text within a single text box (mixed bold/italic/color per word) | Power users want inline formatting like Google Docs. | Requires a rich text engine (Slate.js, ProseMirror, or Tiptap). Massively increases complexity. Server-side rendering with Satori becomes much harder -- Satori does not support rich text spans natively. The HTML renderer would need to parse styled spans. Undo/redo becomes complex (character-level vs box-level). For carousel slides with short text (5-15 words), per-word styling is rarely needed. | Apply bold/italic to entire text box. Users can split text into multiple boxes if they need mixed styles. |
-| Custom font uploads | Users want to upload their own .ttf/.otf files. | Font hosting, validation, licensing concerns, server-side rendering needs font file access. Google Fonts covers 99% of use cases for social media carousels. | Offer 50-100 curated Google Fonts. Add brand kit font field for specific Google Font names. |
-| Underline and strikethrough | Feels like a "complete" text editor should have these. | Almost never used in social media carousel design. Adds toolbar clutter. Underline is a web anti-pattern (looks like a link). | Omit. If users request, add underline only as a v2 feature. |
-| Text on a path / curved text | Trendy design feature. | Very high complexity. Satori does not support SVG text paths. Would need entirely different rendering approach for server-side. | Not worth it for carousel use case. Defer indefinitely. |
-| Full WYSIWYG text editing on canvas | Click text on canvas to edit inline, like Figma. | Current architecture uses separate text panel (textarea) + canvas preview. Inline editing requires contentEditable, which is notoriously buggy. The scaled canvas (`transform: scale()`) makes cursor positioning unreliable. | Keep the side-panel text editing approach. It works well for short carousel text. |
-| Text effects (shadow, outline, glow) | Canva has these, users may expect them. | Each effect needs both client-side CSS preview AND server-side rendering parity. Satori supports `textShadow` but not all effects. Scope creep risk -- "just one more effect" compounds. | Defer to v1.4+. Add text shadow first (easiest, Satori-compatible), then evaluate demand. |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Blur radius control for shadow | Satori renders shadows as sharp-edged (no blur in SVG text-shadow). Adding a blur slider would look correct in the browser preview but wrong in PNG export -- creating a confusing WYSIWYG mismatch. | Use the S/M/L presets which control offset only. The sharp shadow at 1080x1920 looks fine. Revisit blur if/when switching to Playwright renderer. |
+| Gradient text fills | Requires `background-clip: text` which Satori supports but is complex to combine with outline and shadow effects. Different feature category. | Defer to a future "Advanced Text Effects" milestone. |
+| Neon glow effect | Requires blurred shadow (multiple `text-shadow` values with blur). Same WYSIWYG mismatch problem as blur radius. Canva's neon is impressive but Satori cannot reproduce it. | Defer until Playwright/canvas renderer is available. |
+| Curved/warped text | Completely different rendering approach (SVG path text). Not a "text effect" in the CSS sense. | Separate milestone entirely. |
+| Per-character effects | Animating or styling individual characters differently. Massive complexity for minimal carousel value. | Not applicable to static carousel images. |
+| Offset X/Y sliders for shadow | Canva-style directional shadow control. Over-engineered for carousel use case. Most users just want "add shadow to make text readable." | S/M/L presets with fixed 45-degree offset direction. Simpler, faster, and avoids the Satori blur mismatch. |
+| Outline-only text (hollow) | Canva's "Hollow" removes fill color leaving only stroke. Niche use case, adds UI complexity (need to explain fill vs stroke). | Can be achieved by setting text color to transparent + enabling outline. Don't need a separate toggle. |
+| Multiple shadows | CSS supports comma-separated `text-shadow` values for stacked effects. Over-engineered for v2.1. | Single shadow per element is sufficient. |
 
 ## Feature Dependencies
 
 ```
-Font Picker
-    |-- requires --> Google Fonts loading infrastructure
-    |                    |-- requires --> Font loading in slide-preview.tsx (client)
-    |                    |-- requires --> Font loading in render-slide.ts (server HTML)
-    |                    |-- requires --> Font binary fetching for render-slide-satori.tsx (server Satori)
-    |                    |-- requires --> getFontLink() update for dynamic fonts
-    |
-    |-- enhances --> Brand Kit font selection (existing font_family field)
+Text shadow --------> Color picker component (exists)
+                  \-> S/M/L preset button group (new, but pattern exists in text position presets)
 
-Bold/Italic Toggles
-    |-- requires --> SlideStyleOverrides type extension (font_weight, font_style)
-    |-- requires --> slide-preview.tsx style application
-    |-- requires --> render-slide.ts + render-slide-satori.tsx parity
-    |-- independent of --> Font Picker (can ship separately)
+Text outline -------> Color picker component (exists)
+                  \-> Thickness slider (new, but pattern exists in font-size slider)
 
-Resizable Text Boxes
-    |-- requires --> Per-text-box width in SlideStyleOverrides
-    |-- requires --> Drag handle UI on canvas (new component)
-    |-- enhances --> Existing draggable text positioning
-    |-- conflicts with --> Symmetric text width calculation (100 - hookX * 2)
-    |                      Must migrate to explicit width per box
+Background highlight -> Color picker component (exists)
+                    \-> Style toggle: tight/full-width (new button group)
+                    \-> Padding slider (new, reuse slider pattern)
+                    \-> Tight highlight needs per-line wrapping logic (new, complex)
 
-Snap Alignment Guides
-    |-- requires --> Draggable text boxes (already exists via react-draggable)
-    |-- enhances --> Text positioning UX
-    |-- independent of --> Resizable text boxes (but better together)
+All effects ---------> TextEffects interface in slide.ts (new)
+                    \-> Per-element storage on SlideStyleOverrides + CustomText (new fields)
+                    \-> Three renderers updated: preview, Satori, HTML
+
+Satori renderer -----> textShadow CSS property (verified: supported in bundled @vercel/og 0.7.2)
+                    \-> WebkitTextStrokeWidth/Color (verified: supported in bundled build)
+                    \-> backgroundColor on wrapping elements (verified: supported)
 ```
 
-### Dependency Notes
+**Critical dependency chain:** Types -> Satori renderer -> Preview renderer -> HTML renderer -> Editor UI. Types must be defined first. Renderer updates must happen before UI so there is something to preview.
 
-- **Font Picker requires font loading infrastructure:** The hardest part is not the UI dropdown -- it is ensuring fonts load correctly in three places: (1) the client-side `slide-preview.tsx` for live preview, (2) the `render-slide.ts` HTML template for Puppeteer rendering, and (3) the `render-slide-satori.tsx` for Satori rendering (which requires font binary data, not CSS links). This is the riskiest dependency.
-- **Bold/Italic is independent:** Can ship without font picker. Just extends `SlideStyleOverrides` and adds toolbar buttons. Low risk.
-- **Resizable text boxes conflict with symmetric width:** Current `textWidth = 100 - hookX * 2` calculates width from position. Resizable boxes need independent width storage. This is a data model change that affects all three renderers.
-- **Snap guides enhance dragging:** Works with existing `react-draggable` by adding visual feedback on `onDrag` events. Independent feature, no blockers.
+## Rendering Compatibility Matrix
 
-## Milestone v1.3 Definition
+This is the key constraint driving feature decisions.
 
-### Must Ship (P1)
+| Effect | Browser Preview | Satori PNG Export | HTML Export | Fidelity Match |
+|--------|----------------|-------------------|-------------|----------------|
+| Shadow (no blur) | `text-shadow` CSS | `textShadow` (native) | `text-shadow` CSS | HIGH -- all three use real CSS/equivalent |
+| Outline | `-webkit-text-stroke` | `WebkitTextStrokeWidth` + `WebkitTextStrokeColor` (native) | `-webkit-text-stroke` | HIGH -- native support confirmed |
+| Highlight: full-width | `div` with `backgroundColor` | `div` with `backgroundColor` | `div` with `backgroundColor` | HIGH -- identical approach |
+| Highlight: tight | `span` + `box-decoration-break: clone` | Likely needs wrapper `div` per line or accept full-width fallback | `span` + `box-decoration-break: clone` | LOW-MED -- Satori may not match browser rendering |
 
-- [ ] **Bold/italic toggles** -- Lowest complexity, highest user expectation. Two buttons in toolbar, two new fields in `SlideStyleOverrides`. Ship first.
-- [ ] **Font picker with Google Fonts** -- Core user request. Start with curated list of ~40 popular fonts with search. Must solve Satori font loading (fetch font binary from Google Fonts CDN and pass to Satori options).
-- [ ] **Resizable text boxes** -- Users expect drag handles on selected text. Add width/height override to `SlideStyleOverrides`, render corner/edge handles on the canvas.
-- [ ] **Snap alignment guides** -- Visual polish that makes positioning feel professional. Center lines + edge snap at minimum.
+## Satori Native Support Finding (IMPORTANT)
 
-### Add After v1.3 Ships (v1.4)
+**The design doc (`docs/plans/2026-04-07-text-effects-design.md`) recommends duplicate-element workarounds for shadow and outline in Satori. This research finds that native CSS properties may work directly, which would significantly reduce implementation complexity.**
 
-- [ ] **Font preview in dropdown** -- Nice visual polish but requires lazy font loading. Add when core font picker works.
-- [ ] **Letter spacing / line height controls** -- Low complexity, add when toolbar has room.
-- [ ] **Text shadow** -- Most requested text effect, Satori-compatible. Evaluate demand first.
-- [ ] **Recently used fonts** -- UX convenience, trivial to add once font picker exists.
+Verified by inspecting the compiled `@vercel/og` (v0.7.2) bundled with Next.js 15.5.13:
+- `textShadow` is parsed and rendered (found: parser function, shadow offset/radius/color handling)
+- `WebkitTextStrokeWidth` and `WebkitTextStrokeColor` are in the supported property set
+- Both are in the inheritable text properties set
 
-### Future Consideration (v2+)
+**Recommendation:** Try native CSS properties in Satori FIRST. Only fall back to duplicate-element workarounds if native rendering produces visual artifacts. This could save 10+ hours of implementation time.
 
-- [ ] **Custom font uploads** -- Requires font hosting infrastructure. Evaluate if Google Fonts coverage is insufficient.
-- [ ] **Rich text (mixed formatting within a text box)** -- Requires rich text engine. Only if carousel text gets longer/more complex.
-- [ ] **Text effects beyond shadow** -- Outline, glow, gradient text. Each needs render parity.
+**Confidence:** HIGH -- verified in actual compiled source code at `node_modules/next/dist/compiled/@vercel/og/index.node.js`.
 
-## Feature Prioritization Matrix
+**Caveat:** The `paint-order` behavior for outline depends on the resvg version bundled with `@vercel/og`. If stroke renders on top of fill (obscuring thin text), the 4-element cardinal workaround may still be needed for outline specifically. A quick spike will determine this.
 
-| Feature | User Value | Implementation Cost | Risk | Priority |
-|---------|------------|---------------------|------|----------|
-| Bold/italic toggles | HIGH | LOW | LOW | P1 |
-| Font picker (curated Google Fonts) | HIGH | MEDIUM | MEDIUM (Satori font loading) | P1 |
-| Snap alignment guides | HIGH | MEDIUM | LOW | P1 |
-| Resizable text boxes | HIGH | MEDIUM | MEDIUM (data model change) | P1 |
-| Font preview in dropdown | MEDIUM | LOW | LOW | P2 |
-| Letter spacing | MEDIUM | LOW | LOW | P2 |
-| Line height control | MEDIUM | LOW | LOW | P2 |
-| Recently used fonts | LOW | LOW | LOW | P2 |
-| Text shadow | MEDIUM | MEDIUM | LOW | P3 |
+## MVP Recommendation
 
-**Priority key:**
-- P1: Must have for v1.3 milestone
-- P2: Should have, add in v1.4 when P1 is solid
-- P3: Nice to have, future consideration
+Prioritize in this order:
 
-## Competitor Feature Analysis
+1. **TextEffects type + data model** -- Foundation for everything. Low complexity, zero risk.
+2. **Text shadow (all three renderers)** -- Highest user impact (readability on photos), lowest complexity given native Satori support. Use native `textShadow` in Satori, no duplicate elements.
+3. **Text outline (all three renderers)** -- Second highest impact, also natively supported. Use `WebkitTextStrokeWidth`/`Color` in Satori.
+4. **Background highlight: full-width** -- Simple `div` with `backgroundColor` works identically in all renderers. Ship this first.
+5. **Background highlight: tight** -- Most complex feature due to Satori limitations with inline `box-decoration-break`. May need a per-line wrapper approach or accept visual difference between preview and export. Ship as stretch goal or accept full-width fallback in PNG export.
+6. **Editor UI panel** -- Build after renderers are working so controls have visible feedback.
 
-| Feature | Canva | Figma | BigMotion (inspiration) | Our Approach |
-|---------|-------|-------|------------------------|--------------|
-| Font picker | Full Google Fonts + premium fonts, visual preview, categories, recently used | System fonts + Google Fonts, no preview | Limited/no font selection | Curated ~40 Google Fonts with search, visual preview deferred to P2 |
-| Bold/italic | Per-character (rich text) | Per-character (rich text) | Basic/none | Per-text-box toggle (simpler, sufficient for carousel) |
-| Text resize | Drag handles on all sides + corners, auto-resize option | Drag handles, auto-width/fixed-width modes | Unknown | Corner + edge handles, fixed height (auto based on content) |
-| Snap guides | Center, edges, other elements, spacing guides, rotation snap | Center, edges, other elements, distribution guides | None observed | Canvas center + edges + other text box alignment |
-| Text effects | Shadow, outline, glow, curved, neon, splice | Shadow only (via plugin) | None | Defer to v1.4+ (shadow first) |
-| Inline editing | Click-to-edit on canvas | Click-to-edit on canvas | Unknown | Side-panel editing (simpler, avoids contentEditable bugs at scale) |
+**Defer from MVP:** Blur radius for shadow, neon glow, gradient text, curved text. These all require a rendering pipeline change (Satori to Playwright/canvas).
 
-## Implementation Complexity Notes
+## Complexity Assessment
 
-### Font Picker -- Key Technical Challenge: Satori Font Loading
+| Feature | Implementation Effort | Risk |
+|---------|----------------------|------|
+| Shadow (native Satori) | 2-3 hours | Low -- native support verified |
+| Shadow (duplicate-element fallback) | 4-6 hours | Low -- well-understood pattern, but likely unnecessary |
+| Outline (native Satori) | 2-3 hours | Low-Med -- `paint-order` rendering depends on resvg version |
+| Outline (4-element cardinal fallback) | 6-8 hours | Med -- alignment edge cases at different font sizes |
+| Highlight: full-width | 2-3 hours | Low -- simple wrapper div |
+| Highlight: tight | 6-10 hours | Med-High -- `box-decoration-break` unlikely in Satori, need line-splitting logic |
+| Editor UI (all controls) | 4-6 hours | Low -- reuses existing patterns (toggles, swatches, sliders) |
+| Per-element data model | 1-2 hours | Low -- optional fields on existing interfaces |
 
-The `render-slide-satori.tsx` renderer uses Satori which requires font binary data (ArrayBuffer), not CSS `@font-face` declarations. For dynamic user-selected fonts:
-
-1. Fetch the Google Fonts CSS to get the `.woff2` URL
-2. Fetch the `.woff2` binary
-3. Pass it to Satori's `fonts` option
-
-This means the server-side render API needs to dynamically fetch and cache font files. The HTML renderer (`render-slide.ts`) is simpler -- just update the `getFontLink()` function.
-
-**Recommendation:** Cache fetched font binaries on the server (filesystem or memory cache with LRU eviction). Google Fonts URLs are stable per font+weight combination.
-
-### Resizable Text Boxes -- Data Model Impact
-
-Current `SlideStyleOverrides` calculates text width from position. New model needs:
-
-```typescript
-// Add to SlideStyleOverrides
-hook_width?: number    // percentage 0-100 (default: 78, matching current 100 - 11*2)
-body_width?: number    // percentage 0-100
-hook_height?: number   // percentage, optional (auto-height from content is usually better)
-body_height?: number
-```
-
-All three renderers must honor these new fields. Existing slides without these fields should fall back to current symmetric calculation for backwards compatibility.
-
-### Snap Guides -- Implementation Pattern
-
-Use the `onDrag` callback from `react-draggable` (not just `onStop`):
-
-1. On each drag frame, calculate distances to snap targets (canvas center, edges, other text box edges/centers)
-2. If distance < threshold (~5px in reference coordinates), snap position to target
-3. Render guide lines as absolutely-positioned `<div>` elements in the canvas layer
-4. Remove guides on `onStop`
-
-Snap targets for a 1080x1920 canvas:
-- Horizontal center: x = 50%
-- Vertical center: y = 50%
-- Safe zone edges: x = 11%, x = 89%
-- Top safe: y = 10.4%
-- Other text box edges and centers
+**Total estimate (native approach):** 15-25 hours
+**Total estimate (workaround approach):** 25-35 hours
 
 ## Sources
 
-- [Canva Help Center - Add and Edit Text](https://www.canva.com/help/add-and-edit-text/)
-- [Canva Help Center - Format Text](https://www.canva.com/help/format-text/)
-- [Canva Help Center - Text and Fonts](https://www.canva.com/help/text-fonts/)
-- [Canva Apps SDK - Creating Text](https://www.canva.dev/docs/apps/creating-text/)
-- [Canva Apps SDK - Fonts Example](https://www.canva.dev/docs/apps/examples/fonts/)
-- [Next.js Font Optimization Docs](https://nextjs.org/docs/app/getting-started/fonts)
-- [Next.js Dynamic Font Loading Discussion](https://github.com/vercel/next.js/discussions/40345)
-- [React Konva Snap Guides Implementation](https://www.bigbinary.com/blog/shape-snapping-with-react-konva)
-- [Fabric.js SnappyRect Snapping Guide](https://dinesh-rawat.medium.com/enhancing-object-snapping-in-fabric-js-introducing-the-snappyrect-class-2c406d8a4965)
-- [Konva.js Resize Snapping Docs](https://konvajs.org/docs/select_and_transform/Resize_Snaps.html)
-- [tldraw Infinite Canvas SDK](https://tldraw.dev/features/composable-primitives/layout-and-composition)
-
----
-*Feature research for: Rich text editing in carousel slide editor (v1.3)*
-*Researched: 2026-03-26*
+- [Satori GitHub repository](https://github.com/vercel/satori) -- CSS support reference
+- [Satori text-stroke PR #645](https://github.com/vercel/satori/pull/645) -- Merged Nov 2024, adds WebkitTextStroke support
+- [Satori outdated in next/og - Issue #72940](https://github.com/vercel/next.js/issues/72940) -- Version tracking
+- [Canva text effects help](https://www.canva.com/help/text-effects/) -- Competitor feature reference
+- [Adobe Express shadow effects](https://helpx.adobe.com/express/web/add-effects-to-your-designs/add-text/add-shadow-effects-to-text.html) -- Competitor reference
+- [CSS box-decoration-break MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-decoration-break) -- Tight highlight technique
+- [Multi-line padded text CSS-Tricks](https://css-tricks.com/multi-line-padded-text/) -- Implementation patterns for tight highlights
+- Verified: compiled `@vercel/og` source at `node_modules/next/dist/compiled/@vercel/og/index.node.js` confirms `textShadow`, `WebkitTextStrokeWidth`, `WebkitTextStrokeColor` support

@@ -1,269 +1,211 @@
-# Domain Pitfalls: Rich Text Editing (v1.3)
+# Pitfalls Research: Text Effects (v2.1)
 
-**Domain:** Adding font picker, bold/italic, alignment guides, and resizable text boxes to carousel slide editor
-**Researched:** 2026-03-26
-**Confidence:** HIGH (verified against codebase + Satori documentation)
+**Domain:** Adding text shadow, outline, and background highlight to Satori-based carousel slide rendering
+**Researched:** 2026-04-07
+**Confidence:** HIGH (codebase verified, Satori docs and GitHub issues checked)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, broken exports, or visual inconsistency between preview and download.
+### Pitfall 1: Using Duplicate Elements When Satori Supports Native CSS
 
-### Pitfall 1: Satori Does Not Use CSS Font Names -- It Needs Raw Font Files
+**What goes wrong:**
+The design doc prescribes duplicate text elements for shadow (1 copy offset behind) and outline (4 cardinal-direction copies). But Satori actually supports `text-shadow` natively (renders via SVG `buildDropShadow` filters) and `-webkit-text-stroke` was merged in PR #645 (Nov 2024, satori main). The project uses Next.js 15.5.13 whose bundled satori version (post-0.15.x, likely 0.20+) almost certainly includes both features. Building the duplicate-element workaround adds complexity, DOM bloat, and visual inconsistency for no reason if native CSS works.
 
-**What goes wrong:** The browser preview renders fonts using CSS `fontFamily` strings (e.g., `'Playfair Display', serif`), which the browser resolves via Google Fonts `<link>` tags or `@font-face` rules. But Satori (used via `next/og` `ImageResponse`) completely ignores CSS font names. It requires raw font file ArrayBuffers passed in the `fonts` option. If you add a font picker to the browser but do not also fetch and pass the corresponding `.ttf`/`.otf` file to Satori, **every exported image will render in Satori's default font (Noto Sans), not the user's chosen font.**
+**Why it happens:**
+The design doc was written based on older Satori limitations. Satori has rapidly evolved (0.10.x to 0.26.x in recent months) and the CSS subset has expanded significantly. Developers assume Satori "doesn't support X" without checking the current bundled version.
 
-**Why it happens:** Satori is not a browser. It has its own text layout engine (based on Yoga/Flexbox) and needs font binary data to measure and render glyphs. The current codebase already has this bug -- templates specify `fontFamily: "'Inter', sans-serif"` but the render route passes no `fonts` option to `ImageResponse`, meaning exports likely render in Noto Sans already.
+**How to avoid:**
+Before writing a single line of duplicate-element code, run a 30-minute spike: create a test `buildSlideElement` with `textShadow: '0 4px 8px rgba(0,0,0,0.6)'` and `WebkitTextStrokeWidth: '2px'` / `WebkitTextStrokeColor: '#000'` set directly on the text div, render it via the `/api/render` route, and inspect the output PNG. If native properties work, use them in all three renderers and skip the duplicate approach entirely. This collapses the Satori renderer, preview, and HTML export to nearly identical CSS -- massively simpler.
 
-**Consequences:** Users see one font in the editor, a different font in their downloaded images. This is a trust-destroying bug for a design tool.
+**Warning signs:**
+- Writing helper functions like `buildShadowDuplicates()` or `buildOutlineDuplicates()` before testing native support
+- The Satori renderer code is 3x longer than the preview code for the same effect
+- You are counting cardinal directions
 
-**Prevention:**
-1. Build a server-side font registry that maps font names to their `.ttf` file URLs (Google Fonts API provides these).
-2. When rendering, fetch the required font files as ArrayBuffers and pass them in the `fonts` option of `ImageResponse`.
-3. For each font weight/style variant (regular, bold, italic, bold-italic), you need a separate font file. Satori does NOT synthesize bold or italic -- it needs the actual variant file.
-4. Cache font files aggressively (they are immutable). Store in memory or on disk, not fetched per-render.
-
-**Detection:** Compare browser preview screenshot with downloaded PNG side-by-side. If fonts differ, this pitfall is active. The current codebase likely already has this issue.
-
-**Phase:** Must be solved in the very first phase, before any font picker UI work. Fix the existing font loading gap first.
-
-### Pitfall 2: Satori Cannot Synthesize Bold/Italic -- Each Variant Needs Its Own Font File
-
-**What goes wrong:** In browsers, setting `font-weight: 700` on a font that only has a regular weight causes the browser to algorithmically "fake bold" the text (faux bold). Satori does NOT do this. If you pass only the regular weight file for Inter but set `fontWeight: 700`, Satori will render it in regular weight. The text will not look bold.
-
-**Why it happens:** Satori uses a font matching algorithm that selects the closest available font file. If only weight 400 is loaded, weight 700 requests will silently fall back to 400. There is no warning or error.
-
-**Consequences:** Bold text appears bold in the browser preview but renders as regular weight in exports. Italic text appears italic in browser but upright in exports. Users will report "my styling disappeared in the download."
-
-**Prevention:**
-1. For every font offered in the picker, pre-register which variants are available (regular, bold, italic, bold-italic).
-2. When a user applies bold, load the bold variant file. When italic, load the italic variant.
-3. Pass ALL needed variant files to `ImageResponse({ fonts: [...] })`.
-4. If a font does not have a bold variant, either disable the bold button for that font or show a warning.
-5. Google Fonts API provides variant availability metadata -- use it to gate the UI.
-
-**Detection:** Apply bold to text in editor, export, compare. If bold is missing in export, this is active.
-
-**Phase:** Must be solved alongside the font picker. Bold/italic UI controls and font file loading are tightly coupled.
-
-### Pitfall 3: Browser Preview and Satori Render Text Layout Differently
-
-**What goes wrong:** The browser preview uses standard CSS layout with `position: absolute` and percentage-based coordinates. Satori uses its own Yoga-based flexbox engine with pixel-based absolute positioning. Text wrapping, line breaking, letter spacing, and font metrics differ between the two engines. A text block that fits neatly in the browser preview may overflow or have different line breaks in the Satori render.
-
-**Why it happens:** Satori explicitly notes it uses a subset of CSS. It does not support `z-index`, has different text shaping, no OpenType features, no kerning, and no ligatures. Line-height calculations, word-break behavior, and text measurement all differ from browser rendering.
-
-**Consequences:** Text position drift between preview and export. Text that fits in preview overflows in export (or vice versa). Users perceive the tool as broken because "what I see is not what I get."
-
-**Prevention:**
-1. Use the SAME font files for both preview and export. Load Google Fonts via their `.ttf` files (not the CSS API) and use `@font-face` in the browser with the same files Satori will use.
-2. Keep text styling simple -- avoid advanced CSS properties Satori does not support.
-3. Add a "preview render" button that generates the actual Satori output so users can verify before downloading all slides.
-4. Test every template with long text, short text, and multi-line text to identify layout drift.
-5. Consider using Satori for both preview AND export (render SVG in browser) for pixel-perfect consistency, though this adds complexity and latency.
-
-**Detection:** Overlay browser screenshot on Satori output at same resolution. Any text position or wrapping difference indicates this pitfall.
-
-**Phase:** Ongoing concern. Initial fix: use identical font files. Long-term: consider Satori-based preview.
+**Phase to address:**
+Phase 1 -- validation spike before any implementation.
 
 ---
 
-## High Pitfalls
+### Pitfall 2: Three Renderers Drifting Out of Sync
 
-Mistakes that cause significant UX issues or require substantial rework.
+**What goes wrong:**
+The project has three rendering paths that must produce visually identical output:
+1. **React preview** (`slide-preview.tsx`) -- browser CSS, uses `className`, `Rnd` wrappers, `%`-based positioning, has `z-index`
+2. **Satori export** (`render-slide-satori.tsx`) -- inline styles, `px`-based positioning via `pxX()`/`pxY()`, no z-index (DOM order = layer order)
+3. **HTML export** (`render-slide.ts`) -- if it exists, full CSS
 
-### Pitfall 4: Font Loading Race Conditions in Browser Preview
+When effects are added, a change in one renderer is easily missed in another. The preview shows a shadow, the exported PNG has no shadow, and the user blames the product.
 
-**What goes wrong:** User selects a font from the picker. The font CSS is injected via a `<link>` tag or `@font-face` rule. The slide preview re-renders immediately, but the font file has not finished downloading yet. The preview briefly shows the fallback font, then jumps to the correct font once loaded (FOUT -- Flash of Unstyled Text). During this flash, any text measurement (for resize handles, alignment guides) is wrong.
+**Why it happens:**
+The renderers are physically separate files with completely different style APIs. There is no shared abstraction for "apply text effects to this element." Each renderer independently interprets the `TextEffects` data model.
 
-**Why it happens:** Google Fonts are loaded asynchronously. The browser does not block rendering to wait for fonts. React re-renders do not wait for font loads.
+**How to avoid:**
+Create a single shared utility: `buildEffectStyles(effects: TextEffects): React.CSSProperties` that returns the CSS properties for text effects. If native Satori CSS works (see Pitfall 1), this function returns the SAME object for all three renderers -- the three-renderer problem disappears for effects. Both the preview (`slide-preview.tsx` line 147-161 hookTextStyle/bodyTextStyle) and Satori renderer (`render-slide-satori.tsx` line 89-117) should merge in the effect styles from this shared utility.
 
-**Consequences:** Jarring visual flash on every font change. Incorrect text box dimensions during the flash. Alignment guides snap to wrong positions.
+Write a visual regression check: render a slide with all effects via `/api/render`, compare to preview at same dimensions.
 
-**Prevention:**
-1. Use the `document.fonts.load()` API or `FontFace` API to preload fonts before applying them. Only update the slide's font after the promise resolves.
-2. Show a loading indicator on the font picker while the font downloads.
-3. Preload the most popular fonts (top 10-20) during initial page load so they are instant.
-4. Use `font-display: block` in `@font-face` rules to prevent FOUT (the text will be invisible briefly instead of flashing).
+**Warning signs:**
+- Effect looks different in preview vs. exported PNG
+- Bug fix applied to one renderer but not the others
+- Text effects code copy-pasted between files with slight variations
 
-**Detection:** Select a font on a slow connection (throttle in DevTools). Observe the preview for flashes or layout jumps.
-
-**Phase:** Font picker implementation phase. Must be addressed when building the font selection UI.
-
-### Pitfall 5: Data Model Migration Breaks Existing Projects
-
-**What goes wrong:** Adding new fields to `SlideStyleOverrides` (e.g., `font_family`, `font_weight`, `font_style`) seems straightforward since they are optional fields on an interface. But existing slide data in Supabase has `style_overrides` as a JSON column. If the code starts reading new fields without defaults, existing projects may render differently or crash.
-
-**Why it happens:** The current `SlideStyleOverrides` interface uses optional fields with nullish coalescing (`??`) to fall back to template values. This pattern is safe IF consistently applied. The risk is adding a new field and forgetting the fallback, or changing the default behavior.
-
-**Consequences:** Existing projects render with wrong fonts/styles after code update. Users open old projects and they look different.
-
-**Prevention:**
-1. Every new field in `SlideStyleOverrides` MUST be optional and MUST have a fallback to the template value using `??`.
-2. Write a migration test: load a slide with empty `style_overrides` and verify it renders identically to before the change.
-3. Do NOT rename or restructure existing fields. Only add new ones.
-4. The `deepCloneSlide` in the editor reducer uses `JSON.parse(JSON.stringify())` which handles new optional fields correctly (they will be `undefined` and thus omitted), but verify this.
-
-**Detection:** Open an existing project after deploying new code. Compare with a screenshot taken before the deploy.
-
-**Phase:** First phase, before any UI work. Define the data model extension upfront.
-
-### Pitfall 6: Resizable Text Boxes -- Coordinate System Confusion
-
-**What goes wrong:** The current system uses percentage-based positioning (`TextPosition` with `x: 0-100, y: 0-100`) but renders at a reference resolution of 1080x1920 with CSS `transform: scale()`. Adding resize handles introduces a width/height dimension to text boxes, which must also work in this scaled coordinate system. Resize drag deltas reported by the DOM are in screen pixels, but must be converted to reference pixels, then stored as percentages.
-
-**Why it happens:** Three coordinate systems are in play: (1) screen pixels (what the user drags), (2) reference pixels (1080x1920 canvas), (3) percentages (stored in data model). The existing code handles this for position via the `scale` prop on `react-draggable`, but resize handles from a different library may not have built-in scale awareness.
-
-**Consequences:** Resize handles feel "off" -- dragging 100 screen pixels moves the handle by a different visual amount depending on the canvas scale. On mobile (smaller canvas), the problem is worse. Text boxes jump or resize incorrectly.
-
-**Prevention:**
-1. Use `react-rnd` (react-resizable-and-draggable) which handles both drag and resize in a single component, with scale support.
-2. OR continue with `react-draggable` and add `react-resizable`, but manually apply the scale factor to resize deltas.
-3. Store text box dimensions as percentages of the canvas (width%, height%) in the data model, same as position.
-4. Test at multiple canvas scales (mobile, tablet, desktop) to verify consistent behavior.
-5. Add minimum size constraints to prevent text boxes from being resized to zero.
-
-**Detection:** Resize a text box at different browser window sizes. If the resize feels faster/slower at different scales, the coordinate conversion is wrong.
-
-**Phase:** Resizable text boxes phase. Must be carefully implemented with coordinate system awareness.
-
-### Pitfall 7: Alignment Guides -- Snapping to Wrong Positions Due to Text Box Dimensions
-
-**What goes wrong:** Alignment guides (snap lines like Canva/Figma) need to know the bounding box of each text element -- not just its position, but also its rendered width and height. Currently, text boxes have a position but no explicit size; their height depends on content and font size. If alignment guides calculate snapping based on the position point only (top-left corner), the visual alignment will be wrong -- elements will appear "close to center" but not actually centered.
-
-**Why it happens:** Text box height is content-dependent and font-dependent. Without measuring the actual rendered text, the alignment system cannot know where the bottom or right edge of a text box is.
-
-**Consequences:** "Center alignment" snaps the top-left corner to center, not the visual center of the text block. Users expect Canva-like precision but get approximate alignment.
-
-**Prevention:**
-1. Measure actual rendered text box dimensions using `getBoundingClientRect()` after the font loads and content renders.
-2. Calculate snap points from the center and edges of the measured bounding box, not from the position origin.
-3. Snap to: canvas center (H/V), other text box edges (top/bottom/left/right), other text box centers.
-4. Use a threshold (e.g., 5-10 reference pixels) for snapping activation.
-5. Show visual guide lines only when within snap threshold.
-
-**Detection:** Add two text boxes with different content lengths. Try to center-align them. If they are visually offset, the bounding box measurement is wrong.
-
-**Phase:** Alignment guides phase. Depends on text box dimensions being available (requires either explicit sizes from resize feature, or runtime measurement).
+**Phase to address:**
+Phase 1 -- the shared utility must exist before effects are added to any renderer.
 
 ---
 
-## Moderate Pitfalls
+### Pitfall 3: Outline Duplicate Elements Misaligned on Multi-Line Text
 
-### Pitfall 8: Google Fonts API Rate Limiting and Loading Strategy
+**What goes wrong:**
+If the duplicate-element approach is used for outlines (4+ copies offset in cardinal directions), the duplicates may not line-break at the same points as the original when the text wraps. Satori's text layout engine may compute slightly different line breaks for offset duplicates if their container position differs by even 1px. The result is visible artifacts at line boundaries -- stray outline fragments.
 
-**What goes wrong:** Fetching font metadata and font files from Google Fonts on every render request (server-side) hits rate limits or adds latency. Each font family can have 10+ variants (weights x styles), and fetching all variants on every export is slow.
+Additionally, a fixed-pixel outline (e.g., 2px) looks disproportionately thick on 32px body text compared to 64px hook text.
 
-**Prevention:**
-1. Cache the Google Fonts metadata (family list, available variants) at build time or in a long-lived server cache.
-2. Cache font file ArrayBuffers in memory (they are immutable, ~50-200KB each).
-3. Only fetch the specific variants used in the slide (not all variants of a family).
-4. Bundle the 5-10 most popular fonts with the app to avoid network requests entirely.
-5. The Google Fonts API key has a daily quota -- monitor usage.
+**Why it happens:**
+The outline thickness is absolute pixels, but readability depends on the font-size-to-thickness ratio. Multi-line text compounds the problem because Satori computes layout per-element.
 
-**Phase:** Font picker + server-side rendering integration phase.
+**How to avoid:**
+If `-webkit-text-stroke` works natively (see Pitfall 1), this entire problem vanishes -- the stroke is applied per-glyph at the SVG path level and handles wrapping perfectly. If stuck with duplicates: (a) use 8 directions (N/NE/E/SE/S/SW/W/NW) for smoother corners, (b) ensure all duplicates share the exact same container dimensions (only vary `left`/`top`), and (c) cap outline thickness relative to font size.
 
-### Pitfall 9: Font Picker UI Overwhelming Users
+**Warning signs:**
+- Outline gaps at text-wrap boundaries
+- Outline "doubles up" at overlap points between copies
+- Outline looks wrong at extreme font sizes
 
-**What goes wrong:** Google Fonts has 1,500+ families. Showing all of them in a dropdown creates an unusable UI. Loading font previews for all of them consumes bandwidth and memory.
-
-**Prevention:**
-1. Curate a list of 30-50 fonts that work well for social media content (readable at mobile sizes, have bold/italic variants).
-2. Show font previews using the actual font (lazy-load font files as user scrolls).
-3. Add a search/filter to find fonts by name.
-4. Group by category: sans-serif, serif, display, handwriting.
-5. Show which fonts have bold/italic variants available.
-
-**Phase:** Font picker UI phase. Design decision, not a technical blocker.
-
-### Pitfall 10: Undo/Redo Stack Bloat with Frequent Style Changes
-
-**What goes wrong:** The current undo/redo system stores full slide array snapshots (`Slide[][]`). Every font change, color pick, or resize drag pushes a new snapshot. Using a color picker (which fires on every mouse move) can generate hundreds of undo states per second.
-
-**Prevention:**
-1. Debounce style changes before pushing to undo stack. Only commit to history on `onChangeComplete` (color picker), `onStop` (resize), or `onChange` with a 300ms debounce (font selector).
-2. The current `MAX_HISTORY = 50` provides a cap, but rapid changes will flush meaningful history.
-3. Consider coalescing consecutive changes of the same type (e.g., multiple font-size adjustments before moving on).
-
-**Phase:** All phases. Must be considered when implementing any new interactive control.
-
-### Pitfall 11: Bold/Italic Partial Text (Rich Text Within a Text Box)
-
-**What goes wrong:** If bold/italic is implemented per-text-box (the whole box is bold or not), it is straightforward. If the intent is to allow bold/italic on individual words WITHIN a text box (rich text), the complexity explodes. Satori supports inline `<span>` elements with different styles, but the editor needs a rich text editing engine (contenteditable, Slate, TipTap, etc.).
-
-**Prevention:**
-1. Start with per-text-box styling: the entire hook or body text is bold/italic/normal. This maps cleanly to the current data model (`font_weight` and `font_style` on `SlideStyleOverrides`).
-2. Do NOT add inline rich text (per-word bold) in v1.3. It requires a rich text editor, a more complex data model (serialized rich text nodes instead of plain strings), and Satori JSX generation from rich text nodes.
-3. If rich text is needed later, use TipTap (modern, React-native, good API) and serialize to a portable format.
-
-**Phase:** v1.3 should be per-text-box only. Rich text is a v2 feature.
+**Phase to address:**
+Phase 1 spike determines if this pitfall is relevant at all.
 
 ---
 
-## Minor Pitfalls
+### Pitfall 4: "Tight" Highlight Breaks on Multi-Line Text in Satori
 
-### Pitfall 12: Font Family String Format Inconsistency
+**What goes wrong:**
+The "tight" highlight effect (background color hugging each line like a highlighter marker) requires `box-decoration-break: clone` in CSS so the background repeats per line. Satori's documented CSS subset does NOT include `box-decoration-break`. A `<span>` with `backgroundColor` in Satori will produce a single rectangle behind all lines, not the per-line highlight effect. The preview will look correct (browsers support `box-decoration-break: clone`) but the Satori export will render a full-width block.
 
-**What goes wrong:** Templates store `fontFamily` as CSS strings like `"'Inter', sans-serif"`. The brand kit stores `font_family` as a plain name like `"Inter"`. The merge function wraps it: `'${brandKit.font_family}', sans-serif`. If the font picker stores the value differently (e.g., `"Inter"` vs `"inter"` vs `"'Inter'"` vs `"Inter, sans-serif"`), comparisons and lookups break.
+**Why it happens:**
+The design doc says "Satori supports inline backgrounds" but does not distinguish between block-level backgrounds (supported) and inline-fragmented backgrounds (requires `box-decoration-break: clone`, not supported). Testing with single-line text hides the problem.
 
-**Prevention:** Normalize to a canonical format. Store the Google Fonts family name exactly as the API returns it (e.g., `"Inter"`, `"Playfair Display"`). Convert to CSS string only at render time.
+**How to avoid:**
+For tight highlights in Satori, either: (a) split multi-line text into individual `<div>`s per line, each with its own background (requires pre-computing line breaks -- hard), or (b) use `display: flex; flexDirection: column; alignItems: flex-start` with the text as a child span that has `backgroundColor` (may work for short text), or (c) accept that tight highlight in Satori renders as full-width and document this as a known limitation. Option (c) is pragmatic -- users see the correct result in preview, and the exported image has a slightly wider highlight. Test option (b) first.
 
-### Pitfall 13: Mobile Touch Targets for Resize Handles
+**Warning signs:**
+- Tight highlight looks perfect in preview but becomes a full-width block in the exported PNG
+- Only tested with single-line text
 
-**What goes wrong:** Resize handles that work fine with a mouse cursor are too small for touch on mobile. The current app targets mobile-first (TikTok creators on phones).
-
-**Prevention:** Make resize handles at least 44x44px touch target (iOS HIG). Consider showing handles only when the text box is selected, to avoid visual clutter.
-
-### Pitfall 14: Template hookStyle Conflicts with New Bold/Italic Controls
-
-**What goes wrong:** Templates already have `hookStyle: 'uppercase' | 'normal' | 'italic'` which forces italic on the hook text. If the user also has a bold/italic toggle, the interaction between template `hookStyle` and user `font_style` override is ambiguous. Does the user's choice override the template? Are they additive?
-
-**Prevention:** Define clear precedence: `slide.style_overrides.font_style` overrides `template.hookStyle` for italic. If the user explicitly sets font_style, use it. If not set (undefined), fall back to template hookStyle. Document this in code comments.
+**Phase to address:**
+Highlight implementation phase. Test with multi-line body text specifically. Consider making "full-width" the default.
 
 ---
 
-## Phase-Specific Warnings
+### Pitfall 5: Effects Implemented for Hook/Body But Not Custom Text Boxes
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|---|---|---|
-| Font picker UI | Font loading FOUT (Pitfall 4), overwhelming choices (Pitfall 9) | Preload popular fonts, curate list, use `document.fonts.load()` |
-| Font rendering in export | Missing font files in Satori (Pitfall 1), no bold/italic synthesis (Pitfall 2) | Build server-side font registry, load variant files per-render |
-| Bold/italic controls | Scope creep to inline rich text (Pitfall 11), template conflict (Pitfall 14) | Per-text-box only, clear override precedence |
-| Data model changes | Breaking existing projects (Pitfall 5), format inconsistency (Pitfall 12) | All new fields optional with fallbacks, normalize font names |
-| Resizable text boxes | Coordinate system confusion (Pitfall 6), undo stack bloat (Pitfall 10) | Use react-rnd with scale, debounce history pushes |
-| Alignment guides | Wrong snap due to unknown box size (Pitfall 7) | Measure rendered bounding boxes, snap from center/edges |
-| Browser/export parity | Text layout drift (Pitfall 3) | Use same font files, test extensively, consider Satori-based preview |
+**What goes wrong:**
+The codebase has three text element types: hook, body, and custom text boxes (array in `slide.custom_texts`). Each has a different code path in all renderers. Effects get implemented for hook and body first (they are in `SlideStyleOverrides`), and custom texts are forgotten or wired differently. User adds a custom text box, enables shadow, nothing happens.
 
-## Existing Codebase Issue (Pre-existing)
+**Why it happens:**
+Hook/body are top-level slide properties with dedicated style resolution (overrides + template fallback). Custom texts are array items with their own `CustomText` interface. The code paths are physically separate: hook/body styles resolved from `overrides.hook_font_size ?? template.hookFontSize`, custom text from `ct.font_size ?? 48`. Easy to add `hook_text_effects` to overrides and forget `text_effects` on `CustomText`.
 
-The current render route (`src/app/api/render/route.ts`) creates `ImageResponse` with **no `fonts` option**. Templates specify `fontFamily` strings like `'Inter', sans-serif` but no font files are loaded server-side. This means exports are already rendering in Satori's default font (Noto Sans), not the template's specified font. **This must be fixed before adding a font picker** -- it is the foundation that all font work builds on.
+**How to avoid:**
+Implement effects for all three text types in the same phase. The design doc correctly specifies `text_effects?: TextEffects` on `CustomText`. Use the shared `buildEffectStyles` utility for all three types so adding effects to a new text type is a one-line call.
 
-```typescript
-// Current code (line 87-90 of route.ts) -- no fonts passed:
-const imageResponse = new ImageResponse(element, {
-  width: 1080,
-  height: 1920,
-})
+**Warning signs:**
+- Effects panel only appears for hook/body, not selected custom text
+- `render-slide-satori.tsx` custom text map (line 156-175) does not reference `text_effects`
+- Tests only verify hook/body
 
-// Required fix:
-const imageResponse = new ImageResponse(element, {
-  width: 1080,
-  height: 1920,
-  fonts: [
-    { name: 'Inter', data: interRegularBuffer, weight: 400, style: 'normal' },
-    { name: 'Inter', data: interBoldBuffer, weight: 700, style: 'normal' },
-    // ... all needed variants
-  ],
-})
-```
+**Phase to address:**
+Same phase as hook/body effects -- do not ship without custom text support.
+
+---
+
+## Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Duplicate elements for shadow/outline without testing native CSS | Avoids uncertainty | 5x more rendering code, visual inconsistencies, maintenance burden | Never -- 30 min spike eliminates uncertainty |
+| Hardcoded shadow offsets (S=2px/M=4px/L=6px) without font-size awareness | Simple presets | Shadows look wrong at 16px vs 128px | MVP -- refine later with font-relative offsets |
+| Separate effect logic per renderer | Quick to ship one renderer | Three places to update per effect change | Never -- shared utility is ~1 hour upfront |
+| Storing effect colors without alpha | Simpler color picker | Cannot control transparency independently | Never -- design doc already specifies hex+alpha |
+
+## Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| Satori `textShadow` | Using rgba with percentage alpha like `rgba(0,0,0,50%)` which triggers parsing bug (Issue #441) | Use decimal alpha: `rgba(0,0,0,0.5)` or 8-digit hex `#00000080` |
+| Satori `WebkitTextStroke` | Using lowercase `webkitTextStroke` | Must be capital W: `WebkitTextStrokeWidth` and `WebkitTextStrokeColor` (React convention for vendor prefixes) |
+| Next.js bundled satori version | Assuming latest satori features are available | Next.js 15.5.13 bundles a specific satori version. Must verify text-stroke support with actual render test. If too old, install satori directly as standalone. |
+| Color picker alpha | Returning 6-digit hex (#RRGGBB) for shadow/highlight that need transparency | Use 8-digit hex (#RRGGBBAA) or rgba(). Design doc defaults to `#00000099`. |
+| Existing `loadFontBuffersForSlide` | Assuming font loading handles all variants for duplicate elements | Font loading already works for single elements. But if using duplicates, verify the font buffers are shared (they are -- loaded once per render call). |
+
+## Performance Traps
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Duplicate elements per text (4-8 copies for outline) | Satori render time increases, especially with many text boxes | Use native `-webkit-text-stroke`. If duplicates needed, limit to slides with <10 text elements. | Noticeable with 5+ outlined text boxes |
+| Slider onChange fires on every pixel | Highlight padding or outline thickness slider causes 60+ re-renders/sec, laggy preview | Debounce slider onChange (150ms) or use onPointerUp/onChangeEnd to commit values | Immediately -- laggy slider UX |
+| Color picker onChange fires continuously | Shadow/highlight color change on every mouse move in picker | Debounce or use onChangeComplete callback. Current undo stack limit (MAX_HISTORY=50) also fills instantly. | Immediately -- undo history flooded |
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Showing all effect controls expanded | 9+ controls visible per text element, overwhelming panel | Collapse sub-controls by default, show only when toggle is on (design doc specifies this -- enforce it) |
+| Shadow defaults invisible on dark templates | Default `#00000099` shadow on dark overlays is black-on-black | Test defaults on all templates. Auto-adjust: use white shadow (`#FFFFFF80`) when template overlay is dark. Or let the spike determine reasonable defaults per template palette. |
+| No live preview during adjustment | User adjusts slider but preview updates with delay | Ensure state updates propagate immediately to preview. React CSS properties (textShadow, etc.) update instantly in browser -- just verify no batching/debounce on the preview path (debounce the undo push, not the preview). |
+| No "reset all effects" action | User experiments, wants to undo all at once | Add "Clear effects" button at bottom of effects panel. One click sets all `_enabled` to false. |
+| Per-element effects without per-slide propagation | User styles effects on slide 1 hook, must repeat 9 more times | Existing gap (affects all text styles). Flag as follow-up: "Apply text style to all slides" button. |
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **Shadow:** Tested with light AND dark template backgrounds
+- [ ] **Shadow:** Exported PNG matches browser preview visually
+- [ ] **Shadow in Satori:** No `rgba()` percentage-alpha format used (triggers Issue #441)
+- [ ] **Outline:** Tested with multi-line wrapping text (3+ lines body text)
+- [ ] **Outline:** Tested at extreme font sizes (24px and 96px+)
+- [ ] **Highlight tight:** Tested with multi-line text in Satori export (not just browser)
+- [ ] **Highlight full-width:** Padding renders correctly in Satori (padding is supported, but verify)
+- [ ] **Custom text boxes:** All three effects work on custom text, not just hook/body
+- [ ] **Existing slides:** Slides without effects render unchanged (all fields optional with `_enabled: false` default)
+- [ ] **All templates:** Effects render correctly across all 5-10 templates
+- [ ] **Combined effects:** Shadow + outline + highlight simultaneously on same element
+- [ ] **Mobile thumbnails:** Effects visible at small preview scale in sidebar
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Built duplicate-element system when native CSS works | MEDIUM (2-4 hrs) | Remove duplicate helpers, replace with native CSS on existing elements |
+| Renderers out of sync | LOW-MEDIUM (1-2 hrs/renderer) | Create shared utility, refactor each renderer |
+| Custom text boxes missing effects | LOW (1-2 hrs) | Wire `text_effects` into custom text rendering + editor panel |
+| Tight highlight broken in Satori | LOW (30 min) | Fall back to full-width in Satori, keep tight in browser preview |
+| Slider/color picker performance | LOW (30 min) | Add debounce to onChange, use onChangeComplete |
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Native CSS vs duplicates | Phase 1 (spike) | Render test image with textShadow + WebkitTextStroke, inspect PNG |
+| Renderer drift | Phase 1 (shared utility) | Side-by-side preview vs. exported PNG for each effect |
+| Outline multi-line alignment | Phase implementing outline | Test with 3-line body text at multiple font sizes |
+| Tight highlight multi-line | Phase implementing highlight | Render 4-line body with tight highlight in Satori |
+| Custom text forgotten | All effect phases | Verify effects panel for selected custom text + exported PNG |
+| Defaults on dark templates | UI phase | Test all templates, adjust shadow default per palette |
+| Slider performance | UI phase | Test with DevTools 6x CPU throttling, check for jank |
 
 ## Sources
 
-- [Satori README -- supported CSS, font requirements](https://github.com/vercel/satori/blob/main/README.md)
-- [Satori font weight resolution issue #263](https://github.com/vercel/satori/issues/263)
-- [Satori text and fonts -- DeepWiki](https://deepwiki.com/vercel/satori/3.3-text-and-fonts)
-- [Next.js ImageResponse docs](https://nextjs.org/docs/app/api-reference/functions/image-response)
-- [Using custom fonts in OG Image -- Vercel KB](https://vercel.com/kb/guide/using-custom-font)
-- [Custom Fonts causing fetch errors -- Satori discussion #662](https://github.com/vercel/satori/discussions/662)
-- [react-rnd -- resizable and draggable component](https://github.com/bokuweb/react-rnd)
-- [Satori CSS support -- DeepWiki](https://deepwiki.com/vercel/satori/4-advanced-usage)
+- [Satori README -- supported CSS properties including text-shadow, WebkitTextStroke, filter](https://github.com/vercel/satori/blob/main/README.md)
+- [Satori PR #645 -- text stroke support (merged Nov 19, 2024)](https://github.com/vercel/satori/pull/645)
+- [Satori Issue #578 -- webkit-text-stroke feature request](https://github.com/vercel/satori/issues/578)
+- [Satori Issue #441 -- text-shadow parsing bug with rgba percentage alpha](https://github.com/vercel/satori/issues/441)
+- [Satori releases -- 0.19.2 through 0.26.0 (Feb-Mar 2026)](https://github.com/vercel/satori/releases)
+- [Next.js Issue #72940 -- satori version in next/og updated Nov 2024](https://github.com/vercel/next.js/issues/72940)
+- [Satori DeepWiki -- CSS support reference](https://deepwiki.com/vercel/satori/4-advanced-usage)
+- Codebase: `src/lib/render/render-slide-satori.tsx` (Satori renderer, 178 lines)
+- Codebase: `src/components/slides/slide-preview.tsx` (React preview, 823 lines)
+- Codebase: `src/lib/types/slide.ts` (data model, 69 lines)
+- Codebase: `src/app/api/render/route.ts` (render API, uses `next/og` ImageResponse)
+- Codebase: `docs/plans/2026-04-07-text-effects-design.md` (design doc)
