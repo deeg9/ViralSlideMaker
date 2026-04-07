@@ -2,6 +2,7 @@
 
 import { Icon } from '@/components/ui/icon'
 import { FontPicker } from './font-picker'
+import { TextEffectsControls } from './text-effects-controls'
 import type { Slide, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
@@ -95,6 +96,14 @@ export function TextEditorPanel({
             <Icon name="format_italic" size="sm" />
           </button>
         </div>
+        <TextEffectsControls
+          effects={overrides.hook_text_effects}
+          onChange={(hookFx) =>
+            onUpdate({
+              style_overrides: { ...overrides, hook_text_effects: hookFx },
+            })
+          }
+        />
       </div>
 
       {/* Body Text */}
@@ -157,6 +166,14 @@ export function TextEditorPanel({
             <Icon name="format_italic" size="sm" />
           </button>
         </div>
+        <TextEffectsControls
+          effects={overrides.body_text_effects}
+          onChange={(bodyFx) =>
+            onUpdate({
+              style_overrides: { ...overrides, body_text_effects: bodyFx },
+            })
+          }
+        />
       </div>
 
       {/* Font Size */}
@@ -484,6 +501,13 @@ export function TextEditorPanel({
                   })
                 }
                 templateFont={template.fontFamily}
+              />
+
+              <TextEffectsControls
+                effects={selectedCustomText.text_effects}
+                onChange={(ctFx) =>
+                  onCustomTextUpdate?.(selectedCustomText.id, { text_effects: ctFx })
+                }
               />
 
               {/* Delete */}
