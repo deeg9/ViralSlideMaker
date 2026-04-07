@@ -1,7 +1,7 @@
 # Requirements: Viral Slide Maker
 
 **Defined:** 2026-04-07
-**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
+**Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
 
 ## v2.0 Requirements
 
@@ -98,12 +98,12 @@ Requirements for API & MCP Platform milestone. Each maps to roadmap phases.
 | Feature | Reason |
 |---------|--------|
 | Scheduled/recurring generation | Claude Code and other agents handle scheduling, not our API |
-| GraphQL API | Unnecessary complexity — REST is simpler and sufficient for this surface area |
+| GraphQL API | Unnecessary complexity -- REST is simpler and sufficient for this surface area |
 | Image hosting/CDN | Rendered images returned as download URLs with TTL, not permanently hosted |
 | Real-time streaming (SSE) | Generation is fast enough for sync responses; async pattern only if timeout hit |
-| OAuth2 provider | Complex, low value for v2.0 — API keys are sufficient |
-| Separate API pricing tiers | API shares existing subscription credit pool — avoid billing complexity |
-| Video export | Image carousels only — no video pipeline |
+| OAuth2 provider | Complex, low value for v2.0 -- API keys are sufficient |
+| Separate API pricing tiers | API shares existing subscription credit pool -- avoid billing complexity |
+| Video export | Image carousels only -- no video pipeline |
 
 ## Traceability
 
@@ -111,13 +111,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| AAUTH-01 | Phase 15 | Pending |
+| AAUTH-02 | Phase 15 | Pending |
+| AAUTH-03 | Phase 15 | Pending |
+| AAUTH-04 | Phase 15 | Pending |
+| AAUTH-05 | Phase 15 | Pending |
+| AAUTH-06 | Phase 15 | Pending |
+| REST-01 | Phase 16 | Pending |
+| REST-02 | Phase 16 | Pending |
+| REST-03 | Phase 16 | Pending |
+| REST-04 | Phase 16 | Pending |
+| REST-05 | Phase 16 | Pending |
+| REST-06 | Phase 16 | Pending |
+| MCP-01 | Phase 17 | Pending |
+| MCP-02 | Phase 17 | Pending |
+| MCP-03 | Phase 17 | Pending |
+| MCP-04 | Phase 17 | Pending |
+| MCP-05 | Phase 17 | Pending |
+| MCP-06 | Phase 17 | Pending |
+| DOCS-01 | Phase 18 | Pending |
+| DOCS-02 | Phase 18 | Pending |
+| DOCS-03 | Phase 18 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-07*
-*Last updated: 2026-04-07 after initial definition*
+*Last updated: 2026-04-06 after roadmap creation for v2.0*
