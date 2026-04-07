@@ -270,7 +270,7 @@ Plans:
 
 **Milestone Goal:** Expose Viral Slide Maker as a developer platform with REST API endpoints and an MCP server, so AI agents can create carousels programmatically.
 
-- [ ] **Phase 15: Service Extraction & API Auth** - Extract Server Actions into shared services, API key management, rate limiting via Upstash Redis
+- [x] **Phase 15: Service Extraction & API Auth** - Extract Server Actions into shared services, API key management, rate limiting via Upstash Redis (completed 2026-04-07)
 - [ ] **Phase 16: REST API Endpoints** - One-shot and granular carousel endpoints with credit metering headers
 - [ ] **Phase 17: MCP Server** - MCP tools wrapping REST API for AI agent integration via Streamable HTTP and npm package
 - [ ] **Phase 18: API Documentation** - OpenAPI spec generation, interactive Scalar playground, and MCP connection guide
@@ -290,9 +290,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 15-00-PLAN.md -- Wave 0 test stubs for security-critical API modules
-- [ ] 15-01-PLAN.md -- Service extraction, API infra (auth, rate-limit, errors, crypto), API key CRUD actions, one-shot carousel endpoint
-- [ ] 15-02-PLAN.md -- API Keys settings UI (create dialog, key list table, revoke confirmation, empty state)
+- [x] 15-00-PLAN.md -- Wave 0 test stubs for security-critical API modules
+- [x] 15-01-PLAN.md -- Service extraction, API infra (auth, rate-limit, errors, crypto), API key CRUD actions, one-shot carousel endpoint
+- [x] 15-02-PLAN.md -- API Keys settings UI (create dialog, key list table, revoke confirmation, empty state)
 
 **UI hint**: yes
 
@@ -350,7 +350,7 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 12. Font Picker & Google Fonts | v1.3 | 2/2 | Complete | 2026-03-27 |
 | 13. Resizable Text Boxes | v1.3 | 1/1 | Complete | 2026-03-27 |
 | 14. Alignment Snap Guides | v1.3 | 1/1 | Complete | 2026-03-27 |
-| 15. Service Extraction & API Auth | v2.0 | 0/0 | Not started | - |
+| 15. Service Extraction & API Auth | v2.0 | 3/3 | Complete   | 2026-04-07 |
 | 16. REST API Endpoints | v2.0 | 0/0 | Not started | - |
 | 17. MCP Server | v2.0 | 0/0 | Not started | - |
 | 18. API Documentation | v2.0 | 0/0 | Not started | - |

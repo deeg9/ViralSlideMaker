@@ -9,8 +9,8 @@ Requirements for API & MCP Platform milestone. Each maps to roadmap phases.
 
 ### API Auth
 
-- [ ] **AAUTH-01**: Developer can generate API keys from account settings page
-- [ ] **AAUTH-02**: Developer can revoke/delete API keys from settings
+- [x] **AAUTH-01**: Developer can generate API keys from account settings page
+- [x] **AAUTH-02**: Developer can revoke/delete API keys from settings
 - [ ] **AAUTH-03**: API requests authenticate via Bearer token in Authorization header
 - [ ] **AAUTH-04**: API keys are SHA-256 hashed in storage (shown once on creation, never again)
 - [ ] **AAUTH-05**: API requests are rate-limited per key via Upstash Redis (serverless-safe)
@@ -111,8 +111,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AAUTH-01 | Phase 15 | Pending |
-| AAUTH-02 | Phase 15 | Pending |
+| AAUTH-01 | Phase 15 | Complete |
+| AAUTH-02 | Phase 15 | Complete |
 | AAUTH-03 | Phase 15 | Pending |
 | AAUTH-04 | Phase 15 | Pending |
 | AAUTH-05 | Phase 15 | Pending |
