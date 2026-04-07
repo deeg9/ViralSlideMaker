@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can create a new slideshow project, see it on a dashboard, and delete it
   4. User can save a project and return to it later with all data intact
   5. App has a clean, minimal design aesthetic consistent across all pages
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 01-01-PLAN.md -- Scaffold Next.js app, Supabase auth setup, login/signup/logout flows
@@ -50,7 +50,7 @@ Plans:
   3. User can choose a visual style template before generating, and slides render in that style
   4. Slides render as 1080x1920 images with text overlays baked in, consistent across devices
   5. User can download all slides as a ZIP or download individual slide images
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 02-01-PLAN.md -- Types, schemas, templates, AI generation + Pexels integration, generation server action
@@ -66,7 +66,7 @@ Plans:
   3. User can search Pexels stock photos and swap a slide's background, or upload their own image
   4. User can regenerate a single slide's text or image query without affecting other slides
   5. User can undo and redo editing actions, and the app works on desktop and tablet browsers
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 03-01-PLAN.md -- Editor state foundation: extended types, reducer with undo/redo, useSlideEditor hook (TDD)
@@ -80,7 +80,7 @@ Plans:
   1. User can switch templates after generation and all slides re-render in the new style
   2. User can save a brand kit (custom colors, fonts, logo) to their account
   3. Brand kit settings apply automatically when the user generates new slideshows
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 04-01-PLAN.md -- Template switching in editor, brand kit DB schema/types/merge function
@@ -107,7 +107,7 @@ Plans:
   3. Credits deduct atomically before AI operations with no possibility of double-spend under concurrent requests
   4. User can view a credit usage history showing date, action type, and amount for each transaction
   5. Free tier users hit a clear usage limit on project count and AI text generations per month
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 05-01-PLAN.md -- Database schema (subscriptions, credit_transactions, stripe_events), atomic RPC functions, credit service rewrite, tests
@@ -123,7 +123,7 @@ Plans:
   3. User can open Stripe Customer Portal to upgrade, downgrade, or cancel their subscription
   4. Free users see contextual upgrade prompts when they hit usage limits (not random nag screens)
   5. User can purchase extra credit packs via one-time Stripe payment and credits appear in their balance
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 06-01-PLAN.md -- Stripe SDK setup, webhook Route Handler with signature verification and idempotency, event-type-dispatched sync handlers, unit tests
@@ -139,7 +139,7 @@ Plans:
   3. User can preview and edit the auto-generated Imagen prompt before spending a credit
   4. Free users see an "Upgrade to AI" button on slides instead of the generate option, serving as a low-friction upsell
   5. User can generate social media captions (TikTok, Instagram, LinkedIn) that reference actual slide content, not just the topic
-**Plans**: 2 plans
+**Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
@@ -229,7 +229,7 @@ Plans:
   3. Selecting a font updates the browser preview immediately with the chosen font
   4. Exported PNG renders the user-selected font correctly (not a fallback or default)
   5. Repeated exports of the same slide do not re-download font files (server-side TTF caching works)
-**Plans**: 2 plans
+**Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
@@ -287,9 +287,10 @@ Plans:
   3. An API request with a valid Bearer token authenticates successfully; an invalid or revoked token returns 401
   4. API requests exceeding the per-key rate limit receive a 429 response with retry-after information
   5. Each authenticated API request that consumes resources deducts credits from the developer's balance
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
+- [ ] 15-00-PLAN.md -- Wave 0 test stubs for security-critical API modules
 - [ ] 15-01-PLAN.md -- Service extraction, API infra (auth, rate-limit, errors, crypto), API key CRUD actions, one-shot carousel endpoint
 - [ ] 15-02-PLAN.md -- API Keys settings UI (create dialog, key list table, revoke confirmation, empty state)
 

@@ -423,7 +423,7 @@ export async function POST(req: NextRequest) {
 | A3 | `last_used_at` update can be fire-and-forget | Pattern 2 | If Supabase rejects the update silently, last-used tracking breaks |
 | A4 | Zod v4 uses `z.parse()` same as v3 | Code Examples | API signature may differ -- verify at implementation time |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Credit deduction from API routes**
    - What we know: `deductCredit()` in `check-credits.ts` uses `createClient()` (cookie-based auth)
