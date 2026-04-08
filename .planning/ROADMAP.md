@@ -378,8 +378,12 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
   3. Developer can revoke a key and any subsequent API request using that key returns 401 immediately
   4. A curl request with `Authorization: Bearer vsl_...` to any `/api/v1/*` route authenticates successfully without triggering Supabase session middleware
   5. Settings page shows quick-start code snippets (curl, JavaScript, Python) after key creation
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 22-01-PLAN.md -- Database migration, middleware bypass, authenticateApiKey + withApiAuth HOC, unit tests
+- [ ] 22-02-PLAN.md -- Server actions (create/list/revoke), settings page UI, create dialog with snippets, revoke dialog, visual checkpoint
 
 ### Phase 23: Rate Limiting, Credits & Infrastructure
 **Goal**: API requests are rate limited per key, credit-consuming operations enforce balances, and all responses follow a consistent structured format
@@ -445,7 +449,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25
 | 19. Validation Spike & Data Model | v2.1 | 2/2 | Complete | 2026-04-07 |
 | 20. Renderer Implementation | v2.1 | 2/2 | Complete | 2026-04-07 |
 | 21. Editor UI & Tight Highlight | v2.1 | 1/1 | Complete | 2026-04-07 |
-| 22. Auth Foundation & Key Management | v2.2 | 0/0 | Not started | - |
+| 22. Auth Foundation & Key Management | v2.2 | 0/2 | In progress | - |
 | 23. Rate Limiting, Credits & Infrastructure | v2.2 | 0/0 | Not started | - |
 | 24. REST Endpoints (Read) | v2.2 | 0/0 | Not started | - |
 | 25. REST Endpoints (Write & Render) | v2.2 | 0/0 | Not started | - |
