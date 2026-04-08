@@ -1,7 +1,7 @@
 # Requirements: ViralSlideMaker v2.2 Public REST API
 
 **Defined:** 2026-04-08
-**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
+**Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
 
 ## v2.2 Requirements
 
@@ -78,40 +78,40 @@ Requirements for Public REST API milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| KEY-01 | — | Pending |
-| KEY-02 | — | Pending |
-| KEY-03 | — | Pending |
-| KEY-04 | — | Pending |
-| KEY-05 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| RATE-01 | — | Pending |
-| RATE-02 | — | Pending |
-| RATE-03 | — | Pending |
-| CRED-01 | — | Pending |
-| CRED-02 | — | Pending |
-| CRED-03 | — | Pending |
-| API-01 | — | Pending |
-| API-02 | — | Pending |
-| API-03 | — | Pending |
-| API-04 | — | Pending |
-| API-05 | — | Pending |
-| API-06 | — | Pending |
-| API-07 | — | Pending |
-| API-08 | — | Pending |
-| API-09 | — | Pending |
-| API-10 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
+| KEY-01 | Phase 22 | Pending |
+| KEY-02 | Phase 22 | Pending |
+| KEY-03 | Phase 22 | Pending |
+| KEY-04 | Phase 22 | Pending |
+| KEY-05 | Phase 22 | Pending |
+| AUTH-01 | Phase 22 | Pending |
+| AUTH-02 | Phase 22 | Pending |
+| AUTH-03 | Phase 22 | Pending |
+| AUTH-04 | Phase 22 | Pending |
+| RATE-01 | Phase 23 | Pending |
+| RATE-02 | Phase 23 | Pending |
+| RATE-03 | Phase 23 | Pending |
+| CRED-01 | Phase 23 | Pending |
+| CRED-02 | Phase 23 | Pending |
+| CRED-03 | Phase 23 | Pending |
+| INFRA-01 | Phase 23 | Pending |
+| INFRA-02 | Phase 23 | Pending |
+| INFRA-03 | Phase 23 | Pending |
+| API-01 | Phase 25 | Pending |
+| API-02 | Phase 24 | Pending |
+| API-03 | Phase 24 | Pending |
+| API-04 | Phase 25 | Pending |
+| API-05 | Phase 24 | Pending |
+| API-06 | Phase 24 | Pending |
+| API-07 | Phase 24 | Pending |
+| API-08 | Phase 25 | Pending |
+| API-09 | Phase 25 | Pending |
+| API-10 | Phase 25 | Pending |
 
 **Coverage:**
 - v2.2 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after initial definition*
+*Last updated: 2026-04-08 after roadmap creation*

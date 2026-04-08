@@ -8,6 +8,7 @@
 - v1.3 Rich Text Editing - Phases 10-14 (shipped 2026-03-27)
 - v2.0 API & MCP Platform - Phases 15-18 (shipped 2026-04-07)
 - v2.1 Text Effects - Phases 19-21 (shipped 2026-04-07)
+- v2.2 Public REST API - Phases 22-25 (in progress)
 
 ## Phases
 
@@ -356,10 +357,70 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 
 </details>
 
+### v2.2 Public REST API (In Progress)
+
+**Milestone Goal:** Implement the full REST API with per-user API key authentication, rate limiting, credit enforcement, and all 10 OpenAPI-defined endpoints.
+
+- [ ] **Phase 22: Auth Foundation & Key Management** - API keys table, SHA-256 hashing, middleware bypass, Bearer auth pipeline, key management UI
+- [ ] **Phase 23: Rate Limiting, Credits & Infrastructure** - Upstash Redis rate limiting, credit enforcement headers, structured errors, CORS, service extraction
+- [ ] **Phase 24: REST Endpoints (Read)** - Templates, projects list/get/delete, single slide get -- read-only endpoints with no credit deduction
+- [ ] **Phase 25: REST Endpoints (Write & Render)** - Carousel generation, project creation, slide update, render, download -- mutation and binary endpoints
+
+## Phase Details
+
+### Phase 22: Auth Foundation & Key Management
+**Goal**: Developers can create, view, and revoke API keys, and authenticate API requests with Bearer tokens
+**Depends on**: Phase 21
+**Requirements**: KEY-01, KEY-02, KEY-03, KEY-04, KEY-05, AUTH-01, AUTH-02, AUTH-03, AUTH-04
+**Success Criteria** (what must be TRUE):
+  1. Developer can create a named API key in settings, sees the full `vsl_` token exactly once, and it is stored as a SHA-256 hash
+  2. Developer can view a list of their keys showing name, masked prefix, created date, and last-used timestamp
+  3. Developer can revoke a key and any subsequent API request using that key returns 401 immediately
+  4. A curl request with `Authorization: Bearer vsl_...` to any `/api/v1/*` route authenticates successfully without triggering Supabase session middleware
+  5. Settings page shows quick-start code snippets (curl, JavaScript, Python) after key creation
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 23: Rate Limiting, Credits & Infrastructure
+**Goal**: API requests are rate limited per key, credit-consuming operations enforce balances, and all responses follow a consistent structured format
+**Depends on**: Phase 22
+**Requirements**: RATE-01, RATE-02, RATE-03, CRED-01, CRED-02, CRED-03, INFRA-01, INFRA-02, INFRA-03
+**Success Criteria** (what must be TRUE):
+  1. API requests exceeding the per-key sliding window limit receive a 429 response with `Retry-After` header
+  2. All API responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers
+  3. Credit-consuming endpoints deduct via the existing atomic RPC; insufficient credits return 402 with `x-credits-remaining` header
+  4. All API responses include `x-credits-remaining` and `x-credits-used` headers
+  5. Error responses use structured JSON with codes matching the OpenAPI spec, and CORS headers are present for cross-origin consumers
+**Plans**: TBD
+
+### Phase 24: REST Endpoints (Read)
+**Goal**: Developers can query templates, list and retrieve projects, and fetch individual slides through the API
+**Depends on**: Phase 23
+**Requirements**: API-02, API-03, API-05, API-06, API-07
+**Success Criteria** (what must be TRUE):
+  1. Developer can GET `/api/v1/templates` and receive the list of available visual styles
+  2. Developer can GET `/api/v1/projects` and see only their own projects (user scoping enforced)
+  3. Developer can GET `/api/v1/projects/{id}` and receive the full project with all slides
+  4. Developer can DELETE `/api/v1/projects/{id}` and the project is removed
+  5. Developer can GET `/api/v1/projects/{id}/slides/{index}` and receive a single slide's data
+**Plans**: TBD
+
+### Phase 25: REST Endpoints (Write & Render)
+**Goal**: Developers can create carousels, create projects, update slides, and render/download images entirely through the API
+**Depends on**: Phase 24
+**Requirements**: API-01, API-04, API-08, API-09, API-10
+**Success Criteria** (what must be TRUE):
+  1. Developer can POST `/api/v1/carousel` with a topic and receive a fully generated carousel with rendered slide images (1 credit deducted)
+  2. Developer can POST `/api/v1/projects` to create an empty project
+  3. Developer can PATCH `/api/v1/projects/{id}/slides/{index}` to update slide fields (text, image, position)
+  4. Developer can POST `/api/v1/projects/{id}/render` and receive download URLs for all rendered slide images
+  5. Developer can GET `/api/v1/projects/{id}/download` and receive a ZIP file containing all slide PNGs
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 19 -> 20 -> 21
+Phases execute in numeric order: 22 -> 23 -> 24 -> 25
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -381,6 +442,10 @@ Phases execute in numeric order: 19 -> 20 -> 21
 | 16. REST API Endpoints | v2.0 | 3/3 | Complete | 2026-04-07 |
 | 17. MCP Server | v2.0 | 2/2 | Complete | 2026-04-07 |
 | 18. API Documentation | v2.0 | 1/1 | Complete | 2026-04-07 |
-| 19. Validation Spike & Data Model | v2.1 | 2/2 | Complete   | 2026-04-07 |
-| 20. Renderer Implementation | v2.1 | 2/2 | Complete   | 2026-04-07 |
-| 21. Editor UI & Tight Highlight | v2.1 | 1/1 | Complete   | 2026-04-07 |
+| 19. Validation Spike & Data Model | v2.1 | 2/2 | Complete | 2026-04-07 |
+| 20. Renderer Implementation | v2.1 | 2/2 | Complete | 2026-04-07 |
+| 21. Editor UI & Tight Highlight | v2.1 | 1/1 | Complete | 2026-04-07 |
+| 22. Auth Foundation & Key Management | v2.2 | 0/0 | Not started | - |
+| 23. Rate Limiting, Credits & Infrastructure | v2.2 | 0/0 | Not started | - |
+| 24. REST Endpoints (Read) | v2.2 | 0/0 | Not started | - |
+| 25. REST Endpoints (Write & Render) | v2.2 | 0/0 | Not started | - |
