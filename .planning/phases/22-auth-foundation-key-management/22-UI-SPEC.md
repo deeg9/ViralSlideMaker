@@ -152,7 +152,7 @@ rounded-2xl bg-white p-8 shadow-[0px_40px_80px_rgba(61,0,0,0.15)]
 - Input field: name input following existing pattern (`h-12 rounded-xl border border-[#dbc1bc]/30 bg-[#fff0f0] px-4 text-sm`)
 - Label: "KEY NAME" (uppercase label pattern)
 - Placeholder: "e.g., Production App"
-- Footer: Cancel (outline) + "Create Key" (primary) buttons
+- Footer: "Never mind" (outline) + "Create Key" (primary) buttons
 
 **State 2 — Key reveal (post-creation):**
 - Title: "API Key Created"
@@ -165,6 +165,7 @@ rounded-2xl bg-white p-8 shadow-[0px_40px_80px_rgba(61,0,0,0.15)]
   border border-[#dbc1bc]/30 break-all select-all
   ```
 - Copy button: inline icon button with `content_copy` icon, positioned absolute top-right of code block
+  - `aria-label="Copy API key to clipboard"`
   - On click: copy to clipboard, icon changes to `check` for 2 seconds, then reverts
 - Quick-start snippets: tabbed interface below the key display
 
@@ -178,7 +179,7 @@ rounded-2xl bg-white p-8 shadow-[0px_40px_80px_rgba(61,0,0,0.15)]
   border border-[#dbc1bc]/30 overflow-x-auto
   ```
 - Each snippet auto-populated with the user's newly created key
-- Copy button per code block (same pattern as key display)
+- Copy button per code block (same pattern as key display, including `aria-label="Copy API key to clipboard"`)
 
 **Footer (State 2):** Single "Done" button (primary style), closes dialog.
 
@@ -190,7 +191,7 @@ Uses Base UI `Dialog` for destructive confirmation.
 - Title: "Revoke API Key"
 - Description: "Any applications using the key **{key_name}** will lose access immediately. This cannot be undone."
   - Key name rendered in `font-semibold`
-- Footer: Cancel (outline) + "Revoke Key" (destructive) buttons
+- Footer: "Keep Key" (outline) + "Revoke Key" (destructive) buttons
 - Revoke Key button: `bg-[#ba1a1a] text-white px-6 py-3 rounded-xl font-bold text-sm`
 
 ---
@@ -240,6 +241,8 @@ When user has no API keys:
 | Element | Copy |
 |---------|------|
 | Primary CTA | "Create API Key" |
+| Create dialog dismiss | "Never mind" |
+| Revoke dialog dismiss | "Keep Key" |
 | Empty state heading | "No API keys yet" |
 | Empty state body | "Create an API key to start using the ViralSlideMaker API programmatically." |
 | Error: creation failed | "Failed to create API key. Please try again." |
@@ -297,6 +300,7 @@ No third-party registries declared.
 
 - Dialog traps focus when open (handled by Base UI Dialog)
 - Escape key closes dialogs (handled by Base UI Dialog)
+- Copy button has `aria-label="Copy API key to clipboard"` for screen readers
 - Copy button announces "Copied to clipboard" via `aria-live="polite"` region
 - Revoke button has `aria-label="Revoke API key {key_name}"` for screen readers
 - Table uses semantic `<table>`, `<thead>`, `<tbody>`, `<th scope="col">` markup
