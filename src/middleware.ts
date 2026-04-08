@@ -6,6 +6,12 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/api/webhooks')) {
     return
   }
+
+  // Skip session auth for API v1 routes (uses Bearer token auth)
+  if (request.nextUrl.pathname.startsWith('/api/v1')) {
+    return
+  }
+
   return await updateSession(request)
 }
 
