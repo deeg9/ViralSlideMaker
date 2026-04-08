@@ -1,191 +1,233 @@
-# Technology Stack: v2.1 Text Effects (Shadow, Outline, Highlight)
+# Stack Research: v2.2 Public REST API
 
-**Project:** TikTok Slideshow Creator v2.1
-**Researched:** 2026-04-07
-**Confidence:** HIGH (all CSS properties verified in compiled Satori bundle)
+**Domain:** Per-user API key management + REST API routes for existing Next.js 15 SaaS
+**Researched:** 2026-04-08
+**Confidence:** HIGH
 
-> **Scope:** This document covers ONLY the stack needs for v2.1 Text Effects.
-> The existing stack (Next.js 15.5.13, React 19, Supabase, Satori via next/og, react-rnd, 30 Google Fonts, Playwright) is validated and unchanged.
+## Context
 
-## Key Finding: Zero New Dependencies Required
+This is a SUBSEQUENT milestone. The existing stack (Next.js 15.5.13, React 19, Supabase, Stripe, Zod 4) is validated and shipping. This research covers ONLY the new packages and patterns needed for API key management, Bearer token auth, and Upstash Redis rate limiting.
 
-All three text effects (shadow, outline, background highlight) are implementable using CSS properties already supported by the existing rendering stack. No new npm packages needed.
+## New Dependencies to Add
 
-## Verified Satori CSS Support
+### Core Technologies
 
-Verified by inspecting the compiled bundle at `node_modules/next/dist/compiled/@vercel/og/index.node.js` (Next.js 15.5.13 bundles `@vercel/og` 0.7.2):
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `@upstash/redis` | ^1.37.0 | Redis client for serverless | HTTP-based, no persistent connections. Works in Vercel Edge and serverless. Already planned in project constraints. |
+| `@upstash/ratelimit` | ^2.0.8 | Per-key rate limiting | Purpose-built for serverless rate limiting on Upstash Redis. Provides sliding window, fixed window, and token bucket algorithms out of the box. Eliminates the in-memory rate limiter's multi-instance problem. |
 
-| CSS Property | Satori Support | How It Renders | Use Case |
-|---|---|---|---|
-| `textShadow` | YES | SVG `<feDropShadow>` filter | Text shadow effect |
-| `WebkitTextStrokeWidth` | YES | SVG `stroke-width` attr | Text outline width |
-| `WebkitTextStrokeColor` | YES | SVG `stroke` attr | Text outline color |
-| `backgroundColor` | YES | Standard fill | Highlight (full-width mode) |
-| `padding` | YES | Standard layout | Highlight padding |
-| `display: inline` | NO (flex/block/none only) | N/A | Limitation for tight highlight |
-| `boxDecorationBreak` | NO | N/A | Limitation for tight highlight |
+### Zero-Dependency Solutions (Already Available)
 
-Satori auto-sets `paint-order: stroke` and `stroke-linejoin: round` when text-stroke is applied, preventing stroke from obscuring the text fill. No manual workaround needed.
+| Capability | Solution | Why No Package Needed |
+|------------|----------|----------------------|
+| SHA-256 key hashing | Node.js `crypto` module (`crypto.createHash('sha256')`) | Built into Node.js runtime. Available in Next.js route handlers. No external package required. |
+| API key generation | Node.js `crypto.randomBytes(32)` | Generates cryptographically secure random bytes. Prefix with `vsl_` and hex-encode for the user-facing key. |
+| UUID generation | `crypto.randomUUID()` | Built into Node.js 19+ (already using Node.js compatible with Next.js 15). |
+| Request validation | `zod` ^4.3.6 (already installed) | Already in use. Define Zod schemas for each API route's request body and query params. |
+| OpenAPI spec | Hand-written (already at `src/lib/api/openapi.ts`) | Already defined with all 10 endpoints, Bearer auth scheme, error responses, and rate limit headers. |
 
-## Implementation Strategy Per Effect
+## Existing Stack (DO NOT Re-add)
 
-### 1. Text Shadow -- Native CSS in All Renderers
+These are already installed and working. Listed for integration context only:
 
-**Approach:** Apply `textShadow` CSS property directly. Works identically in all three renderers.
-
-**Satori caveat:** Use `rgba(r g b / a)` syntax (modern space-separated) rather than `rgba(r, g, b, a)` (legacy comma syntax). The legacy syntax caused parse errors in older Satori versions. Both work in the bundled version but modern syntax is safer.
-
-**Preset system (px values at 1080x1920 reference):**
-```typescript
-const SHADOW_PRESETS = {
-  sm: { offset: '0 2px 4px',   blur: 4  },  // subtle lift
-  md: { offset: '0 4px 8px',   blur: 8  },  // medium depth
-  lg: { offset: '0 8px 16px',  blur: 16 },  // dramatic
-}
-```
-
-### 2. Text Outline -- Native CSS in All Renderers
-
-**Approach:** Apply `WebkitTextStrokeWidth` and `WebkitTextStrokeColor` in preview and Satori. Use `-webkit-text-stroke-width` and `-webkit-text-stroke-color` in the HTML renderer.
-
-**Browser support:** Universal in all modern browsers (Chrome, Firefox, Safari, Edge).
-
-**Slider range:** 1-8px. Beyond 8px the stroke starts to visibly eat into the fill on smaller font sizes. The auto `paint-order: stroke` in Satori mitigates this, but the browser preview needs explicit `paintOrder: 'stroke'` to match.
-
-### 3. Background Highlight -- Renderer-Specific Strategy
-
-This is the only effect requiring different approaches per renderer due to Satori's `display: inline` limitation.
-
-**Two modes:**
-- **Full-width:** Background spans the entire text box width.
-- **Tight:** Background hugs each line of text individually.
-
-| Renderer | Full-Width | Tight |
-|---|---|---|
-| Preview (browser) | `backgroundColor` + `padding` on container div | `<span>` with `backgroundColor`, `padding`, `boxDecorationBreak: 'clone'`, `display: 'inline'` |
-| HTML export | Same as preview | Same as preview |
-| Satori export | `backgroundColor` + `padding` on container div | **Fallback to full-width.** Satori lacks `display: inline` and `boxDecorationBreak`. |
-
-**Rationale for Satori tight-mode fallback:** Carousel text is typically short (1-3 lines of hook text). The visual difference between tight and full-width highlight is minimal at this text length. Implementing a word-splitting workaround would add complexity for marginal visual benefit. Ship full-width fallback first; revisit only if users report dissatisfaction.
-
-## Data Model Additions
-
-### TextEffects Interface (new, shared across all text elements)
-
-```typescript
-interface TextEffects {
-  shadow?: {
-    enabled: boolean
-    color: string        // hex with alpha, e.g. '#00000080'
-    size: 'sm' | 'md' | 'lg'
-  }
-  outline?: {
-    enabled: boolean
-    color: string        // hex color, e.g. '#000000'
-    width: number        // 1-8 px
-  }
-  highlight?: {
-    enabled: boolean
-    color: string        // hex with alpha, e.g. '#FFD70080'
-    style: 'tight' | 'full'
-    padding: number      // 4-24 px
-  }
-}
-```
-
-**Applied to:**
-- `SlideStyleOverrides.hook_text_effects?: TextEffects`
-- `SlideStyleOverrides.body_text_effects?: TextEffects`
-- `CustomText.text_effects?: TextEffects`
-
-Each text element gets independent effect controls. No global "apply to all" -- per-element is the right model because hook text typically needs different treatment than body text (e.g., hook with heavy shadow + outline, body with subtle highlight).
-
-## Recommended Stack (Unchanged)
-
-### Core (no changes)
-| Technology | Version | Purpose | Why |
-|---|---|---|---|
-| Next.js | 15.5.13 | Framework + Satori via `next/og` | Bundled Satori supports `textShadow` + `WebkitTextStroke` |
-| React | 19.1.0 | UI rendering for preview | Standard CSS properties for all effects |
-| react-rnd | 10.5.3 | Drag/resize text boxes | Already installed, unaffected |
-
-### Rendering (no changes)
-| Technology | Version | Purpose | Why |
-|---|---|---|---|
-| Satori (via @vercel/og 0.7.2) | Bundled in Next.js | JSX to SVG | Verified support for shadow + outline |
-| resvg-wasm (via @vercel/og) | Bundled | SVG to PNG | Correctly renders SVG filters and strokes |
-| Playwright | 1.58.2 | HTML renderer | Full CSS support for all effects including tight highlight |
-
-### UI Components (no changes)
-| Technology | Version | Purpose | Why |
-|---|---|---|---|
-| @radix-ui/react-switch | 1.2.6 | Toggle switches for effects | Already in deps, use for enable/disable toggles |
-| Tailwind CSS | 4.x | Editor panel styling | Already used |
-| lucide-react | 0.577.0 | Icons for effect controls | Already in deps |
+| Package | Version | Role in v2.2 |
+|---------|---------|-------------|
+| `@supabase/supabase-js` | ^2.99.3 | Service role client for API key lookups (bypasses RLS) |
+| `@supabase/ssr` | ^0.9.0 | Session auth for the key management UI (settings page) |
+| `zod` | ^4.3.6 | Request body validation in route handlers |
+| `@scalar/nextjs-api-reference` | ^0.10.6 | API docs playground at /docs |
+| `next` | 15.5.13 | Route handlers at `src/app/api/v1/` |
 
 ## Installation
 
 ```bash
-# No new packages needed.
+# New dependencies (only 2 packages)
+npm install @upstash/redis@^1.37.0 @upstash/ratelimit@^2.0.8
 ```
 
-## What NOT to Add
+No new dev dependencies needed.
 
-| Library/Tool | Why Not |
-|---|---|
-| `satori` (standalone npm) | Already bundled in `next/og`. Installing standalone creates version conflicts. |
-| `@vercel/og` (standalone) | Already bundled in Next.js 15.5.13. |
-| `canvas` / `node-canvas` | All effects achievable via CSS properties. No pixel manipulation needed. |
-| `fabric.js` / `konva` | Canvas-based renderers. Would require rewriting the entire rendering pipeline. |
-| `sharp` | Image manipulation library, not relevant for text CSS effects. |
-| Any "text effect" npm library | These target canvas-based rendering. The project uses CSS-based rendering. |
-| `css-paint-polyfill` | Satori doesn't use Houdini/Paint API. Standard CSS properties suffice. |
+## Environment Variables to Add
+
+```env
+# Upstash Redis (get from Upstash console)
+UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
+```
+
+## Architecture Decisions
+
+### API Key Hashing: Node.js `crypto` (not bcrypt, not argon2)
+
+**Use `crypto.createHash('sha256')`** because:
+- API keys are high-entropy random strings (32 bytes), not user-chosen passwords. Brute-force is computationally infeasible.
+- SHA-256 is fast, which matters for every authenticated API request (bcrypt at ~100ms would be unacceptable).
+- SHA-256 is deterministic, enabling direct DB lookups: `SELECT * FROM api_keys WHERE key_hash = $1`.
+- No salt needed for high-entropy keys (unlike passwords).
+- This is the standard pattern used by Stripe, GitHub, and every major API provider.
+
+**Do NOT use bcrypt/argon2** -- those are for low-entropy passwords. Using them for API keys adds latency with zero security benefit.
+
+### Rate Limiting: @upstash/ratelimit Sliding Window
+
+**Use sliding window algorithm** because:
+- The in-memory rate limiter (`src/lib/rate-limit.ts`) breaks across serverless instances -- each cold start gets a fresh Map.
+- Upstash Ratelimit's sliding window provides smooth rate limiting without burst spikes at window boundaries.
+- Per-key limiting: use the hashed API key as the identifier, not IP address.
+- Different limits per tier: create separate Ratelimit instances for free/plus/pro tiers.
+
+```typescript
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
+
+const redis = Redis.fromEnv() // reads UPSTASH_REDIS_REST_URL + TOKEN
+
+// Tier-specific rate limiters
+export const rateLimiters = {
+  free: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, '1 m') }),
+  plus: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(200, '1 m') }),
+  pro:  new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(600, '1 m') }),
+}
+```
+
+### Bearer Token Auth: Route Handler Helper (not middleware)
+
+**Use a shared auth helper function** called at the top of each route handler, rather than trying to authenticate in Next.js middleware.
+
+Rationale:
+- Next.js middleware runs on the Edge Runtime, which has limitations with some Node.js APIs.
+- Route handlers run in Node.js runtime with full access to `crypto` module.
+- Keeps auth logic co-located with route logic for easier debugging.
+- The existing middleware (`src/middleware.ts`) just needs to skip Supabase session auth for `/api/v1/*` routes.
+
+Pattern:
+```typescript
+// src/lib/api/auth.ts
+export async function authenticateApiKey(request: Request): Promise<ApiKeyContext | ApiError> {
+  const header = request.headers.get('Authorization')
+  if (!header?.startsWith('Bearer vsl_')) return { error: 'UNAUTHORIZED' }
+  
+  const token = header.slice(7) // strip "Bearer "
+  const hash = crypto.createHash('sha256').update(token).digest('hex')
+  
+  // Lookup with service role client (bypasses RLS)
+  const { data } = await supabaseAdmin
+    .from('api_keys')
+    .select('user_id, revoked_at')
+    .eq('key_hash', hash)
+    .single()
+  
+  if (!data || data.revoked_at) return { error: 'UNAUTHORIZED' }
+  return { userId: data.user_id, keyHash: hash }
+}
+```
+
+### Supabase Migration: Numbered SQL Files
+
+**Use the existing pattern:** numbered SQL files in `supabase/migrations/`. The project already has `002_` through `006_`. The API keys table will be `007_api_keys.sql`.
+
+Key table design:
+```sql
+CREATE TABLE public.api_keys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  key_hash TEXT NOT NULL UNIQUE,        -- SHA-256 hex of full vsl_xxx key
+  key_prefix TEXT NOT NULL,             -- First 8 chars for display (vsl_abc1...)
+  name TEXT NOT NULL DEFAULT 'Default', -- User-assigned label
+  last_used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at TIMESTAMPTZ               -- NULL = active, set = revoked
+);
+
+CREATE INDEX api_keys_key_hash_idx ON public.api_keys(key_hash) WHERE revoked_at IS NULL;
+CREATE INDEX api_keys_user_id_idx ON public.api_keys(user_id);
+```
+
+RLS policy: users can only see/manage their own keys via the dashboard. API key lookups in route handlers use the service role client to bypass RLS (since Bearer token requests have no Supabase session).
+
+### Request Validation: Zod 4 Schemas
+
+Zod 4 is already installed (^4.3.6). Define request schemas per route, matching the existing OpenAPI spec at `src/lib/api/openapi.ts`. Validate at the top of each route handler. Return structured errors matching the OpenAPI `ErrorResponse` schema.
+
+### Credit Deduction for API Calls
+
+Reuse the existing `deduct_credits` Postgres RPC function from `005_credit_system.sql`. Add a new transaction type `'api_carousel_generation'` to the CHECK constraint via an ALTER in the new migration. The atomic advisory-lock pattern already handles concurrent deductions correctly.
 
 ## Alternatives Considered
 
-| Approach | Recommended | Alternative | When to Use Alternative |
-|---|---|---|---|
-| Satori tight highlight | Full-width fallback | Word-splitting into separate `<div>`s with flexWrap | Only if users explicitly report dissatisfaction with full-width in exports |
-| Shadow presets (S/M/L) | YES -- simpler UX | Custom offset/blur/spread sliders | Only if users demand pixel-level shadow control. Presets cover 95% of carousel use cases. |
-| Outline via WebkitTextStroke | YES -- native support | Duplicate text elements offset by 1px in 4/8 directions | Only if WebkitTextStroke has rendering bugs in Satori. Verified working -- not needed. |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `@upstash/ratelimit` | `rate-limiter-flexible` | Requires a persistent Redis connection (not HTTP). Upstash's HTTP client is purpose-built for serverless. |
+| `@upstash/ratelimit` | Vercel KV (`@vercel/kv`) | Vercel KV is Upstash under the hood but with markup pricing and vendor lock-in to Vercel. Using Upstash directly is cheaper and portable. |
+| `@upstash/redis` | `ioredis` / `redis` | Require persistent TCP connections incompatible with serverless cold starts. |
+| Node.js `crypto` | `nanoid` for key generation | nanoid adds a dependency for something `crypto.randomBytes` does natively. |
+| SHA-256 hash | HMAC-SHA256 | HMAC adds a server secret, providing defense if the DB is leaked. Worth considering but adds key management complexity. SHA-256 is sufficient for 256-bit random keys. |
+| Numbered SQL files | Supabase CLI migrations | Project doesn't use `supabase init` / `config.toml`. Stick with the existing manual numbered file pattern. |
+| Route handler auth | Middleware-level auth | Edge Runtime limitations, harder to debug, separates auth from route logic. |
 
-## Files to Modify
+## What NOT to Add
 
-| File | Change | Complexity |
-|---|---|---|
-| `src/lib/types/slide.ts` | Add `TextEffects` interface, add to `SlideStyleOverrides` + `CustomText` | Low |
-| `src/lib/render/resolve-styles.ts` | Resolve text effects defaults in `resolveSlideStyles()` | Low |
-| `src/components/slides/slide-preview.tsx` | Apply `textShadow`, `WebkitTextStroke*`, highlight styles to text elements | Medium |
-| `src/lib/render/render-slide-satori.tsx` | Apply same CSS properties to JSX inline styles | Medium |
-| `src/lib/render/render-slide.ts` | Apply CSS text-shadow, -webkit-text-stroke, background in HTML template | Medium |
-| New: `src/components/editor/text-effects-panel.tsx` | UI panel with toggles, color pickers, sliders | Medium |
-| `src/lib/editor/use-slide-editor.ts` | Add reducer actions for text effect changes | Low |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `bcrypt` / `argon2` | Designed for low-entropy passwords. API keys are high-entropy; SHA-256 is correct and fast. | Node.js `crypto.createHash('sha256')` |
+| `passport.js` / `next-auth` | Massive overkill for Bearer token auth. Just hash a token and look it up. | 20-line auth helper function |
+| `ioredis` / `redis` | Require persistent TCP connections incompatible with serverless. | `@upstash/redis` (HTTP-based) |
+| `express-rate-limit` | Express middleware, not compatible with Next.js App Router route handlers. | `@upstash/ratelimit` |
+| `jose` / `jsonwebtoken` | JWT-based API auth adds token expiry, refresh, and revocation complexity. API keys with DB lookup are simpler and revocable instantly. | SHA-256 hashed API keys in Postgres |
+| `uuid` package | `crypto.randomUUID()` is built into the runtime. | Built-in `crypto.randomUUID()` |
+| `@upstash/redis` for caching | Out of scope for this milestone. Redis is only for rate limiting. | Do not add caching concerns yet. |
+| `zod-to-openapi` / `@asteasolutions/zod-to-openapi` | OpenAPI spec already hand-written and complete. Auto-generation adds complexity without benefit for 10 endpoints. | Keep hand-written spec at `src/lib/api/openapi.ts` |
 
-## Confidence Assessment
+## Version Compatibility
 
-| Claim | Confidence | Evidence |
-|---|---|---|
-| Satori supports `textShadow` | HIGH | Verified string `textShadow` in compiled bundle; listed in [Satori CSS docs](https://deepwiki.com/vercel/satori/4-advanced-usage) |
-| Satori supports `WebkitTextStroke` | HIGH | Verified `WebkitTextStrokeWidth`/`WebkitTextStrokeColor` in compiled bundle; [PR #645 merged Nov 2024](https://github.com/vercel/satori/pull/645) |
-| Satori does NOT support `display: inline` | HIGH | [Satori docs](https://deepwiki.com/vercel/satori/4-advanced-usage) list only flex/block/none |
-| `boxDecorationBreak` NOT in Satori | MEDIUM | Not in supported properties list; not found in bundle search |
-| Browser support for all CSS properties | HIGH | `-webkit-text-stroke`, `text-shadow`, `box-decoration-break: clone` supported universally |
-| Zero new dependencies needed | HIGH | All effects use CSS properties already in Satori + browsers |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `@upstash/redis@^1.37.0` | Next.js 15, Edge Runtime, Node.js 18+ | HTTP-based, no native deps. Works everywhere. |
+| `@upstash/ratelimit@^2.0.8` | `@upstash/redis@^1.34.0+` | Peer dependency on @upstash/redis. Both maintained by Upstash. |
+| `zod@^4.3.6` | Already installed | Zod 4 has breaking changes from Zod 3 (new import paths). Already on Zod 4 so no migration needed. |
 
-## Key Risk
+## File Structure for New Code
 
-**Satori `textShadow` syntax sensitivity.** Satori's CSS parser is stricter than browsers. If `rgba()` color values cause parse errors, the entire ImageResponse fails (not a graceful degradation). Mitigation: use hex colors with alpha channel (`#00000080`) instead of `rgba()` functions. Hex colors are parsed more reliably across Satori versions.
+```
+src/
+  lib/
+    api/
+      openapi.ts          # EXISTS -- OpenAPI 3.1 spec
+      auth.ts             # NEW: Bearer token extraction + key hash lookup
+      rate-limit.ts       # NEW: Upstash-based per-key rate limiter
+      errors.ts           # NEW: Structured error responses matching OpenAPI spec
+      schemas.ts          # NEW: Zod schemas for all route request/response bodies
+      with-api-auth.ts    # NEW: Wrapper combining auth + rate limit + error handling
+  app/
+    api/
+      v1/
+        carousel/route.ts           # POST /api/v1/carousel
+        templates/route.ts          # GET /api/v1/templates
+        projects/route.ts           # GET, POST /api/v1/projects
+        projects/[id]/route.ts      # GET, DELETE /api/v1/projects/:id
+        projects/[id]/slides/[index]/route.ts  # GET, PATCH
+        projects/[id]/render/route.ts          # POST
+        projects/[id]/download/route.ts        # GET (ZIP)
+        projects/[id]/download/[index]/route.ts # GET (single PNG)
+    (dashboard)/
+      settings/
+        api-keys/page.tsx  # NEW: API key management UI
+  lib/
+    rate-limit.ts         # EXISTS -- in-memory limiter (keep for non-API routes, or replace entirely)
+supabase/
+  migrations/
+    007_api_keys.sql       # NEW: api_keys table + RLS + indexes
+```
 
 ## Sources
 
-- [Satori CSS Support (DeepWiki)](https://deepwiki.com/vercel/satori/4-advanced-usage) -- supported property list
-- [Satori Text-Stroke PR #645](https://github.com/vercel/satori/pull/645) -- merged Nov 19, 2024
-- [Satori -webkit-text-stroke Issue #578](https://github.com/vercel/satori/issues/578) -- closed/resolved
-- [Satori text-shadow parse error Issue #441](https://github.com/vercel/satori/issues/441) -- rgba syntax gotcha
-- [Satori Text and Typography (DeepWiki)](https://deepwiki.com/vercel/satori/6-text-and-typography)
-- [Satori GitHub Releases](https://github.com/vercel/satori/releases) -- latest 0.26.0 (Mar 2026)
-- Local bundle inspection: `node_modules/next/dist/compiled/@vercel/og/index.node.js` -- confirmed WebkitTextStroke* and textShadow present
+- [@upstash/ratelimit on npm](https://www.npmjs.com/package/@upstash/ratelimit) -- version 2.0.8 confirmed
+- [@upstash/redis on npm](https://www.npmjs.com/package/@upstash/redis) -- version 1.37.0 confirmed
+- [Upstash Ratelimit documentation](https://upstash.com/docs/redis/sdks/ratelimit-ts/overview) -- sliding window API reference
+- [Rate limiting Next.js with Upstash](https://upstash.com/blog/nextjs-ratelimiting) -- Next.js integration patterns
+- Existing codebase: `src/lib/rate-limit.ts` (in-memory limiter to replace), `src/lib/api/openapi.ts` (spec to implement), `supabase/migrations/005_credit_system.sql` (migration pattern), `src/middleware.ts` (needs `/api/v1/*` bypass)
 
 ---
-*Stack research for: TikTok Slideshow Creator v2.1 -- Text Effects*
-*Researched: 2026-04-07*
+*Stack research for: v2.2 Public REST API*
+*Researched: 2026-04-08*

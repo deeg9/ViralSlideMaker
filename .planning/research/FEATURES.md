@@ -1,136 +1,192 @@
-# Feature Landscape: Text Effects (v2.1)
+# Feature Research: Public REST API with Per-User API Keys
 
-**Domain:** Text effects for TikTok/Instagram carousel slide creator
-**Researched:** 2026-04-07
-**Overall confidence:** HIGH
+**Domain:** SaaS developer API platform (API key management + REST endpoints)
+**Researched:** 2026-04-08
+**Confidence:** HIGH
 
-## Table Stakes
+## Feature Landscape
 
-Features users expect from any design tool offering text effects. Missing = the feature feels half-baked.
+### Table Stakes (Users Expect These)
+
+Features developers assume exist. Missing these = API feels amateur or untrustworthy.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Text shadow with color control | Every design tool (Canva, Adobe Express, Figma) offers shadow with color. Users will compare. | Low | Satori's bundled version in `next/og` (v0.7.2, Next.js 15.5.13) **natively supports `textShadow`** -- no duplicate-element workaround needed. Verified in compiled source. |
-| Text outline with color + thickness | Canva "Hollow" and "Splice" effects, Adobe Express outline -- second most-used text effect after shadow. | Low-Med | Satori natively supports `WebkitTextStrokeWidth` + `WebkitTextStrokeColor` (merged Nov 2024, present in bundled build). Should work directly. |
-| Background highlight behind text | Standard readability technique for text over photos. Canva calls it "Background" effect. Essential for carousel slides where text sits on busy images. | Med | Two sub-styles needed: tight (inline marker) and full-width (banner). Tight is harder in Satori -- see Differentiators. |
-| Per-element independence | Each text box (hook, body, custom) must have its own independent effect settings. Shared global effects would be a dealbreaker. | Low | Already planned in the `TextEffects` interface on `SlideStyleOverrides` and `CustomText`. No extra complexity. |
-| Toggle on/off per effect | Users must be able to enable/disable each effect independently without losing their settings (color, size). | Low | Standard boolean toggle pattern. Sub-controls hidden when toggle is off. |
-| Color picker for each effect | Shadow, outline, and highlight all need color control. Swatch presets + full picker. | Low | Reuse existing color swatch + picker pattern from text color controls in `text-editor-panel.tsx`. |
+| **Create API key with name/label** | Every API dashboard (Stripe, OpenAI, Resend, Vercel) lets you name keys for identification. Developers manage multiple keys for different environments/services. | LOW | Simple form: name input + create button. Store SHA-256 hash, show full key once. `vsl_` prefix already defined in OpenAPI spec. |
+| **Show key only once on creation** | Industry standard security pattern. Stripe, OpenAI, Vercel all do this. Prevents key exposure from dashboard screenshots or shoulder surfing. | LOW | Display key in a copy-to-clipboard modal immediately after creation. Never store or show plaintext again. |
+| **Revoke/delete API key** | Developers need to invalidate compromised or unused keys immediately. Every API provider supports this. | LOW | Hard-delete with confirmation dialog. Takes effect immediately. No grace period needed at this scale. |
+| **List all API keys with metadata** | Developers need to see which keys exist, when created, when last used. Resend shows last-used timestamps with color indicators. | LOW | Table: name, key prefix (`vsl_...abc`), created date, last used date. Existing settings layout provides the shell. |
+| **Bearer token authentication** | `Authorization: Bearer vsl_...` is the universal pattern. Already defined in OpenAPI spec. Developers will not read docs if this doesn't work as expected. | MEDIUM | Middleware intercepts `/api/v1/*`, extracts Bearer token, SHA-256 hashes it, looks up in `api_keys` table, resolves user_id. Must bypass Supabase session auth for these routes. |
+| **Consistent JSON error responses** | Structured `{ error: { code, message } }` format. Already defined in OpenAPI spec with codes like UNAUTHORIZED, RATE_LIMITED, VALIDATION_ERROR. Developers script against error codes, not messages. | LOW | Error codes already defined. Implement a shared error response helper used by all endpoints. |
+| **Rate limiting with standard headers** | `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After` headers. Already in OpenAPI spec. Developers build retry logic around these. | MEDIUM | Upstash Redis rate limiting already mentioned as planned. Wire per API key with tier-based limits. Return headers on every response, not just 429s. |
+| **Credit balance enforcement** | API calls that consume credits (carousel generation) must check balance and return 402 with INSUFFICIENT_CREDITS. Already defined in OpenAPI spec. | LOW | Reuse existing `deductCredit()` and `getCreditBalance()` RPC functions. Add `x-credits-remaining` and `x-credits-used` response headers as spec defines. |
+| **OpenAPI spec + interactive docs** | Scalar playground already exists at /docs. Developers expect to test endpoints directly from docs. | LOW | Already built. Ensure spec stays in sync as endpoints are implemented. |
+| **All 10 defined endpoints working** | The OpenAPI spec promises specific endpoints. If the spec exists but endpoints return 404, developers lose trust immediately. | HIGH | Bulk of the work: POST /carousel, GET/POST /projects, GET/DELETE /projects/:id, GET/PATCH /projects/:id/slides/:index, POST /projects/:id/render, GET /projects/:id/download, GET /projects/:id/download/:index. Most reuse existing server-side logic. |
 
-## Differentiators
+### Differentiators (Competitive Advantage)
 
-Features that set the product apart from carousel-specific competitors. PostNitro, aiCarousels, and PostWaffle have **zero** text effects -- shipping any of these puts the product ahead.
+Features that elevate developer experience beyond table stakes. Not required for launch but add polish.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Shadow size presets (S/M/L) | Simpler than Canva's offset-x/offset-y/blur/spread sliders. Faster for carousel creators who want "good enough" quickly. Three presets mapping to offset values (2px/4px/6px) is the right abstraction level. | Low | Canva uses 4 sliders (offset, direction, blur, transparency). Our preset approach trades flexibility for speed -- correct tradeoff for the carousel use case. |
-| Tight highlight ("marker" style) | Text with per-line background color, like a highlighter pen. Very popular on Instagram/TikTok carousels for readability. Most carousel tools lack this. | Med-High | Requires `box-decoration-break: clone` on inline `<span>` elements in browser renderers (preview + HTML export). Satori likely does NOT support `box-decoration-break` for inline elements -- will need a per-line-wrapping workaround or accept full-width-only in PNG export. **This is the hardest feature in the set.** |
-| Full-width highlight (banner style) | Colored rectangle behind entire text box. Simpler variant of highlight. | Low | Just a `<div>` with `backgroundColor` and padding behind the text. Works in all three renderers including Satori. |
-| Highlight padding control | Slider for padding around highlighted text (4-24px). Gives users fine control over how much "breathing room" the highlight has. | Low | Simple numeric slider mapped to padding value. |
-| Effect combinations | Shadow + outline + highlight can all be enabled simultaneously on the same text element. | Low | Each effect is independent in the data model. CSS properties and Satori styles compose naturally. |
+| **API key usage analytics (request count, last used)** | Resend shows per-key request counts and last-used timestamps with color coding. Helps developers identify unused keys and monitor usage patterns. | LOW | Increment counter and update `last_used_at` on each authenticated request. Display in settings table. Low cost, high perceived value. |
+| **Multiple API keys per user** | Developers use separate keys for dev/staging/prod or per-application. Stripe, OpenAI, Resend all support multiple keys. | LOW | Already implied by one-to-many user-to-keys data model. No extra work beyond allowing multiple creates. Cap at 5-10 keys per user. |
+| **Copy-to-clipboard with confirmation** | Small UX detail but every good API dashboard has it. One click to copy key or code snippet. | LOW | Clipboard API with toast notification. |
+| **Key prefix visibility in dashboard** | Show `vsl_...abc` (prefix + last 4 chars) so developers can identify which key is which without exposing the full key. | LOW | Store first 8 and last 4 characters as plaintext alongside the hash. |
+| **Quick-start code snippets on creation** | After key creation, show copy-pasteable curl/JS/Python examples. Reduces time-to-first-request from minutes to seconds. | LOW | Static templates with key interpolation. Show on creation modal. |
+| **"Try it" auth in Scalar docs** | Scalar playground can pre-fill Bearer token for authenticated testing directly in the docs UI. | LOW | Scalar supports auth configuration. Wire API key input into the playground header. |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build in this milestone.
+Features that seem good but create problems for a product at this stage.
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Blur radius control for shadow | Satori renders shadows as sharp-edged (no blur in SVG text-shadow). Adding a blur slider would look correct in the browser preview but wrong in PNG export -- creating a confusing WYSIWYG mismatch. | Use the S/M/L presets which control offset only. The sharp shadow at 1080x1920 looks fine. Revisit blur if/when switching to Playwright renderer. |
-| Gradient text fills | Requires `background-clip: text` which Satori supports but is complex to combine with outline and shadow effects. Different feature category. | Defer to a future "Advanced Text Effects" milestone. |
-| Neon glow effect | Requires blurred shadow (multiple `text-shadow` values with blur). Same WYSIWYG mismatch problem as blur radius. Canva's neon is impressive but Satori cannot reproduce it. | Defer until Playwright/canvas renderer is available. |
-| Curved/warped text | Completely different rendering approach (SVG path text). Not a "text effect" in the CSS sense. | Separate milestone entirely. |
-| Per-character effects | Animating or styling individual characters differently. Massive complexity for minimal carousel value. | Not applicable to static carousel images. |
-| Offset X/Y sliders for shadow | Canva-style directional shadow control. Over-engineered for carousel use case. Most users just want "add shadow to make text readable." | S/M/L presets with fixed 45-degree offset direction. Simpler, faster, and avoids the Satori blur mismatch. |
-| Outline-only text (hollow) | Canva's "Hollow" removes fill color leaving only stroke. Niche use case, adds UI complexity (need to explain fill vs stroke). | Can be achieved by setting text color to transparent + enabling outline. Don't need a separate toggle. |
-| Multiple shadows | CSS supports comma-separated `text-shadow` values for stacked effects. Over-engineered for v2.1. | Single shadow per element is sufficient. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Scoped/restricted key permissions** | Stripe and OpenAI offer granular per-resource permissions (read-only, write-only, specific endpoints). | Massive complexity for a 10-endpoint API. Requires permission checks on every route, a permissions UI, and ongoing maintenance as endpoints evolve. Stripe has hundreds of endpoints -- ViralSlideMaker has 10. | All keys get full access. If needed later, add a simple "read-only" vs "full access" toggle (two levels, not per-endpoint). |
+| **Test mode / sandbox keys** | Stripe has separate test and live environments with distinct keys. | Requires duplicating the entire data layer (test projects, test credits). Enormous scope for a product that doesn't handle money through its API. | Let developers use the API on the free tier. Free credits serve as the "sandbox." |
+| **API key rotation with grace period** | Enterprise pattern where old and new keys overlap for a transition window. Paddle offers 60-minute reactivation. | Complex state management (two valid keys, expiry timers, notification system). Overkill when keys are self-service and instant to create. | Developer creates new key, updates their app, deletes old key. Manual rotation is fine at this scale. |
+| **OAuth2 / JWT token exchange** | Some APIs offer OAuth flows for third-party integrations. | Orders of magnitude more complex than API keys. Requires authorization server, consent flows, token refresh. Only needed if third-party apps integrate on behalf of users. | Stick with API keys. Evaluate OAuth later only if third-party integration demand emerges. |
+| **Per-endpoint rate limits** | Different rate limits for reads vs writes. | Complex configuration, confusing for developers, hard to communicate. The API has 10 endpoints. | Single rate limit per key based on subscription tier (e.g., 60/min free, 300/min plus, 1000/min pro). Simple and predictable. |
+| **API versioning infrastructure** | Future-proofing with v1/v2 coexistence. | Maintaining two codepaths is expensive. Zero consumers exist to break. | Use `/api/v1/` prefix (already done). When v2 is needed, deprecate v1 with sunset timeline. Don't build v2 infrastructure now. |
+| **Admin/organization-level keys** | OpenAI has org owners, project members, service accounts. | No multi-tenant or team features exist. Adding org structure just for API keys creates a half-built abstraction. | One user = one account = their API keys. Add team/org features as a separate milestone if demand emerges. |
+| **Automatic key expiration** | Keys that auto-expire after 90 days. Enterprise compliance feature. | Requires expiry tracking, notification pipeline, re-authentication flows. | No expiration. Developers revoke keys manually when done. Add expiration only when enterprise customers demand it. |
 
 ## Feature Dependencies
 
 ```
-Text shadow --------> Color picker component (exists)
-                  \-> S/M/L preset button group (new, but pattern exists in text position presets)
+[API keys table + RLS policies]
+    |
+    +--requires--> [Bearer token auth middleware]
+    |                  |
+    |                  +--requires--> [All 10 REST endpoints]
+    |                  |                  |
+    |                  |                  +--requires--> [Credit deduction for API calls]
+    |                  |
+    |                  +--requires--> [Rate limiting per key]
+    |
+    +--requires--> [API key management UI in settings]
+                       |
+                       +--enhances--> [Usage analytics per key]
+                       +--enhances--> [Quick-start code snippets]
 
-Text outline -------> Color picker component (exists)
-                  \-> Thickness slider (new, but pattern exists in font-size slider)
-
-Background highlight -> Color picker component (exists)
-                    \-> Style toggle: tight/full-width (new button group)
-                    \-> Padding slider (new, reuse slider pattern)
-                    \-> Tight highlight needs per-line wrapping logic (new, complex)
-
-All effects ---------> TextEffects interface in slide.ts (new)
-                    \-> Per-element storage on SlideStyleOverrides + CustomText (new fields)
-                    \-> Three renderers updated: preview, Satori, HTML
-
-Satori renderer -----> textShadow CSS property (verified: supported in bundled @vercel/og 0.7.2)
-                    \-> WebkitTextStrokeWidth/Color (verified: supported in bundled build)
-                    \-> backgroundColor on wrapping elements (verified: supported)
+[Existing credit system] --reused-by--> [Credit deduction for API calls]
+[Existing Supabase session auth] --bypassed-by--> [Bearer token auth middleware]
+[Existing OpenAPI spec] --guides--> [All 10 REST endpoints]
+[Existing Satori renderer] --reused-by--> [Render + download endpoints]
+[Existing Scalar docs] --enhanced-by--> [Working endpoints]
 ```
 
-**Critical dependency chain:** Types -> Satori renderer -> Preview renderer -> HTML renderer -> Editor UI. Types must be defined first. Renderer updates must happen before UI so there is something to preview.
+### Dependency Notes
 
-## Rendering Compatibility Matrix
+- **API keys table** is the foundation -- nothing else works without it. Must be created first with proper RLS policies so users can only see/manage their own keys.
+- **Bearer token middleware** must bypass the existing Supabase session middleware for `/api/v1/*` routes. The current middleware (`src/middleware.ts`) redirects unauthenticated requests to `/login`, which would break API calls with 302 redirects instead of 401 JSON errors.
+- **Credit deduction** reuses the existing `deductCredit()` Postgres RPC (`src/lib/credits/check-credits.ts`). No new credit logic needed -- just wire into generation endpoints.
+- **Render/download endpoints** reuse existing server-side Satori/ImageResponse rendering. The API is a thin interface over existing capabilities.
+- **Rate limiting** depends on knowing the API key (and therefore the user's tier) to set appropriate limits. Must resolve user before applying limits.
+- **Settings UI** depends on the API keys table existing but is independent of the REST endpoints themselves.
 
-This is the key constraint driving feature decisions.
+## MVP Definition
 
-| Effect | Browser Preview | Satori PNG Export | HTML Export | Fidelity Match |
-|--------|----------------|-------------------|-------------|----------------|
-| Shadow (no blur) | `text-shadow` CSS | `textShadow` (native) | `text-shadow` CSS | HIGH -- all three use real CSS/equivalent |
-| Outline | `-webkit-text-stroke` | `WebkitTextStrokeWidth` + `WebkitTextStrokeColor` (native) | `-webkit-text-stroke` | HIGH -- native support confirmed |
-| Highlight: full-width | `div` with `backgroundColor` | `div` with `backgroundColor` | `div` with `backgroundColor` | HIGH -- identical approach |
-| Highlight: tight | `span` + `box-decoration-break: clone` | Likely needs wrapper `div` per line or accept full-width fallback | `span` + `box-decoration-break: clone` | LOW-MED -- Satori may not match browser rendering |
+### Launch With (v2.2)
 
-## Satori Native Support Finding (IMPORTANT)
+Minimum viable API -- what's needed for developers to actually use the REST API.
 
-**The design doc (`docs/plans/2026-04-07-text-effects-design.md`) recommends duplicate-element workarounds for shadow and outline in Satori. This research finds that native CSS properties may work directly, which would significantly reduce implementation complexity.**
+- [ ] **API keys Supabase table** -- SHA-256 hashed keys, user_id FK, name, key_prefix, created_at, last_used_at, RLS policies
+- [ ] **Create API key** -- server action generates `vsl_` prefixed key, returns plaintext once, stores hash
+- [ ] **List API keys** in settings UI -- name, prefix, created date, last used
+- [ ] **Revoke API key** with confirmation dialog
+- [ ] **Bearer token auth middleware** -- intercepts `/api/v1/*`, hashes token, looks up key, resolves user
+- [ ] **Middleware bypass** -- `/api/v1/*` routes skip Supabase session redirect, use Bearer auth instead
+- [ ] **POST /carousel** -- AI content generation + image sourcing, costs 1 credit
+- [ ] **GET /projects** -- list user's projects
+- [ ] **POST /projects** -- create empty project
+- [ ] **GET /projects/:id** -- get project with slides
+- [ ] **DELETE /projects/:id** -- delete project
+- [ ] **GET /projects/:id/slides/:index** -- get single slide
+- [ ] **PATCH /projects/:id/slides/:index** -- update slide fields
+- [ ] **POST /projects/:id/render** -- render all slides, return download URLs
+- [ ] **GET /projects/:id/download** -- download all slides as ZIP
+- [ ] **GET /projects/:id/download/:index** -- download single slide as PNG
+- [ ] **Rate limiting per API key** via Upstash Redis, tier-based limits
+- [ ] **Credit enforcement** on generation endpoints with 402 responses and credit headers
+- [ ] **Consistent error responses** matching OpenAPI spec error schema
 
-Verified by inspecting the compiled `@vercel/og` (v0.7.2) bundled with Next.js 15.5.13:
-- `textShadow` is parsed and rendered (found: parser function, shadow offset/radius/color handling)
-- `WebkitTextStrokeWidth` and `WebkitTextStrokeColor` are in the supported property set
-- Both are in the inheritable text properties set
+### Add After Validation (v2.x)
 
-**Recommendation:** Try native CSS properties in Satori FIRST. Only fall back to duplicate-element workarounds if native rendering produces visual artifacts. This could save 10+ hours of implementation time.
+Features to add once real developers are using the API.
 
-**Confidence:** HIGH -- verified in actual compiled source code at `node_modules/next/dist/compiled/@vercel/og/index.node.js`.
+- [ ] **Usage analytics dashboard** -- per-key request counts, last-used color indicators -- add when API user count justifies the UI
+- [ ] **Quick-start code snippets** -- curl/JS/Python examples on key creation and in docs -- add when developer onboarding friction is observed
+- [ ] **Read-only key permission** -- simple toggle (full vs read-only) -- add when developers request it
+- [ ] **API usage in credit history** -- show API-triggered deductions in existing usage history page with "API" badge
 
-**Caveat:** The `paint-order` behavior for outline depends on the resvg version bundled with `@vercel/og`. If stroke renders on top of fill (obscuring thin text), the 4-element cardinal workaround may still be needed for outline specifically. A quick spike will determine this.
+### Future Consideration (v3+)
 
-## MVP Recommendation
+- [ ] **Webhook notifications** -- for async generation if processing time increases -- defer until synchronous times become a problem
+- [ ] **Team/org API keys** -- shared keys across team members -- defer until team features exist
+- [ ] **API key expiration** -- auto-expire after configurable period -- defer until enterprise customers request compliance features
+- [ ] **Official SDK packages** -- npm/pip wrappers for the REST API -- defer until API surface stabilizes and user count justifies maintenance
 
-Prioritize in this order:
+## Feature Prioritization Matrix
 
-1. **TextEffects type + data model** -- Foundation for everything. Low complexity, zero risk.
-2. **Text shadow (all three renderers)** -- Highest user impact (readability on photos), lowest complexity given native Satori support. Use native `textShadow` in Satori, no duplicate elements.
-3. **Text outline (all three renderers)** -- Second highest impact, also natively supported. Use `WebkitTextStrokeWidth`/`Color` in Satori.
-4. **Background highlight: full-width** -- Simple `div` with `backgroundColor` works identically in all renderers. Ship this first.
-5. **Background highlight: tight** -- Most complex feature due to Satori limitations with inline `box-decoration-break`. May need a per-line wrapper approach or accept visual difference between preview and export. Ship as stretch goal or accept full-width fallback in PNG export.
-6. **Editor UI panel** -- Build after renderers are working so controls have visible feedback.
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| API keys table + RLS | HIGH | LOW | P1 |
+| Create API key (UI + action) | HIGH | LOW | P1 |
+| List/revoke API keys (UI) | HIGH | LOW | P1 |
+| Bearer token auth middleware | HIGH | MEDIUM | P1 |
+| Middleware bypass for /api/v1/* | HIGH | LOW | P1 |
+| POST /carousel endpoint | HIGH | MEDIUM | P1 |
+| Project CRUD endpoints (4) | HIGH | MEDIUM | P1 |
+| Slide get/patch endpoints (2) | HIGH | LOW | P1 |
+| Render endpoint | HIGH | MEDIUM | P1 |
+| Download endpoints (2) | HIGH | MEDIUM | P1 |
+| Rate limiting per key | HIGH | LOW | P1 |
+| Credit enforcement + headers | HIGH | LOW | P1 |
+| Error response helper | MEDIUM | LOW | P1 |
+| Usage analytics per key | MEDIUM | LOW | P2 |
+| Code snippets on creation | MEDIUM | LOW | P2 |
+| Read-only key permission | LOW | MEDIUM | P3 |
+| Webhook notifications | LOW | HIGH | P3 |
 
-**Defer from MVP:** Blur radius for shadow, neon glow, gradient text, curved text. These all require a rendering pipeline change (Satori to Playwright/canvas).
+**Priority key:**
+- P1: Must have for v2.2 launch (API is non-functional without these)
+- P2: Should have, add when developer feedback supports it
+- P3: Nice to have, future consideration based on adoption
 
-## Complexity Assessment
+## Competitor Feature Analysis
 
-| Feature | Implementation Effort | Risk |
-|---------|----------------------|------|
-| Shadow (native Satori) | 2-3 hours | Low -- native support verified |
-| Shadow (duplicate-element fallback) | 4-6 hours | Low -- well-understood pattern, but likely unnecessary |
-| Outline (native Satori) | 2-3 hours | Low-Med -- `paint-order` rendering depends on resvg version |
-| Outline (4-element cardinal fallback) | 6-8 hours | Med -- alignment edge cases at different font sizes |
-| Highlight: full-width | 2-3 hours | Low -- simple wrapper div |
-| Highlight: tight | 6-10 hours | Med-High -- `box-decoration-break` unlikely in Satori, need line-splitting logic |
-| Editor UI (all controls) | 4-6 hours | Low -- reuses existing patterns (toggles, swatches, sliders) |
-| Per-element data model | 1-2 hours | Low -- optional fields on existing interfaces |
-
-**Total estimate (native approach):** 15-25 hours
-**Total estimate (workaround approach):** 25-35 hours
+| Feature | Stripe | OpenAI | Resend | Vercel | Our Approach |
+|---------|--------|--------|--------|--------|--------------|
+| Key prefix | `sk_live_`, `sk_test_` | `sk-proj-` | `re_` | `vercel_` | `vsl_` (already defined) |
+| Show once | Yes (live keys) | Yes | Yes | Yes | Yes |
+| Multiple keys | Yes | Yes (per project) | Yes | Yes | Yes (cap at 10) |
+| Key naming | Restricted keys only | Yes | Yes | Yes | Yes |
+| Permissions/scopes | Full, restricted per-resource | All, read-only, restricted | Full, sending-only | Account, team | Full access only (simplicity) |
+| Test/live separation | Yes (core feature) | No | No | No | No (free tier = sandbox) |
+| Last used indicator | No | No | Yes (color-coded) | No | Yes (timestamp) |
+| Request count per key | No | Yes (usage page) | Yes (per key) | No | Defer to P2 |
+| Rate limit headers | Yes | Yes | Yes | Yes | Yes (already in spec) |
+| Interactive docs | Yes | Yes | Yes | Yes | Yes (Scalar already deployed) |
+| Code snippets | Yes (per-language) | Yes | Yes | Yes | P2 (start with curl) |
+| Credit/usage headers | N/A | N/A | N/A | N/A | Yes (`x-credits-remaining`, `x-credits-used`) |
 
 ## Sources
 
-- [Satori GitHub repository](https://github.com/vercel/satori) -- CSS support reference
-- [Satori text-stroke PR #645](https://github.com/vercel/satori/pull/645) -- Merged Nov 2024, adds WebkitTextStroke support
-- [Satori outdated in next/og - Issue #72940](https://github.com/vercel/next.js/issues/72940) -- Version tracking
-- [Canva text effects help](https://www.canva.com/help/text-effects/) -- Competitor feature reference
-- [Adobe Express shadow effects](https://helpx.adobe.com/express/web/add-effects-to-your-designs/add-text/add-shadow-effects-to-text.html) -- Competitor reference
-- [CSS box-decoration-break MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-decoration-break) -- Tight highlight technique
-- [Multi-line padded text CSS-Tricks](https://css-tricks.com/multi-line-padded-text/) -- Implementation patterns for tight highlights
-- Verified: compiled `@vercel/og` source at `node_modules/next/dist/compiled/@vercel/og/index.node.js` confirms `textShadow`, `WebkitTextStrokeWidth`, `WebkitTextStrokeColor` support
+- [Stripe API Keys Documentation](https://docs.stripe.com/keys)
+- [Stripe Restricted API Keys](https://docs.stripe.com/keys/restricted-api-keys)
+- [Stripe API Key Best Practices](https://docs.stripe.com/keys-best-practices)
+- [OpenAI Project Management](https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects)
+- [OpenAI API Key Permissions](https://help.openai.com/en/articles/8867743-assign-api-key-permissions)
+- [OpenAI Authentication in 2025](https://www.datastudios.org/post/openai-authentication-in-2025-api-keys-service-accounts-and-secure-token-flows-for-developers-and)
+- [Resend API Keys Introduction](https://resend.com/docs/dashboard/api-keys/introduction)
+- [Vercel Tokens Documentation](https://vercel.com/docs/sign-in-with-vercel/tokens)
+- [Vercel New Token Formats and Secret Scanning](https://vercel.com/changelog/new-token-formats-and-secret-scanning)
+- [API Key Management Best Practices 2025](https://multitaskai.com/blog/api-key-management-best-practices/)
+- [API Key Rotation Best Practices](https://www.peakhour.io/learning/application-security/api-key-management-best-practices/)
+- [AI API Security Best Practices 2026](https://crazyrouter.com/en/blog/ai-api-security-best-practices-2026)
+- Existing codebase: OpenAPI spec (`src/lib/api/openapi.ts`), credit system (`src/lib/credits/check-credits.ts`), middleware (`src/middleware.ts`, `src/lib/supabase/middleware.ts`), settings layout (`src/app/(dashboard)/settings/layout.tsx`)
+
+---
+*Feature research for: Public REST API with Per-User API Keys*
+*Researched: 2026-04-08*

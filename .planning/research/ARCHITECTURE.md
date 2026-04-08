@@ -1,344 +1,557 @@
-# Architecture: Text Effects (Shadow, Outline, Highlight)
+# Architecture Research
 
-**Domain:** Text effect rendering across three-renderer slide creator
-**Researched:** 2026-04-07
+**Domain:** Per-user API key auth + REST API layer for existing Next.js 15 + Supabase SaaS
+**Researched:** 2026-04-08
 **Confidence:** HIGH
 
-## Critical Finding: Satori Supports Native CSS Effects
-
-The milestone context assumed Satori cannot render `text-shadow`, `-webkit-text-stroke`, or CSS `filter`, requiring duplicate-element workarounds. **This is incorrect.** Verification of the bundled `@vercel/og` in Next.js 15.5.13 confirms:
-
-| CSS Property | Satori Support | Verified How |
-|---|---|---|
-| `textShadow` | YES -- rendered as SVG `<filter>` with `feGaussianBlur` + `feOffset` + `feMerge` | Found `buildDropShadow` and `satori_s-` filter IDs in compiled bundle |
-| `WebkitTextStrokeWidth` / `WebkitTextStrokeColor` | YES -- parsed and rendered as SVG `stroke` + `strokeWidth` on text | Found parser at line 16267 of compiled bundle |
-| `boxShadow` | YES | Confirmed in Satori README CSS support table |
-| `filter` | YES | Confirmed in Satori README |
-| `backgroundClip: 'text'` | YES (`border-box`, `text` values) | Confirmed in Satori README |
-
-**Source:** [Satori GitHub README CSS support table](https://github.com/vercel/satori), verified against compiled `node_modules/next/dist/compiled/@vercel/og/index.node.js`.
-
-**Implication:** The entire "fake shadow with duplicate offset elements" and "fake outline with 4 cardinal-direction duplicates" approach is unnecessary. All three renderers (React preview, Satori PNG, HTML export) can use the same CSS properties directly. This reduces complexity by roughly 60%.
-
-## Recommended Architecture
-
-### Overview: Unified CSS Approach
-
-Since all three renderers support the same CSS properties, the architecture is straightforward: add effect data to the type system, resolve effect CSS in `resolve-styles.ts`, and apply the same CSS in all three renderers.
+## System Overview
 
 ```
-TextEffects data (types/slide.ts)
-    |
-    v
-resolveSlideStyles() adds resolved effect CSS strings
-    |
-    +---> SlidePreview (React inline styles -- textShadow, WebkitTextStrokeWidth, etc.)
-    +---> buildSlideElement (Satori JSX -- same inline styles, rendered as SVG filters)
-    +---> buildSlideHtml (HTML/CSS -- text-shadow, -webkit-text-stroke, etc.)
+                          Clients
+            ┌───────────────┬──────────────────┐
+            │ Web Browser   │  API Consumer     │
+            │ (cookies)     │  (Bearer vsl_*)   │
+            └──────┬────────┴────────┬──────────┘
+                   │                 │
+            ┌──────┴────────┐ ┌─────┴──────────────┐
+            │  Middleware    │ │  Middleware         │
+            │  (session     │ │  (skip session for  │
+            │   refresh)    │ │   /api/v1/*)        │
+            └──────┬────────┘ └─────┬──────────────┘
+                   │                │
+            ┌──────┴────────┐ ┌─────┴──────────────┐
+            │  Server       │ │  Route Handlers     │
+            │  Actions      │ │  app/api/v1/*/      │
+            │  (cookie auth)│ │  route.ts           │
+            └──────┬────────┘ └─────┬──────────────┘
+                   │                │
+                   │         ┌──────┴──────────────┐
+                   │         │  authenticateApiKey  │
+                   │         │  (Bearer → user_id)  │
+                   │         │  via admin client    │
+                   │         └──────┬──────────────┘
+                   │                │
+            ┌──────┴────────────────┴──────────────┐
+            │         Shared Service Layer          │
+            │  (generateCarouselCore, credits,      │
+            │   project CRUD, render)               │
+            ├──────────────────────────────────────┤
+            │  Supabase Admin Client                │
+            │  (service_role — bypasses RLS)         │
+            ├──────────────────────────────────────┤
+            │  PostgreSQL (RLS enabled)             │
+            │  ┌──────────┐ ┌──────────────────┐   │
+            │  │ projects │ │ credit_txns      │   │
+            │  │ api_keys │ │ subscriptions    │   │
+            │  └──────────┘ └──────────────────┘   │
+            └──────────────────────────────────────┘
 ```
 
-### Data Model: TextEffects Interface
+### Component Responsibilities
 
-Add a single `TextEffects` interface that all text elements reference. This keeps the effect definition DRY and allows per-element independence.
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| Next.js Middleware | Skip session refresh for `/api/v1/*` routes; continue session handling for web routes | Modify existing `src/middleware.ts` |
+| `authenticateApiKey()` | Extract Bearer token, SHA-256 hash, lookup in `api_keys` table, return `user_id` | New `src/lib/api/auth.ts` using admin client |
+| Route Handlers | HTTP method routing, request validation, response formatting for REST API | New `src/app/api/v1/*/route.ts` files |
+| Shared Service Layer | Core business logic (carousel gen, CRUD, render) callable by both server actions and route handlers | **Extract** from existing server actions into `src/lib/services/*.ts` |
+| Rate Limiter (Upstash) | Per-API-key rate limiting with sliding window | New `src/lib/api/rate-limit.ts` using `@upstash/ratelimit` |
+| API Key Manager | Create/revoke/list keys; SHA-256 hashing; `vsl_` prefix | New `src/lib/api/keys.ts` + server actions for UI |
+| Settings UI | Create/revoke API keys, show masked keys, copy-to-clipboard | New `src/app/(dashboard)/settings/api-keys/page.tsx` |
 
+## Recommended Project Structure
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── v1/
+│   │   │   ├── carousel/
+│   │   │   │   └── route.ts              # POST /api/v1/carousel
+│   │   │   ├── templates/
+│   │   │   │   └── route.ts              # GET /api/v1/templates
+│   │   │   ├── projects/
+│   │   │   │   ├── route.ts              # GET, POST /api/v1/projects
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.ts          # GET, DELETE /api/v1/projects/:id
+│   │   │   │       ├── slides/
+│   │   │   │       │   └── [index]/
+│   │   │   │       │       └── route.ts  # GET, PATCH .../:id/slides/:index
+│   │   │   │       ├── render/
+│   │   │   │       │   └── route.ts      # POST /api/v1/projects/:id/render
+│   │   │   │       └── download/
+│   │   │   │           ├── route.ts      # GET /api/v1/projects/:id/download
+│   │   │   │           └── [index]/
+│   │   │   │               └── route.ts  # GET .../:id/download/:index
+│   │   │   └── _lib/
+│   │   │       ├── api-response.ts       # Standardized JSON response helpers
+│   │   │       └── with-api-auth.ts      # Higher-order handler: auth + rate limit
+│   │   ├── render/                        # EXISTING — unchanged
+│   │   └── webhooks/                      # EXISTING — unchanged
+│   └── (dashboard)/
+│       └── settings/
+│           └── api-keys/
+│               ├── page.tsx               # NEW — API key management UI
+│               └── actions.ts             # NEW — create/revoke key server actions
+├── lib/
+│   ├── api/
+│   │   ├── openapi.ts                     # EXISTING — already defined
+│   │   ├── auth.ts                        # NEW — authenticateApiKey()
+│   │   ├── keys.ts                        # NEW — createApiKey, revokeApiKey, listApiKeys
+│   │   └── rate-limit.ts                  # NEW — Upstash Redis rate limiter for API
+│   ├── services/                           # NEW — extracted shared logic
+│   │   ├── carousel-service.ts            # Core carousel generation
+│   │   ├── project-service.ts             # CRUD operations
+│   │   └── render-service.ts              # Slide rendering
+│   ├── credits/                            # EXISTING — minor additions
+│   │   ├── check-credits.ts               # Add admin-client variant functions
+│   │   └── ...
+│   └── supabase/
+│       ├── admin.ts                        # EXISTING — used for API auth
+│       └── server.ts                       # EXISTING — cookie-based, web only
+└── middleware.ts                            # MODIFY — add /api/v1 bypass
+```
+
+### Structure Rationale
+
+- **`app/api/v1/_lib/`:** Colocated API utilities. Underscore prefix means Next.js App Router does not treat it as a route segment. Keeps auth wrapper and response helpers close to the route handlers.
+- **`lib/services/`:** Extract business logic from server actions so both server actions and route handlers call the same code. Server actions become thin wrappers that add `revalidatePath`.
+- **`lib/api/`:** API-specific concerns (key management, auth, rate limiting) separate from general lib code.
+- **Settings api-keys page:** Follows existing settings sidebar pattern -- add one nav item to the `settingsNav` array.
+
+## Architectural Patterns
+
+### Pattern 1: Higher-Order Auth Wrapper (withApiAuth)
+
+**What:** A function that wraps route handlers with Bearer token auth, rate limiting, and error handling. Returns the resolved `user_id` and admin Supabase client to the handler.
+**When to use:** Every `/api/v1/*` route handler.
+**Trade-offs:** Clean DRY pattern, adds one level of nesting. Worth it because every endpoint needs identical auth + rate limit + error format.
+
+**Example:**
 ```typescript
-// src/lib/types/slide.ts
+// src/app/api/v1/_lib/with-api-auth.ts
+import { authenticateApiKey } from '@/lib/api/auth'
+import { checkApiRateLimit } from '@/lib/api/rate-limit'
+import { apiError } from './api-response'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-export interface TextShadowEffect {
-  enabled: boolean
-  color: string          // hex, e.g. '#000000'
-  size: 'sm' | 'md' | 'lg'  // maps to predefined offset+blur values
+interface ApiContext {
+  userId: string
+  keyId: string
+  supabase: SupabaseClient  // admin client, bypasses RLS
 }
 
-export interface TextOutlineEffect {
-  enabled: boolean
-  color: string          // hex
-  width: number          // 1-8 px
-}
+type ApiHandler = (
+  request: Request,
+  context: ApiContext,
+  params: Record<string, string>
+) => Promise<Response>
 
-export interface TextHighlightEffect {
-  enabled: boolean
-  color: string          // hex with alpha, e.g. '#000000cc'
-  style: 'tight' | 'full'  // tight = inline padding, full = full-width block
-  padding: number        // 2-16 px
-}
-
-export interface TextEffects {
-  shadow?: TextShadowEffect
-  outline?: TextOutlineEffect
-  highlight?: TextHighlightEffect
-}
-```
-
-**Where effects attach:**
-
-```typescript
-// SlideStyleOverrides -- hook and body text
-export interface SlideStyleOverrides {
-  // ... existing fields ...
-  hook_effects?: TextEffects
-  body_effects?: TextEffects
-}
-
-// CustomText -- each custom text box
-export interface CustomText {
-  // ... existing fields ...
-  effects?: TextEffects
-}
-```
-
-### Style Resolution: Effect CSS Generation
-
-Add effect resolution to `resolve-styles.ts`. The resolver converts the semantic `TextEffects` data into concrete CSS property values.
-
-```typescript
-// src/lib/render/resolve-styles.ts (additions)
-
-const SHADOW_PRESETS = {
-  sm: { offsetX: 1, offsetY: 1, blur: 2 },
-  md: { offsetX: 2, offsetY: 2, blur: 4 },
-  lg: { offsetX: 3, offsetY: 4, blur: 8 },
-} as const
-
-export interface ResolvedTextEffectStyles {
-  textShadow?: string                 // CSS text-shadow value
-  WebkitTextStrokeWidth?: string      // e.g. '2px'
-  WebkitTextStrokeColor?: string      // hex color
-  // Highlight is structural (needs wrapper element), not just CSS on the text
-  highlight?: {
-    enabled: boolean
-    color: string
-    style: 'tight' | 'full'
-    padding: number
-  }
-}
-
-export function resolveTextEffects(effects?: TextEffects): ResolvedTextEffectStyles {
-  const result: ResolvedTextEffectStyles = {}
-
-  if (effects?.shadow?.enabled) {
-    const preset = SHADOW_PRESETS[effects.shadow.size]
-    result.textShadow = `${preset.offsetX}px ${preset.offsetY}px ${preset.blur}px ${effects.shadow.color}`
-  }
-
-  if (effects?.outline?.enabled) {
-    result.WebkitTextStrokeWidth = `${effects.outline.width}px`
-    result.WebkitTextStrokeColor = effects.outline.color
-  }
-
-  if (effects?.highlight?.enabled) {
-    result.highlight = {
-      enabled: true,
-      color: effects.highlight.color,
-      style: effects.highlight.style,
-      padding: effects.highlight.padding,
+export function withApiAuth(handler: ApiHandler) {
+  return async (
+    request: Request,
+    { params }: { params: Promise<Record<string, string>> }
+  ) => {
+    // 1. Extract and validate Bearer token
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return apiError('UNAUTHORIZED', 'Missing Authorization header', 401)
     }
-  }
+    const token = authHeader.slice(7)
 
+    // 2. Look up API key (SHA-256 hash, admin client)
+    const keyResult = await authenticateApiKey(token)
+    if (!keyResult) {
+      return apiError('UNAUTHORIZED', 'Invalid API key', 401)
+    }
+
+    // 3. Rate limit check (per key)
+    const rateResult = await checkApiRateLimit(keyResult.keyId)
+    if (!rateResult.ok) {
+      return apiError('RATE_LIMITED', 'Too many requests', 429, {
+        'Retry-After': String(rateResult.retryAfter),
+      })
+    }
+
+    // 4. Create admin client for handler
+    const supabase = createAdminClient()
+    const resolvedParams = await params
+
+    return handler(request, {
+      userId: keyResult.userId,
+      keyId: keyResult.keyId,
+      supabase,
+    }, resolvedParams)
+  }
+}
+```
+
+### Pattern 2: Service Extraction (Server Actions to Shared Services)
+
+**What:** Extract core logic from server actions into pure service functions that accept a Supabase client and userId as parameters (instead of reading cookies internally). Server actions become thin wrappers.
+**When to use:** Any logic needed by both web (server actions) and API (route handlers).
+**Trade-offs:** Requires refactoring existing server actions, but the change is mechanical: move logic out, pass dependencies in.
+
+**Example:**
+```typescript
+// src/lib/services/carousel-service.ts
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+export async function generateCarouselCore(
+  supabase: SupabaseClient,
+  userId: string,
+  projectId: string,
+  topic: string,
+  templateId: string,
+  options?: {
+    imageSource?: 'stock' | 'ai'
+    slideCount?: number
+    font?: string
+    fontColor?: string
+  }
+): Promise<
+  { success: true; slideCount: number }
+  | { success: false; error: string }
+> {
+  // Same logic as current generateCarousel server action
+  // but uses provided supabase client and userId
+}
+
+// src/app/(dashboard)/project/[id]/actions.ts (thin wrapper)
+'use server'
+export async function generateCarousel(...args) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+  const result = await generateCarouselCore(supabase, user.id, ...args)
+  if (result.success) {
+    revalidatePath(`/project/${args[0]}`)
+    revalidatePath('/dashboard')
+  }
   return result
 }
-```
 
-The `ResolvedSlideStyles` interface gains three new fields:
-
-```typescript
-export interface ResolvedSlideStyles {
-  // ... existing fields ...
-  hookEffects: ResolvedTextEffectStyles
-  bodyEffects: ResolvedTextEffectStyles
-  customTexts: Array<CustomText & {
-    resolvedFontFamily: string
-    resolvedEffects: ResolvedTextEffectStyles  // NEW
-  }>
-}
-```
-
-### Component Boundaries
-
-| Component | Responsibility | Changes |
-|---|---|---|
-| `src/lib/types/slide.ts` | Data model | Add `TextEffects`, `TextShadowEffect`, `TextOutlineEffect`, `TextHighlightEffect` interfaces; add `effects` field to `SlideStyleOverrides` (as `hook_effects`, `body_effects`) and `CustomText` |
-| `src/lib/render/resolve-styles.ts` | Style resolution | Add `resolveTextEffects()` function, add `SHADOW_PRESETS` map, extend `ResolvedSlideStyles` and `resolveSlideStyles()` |
-| `src/components/slides/slide-preview.tsx` | Editor preview | Apply `textShadow`, `WebkitTextStrokeWidth`/`Color` to text style objects; render highlight wrapper divs around text |
-| `src/lib/render/render-slide-satori.tsx` | Satori PNG export | Apply same CSS properties to JSX inline styles; wrap text in highlight divs when enabled |
-| `src/lib/render/render-slide.ts` | HTML export | Add `text-shadow`, `-webkit-text-stroke` CSS; add highlight `<span>` wrappers |
-| `src/components/editor/text-editor-panel.tsx` | Editor controls | Add Effects section with toggle+color+size controls for each effect type |
-| **NEW** `src/components/editor/text-effects-controls.tsx` | Reusable effect controls | Toggle, color picker, size/preset selectors for shadow/outline/highlight -- used by text-editor-panel for hook, body, and custom text |
-
-### Highlight Rendering: The One Structural Concern
-
-Shadow and outline are pure CSS properties on the text element. Highlight requires a structural wrapper because it needs a background behind the text:
-
-**Tight highlight** (inline, wraps each line):
-```tsx
-// All three renderers use the same approach
-<div style={{ position: 'absolute', left: ..., top: ..., width: ... }}>
-  <span style={{
-    backgroundColor: '#000000cc',
-    padding: '4px 8px',
-    // Satori supports display: 'inline' on spans
-    boxDecorationBreak: 'clone',  // NOT supported in Satori
-  }}>
-    {text}
-  </span>
-</div>
-```
-
-**Important Satori caveat:** `box-decoration-break: clone` is NOT in Satori's supported CSS list. This means multi-line tight highlights in Satori will render as a single bounding box rather than per-line background fragments.
-
-**Workaround for tight multi-line highlight in Satori:** Split text into individual lines and wrap each in its own `<span>` with background. This requires knowing line breaks, which is hard without layout information.
-
-**Recommendation:** For v2.1, implement tight highlight as a simple `backgroundColor` on the text container. It will look like a "full-width" block in practice. If per-line tight highlight is needed later, it can be added as a Satori-specific text-splitting enhancement. The "full" style works identically across all renderers with no workaround needed.
-
-**Full-width highlight** (block, full text box width):
-```tsx
-<div style={{
-  position: 'absolute', left: ..., top: ..., width: ...,
-  backgroundColor: '#000000cc',
-  padding: '8px 12px',
-  borderRadius: '4px',
-}}>
-  <span style={{ color: ..., fontSize: ..., /* other text styles */ }}>
-    {text}
-  </span>
-</div>
-```
-
-This works identically in all three renderers -- it is just a `backgroundColor` + `padding` on a container div.
-
-### Data Flow: Complete Path
-
-```
-User toggles shadow ON in TextEffectsControls
-    |
-    v
-TextEditorPanel calls onUpdate({
-  style_overrides: {
-    ...overrides,
-    hook_effects: { shadow: { enabled: true, color: '#000000', size: 'md' } }
-  }
+// src/app/api/v1/carousel/route.ts (API handler)
+export const POST = withApiAuth(async (request, { userId, supabase }) => {
+  const body = await request.json()
+  // validate with zod...
+  const result = await generateCarouselCore(supabase, userId, ...)
+  return NextResponse.json(result)
 })
-    |
-    v
-useSlideEditor reducer updates Slide.style_overrides.hook_effects
-    |
-    v
-SlidePreview re-renders:
-  - resolveSlideStyles() calls resolveTextEffects(overrides.hook_effects)
-  - Returns { textShadow: '2px 2px 4px #000000' }
-  - Applied as inline style on hook text element
-    |
-    v  (on export)
-render API route:
-  - buildSlideElement() reads same hook_effects from Slide
-  - Applies same textShadow inline style to Satori JSX
-  - Satori converts to SVG <filter> with feGaussianBlur
-  - ImageResponse rasterizes to PNG
 ```
 
-## Patterns to Follow
+### Pattern 3: API Key Authentication with SHA-256 Hashing
 
-### Pattern 1: Effect Controls as Reusable Component
+**What:** Store only the SHA-256 hash of the API key in the database. On each request, hash the provided token and look up the hash. The raw key is shown to the user exactly once at creation time.
+**When to use:** Always for API key storage.
+**Trade-offs:** Cannot retrieve the key after creation (by design). User must copy it immediately.
 
-Extract a `TextEffectsControls` component that takes current `TextEffects` and an `onChange` callback. This component is used three times: for hook text, body text, and the selected custom text box.
-
+**Example:**
 ```typescript
-// src/components/editor/text-effects-controls.tsx
-interface TextEffectsControlsProps {
-  effects: TextEffects | undefined
-  onChange: (effects: TextEffects) => void
-  label?: string  // "Hook Effects", "Body Effects", etc.
+// src/lib/api/keys.ts
+import crypto from 'crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+const KEY_PREFIX = 'vsl_'
+
+export async function createApiKey(userId: string, name: string) {
+  const rawKey = KEY_PREFIX + crypto.randomBytes(32).toString('base64url')
+  const keyHash = crypto
+    .createHash('sha256')
+    .update(rawKey)
+    .digest('hex')
+
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('api_keys')
+    .insert({
+      user_id: userId,
+      key_hash: keyHash,
+      name,
+      prefix: rawKey.slice(0, 8), // "vsl_XXXX" for display
+    })
+    .select('id, name, prefix, created_at')
+    .single()
+
+  if (error) throw error
+  return { ...data, rawKey } // rawKey shown once, then discarded
+}
+
+export async function authenticateApiKey(token: string) {
+  if (!token.startsWith(KEY_PREFIX)) return null
+  const keyHash = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex')
+
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('api_keys')
+    .select('id, user_id')
+    .eq('key_hash', keyHash)
+    .eq('revoked', false)
+    .single()
+
+  if (!data) return null
+
+  // Update last_used_at (fire-and-forget)
+  supabase
+    .from('api_keys')
+    .update({ last_used_at: new Date().toISOString() })
+    .eq('id', data.id)
+    .then(() => {})
+
+  return { keyId: data.id, userId: data.user_id }
 }
 ```
 
-### Pattern 2: Follow Existing Override Merge Pattern
+## Data Flow
 
-The codebase already uses a `slide.style_overrides?.X ?? default` pattern everywhere. Text effects follow the same pattern -- `undefined` means no effect, the presence of the object with `enabled: true` means active.
+### API Request Flow
 
-### Pattern 3: CSS Property Passthrough
+```
+API Consumer
+    |  Authorization: Bearer vsl_abc123...
+    v
+Next.js Middleware
+    |  pathname.startsWith('/api/v1') → skip session refresh
+    v
+Route Handler (e.g. POST /api/v1/carousel)
+    |  withApiAuth wrapper:
+    |    1. Extract Bearer token from header
+    |    2. SHA-256 hash the token
+    |    3. Lookup hash in api_keys table (admin client)
+    |    4. Verify key not revoked → get user_id
+    |    5. Rate limit check (Upstash Redis, keyed by key_id)
+    v
+Handler Logic
+    |  Parse + validate request body (Zod)
+    |  Call shared service (e.g. generateCarouselCore)
+    |    → Service uses admin client with explicit user_id filtering
+    |    → Credit deduction via deduct_credits RPC
+    v
+JSON Response
+    |  Envelope: { data: ... } or { error: { code, message } }
+    |  Headers: X-RateLimit-Limit, X-RateLimit-Remaining, x-credits-remaining
+    v
+API Consumer
+```
 
-Since all three renderers support the same CSS, the resolved styles can be spread directly onto style objects:
+### Credit Deduction Flow for API Callers
+
+```
+API Route Handler
+    v
+withApiAuth → resolves user_id from API key
+    v
+Service Layer (e.g. generateCarouselCore)
+    |  Receives: admin supabase client + user_id
+    |  Calls: supabase.rpc('deduct_credits', { p_user_id: userId, ... })
+    |  deduct_credits is SECURITY DEFINER → runs as postgres role
+    |  Advisory lock prevents concurrent deduction race conditions
+    |  Returns: true (deducted) or false (insufficient)
+    v
+If false → return 402 { error: { code: 'INSUFFICIENT_CREDITS' } }
+If true → proceed with generation
+    v
+Response includes x-credits-remaining header
+```
+
+**Key insight:** The existing `deduct_credits` RPC is `SECURITY DEFINER`, so it runs with elevated privileges regardless of the calling role. The admin client (service_role) can call it with any `user_id`. No changes to the RPC are needed.
+
+## Database: New `api_keys` Table
+
+```sql
+-- Migration: 007_api_keys.sql
+CREATE TABLE public.api_keys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  key_hash TEXT NOT NULL UNIQUE,       -- SHA-256 hex of the full key
+  prefix TEXT NOT NULL,                 -- First 8 chars ("vsl_abc1") for display
+  name TEXT NOT NULL DEFAULT 'Default', -- User-chosen label
+  revoked BOOLEAN NOT NULL DEFAULT false,
+  last_used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX api_keys_hash_idx
+  ON public.api_keys(key_hash) WHERE NOT revoked;
+CREATE INDEX api_keys_user_idx
+  ON public.api_keys(user_id);
+
+ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
+
+-- Users can view/manage their own keys (web UI with cookie auth)
+CREATE POLICY "Users can view own API keys"
+  ON public.api_keys FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own API keys"
+  ON public.api_keys FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own API keys"
+  ON public.api_keys FOR UPDATE
+  USING (auth.uid() = user_id);
+```
+
+**RLS note:** The web UI (cookie auth) uses the user's Supabase client, so RLS applies normally for viewing/revoking keys. The API auth lookup uses the admin client (service_role) to bypass RLS -- this is correct because the lookup happens before we know who the user is.
+
+## RLS Strategy for API Auth
+
+**Problem:** Cookie-based auth uses `auth.uid()` in RLS policies. API key auth has no Supabase session -- there is no `auth.uid()`.
+
+**Solution:** Use the admin client (service_role) for ALL API route database operations. The service_role bypasses RLS entirely. The service layer manually filters by `user_id` in every query.
+
+**Why this is safe:**
+1. `withApiAuth` resolves the Bearer token to a verified `user_id` before any handler runs.
+2. Every service function receives `userId` as a parameter and includes `.eq('user_id', userId)` in all queries.
+3. The admin client is never exposed to the client -- it only exists in server-side route handlers.
+4. This is the standard Supabase pattern for backend API key auth.
+
+**Alternative considered (Supabase impersonation via custom JWT):** Would let RLS work naturally, but adds JWT signing complexity, requires a JWT secret, and has worse performance (token creation on every request). Not worth it for this use case.
+
+## Middleware Changes
 
 ```typescript
-const effects = resolveTextEffects(overrides.hook_effects)
-const hookStyle = {
-  ...existingHookStyles,
-  textShadow: effects.textShadow,
-  WebkitTextStrokeWidth: effects.WebkitTextStrokeWidth,
-  WebkitTextStrokeColor: effects.WebkitTextStrokeColor,
+// src/middleware.ts -- updated
+import { updateSession } from '@/lib/supabase/middleware'
+import { type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  // Skip auth for webhook routes (Stripe webhooks)
+  if (request.nextUrl.pathname.startsWith('/api/webhooks')) {
+    return
+  }
+  // Skip session refresh for API v1 routes (Bearer token auth)
+  if (request.nextUrl.pathname.startsWith('/api/v1')) {
+    return
+  }
+  return await updateSession(request)
 }
 ```
 
-No renderer-specific branching needed for shadow and outline.
+**Why skip middleware entirely for `/api/v1`:** The `updateSession` middleware reads/refreshes Supabase cookies. API requests have no cookies -- running it is wasted work and can produce confusing error logs. `withApiAuth` handles auth independently.
 
-## Anti-Patterns to Avoid
+## Integration Points
 
-### Anti-Pattern 1: Duplicate Element Hacks for Satori
+### Existing Components Modified
 
-**What:** Creating multiple offset text elements to fake shadows, or 4 cardinal-direction copies to fake outlines.
-**Why bad:** Satori natively supports `textShadow` and `WebkitTextStrokeWidth`/`Color`. Duplicate elements double DOM size, break text selection, complicate position calculations, and produce worse visual output than native CSS.
-**Instead:** Use native CSS properties directly.
+| Component | Change | Risk |
+|-----------|--------|------|
+| `src/middleware.ts` | Add early return for `/api/v1/*` paths | LOW -- 3-line addition |
+| `src/app/(dashboard)/settings/layout.tsx` | Add "API Keys" nav item to `settingsNav` | LOW -- add one object |
+| `src/lib/credits/check-credits.ts` | Add `deductCreditAdmin(supabase, userId, ...)` variant that accepts a client param | LOW -- additive only |
+| `src/app/(dashboard)/project/[id]/actions.ts` | Refactor to thin wrapper calling `generateCarouselCore` | MEDIUM -- logic moves, behavior identical |
+| `src/app/(dashboard)/dashboard/actions.ts` | Refactor to thin wrapper calling service functions | LOW -- simple extraction |
 
-### Anti-Pattern 2: Renderer-Specific Code Paths
+### New Components
 
-**What:** `if (renderer === 'satori') { ... } else { ... }` branching in style resolution.
-**Why bad:** Since all three renderers support the same CSS properties for these effects, branching adds complexity with no benefit.
-**Instead:** Single `resolveTextEffects()` function, same output for all renderers. Only exception: the HTML renderer uses kebab-case (`text-shadow`) while React/Satori use camelCase (`textShadow`), but that is handled naturally by the different rendering approaches (inline styles vs CSS string).
+| Component | Purpose | Dependencies |
+|-----------|---------|-------------|
+| `supabase/migrations/007_api_keys.sql` | Database table + indexes + RLS | None |
+| `src/lib/api/auth.ts` | `authenticateApiKey()` | `supabase/admin`, `crypto` |
+| `src/lib/api/keys.ts` | `createApiKey()`, `revokeApiKey()`, `listApiKeys()` | `supabase/admin`, `crypto` |
+| `src/lib/api/rate-limit.ts` | Upstash Redis sliding-window rate limiter | `@upstash/ratelimit`, `@upstash/redis` |
+| `src/app/api/v1/_lib/with-api-auth.ts` | Auth + rate limit wrapper | `api/auth`, `api/rate-limit` |
+| `src/app/api/v1/_lib/api-response.ts` | `apiSuccess()`, `apiError()` helpers | None |
+| `src/lib/services/carousel-service.ts` | Extracted carousel generation logic | `ai/generate-slides`, `pexels`, `credits` |
+| `src/lib/services/project-service.ts` | Extracted project CRUD | `supabase` |
+| `src/lib/services/render-service.ts` | Extracted render logic | `render/`, `brand-kit/` |
+| 10 route handler files | One per OpenAPI endpoint | `with-api-auth`, services |
+| `settings/api-keys/page.tsx` | Key management UI | server actions |
+| `settings/api-keys/actions.ts` | Create/revoke key server actions | `api/keys` |
 
-### Anti-Pattern 3: Flat Effect Fields on SlideStyleOverrides
+### External Services
 
-**What:** Adding `hook_shadow_enabled`, `hook_shadow_color`, `hook_shadow_size`, `hook_outline_enabled`, etc. as flat fields.
-**Why bad:** Creates an explosion of 18+ new fields (3 effects x 3-4 params x 2 text elements). Hard to manage, hard to extend.
-**Instead:** Use nested `TextEffects` object: `hook_effects: { shadow: { enabled, color, size } }`.
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Upstash Redis | `@upstash/ratelimit` sliding window, keyed by `apikey:{key_id}` | Requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` env vars. Existing in-memory limiter does NOT work across serverless instances. |
+| Supabase (service_role) | Admin client for API key lookup + data access | Already exists at `src/lib/supabase/admin.ts`. No changes needed. |
 
-## Files to Create vs Modify
+## Scaling Considerations
 
-### New Files
-| File | Purpose |
-|---|---|
-| `src/components/editor/text-effects-controls.tsx` | Reusable UI controls for shadow/outline/highlight toggles, color pickers, size selectors |
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-1k API users | Current design works. Upstash free tier handles rate limiting. |
+| 1k-10k API users | Cache `key_hash -> user_id` in Redis (60s TTL) to reduce DB lookups. Partial index already covers this. |
+| 10k+ API users | Add API key scoping (read-only vs read-write). Usage analytics table. Key lookup cache mandatory. |
 
-### Modified Files (in build order)
-| File | Change | Depends On |
-|---|---|---|
-| `src/lib/types/slide.ts` | Add `TextEffects`, `TextShadowEffect`, `TextOutlineEffect`, `TextHighlightEffect` interfaces; add `hook_effects`/`body_effects` to `SlideStyleOverrides`, `effects` to `CustomText` | Nothing |
-| `src/lib/render/resolve-styles.ts` | Add `resolveTextEffects()`, `SHADOW_PRESETS`, extend `ResolvedSlideStyles` and `resolveSlideStyles()` | Types |
-| `src/lib/render/render-slide-satori.tsx` | Apply resolved effect styles to hook/body/custom text JSX elements; add highlight wrapper divs | Types, resolve-styles |
-| `src/lib/render/render-slide.ts` | Apply effect CSS to HTML output; add highlight spans | Types, resolve-styles |
-| `src/components/slides/slide-preview.tsx` | Apply resolved effect styles to text elements; add highlight wrappers | Types, resolve-styles |
-| `src/components/editor/text-effects-controls.tsx` | NEW -- build reusable effect controls component | Types |
-| `src/components/editor/text-editor-panel.tsx` | Import and render `TextEffectsControls` for hook, body, and selected custom text | Types, text-effects-controls |
+### Scaling Priorities
 
-### Tests to Add/Modify
-| File | Change |
-|---|---|
-| `src/lib/render/resolve-styles.test.ts` | Add tests for `resolveTextEffects()` with all effect combinations |
-| `src/__tests__/render/render-slide.test.ts` | Verify HTML output includes text-shadow, -webkit-text-stroke, background highlight |
+1. **First bottleneck: Key lookup latency.** Every API request queries Postgres. Fix: cache `key_hash -> user_id` in Upstash Redis with 60s TTL, invalidate on revoke.
+2. **Second bottleneck: Credit deduction contention.** Advisory lock serializes per-user. Fine for normal usage, only blocks under burst from a single user.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Using Cookie-Based Client in Route Handlers
+
+**What people do:** Call `createClient()` (from `@/lib/supabase/server`) in API route handlers.
+**Why it's wrong:** API requests have no cookies. The client becomes unauthenticated. Queries return empty results because RLS blocks everything (no `auth.uid()`).
+**Do this instead:** Always use `createAdminClient()` in route handlers and filter by `user_id` explicitly.
+
+### Anti-Pattern 2: Storing Plaintext API Keys
+
+**What people do:** Store the raw API key in the database for easier lookup.
+**Why it's wrong:** A database breach exposes all API keys.
+**Do this instead:** Store SHA-256 hash only. Show the raw key once at creation. Store a prefix for display.
+
+### Anti-Pattern 3: Using In-Memory Rate Limiter for API Keys
+
+**What people do:** Reuse the existing `rateLimit()` / `rateLimitBucket()` from `src/lib/rate-limit.ts`.
+**Why it's wrong:** Vercel serverless functions are ephemeral. Each instance has its own memory. Rate limits become effectively unlimited.
+**Do this instead:** Use Upstash Redis (`@upstash/ratelimit`) for distributed rate limiting. Keep in-memory limiter for web UI only.
+
+### Anti-Pattern 4: Duplicating Business Logic in Route Handlers
+
+**What people do:** Copy-paste carousel generation logic from server action into route handler.
+**Why it's wrong:** Two copies drift apart. Bug fixes only reach one path. Credit deduction inconsistencies.
+**Do this instead:** Extract into shared services. Both server actions and route handlers call the same function.
 
 ## Suggested Build Order
 
-Build order is dictated by dependencies. Each step should be independently testable.
+Build order accounts for dependencies between components:
 
-1. **Types** (`slide.ts`) -- Add all new interfaces and fields. No runtime impact, just type definitions.
-2. **Resolution** (`resolve-styles.ts` + test) -- Add `resolveTextEffects()` with `SHADOW_PRESETS`. Unit test this in isolation.
-3. **Satori renderer** (`render-slide-satori.tsx`) -- Apply resolved effects to JSX. Test by rendering a slide with effects and inspecting the PNG output.
-4. **HTML renderer** (`render-slide.ts`) -- Apply effects as CSS strings. Test by inspecting HTML output.
-5. **Preview renderer** (`slide-preview.tsx`) -- Apply effects to React inline styles. Visual verification in browser.
-6. **Effect controls UI** (`text-effects-controls.tsx` + `text-editor-panel.tsx`) -- Build the editor controls, wire up state updates.
+1. **Database + key management** (no external deps)
+   - `007_api_keys.sql` migration
+   - `src/lib/api/keys.ts` (create, revoke, list)
+   - `src/lib/api/auth.ts` (authenticateApiKey)
 
-Steps 3, 4, and 5 are independent of each other and could be done in parallel once step 2 is complete.
+2. **API infrastructure** (depends on step 1)
+   - `src/app/api/v1/_lib/api-response.ts`
+   - `src/app/api/v1/_lib/with-api-auth.ts`
+   - `src/lib/api/rate-limit.ts` (Upstash)
+   - Middleware update (add `/api/v1` bypass)
 
-## Scalability Considerations
+3. **Service extraction** (can parallel with step 2)
+   - `src/lib/services/project-service.ts`
+   - `src/lib/services/carousel-service.ts`
+   - `src/lib/services/render-service.ts`
+   - Update existing server actions to use services
 
-| Concern | Current (no effects) | With effects | Notes |
-|---|---|---|---|
-| Satori render time | ~200-400ms per slide | ~250-500ms per slide | SVG filters add minimal overhead |
-| Data model size | ~500 bytes per slide | ~700 bytes per slide | TextEffects adds ~200 bytes when populated |
-| HTML output size | ~1.5KB per slide | ~1.8KB per slide | Minor CSS additions |
-| Editor re-renders | Per-keystroke on text | Same + per-effect-toggle | No concern -- React handles this efficiently |
+4. **Route handlers** (depends on steps 2+3)
+   - Read-only first: GET templates, GET projects, GET project, GET slide
+   - Mutations: POST carousel, POST project, PATCH slide, DELETE project
+   - Binary: POST render, GET download, GET download/:index
+
+5. **Settings UI** (can parallel with step 4)
+   - `settings/api-keys/actions.ts`
+   - `settings/api-keys/page.tsx`
+   - Update settings layout nav
+
+6. **Polish + testing**
+   - End-to-end: create key -> call API -> verify response
+   - Credit deduction verification
+   - Rate limit verification
 
 ## Sources
 
-- [Satori GitHub README -- CSS support table](https://github.com/vercel/satori) (verified 2026-04-07)
-- Compiled `@vercel/og` bundle analysis: `node_modules/next/dist/compiled/@vercel/og/index.node.js`
-- Existing codebase: `resolve-styles.ts`, `render-slide-satori.tsx`, `render-slide.ts`, `slide-preview.tsx`
+- Existing codebase: `src/middleware.ts`, `src/lib/supabase/admin.ts`, `src/lib/api/openapi.ts`, `src/lib/credits/check-credits.ts`, `src/app/(dashboard)/project/[id]/actions.ts`, `supabase/migrations/005_credit_system.sql`
+- Next.js 15 App Router: route handlers use `export async function GET/POST(request, { params })` with `params` as a Promise
+- Supabase service_role: standard pattern for backend API key auth (bypasses RLS, requires manual user_id filtering)
+- Upstash Ratelimit: sliding window algorithm designed for serverless/edge
+
+---
+*Architecture research for: Per-user API keys + REST API integration*
+*Researched: 2026-04-08*
