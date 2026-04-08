@@ -105,7 +105,7 @@ Table inside the white card showing all user keys.
 | Column | Content | Alignment |
 |--------|---------|-----------|
 | Name | Key name string | Left |
-| Key | Masked prefix `vsl_abc1...` in a `bg-[#fadbdb] text-[#3d0000] px-2 py-0.5 rounded-md font-mono text-[13px]` badge | Left |
+| Key | Masked prefix `vsl_abc1...` in a `bg-[#fadbdb] text-[#3d0000] px-2 py-1 rounded-md font-mono text-[13px]` badge | Left |
 | Created | Relative date (e.g., "3 days ago") | Left |
 | Last Used | Relative date or "Never" in muted text | Left |
 | Actions | Revoke button | Right |
@@ -117,7 +117,7 @@ Table row styling:
 - Header row: `text-[10px] font-bold uppercase tracking-widest text-[#7d6161]`
 
 Revoke button styling:
-- Text-only button: `text-sm text-[#ba1a1a] hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors`
+- Text-only button: `text-sm text-[#ba1a1a] hover:bg-red-50 px-3 py-2 rounded-lg transition-colors`
 - No icon, text only: "Revoke"
 
 **Create button position:** Above the table, right-aligned.
@@ -129,7 +129,7 @@ Right side: "Create API Key" primary button.
 
 Create API Key button:
 ```
-bg-[#3d0000] text-white px-6 py-2.5 rounded-xl font-bold text-sm
+bg-[#3d0000] text-white px-6 py-3 rounded-xl font-bold text-sm
 flex items-center gap-2
 ```
 With `add` icon at size `sm`. Disabled state when 10 keys reached: `opacity-50 cursor-not-allowed`.
@@ -170,8 +170,8 @@ rounded-2xl bg-white p-8 shadow-[0px_40px_80px_rgba(61,0,0,0.15)]
 
 **Quick-start tabs:**
 - Tab bar: 3 tabs — "curl", "JavaScript", "Python"
-- Tab styling (active): `bg-[#fadbdb] text-[#3d0000] font-bold px-3 py-1.5 rounded-lg text-sm`
-- Tab styling (inactive): `text-[#7d6161] px-3 py-1.5 rounded-lg text-sm hover:bg-[#fff0f0]`
+- Tab styling (active): `bg-[#fadbdb] text-[#3d0000] font-bold px-3 py-2 rounded-lg text-sm`
+- Tab styling (inactive): `text-[#7d6161] px-3 py-2 rounded-lg text-sm hover:bg-[#fff0f0]`
 - Code block per tab:
   ```
   bg-[#fff0f0] rounded-xl p-4 font-mono text-[13px] text-[#281718]
@@ -191,7 +191,7 @@ Uses Base UI `Dialog` for destructive confirmation.
 - Description: "Any applications using the key **{key_name}** will lose access immediately. This cannot be undone."
   - Key name rendered in `font-semibold`
 - Footer: Cancel (outline) + "Revoke Key" (destructive) buttons
-- Revoke Key button: `bg-[#ba1a1a] text-white px-6 py-2.5 rounded-xl font-bold text-sm`
+- Revoke Key button: `bg-[#ba1a1a] text-white px-6 py-3 rounded-xl font-bold text-sm`
 
 ---
 
