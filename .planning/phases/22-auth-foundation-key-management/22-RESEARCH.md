@@ -431,12 +431,13 @@ export async function createApiKey(name: string): Promise<
 | A1 | SHA-256 is the correct choice over bcrypt for high-entropy API keys | Anti-Patterns, Alternatives | LOW -- this is widely accepted security practice; bcrypt would still work but adds unnecessary latency |
 | A2 | navigator.clipboard.writeText() is sufficient for copy-to-clipboard | Don't Hand-Roll | LOW -- fallback could be added but all target browsers support it |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Max key name length**
    - What we know: UI has an input field for key name
    - What's unclear: No explicit max length specified in CONTEXT.md
    - Recommendation: Use zod validation with max 64 characters (reasonable for a label)
+   - RESOLVED: 64 characters — validated in createApiKey server action
 
 ## Validation Architecture
 
