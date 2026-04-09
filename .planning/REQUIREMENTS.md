@@ -1,7 +1,7 @@
 # Requirements: ViralSlideMaker v2.3 MCP Server
 
 **Defined:** 2026-04-09
-**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
+**Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
 
 ## v2.3 Requirements
 
@@ -46,7 +46,7 @@ Requirements for MCP Server milestone. Each maps to roadmap phases.
 |---------|--------|
 | 10 REST-mapped MCP tools | Research confirms 4 outcome-oriented tools outperform granular CRUD mapping |
 | delete_project MCP tool | Destructive operations belong in web UI, not agent tools |
-| Binary image data in tool responses | Return download URLs instead — base64 PNGs consume ~700K chars per image |
+| Binary image data in tool responses | Return download URLs instead -- base64 PNGs consume ~700K chars per image |
 | Style parameter exposure in tools | Templates handle styling; granular params lead to bad agent decisions |
 | OAuth 2.1 flow | Static Bearer tokens cover all current MCP clients |
 
@@ -54,24 +54,24 @@ Requirements for MCP Server milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MCP-01 | — | Pending |
-| MCP-02 | — | Pending |
-| MCP-03 | — | Pending |
-| MCP-04 | — | Pending |
-| TRANS-01 | — | Pending |
-| TRANS-02 | — | Pending |
-| TRANS-03 | — | Pending |
-| TRANS-04 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| DOC-01 | — | Pending |
+| MCP-01 | Phase 27 | Pending |
+| MCP-02 | Phase 27 | Pending |
+| MCP-03 | Phase 27 | Pending |
+| MCP-04 | Phase 27 | Pending |
+| TRANS-01 | Phase 26 | Pending |
+| TRANS-02 | Phase 26 | Pending |
+| TRANS-03 | Phase 26 | Pending |
+| TRANS-04 | Phase 28 | Pending |
+| INFRA-01 | Phase 26 | Pending |
+| INFRA-02 | Phase 26 | Pending |
+| INFRA-03 | Phase 27 | Pending |
+| DOC-01 | Phase 28 | Pending |
 
 **Coverage:**
 - v2.3 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12 ⚠️
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 after initial definition*
+*Last updated: 2026-04-09 after roadmap creation*

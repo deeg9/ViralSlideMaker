@@ -8,7 +8,8 @@
 - v1.3 Rich Text Editing - Phases 10-14 (shipped 2026-03-27)
 - v2.0 API & MCP Platform - Phases 15-18 (shipped 2026-04-07)
 - v2.1 Text Effects - Phases 19-21 (shipped 2026-04-07)
-- v2.2 Public REST API - Phases 22-25 (in progress)
+- v2.2 Public REST API - Phases 22-25 (shipped 2026-04-09)
+- v2.3 MCP Server - Phases 26-28 (in progress)
 
 ## Phases
 
@@ -357,7 +358,8 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 
 </details>
 
-### v2.2 Public REST API (In Progress)
+<details>
+<summary>v2.2 Public REST API (Phases 22-25) - SHIPPED 2026-04-09</summary>
 
 **Milestone Goal:** Implement the full REST API with per-user API key authentication, rate limiting, credit enforcement, and all 10 OpenAPI-defined endpoints.
 
@@ -365,8 +367,6 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 - [x] **Phase 23: Rate Limiting, Credits & Infrastructure** - Upstash Redis rate limiting, credit enforcement headers, structured errors, CORS, service extraction (completed 2026-04-09)
 - [x] **Phase 24: REST Endpoints (Read)** - Templates, projects list/get/delete, single slide get -- read-only endpoints with no credit deduction (completed 2026-04-09)
 - [x] **Phase 25: REST Endpoints (Write & Render)** - Carousel generation, project creation, slide update, render, download -- mutation and binary endpoints (completed 2026-04-09)
-
-## Phase Details
 
 ### Phase 22: Auth Foundation & Key Management
 **Goal**: Developers can create, view, and revoke API keys, and authenticate API requests with Bearer tokens
@@ -433,10 +433,55 @@ Plans:
 - [x] 25-01-PLAN.md -- Carousel generation, project creation, slide update (write mutations)
 - [x] 25-02-PLAN.md -- Render URLs and ZIP download (binary output endpoints)
 
+</details>
+
+### v2.3 MCP Server (In Progress)
+
+**Milestone Goal:** Build the MCP server so AI agents can create carousels through native MCP tool calls, wrapping the v2.2 REST API.
+
+- [ ] **Phase 26: MCP Transport & Auth** - Streamable HTTP endpoint at /api/mcp with Bearer auth, middleware bypass, rate limiting, and stateless Vercel-compatible transport
+- [ ] **Phase 27: MCP Tools** - Four outcome-oriented tools (create_carousel, list_templates, edit_slide, render_carousel) calling the service layer with credit enforcement
+- [ ] **Phase 28: stdio Package & Documentation** - npm package for local agent use via mcp-remote bridge, and verified MCP connection guide
+
+## Phase Details
+
+### Phase 26: MCP Transport & Auth
+**Goal**: The /api/mcp endpoint accepts MCP protocol requests with Bearer token authentication, rate limiting, and stateless transport compatible with Vercel serverless
+**Depends on**: Phase 25
+**Requirements**: TRANS-01, TRANS-02, TRANS-03, INFRA-01, INFRA-02
+**Success Criteria** (what must be TRUE):
+  1. An MCP client can connect to /api/mcp with a Bearer token and receive a valid MCP server response (protocol handshake succeeds)
+  2. A request to /api/mcp without a valid Bearer token returns an authentication error (not a redirect to login)
+  3. MCP requests from the same API key that exceed the rate limit receive appropriate rate-limited responses
+  4. The MCP endpoint works correctly on Vercel (no in-memory session state; stateless transport mode)
+**Plans**: TBD
+
+### Phase 27: MCP Tools
+**Goal**: AI agents can complete the full carousel workflow -- discover templates, create a carousel, edit slides, and get download URLs -- through MCP tool calls
+**Depends on**: Phase 26
+**Requirements**: MCP-01, MCP-02, MCP-03, MCP-04, INFRA-03
+**Success Criteria** (what must be TRUE):
+  1. An AI agent can call create_carousel with a topic string and receive a project ID with rendered slide URLs (1 credit deducted)
+  2. An AI agent can call list_templates and receive the available visual styles with enough detail to make a selection
+  3. An AI agent can call edit_slide to change text, image URL, or template on a specific slide in a project
+  4. An AI agent can call render_carousel and receive download URLs for all slides in a project
+  5. Tool descriptions are clear enough that an AI agent can complete the full workflow without external documentation
+**Plans**: TBD
+
+### Phase 28: stdio Package & Documentation
+**Goal**: Developers can install an npm package for local MCP agent use, and the MCP guide accurately reflects the working implementation
+**Depends on**: Phase 27
+**Requirements**: TRANS-04, DOC-01
+**Success Criteria** (what must be TRUE):
+  1. Running `npx viralslidemaker-mcp` with a valid API key connects to the hosted MCP server via stdio transport
+  2. The MCP guide documents correct configuration for Claude Desktop and Cursor that works against the actual /api/mcp endpoint
+  3. All code examples in the MCP guide (connection config, tool call examples) have been verified against the implementation
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 22 -> 23 -> 24 -> 25
+Phases execute in numeric order: 26 -> 27 -> 28
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -461,7 +506,10 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25
 | 19. Validation Spike & Data Model | v2.1 | 2/2 | Complete | 2026-04-07 |
 | 20. Renderer Implementation | v2.1 | 2/2 | Complete | 2026-04-07 |
 | 21. Editor UI & Tight Highlight | v2.1 | 1/1 | Complete | 2026-04-07 |
-| 22. Auth Foundation & Key Management | v2.2 | 2/2 | Complete    | 2026-04-09 |
-| 23. Rate Limiting, Credits & Infrastructure | v2.2 | 2/2 | Complete    | 2026-04-09 |
-| 24. REST Endpoints (Read) | v2.2 | 2/2 | Complete    | 2026-04-09 |
-| 25. REST Endpoints (Write & Render) | v2.2 | 2/2 | Complete    | 2026-04-09 |
+| 22. Auth Foundation & Key Management | v2.2 | 2/2 | Complete | 2026-04-09 |
+| 23. Rate Limiting, Credits & Infrastructure | v2.2 | 2/2 | Complete | 2026-04-09 |
+| 24. REST Endpoints (Read) | v2.2 | 2/2 | Complete | 2026-04-09 |
+| 25. REST Endpoints (Write & Render) | v2.2 | 2/2 | Complete | 2026-04-09 |
+| 26. MCP Transport & Auth | v2.3 | 0/0 | Not started | - |
+| 27. MCP Tools | v2.3 | 0/0 | Not started | - |
+| 28. stdio Package & Documentation | v2.3 | 0/0 | Not started | - |
