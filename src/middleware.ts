@@ -12,6 +12,11 @@ export async function middleware(request: NextRequest) {
     return
   }
 
+  // Skip session auth for MCP routes (uses Bearer token auth via mcp-handler)
+  if (request.nextUrl.pathname.startsWith('/api/mcp')) {
+    return
+  }
+
   return await updateSession(request)
 }
 
