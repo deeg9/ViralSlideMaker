@@ -1,117 +1,77 @@
-# Requirements: ViralSlideMaker v2.2 Public REST API
+# Requirements: ViralSlideMaker v2.3 MCP Server
 
-**Defined:** 2026-04-08
-**Core Value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
+**Defined:** 2026-04-09
+**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
 
-## v2.2 Requirements
+## v2.3 Requirements
 
-Requirements for Public REST API milestone. Each maps to roadmap phases.
+Requirements for MCP Server milestone. Each maps to roadmap phases.
 
-### API Key Management
+### MCP Tools
 
-- [ ] **KEY-01**: User can create an API key with a name, receiving a `vsl_` prefixed token shown once
-- [ ] **KEY-02**: API key is stored as SHA-256 hash in Supabase with RLS policies
-- [ ] **KEY-03**: User can list their API keys showing name, prefix (`vsl_abc1...`), created date, and last used timestamp
-- [ ] **KEY-04**: User can revoke an API key, immediately invalidating it
-- [ ] **KEY-05**: Settings page displays quick-start code snippets (curl/JS/Python) after key creation
+- [ ] **MCP-01**: AI agent can call `create_carousel` with a topic and receive a project with rendered slide URLs
+- [ ] **MCP-02**: AI agent can call `list_templates` to discover available visual styles
+- [ ] **MCP-03**: AI agent can call `edit_slide` to modify text, image, or style on a specific slide
+- [ ] **MCP-04**: AI agent can call `render_carousel` to get download URLs for all slides in a project
 
-### API Authentication
+### MCP Transport
 
-- [ ] **AUTH-01**: API routes accept `Authorization: Bearer vsl_...` header and authenticate via SHA-256 hash lookup
-- [ ] **AUTH-02**: Hash comparison uses `crypto.timingSafeEqual` to prevent timing attacks
-- [ ] **AUTH-03**: Middleware skips Supabase session auth for `/api/v1/*` routes
-- [ ] **AUTH-04**: Route handlers use Supabase admin client (service role) with manual user_id filtering
+- [ ] **TRANS-01**: MCP server accessible via Streamable HTTP at `/api/mcp` with Bearer token auth
+- [ ] **TRANS-02**: Middleware bypasses Supabase session auth for `/api/mcp` routes
+- [ ] **TRANS-03**: MCP server uses stateless transport (no in-memory session maps) for Vercel compatibility
+- [ ] **TRANS-04**: stdio transport available as npm package (`viralslidemaker-mcp`) using `mcp-remote` bridge
 
-### Rate Limiting
+### MCP Infrastructure
 
-- [ ] **RATE-01**: API requests are rate limited per key using Upstash Redis sliding window
-- [ ] **RATE-02**: Rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`) included in all responses
-- [ ] **RATE-03**: Rate-limited requests return 429 with `Retry-After` header
+- [ ] **INFRA-01**: Auth adapter reuses existing `authenticateApiKey` for Bearer token validation
+- [ ] **INFRA-02**: Rate limiting applied per API key on MCP requests
+- [ ] **INFRA-03**: Credit deduction for `create_carousel` tool (1 credit)
 
-### Credit Enforcement
+### Documentation
 
-- [ ] **CRED-01**: Credit-consuming endpoints (carousel generation, AI images) deduct via existing atomic RPC
-- [ ] **CRED-02**: Insufficient credits return 402 with `x-credits-remaining` header
-- [ ] **CRED-03**: All responses include `x-credits-remaining` and `x-credits-used` headers
-
-### REST Endpoints
-
-- [ ] **API-01**: `POST /api/v1/carousel` — Generate carousel from topic (1 credit)
-- [ ] **API-02**: `GET /api/v1/templates` — List available templates
-- [ ] **API-03**: `GET /api/v1/projects` — List user's projects
-- [ ] **API-04**: `POST /api/v1/projects` — Create empty project
-- [ ] **API-05**: `GET /api/v1/projects/{id}` — Get project with slides
-- [ ] **API-06**: `DELETE /api/v1/projects/{id}` — Delete project
-- [ ] **API-07**: `GET /api/v1/projects/{id}/slides/{index}` — Get single slide
-- [ ] **API-08**: `PATCH /api/v1/projects/{id}/slides/{index}` — Update slide fields
-- [ ] **API-09**: `POST /api/v1/projects/{id}/render` — Get download URLs for all slides
-- [ ] **API-10**: `GET /api/v1/projects/{id}/download` — Download all slides as ZIP
-
-### API Infrastructure
-
-- [ ] **INFRA-01**: Structured JSON error responses with codes matching OpenAPI spec
-- [ ] **INFRA-02**: CORS headers for cross-origin browser-based API consumers
-- [ ] **INFRA-03**: Service extraction — shared logic between server actions and route handlers
+- [ ] **DOC-01**: MCP guide (`docs/MCP-GUIDE.md`) verified and updated to match actual implementation
 
 ## Future Requirements
 
-### API Enhancements
+### MCP Enhancements
 
-- **APIX-01**: Scoped key permissions (read-only, generate-only)
-- **APIX-02**: Test mode / sandbox environment
-- **APIX-03**: API key rotation with grace period
-- **APIX-04**: Official SDK packages (npm/pip)
-- **APIX-05**: `GET /api/v1/projects/{id}/download/{index}` — Download single slide as PNG
+- **MCPX-01**: `get_project` tool to retrieve project details before editing
+- **MCPX-02**: Credit balance included in tool response bodies
+- **MCPX-03**: Idempotency keys for `create_carousel` to prevent duplicate generation on retry
+- **MCPX-04**: Async carousel generation pattern if latency exceeds Vercel timeout
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Scoped key permissions | 10-endpoint API doesn't need per-resource scopes yet |
-| Test/sandbox mode | Free tier credits serve as sandbox |
-| Key rotation with grace period | Manual create-new + delete-old sufficient at this scale |
-| Official SDK packages | Defer until API surface stabilizes |
-| Webhook notifications | No events to push yet |
-| API usage analytics dashboard | Defer to later milestone |
+| 10 REST-mapped MCP tools | Research confirms 4 outcome-oriented tools outperform granular CRUD mapping |
+| delete_project MCP tool | Destructive operations belong in web UI, not agent tools |
+| Binary image data in tool responses | Return download URLs instead — base64 PNGs consume ~700K chars per image |
+| Style parameter exposure in tools | Templates handle styling; granular params lead to bad agent decisions |
+| OAuth 2.1 flow | Static Bearer tokens cover all current MCP clients |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| KEY-01 | Phase 22 | Pending |
-| KEY-02 | Phase 22 | Pending |
-| KEY-03 | Phase 22 | Pending |
-| KEY-04 | Phase 22 | Pending |
-| KEY-05 | Phase 22 | Pending |
-| AUTH-01 | Phase 22 | Pending |
-| AUTH-02 | Phase 22 | Pending |
-| AUTH-03 | Phase 22 | Pending |
-| AUTH-04 | Phase 22 | Pending |
-| RATE-01 | Phase 23 | Pending |
-| RATE-02 | Phase 23 | Pending |
-| RATE-03 | Phase 23 | Pending |
-| CRED-01 | Phase 23 | Pending |
-| CRED-02 | Phase 23 | Pending |
-| CRED-03 | Phase 23 | Pending |
-| INFRA-01 | Phase 23 | Pending |
-| INFRA-02 | Phase 23 | Pending |
-| INFRA-03 | Phase 23 | Pending |
-| API-01 | Phase 25 | Pending |
-| API-02 | Phase 24 | Pending |
-| API-03 | Phase 24 | Pending |
-| API-04 | Phase 25 | Pending |
-| API-05 | Phase 24 | Pending |
-| API-06 | Phase 24 | Pending |
-| API-07 | Phase 24 | Pending |
-| API-08 | Phase 25 | Pending |
-| API-09 | Phase 25 | Pending |
-| API-10 | Phase 25 | Pending |
+| MCP-01 | — | Pending |
+| MCP-02 | — | Pending |
+| MCP-03 | — | Pending |
+| MCP-04 | — | Pending |
+| TRANS-01 | — | Pending |
+| TRANS-02 | — | Pending |
+| TRANS-03 | — | Pending |
+| TRANS-04 | — | Pending |
+| INFRA-01 | — | Pending |
+| INFRA-02 | — | Pending |
+| INFRA-03 | — | Pending |
+| DOC-01 | — | Pending |
 
 **Coverage:**
-- v2.2 requirements: 28 total
-- Mapped to phases: 28
-- Unmapped: 0
+- v2.3 requirements: 12 total
+- Mapped to phases: 0
+- Unmapped: 12 ⚠️
 
 ---
-*Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after roadmap creation*
+*Requirements defined: 2026-04-09*
+*Last updated: 2026-04-09 after initial definition*
