@@ -2,18 +2,21 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import {
+  createProjectService,
+  deleteProjectService,
+  updateProjectService,
+} from '@/lib/services/projects'
 
 export async function createProject(formData: FormData) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
   const title = (formData.get('title') as string)?.trim() || 'Untitled Project'
   const description = (formData.get('description') as string)?.trim() || null
 
-  const { data } = await supabase
-    .from('projects')
-    .insert({ title, description, slide_data: [] })
-    .select('id')
-    .single()
+  const data = await createProjectService(supabase, user.id, { title, description })
 
   revalidatePath('/dashboard')
 
@@ -22,8 +25,10 @@ export async function createProject(formData: FormData) {
 
 export async function deleteProject(projectId: string) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
-  await supabase.from('projects').delete().eq('id', projectId)
+  await deleteProjectService(supabase, user.id, projectId)
 
   revalidatePath('/dashboard')
 }
@@ -33,8 +38,10 @@ export async function updateProject(
   data: { title?: string; description?: string }
 ) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
-  await supabase.from('projects').update(data).eq('id', projectId)
+  await updateProjectService(supabase, user.id, projectId, data)
 
   revalidatePath('/dashboard')
 }
