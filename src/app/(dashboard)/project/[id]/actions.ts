@@ -136,6 +136,21 @@ export async function generateCarousel(
       }))
     }
 
+    // 2c. Apply default text effects for readability (shadow + overlay)
+    slides = slides.map(slide => ({
+      ...slide,
+      style_overrides: {
+        ...slide.style_overrides,
+        overlay_opacity: slide.style_overrides?.overlay_opacity ?? 45,
+        hook_text_effects: slide.style_overrides?.hook_text_effects ?? {
+          shadow: { enabled: true, color: '#000000aa', size: 'lg' },
+        },
+        body_text_effects: slide.style_overrides?.body_text_effects ?? {
+          shadow: { enabled: true, color: '#000000aa', size: 'md' },
+        },
+      },
+    }))
+
     // 3. Save to database
     await supabase
       .from('projects')

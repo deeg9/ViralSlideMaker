@@ -24,6 +24,10 @@ function getRatelimit(): Ratelimit {
 }
 
 export async function checkRateLimit(keyId: string) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    // Gracefully skip rate limiting when Upstash is not configured
+    return { success: true, limit: 60, remaining: 59, reset: Date.now() + 60000 }
+  }
   const rl = getRatelimit()
   return rl.limit(keyId)
 }
