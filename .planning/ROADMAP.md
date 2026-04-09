@@ -469,7 +469,10 @@ Plans:
   3. An AI agent can call edit_slide to change text, image URL, or template on a specific slide in a project
   4. An AI agent can call render_carousel and receive download URLs for all slides in a project
   5. Tool descriptions are clear enough that an AI agent can complete the full workflow without external documentation
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 27-01-PLAN.md -- 4 MCP tool definitions (list_templates, create_carousel, edit_slide, render_carousel) with credit enforcement
 
 ### Phase 28: stdio Package & Documentation
 **Goal**: Developers can install an npm package for local MCP agent use, and the MCP guide accurately reflects the working implementation
@@ -514,5 +517,5 @@ Phases execute in numeric order: 26 -> 27 -> 28
 | 24. REST Endpoints (Read) | v2.2 | 2/2 | Complete | 2026-04-09 |
 | 25. REST Endpoints (Write & Render) | v2.2 | 2/2 | Complete | 2026-04-09 |
 | 26. MCP Transport & Auth | v2.3 | 1/1 | Complete    | 2026-04-09 |
-| 27. MCP Tools | v2.3 | 0/0 | Not started | - |
+| 27. MCP Tools | v2.3 | 0/1 | Not started | - |
 | 28. stdio Package & Documentation | v2.3 | 0/0 | Not started | - |
