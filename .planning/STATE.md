@@ -4,7 +4,7 @@ milestone: v2.2
 milestone_name: Public REST API
 status: executing
 stopped_at: Roadmap created for v2.2 Public REST API
-last_updated: "2026-04-09T01:12:46.686Z"
+last_updated: "2026-04-09T01:14:58.772Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 4

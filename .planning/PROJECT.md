@@ -20,6 +20,19 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - Native Satori CSS support (textShadow, WebkitTextStroke) — zero new dependencies
 - Effects in all three renderers (preview, Satori PNG, HTML export)
 
+## Latest Shipped: v2.2 Public REST API (2026-04-09)
+
+**Goal:** Implement the full REST API with per-user API key authentication, rate limiting, credit enforcement, and all 10 OpenAPI-defined endpoints.
+
+**Delivered:**
+- API keys table with SHA-256 hashing, RLS policies, create/list/revoke UI in settings
+- Bearer token auth middleware with `withApiAuth` HOC (auth → rate limit → credits → CORS → handler)
+- All 10 REST endpoints: carousel generation, projects CRUD, slides get/patch, templates, render, download
+- Upstash Redis per-key sliding-window rate limiting with standard headers
+- Credit enforcement with atomic deduction, 402 responses, credit balance headers
+- Structured JSON errors matching OpenAPI spec, CORS headers
+- Service extraction — shared logic between web UI server actions and API route handlers
+
 ## Previously Shipped: v2.0 API & MCP Platform (2026-04-07)
 
 **Goal:** Expose Viral Slide Maker as a developer platform with REST API endpoints and an MCP server, so AI agents can create carousels programmatically.
@@ -72,26 +85,19 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [x] Per-element text effects independence (hook, body, custom text boxes) — v2.1
 - [x] Text effects in all three renderers (preview, Satori PNG, HTML) — v2.1
 
+- [x] API keys table with SHA-256 hashing and RLS policies — v2.2
+- [x] Token generation UI in settings (create/revoke vsl_ keys) — v2.2
+- [x] Bearer token auth middleware for /api/v1/* routes — v2.2
+- [x] All 10 OpenAPI-defined REST endpoints implemented — v2.2
+- [x] Per-key Upstash Redis rate limiting for API — v2.2
+- [x] Credit deduction for API-driven generation — v2.2
+- [x] Structured JSON error responses matching OpenAPI spec — v2.2
+- [x] CORS headers for cross-origin API consumers — v2.2
+- [x] Service extraction (shared logic between web UI and API) — v2.2
+
 ### Active
 
-- [ ] API keys table with SHA-256 hashing and RLS policies
-- [ ] Token generation UI in settings (create/revoke vsl_ keys)
-- [ ] Bearer token auth middleware for /api/v1/* routes
-- [ ] Implement all OpenAPI-defined REST endpoints
-- [ ] Rate limiting per API key
-- [ ] Credit deduction for API-driven generation
-
-## Current Milestone: v2.2 Public REST API
-
-**Goal:** Implement the full REST API with per-user API key authentication, matching the existing OpenAPI spec.
-
-**Target features:**
-- API keys table in Supabase with SHA-256 hashing, RLS policies
-- Token generation UI in settings (create/revoke `vsl_` prefixed keys)
-- Bearer token auth middleware for `/api/v1/*` routes
-- Implement all 10 OpenAPI-defined endpoints (carousel, projects, slides, templates, render, download)
-- Rate limiting per API key (Upstash Redis)
-- Credit deduction for API-driven generation
+(None — start next milestone with `/gsd-new-milestone`)
 
 ### Out of Scope
 
@@ -161,4 +167,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after v2.2 milestone started (Public REST API)*
+*Last updated: 2026-04-09 after v2.2 milestone completed (Public REST API)*
