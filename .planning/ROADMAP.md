@@ -395,7 +395,11 @@ Plans:
   3. Credit-consuming endpoints deduct via the existing atomic RPC; insufficient credits return 402 with `x-credits-remaining` header
   4. All API responses include `x-credits-remaining` and `x-credits-used` headers
   5. Error responses use structured JSON with codes matching the OpenAPI spec, and CORS headers are present for cross-origin consumers
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 23-01-PLAN.md -- Rate limiting (Upstash), structured errors, CORS, enhanced withApiAuth HOC
+- [ ] 23-02-PLAN.md -- Admin-client credit functions, project CRUD service extraction, carousel service stub
 
 ### Phase 24: REST Endpoints (Read)
 **Goal**: Developers can query templates, list and retrieve projects, and fetch individual slides through the API
@@ -450,6 +454,6 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25
 | 20. Renderer Implementation | v2.1 | 2/2 | Complete | 2026-04-07 |
 | 21. Editor UI & Tight Highlight | v2.1 | 1/1 | Complete | 2026-04-07 |
 | 22. Auth Foundation & Key Management | v2.2 | 2/2 | Complete    | 2026-04-09 |
-| 23. Rate Limiting, Credits & Infrastructure | v2.2 | 0/0 | Not started | - |
+| 23. Rate Limiting, Credits & Infrastructure | v2.2 | 0/2 | Not started | - |
 | 24. REST Endpoints (Read) | v2.2 | 0/0 | Not started | - |
 | 25. REST Endpoints (Write & Render) | v2.2 | 0/0 | Not started | - |
