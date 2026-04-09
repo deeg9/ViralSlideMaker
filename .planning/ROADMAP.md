@@ -169,7 +169,10 @@ Plans:
   3. User can download a single slide as a PNG image via the Export button
   4. User can download all slides as a ZIP file containing individual PNGs
   5. Export and rendering work on Vercel serverless without Puppeteer (serverless-compatible image pipeline)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
 
 ### Phase 9: Production Deployment
 **Goal**: The app is live at viralslidemaker.com with all services correctly configured for production
@@ -179,7 +182,10 @@ Plans:
   1. All environment variables (Supabase, Stripe, Gemini, Pexels, Imagen) are configured for production
   2. Stripe webhooks fire to the production URL and process events successfully
   3. The app is accessible at https://viralslidemaker.com with correct NEXT_PUBLIC_APP_URL
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
 
 </details>
 
@@ -482,7 +488,10 @@ Plans:
   1. Running `npx viralslidemaker-mcp` with a valid API key connects to the hosted MCP server via stdio transport
   2. The MCP guide documents correct configuration for Claude Desktop and Cursor that works against the actual /api/mcp endpoint
   3. All code examples in the MCP guide (connection config, tool call examples) have been verified against the implementation
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
 
 ## Progress
 
