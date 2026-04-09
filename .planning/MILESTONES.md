@@ -1,5 +1,16 @@
 # Milestones
 
+## v2.3 MCP Server (Shipped: 2026-04-09)
+
+**Phases completed:** 3 phases, 3 plans, 6 tasks
+
+**Key accomplishments:**
+
+- 1. [Rule 3 - Blocking] AuthInfo type import path
+- Commit:
+
+---
+
 ## v2.2 Public REST API (Shipped: 2026-04-09)
 
 **Phases completed:** 4 phases, 8 plans, 9 tasks

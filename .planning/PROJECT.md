@@ -95,22 +95,14 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [x] CORS headers for cross-origin API consumers — v2.2
 - [x] Service extraction (shared logic between web UI and API) — v2.2
 
+- [x] Streamable HTTP MCP endpoint at /api/mcp with Bearer auth — v2.3
+- [x] MCP tools: create_carousel, list_templates, edit_slide, render_carousel — v2.3
+- [x] stdio transport via npm package (viralslidemaker-mcp) — v2.3
+- [x] MCP guide verified against implementation — v2.3
+
 ### Active
 
-- [ ] Streamable HTTP MCP endpoint at /api/mcp with Bearer auth
-- [ ] MCP tools: create_carousel, list_templates, edit_slide, render_carousel
-- [ ] stdio transport via npm package for local agent use
-- [ ] MCP guide verification against implementation
-
-## Current Milestone: v2.3 MCP Server
-
-**Goal:** Build the MCP server so AI agents can create carousels through native MCP tool calls, wrapping the v2.2 REST API.
-
-**Target features:**
-- Streamable HTTP MCP endpoint at `/api/mcp` with Bearer token auth
-- 4 MCP tools wrapping REST endpoints
-- stdio transport via npm package
-- Verified MCP connection guide for Claude Desktop/Cursor
+(None — start next milestone with `/gsd-new-milestone`)
 
 ### Out of Scope
 

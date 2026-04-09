@@ -4,7 +4,7 @@ milestone: v2.3
 milestone_name: MCP Server
 status: executing
 stopped_at: Roadmap created for v2.3 MCP Server (3 phases, 12 requirements)
-last_updated: "2026-04-09T14:43:33.551Z"
+last_updated: "2026-04-09T14:44:24.925Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 3
