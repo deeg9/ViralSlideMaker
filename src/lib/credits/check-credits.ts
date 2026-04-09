@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SubscriptionTier, CreditStatus } from './types'
 
 export { isValidTier } from './types'
@@ -48,6 +49,35 @@ export async function checkProjectLimit(userId: string, tier: SubscriptionTier):
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
   return (count ?? 0) < 10
+}
+
+// --- Admin-client variants for API routes (no session cookies needed) ---
+
+export async function deductCreditAdmin(
+  supabase: SupabaseClient,
+  userId: string,
+  type: string,
+  description?: string,
+  referenceId?: string,
+  amount: number = 1,
+): Promise<boolean> {
+  if (amount <= 0) return true
+  const { data } = await supabase.rpc('deduct_credits', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_type: type,
+    p_description: description ?? null,
+    p_reference_id: referenceId ?? null,
+  })
+  return data === true
+}
+
+export async function getCreditBalanceAdmin(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<number> {
+  const { data } = await supabase.rpc('get_credit_balance', { p_user_id: userId })
+  return data ?? 0
 }
 
 export async function checkCredits(): Promise<CreditStatus> {

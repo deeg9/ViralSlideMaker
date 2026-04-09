@@ -18,6 +18,8 @@ import {
   deductCredit,
   checkCredits,
   checkProjectLimit,
+  deductCreditAdmin,
+  getCreditBalanceAdmin,
 } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 
@@ -220,6 +222,67 @@ describe('checkProjectLimit', () => {
     mockSupabase({ projectCount: 10 })
     const result = await checkProjectLimit('user-123', 'free')
     expect(result).toBe(false)
+  })
+})
+
+describe('deductCreditAdmin', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  function createMockSupabaseClient(rpcResult: unknown) {
+    return {
+      rpc: vi.fn().mockResolvedValue({ data: rpcResult, error: null }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+  }
+
+  it('calls supabase.rpc deduct_credits and returns true on success', async () => {
+    const client = createMockSupabaseClient(true)
+    const result = await deductCreditAdmin(client, 'user-123', 'carousel_generation', 'Gen carousel', 'proj-1')
+    expect(result).toBe(true)
+    expect(client.rpc).toHaveBeenCalledWith('deduct_credits', {
+      p_user_id: 'user-123',
+      p_amount: 1,
+      p_type: 'carousel_generation',
+      p_description: 'Gen carousel',
+      p_reference_id: 'proj-1',
+    })
+  })
+
+  it('returns false when RPC returns false (insufficient balance)', async () => {
+    const client = createMockSupabaseClient(false)
+    const result = await deductCreditAdmin(client, 'user-123', 'carousel_generation')
+    expect(result).toBe(false)
+  })
+
+  it('returns true without calling RPC when amount <= 0', async () => {
+    const client = createMockSupabaseClient(true)
+    const result = await deductCreditAdmin(client, 'user-123', 'free_action', undefined, undefined, 0)
+    expect(result).toBe(true)
+    expect(client.rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('getCreditBalanceAdmin', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  function createMockSupabaseClient(rpcResult: unknown) {
+    return {
+      rpc: vi.fn().mockResolvedValue({ data: rpcResult, error: null }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+  }
+
+  it('calls supabase.rpc get_credit_balance and returns the number', async () => {
+    const client = createMockSupabaseClient(42)
+    const balance = await getCreditBalanceAdmin(client, 'user-123')
+    expect(balance).toBe(42)
+    expect(client.rpc).toHaveBeenCalledWith('get_credit_balance', { p_user_id: 'user-123' })
+  })
+
+  it('returns 0 when RPC returns null', async () => {
+    const client = createMockSupabaseClient(null)
+    const balance = await getCreditBalanceAdmin(client, 'user-123')
+    expect(balance).toBe(0)
   })
 })
 
