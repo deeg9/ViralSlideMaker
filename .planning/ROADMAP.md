@@ -439,7 +439,7 @@ Plans:
 
 **Milestone Goal:** Build the MCP server so AI agents can create carousels through native MCP tool calls, wrapping the v2.2 REST API.
 
-- [ ] **Phase 26: MCP Transport & Auth** - Streamable HTTP endpoint at /api/mcp with Bearer auth, middleware bypass, rate limiting, and stateless Vercel-compatible transport
+- [x] **Phase 26: MCP Transport & Auth** - Streamable HTTP endpoint at /api/mcp with Bearer auth, middleware bypass, rate limiting, and stateless Vercel-compatible transport (completed 2026-04-09)
 - [ ] **Phase 27: MCP Tools** - Four outcome-oriented tools (create_carousel, list_templates, edit_slide, render_carousel) calling the service layer with credit enforcement
 - [ ] **Phase 28: stdio Package & Documentation** - npm package for local agent use via mcp-remote bridge, and verified MCP connection guide
 
@@ -457,7 +457,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 26-01-PLAN.md -- MCP packages, auth adapter, route handler, middleware bypass
+- [x] 26-01-PLAN.md -- MCP packages, auth adapter, route handler, middleware bypass
 
 ### Phase 27: MCP Tools
 **Goal**: AI agents can complete the full carousel workflow -- discover templates, create a carousel, edit slides, and get download URLs -- through MCP tool calls
@@ -513,6 +513,6 @@ Phases execute in numeric order: 26 -> 27 -> 28
 | 23. Rate Limiting, Credits & Infrastructure | v2.2 | 2/2 | Complete | 2026-04-09 |
 | 24. REST Endpoints (Read) | v2.2 | 2/2 | Complete | 2026-04-09 |
 | 25. REST Endpoints (Write & Render) | v2.2 | 2/2 | Complete | 2026-04-09 |
-| 26. MCP Transport & Auth | v2.3 | 0/0 | Not started | - |
+| 26. MCP Transport & Auth | v2.3 | 1/1 | Complete    | 2026-04-09 |
 | 27. MCP Tools | v2.3 | 0/0 | Not started | - |
 | 28. stdio Package & Documentation | v2.3 | 0/0 | Not started | - |
