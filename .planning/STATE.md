@@ -4,13 +4,13 @@ milestone: v2.3
 milestone_name: MCP Server
 status: executing
 stopped_at: Roadmap created for v2.3 MCP Server (3 phases, 12 requirements)
-last_updated: "2026-04-09T14:36:18.599Z"
+last_updated: "2026-04-09T14:43:33.551Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
   percent: 100
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-09)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 27 — MCP Tools
+**Current focus:** Phase 28 — stdio Package & Documentation
 
 ## Current Position
 
 Phase: 28
 Plan: Not started
-Status: Executing Phase 27
+Status: Executing Phase 28
 Last activity: 2026-04-09
 
 Progress: [░░░░░░░░░░] 0%
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity (from v1.0 through v2.2):**
 
-- Total plans completed: 30
+- Total plans completed: 31
 - Average duration: ~6 min
 - Total execution time: ~3 hours
 
@@ -46,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 |-------|-------|-------|----------|
 | 26 | 1 | - | - |
 | 27 | 1 | - | - |
+| 28 | 1 | - | - |
 
 ## Accumulated Context
 

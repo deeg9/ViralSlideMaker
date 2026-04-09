@@ -172,7 +172,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
+- [x] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
 
 ### Phase 9: Production Deployment
 **Goal**: The app is live at viralslidemaker.com with all services correctly configured for production
@@ -185,7 +185,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
+- [x] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
 
 </details>
 
@@ -447,7 +447,7 @@ Plans:
 
 - [x] **Phase 26: MCP Transport & Auth** - Streamable HTTP endpoint at /api/mcp with Bearer auth, middleware bypass, rate limiting, and stateless Vercel-compatible transport (completed 2026-04-09)
 - [x] **Phase 27: MCP Tools** - Four outcome-oriented tools (create_carousel, list_templates, edit_slide, render_carousel) calling the service layer with credit enforcement (completed 2026-04-09)
-- [ ] **Phase 28: stdio Package & Documentation** - npm package for local agent use via mcp-remote bridge, and verified MCP connection guide
+- [x] **Phase 28: stdio Package & Documentation** - npm package for local agent use via mcp-remote bridge, and verified MCP connection guide (completed 2026-04-09)
 
 ## Phase Details
 
@@ -527,4 +527,4 @@ Phases execute in numeric order: 26 -> 27 -> 28
 | 25. REST Endpoints (Write & Render) | v2.2 | 2/2 | Complete | 2026-04-09 |
 | 26. MCP Transport & Auth | v2.3 | 1/1 | Complete    | 2026-04-09 |
 | 27. MCP Tools | v2.3 | 1/1 | Complete    | 2026-04-09 |
-| 28. stdio Package & Documentation | v2.3 | 0/0 | Not started | - |
+| 28. stdio Package & Documentation | v2.3 | 1/1 | Complete    | 2026-04-09 |
