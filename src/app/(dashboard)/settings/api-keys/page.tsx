@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { listApiKeys } from './actions'
 import { Icon } from '@/components/ui/icon'
 import { ApiKeyTable } from '@/components/api-keys/api-key-table'
@@ -53,9 +54,9 @@ export default async function ApiKeysPage() {
           <div className="bg-[#fff0f0] rounded-xl p-4 border border-[#dbc1bc]/20">
             <p className="text-sm text-[#7d6161]">
               <span className="font-bold text-[#3d0000]">Full documentation:</span>{' '}
-              <a href="/docs" className="text-[#3d0000] underline hover:no-underline">
+              <Link href="/docs" className="text-[#3d0000] underline hover:no-underline">
                 API Reference &amp; MCP Guide →
-              </a>
+              </Link>
             </p>
           </div>
         </div>
