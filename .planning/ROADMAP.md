@@ -361,7 +361,7 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Implement the full REST API with per-user API key authentication, rate limiting, credit enforcement, and all 10 OpenAPI-defined endpoints.
 
-- [ ] **Phase 22: Auth Foundation & Key Management** - API keys table, SHA-256 hashing, middleware bypass, Bearer auth pipeline, key management UI
+- [x] **Phase 22: Auth Foundation & Key Management** - API keys table, SHA-256 hashing, middleware bypass, Bearer auth pipeline, key management UI (completed 2026-04-09)
 - [ ] **Phase 23: Rate Limiting, Credits & Infrastructure** - Upstash Redis rate limiting, credit enforcement headers, structured errors, CORS, service extraction
 - [ ] **Phase 24: REST Endpoints (Read)** - Templates, projects list/get/delete, single slide get -- read-only endpoints with no credit deduction
 - [ ] **Phase 25: REST Endpoints (Write & Render)** - Carousel generation, project creation, slide update, render, download -- mutation and binary endpoints
@@ -382,8 +382,8 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 **UI hint**: yes
 
 Plans:
-- [ ] 22-01-PLAN.md -- Database migration, middleware bypass, authenticateApiKey + withApiAuth HOC, unit tests
-- [ ] 22-02-PLAN.md -- Server actions (create/list/revoke), settings page UI, create dialog with snippets, revoke dialog, visual checkpoint
+- [x] 22-01-PLAN.md -- Database migration, middleware bypass, authenticateApiKey + withApiAuth HOC, unit tests
+- [x] 22-02-PLAN.md -- Server actions (create/list/revoke), settings page UI, create dialog with snippets, revoke dialog, visual checkpoint
 
 ### Phase 23: Rate Limiting, Credits & Infrastructure
 **Goal**: API requests are rate limited per key, credit-consuming operations enforce balances, and all responses follow a consistent structured format
@@ -449,7 +449,7 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25
 | 19. Validation Spike & Data Model | v2.1 | 2/2 | Complete | 2026-04-07 |
 | 20. Renderer Implementation | v2.1 | 2/2 | Complete | 2026-04-07 |
 | 21. Editor UI & Tight Highlight | v2.1 | 1/1 | Complete | 2026-04-07 |
-| 22. Auth Foundation & Key Management | v2.2 | 0/2 | In progress | - |
+| 22. Auth Foundation & Key Management | v2.2 | 2/2 | Complete    | 2026-04-09 |
 | 23. Rate Limiting, Credits & Infrastructure | v2.2 | 0/0 | Not started | - |
 | 24. REST Endpoints (Read) | v2.2 | 0/0 | Not started | - |
 | 25. REST Endpoints (Write & Render) | v2.2 | 0/0 | Not started | - |
