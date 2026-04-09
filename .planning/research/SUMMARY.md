@@ -1,195 +1,158 @@
 # Project Research Summary
 
-**Project:** ViralSlideMaker v2.2 — Public REST API
-**Domain:** SaaS developer API platform (API key management + REST endpoints over existing Next.js 15 app)
-**Researched:** 2026-04-08
+**Project:** TikTok Slideshow Creator — v2.1 Text Effects
+**Domain:** CSS text effects for multi-renderer carousel slide creator (Satori PNG + browser preview + HTML export)
+**Researched:** 2026-04-07
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This is a greenfield API layer on top of a shipping product. The research is anchored in the existing codebase (Next.js 15.5.13, React 19, Supabase, Stripe, Zod 4) — not a blank-slate build. The fundamental challenge is threading a new Bearer-token auth model through an app built entirely around Supabase cookie sessions. Every architectural decision flows from that constraint: the middleware must be patched to skip `/api/v1/*`, all route handlers must use the admin Supabase client (bypassing RLS), and business logic must be extracted from server actions into shared service functions callable by both the web UI and the API.
+This milestone adds three text effects — shadow, outline, and background highlight — to an existing carousel slide creator. The project's rendering pipeline is unusual: it maintains three renderers (React browser preview, Satori-based PNG export via `next/og`, and HTML export) that must produce visually identical output. The dominant finding across all research files is that Satori, as bundled in Next.js 15.5.13 (`@vercel/og` 0.7.2), natively supports `textShadow` and `WebkitTextStrokeWidth`/`WebkitTextStrokeColor` — properties the existing design doc assumed were unsupported and planned to fake with duplicate DOM elements. This single finding changes the entire implementation strategy: all three renderers can share the same CSS properties, collapsing what was a complex multi-renderer fork into a straightforward unified CSS approach.
 
-The recommended approach is a three-layer stack addition: (1) `@upstash/ratelimit` + `@upstash/redis` for distributed rate limiting (the existing in-memory limiter breaks across serverless instances), (2) a `withApiAuth` higher-order wrapper that handles Bearer extraction, SHA-256 hashing, key lookup, and rate limiting uniformly across all 10 endpoints, and (3) a service extraction refactor that pulls carousel generation, project CRUD, and rendering logic out of server actions into pure functions that accept an explicit Supabase client and `userId`. Only two new packages are required; everything else (crypto, UUID, Zod, OpenAPI spec) is already available.
+The recommended approach is to define a `TextEffects` interface at the type layer, resolve effects to CSS in a shared utility (`resolveTextEffects()`), and spread the same CSS properties across all three renderers. Shadow and outline require no renderer-specific branching. Background highlight requires one structural decision: Satori does not support `box-decoration-break: clone`, so the "tight" (per-line) highlight mode cannot be reproduced in PNG export — full-width highlight is the pragmatic fallback. Total estimated effort drops from 25-35 hours (workaround approach) to 15-25 hours (native CSS approach).
 
-The most dangerous pitfalls are established security hygiene items that are easy to miss: using `===` instead of `crypto.timingSafeEqual` for hash comparison (timing attack), forgetting to exclude `/api/v1/*` from the Supabase session middleware (causes 307 redirects to login for all API consumers), and using the cookie-based Supabase client in route handlers (RLS blocks all queries silently). All three must be addressed in the first phase before any route handler is written. The existing `deduct_credits` RPC already handles the credit race condition correctly via advisory locks — do not add a pre-check that bypasses it.
+The critical risk is Satori CSS parser strictness. Satori's `textShadow` parser has a known bug (Issue #441) with `rgba()` percentage-alpha syntax. This is mitigated by using 8-digit hex colors (`#00000080`) instead of `rgba()` functions throughout. A 30-minute validation spike — render a test slide with `textShadow` and `WebkitTextStrokeWidth` via the `/api/render` route and inspect the PNG — should run before any implementation begins to confirm native support and rule out surprises.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack requires exactly two new packages. `@upstash/ratelimit@^2.0.8` and `@upstash/redis@^1.37.0` provide distributed rate limiting over HTTP (compatible with Vercel serverless and edge). Everything else — key generation (`crypto.randomBytes`), SHA-256 hashing (`crypto.createHash`), request validation (Zod 4 already installed), and the OpenAPI spec (already hand-written at `src/lib/api/openapi.ts`) — is already in place. Two environment variables are needed: `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
+The existing stack requires zero new dependencies. Next.js 15.5.13 bundles `@vercel/og` 0.7.2 which includes Satori support for all required CSS properties. All text effects are implementable with CSS properties already available in the rendering pipeline. The only verified gap is `box-decoration-break` for Satori inline highlight, which is handled by accepting full-width fallback in PNG export rather than adding a dependency.
 
-**Core technologies:**
-- `@upstash/ratelimit@^2.0.8`: Per-key sliding-window rate limiting — HTTP-based, works across serverless instances unlike the existing in-memory Map
-- `@upstash/redis@^1.37.0`: HTTP Redis client for Upstash — no persistent connections, required peer dep for ratelimit
-- Node.js `crypto` (built-in): Key generation (`randomBytes(32)`), SHA-256 hashing (`createHash`), timing-safe comparison (`timingSafeEqual`) — no package needed
-- `@supabase/supabase-js` (existing): Admin client (`service_role`) for all API-authenticated DB operations, bypassing RLS
-- `zod@^4.3.6` (existing): Request body validation per route handler, already installed
+**Core technologies (unchanged):**
+- Next.js 15.5.13: Framework + Satori via `next/og` — bundled Satori confirms `textShadow` + `WebkitTextStroke` support
+- React 19.1.0: Browser preview rendering — standard CSS properties for all effects
+- Satori via `@vercel/og` 0.7.2: PNG export — native support verified in compiled bundle
+- Playwright 1.58.2: HTML export renderer — full CSS support including `box-decoration-break: clone` for tight highlight
+- `@radix-ui/react-switch` 1.2.6: Toggle controls for effect enable/disable — already installed
+- Tailwind CSS 4.x: Editor panel styling — already in use
+
+**Do NOT add:** standalone `satori` npm package (version conflict with bundled version), `canvas`/`node-canvas`, `fabric.js`, `konva`, or any "text effect" npm library targeting canvas rendering.
 
 ### Expected Features
 
-The OpenAPI spec already defines 10 endpoints and the full error/auth contract. Implementation is the bulk of the work. The API key management UI in settings is a table-stakes dashboard feature (Stripe, Resend, Vercel all follow the same pattern).
-
 **Must have (table stakes):**
-- API keys table with SHA-256 hashing, `vsl_` prefix, create/list/revoke UI — foundation for everything
-- Show key once on creation, never again — industry standard
-- Bearer token authentication on all `/api/v1/*` routes — non-negotiable for developer trust
-- All 10 OpenAPI-specified endpoints working — a spec that returns 404s destroys trust immediately
-- Rate limiting with `X-RateLimit-*` headers — developers build retry logic around these
-- Credit enforcement with 402 + `x-credits-remaining` headers — required by existing spec
-- Consistent structured JSON error responses — developers script against error codes
+- Text shadow with color control — every design tool competitor (Canva, Adobe Express) offers this; missing = feature feels half-baked
+- Text outline with color + thickness — second most-used text effect; Canva's "Hollow" and "Splice" depend on it
+- Background highlight behind text — essential for carousel readability on busy photo backgrounds
+- Per-element independence — each text box (hook, body, custom) needs independent effect settings; global effects would be a dealbreaker
+- Toggle on/off per effect without losing settings — standard boolean toggle pattern
+- Color picker for each effect — reuse existing swatch + picker pattern from `text-editor-panel.tsx`
 
-**Should have (competitive):**
-- `last_used_at` timestamp per key — Resend popularized this pattern, low cost, high perceived value
-- Multiple keys per user (cap at 10) — dev/staging/prod separation is the norm
-- Key prefix display (`vsl_abc1...`) — lets users distinguish keys without exposing them
-- Quick-start code snippets on key creation — reduces time-to-first-request
+**Should have (differentiators):**
+- Shadow size presets (S/M/L) — simpler than Canva's 4-slider approach; correct abstraction for carousel creators who want "good enough" fast
+- Tight highlight ("marker" style) — per-line background color very popular on TikTok/Instagram; carousel-specific competitors (PostNitro, aiCarousels, PostWaffle) have zero text effects
+- Full-width highlight (banner style) — simpler variant, works identically across all renderers
+- Highlight padding control (4-24px slider)
+- Effect combinations — shadow + outline + highlight simultaneously on same element
 
 **Defer (v2+):**
-- Scoped key permissions — 10-endpoint API does not need per-resource scopes yet
-- Test mode / sandbox environment — free tier credits serve as the sandbox
-- API key rotation with grace period — manual create-new + delete-old is sufficient at this scale
-- Official SDK packages (npm/pip) — defer until API surface stabilizes
+- Blur radius slider for shadow — Satori renders SVG drop shadows differently than browser blur; would create WYSIWYG mismatch
+- Neon glow, gradient text, curved/warped text — require Playwright/canvas renderer swap
+- Per-character effects — massive complexity for no carousel value
+- Multiple shadows, offset X/Y sliders — over-engineered for carousel use case
 
 ### Architecture Approach
 
-The core pattern is a `withApiAuth` higher-order function that wraps every route handler, performing Bearer extraction, SHA-256 hash lookup (admin client), rate limit check, and error normalization before the handler runs. This ensures auth and rate limiting are never accidentally omitted. Below that, a service extraction step moves business logic from server actions into shared `src/lib/services/` functions that accept an explicit Supabase client and `userId` — making the same logic callable from both the cookie-authenticated web app and the Bearer-authenticated API without duplication. The middleware change (add early return for `/api/v1/*`) must be the first commit.
+The architecture is a unified CSS passthrough pattern. A single `resolveTextEffects(effects: TextEffects): ResolvedTextEffectStyles` function converts semantic effect data to CSS properties. Because all three renderers share the same CSS property names for shadow and outline, the resolved object is spread directly onto style objects in each renderer with no branching. Highlight is the one structural exception — it requires a wrapper `div` with `backgroundColor` rather than a CSS property on the text element itself.
 
 **Major components:**
-1. `src/middleware.ts` (modify) — add early return for `/api/v1/*` before session refresh runs
-2. `src/lib/api/auth.ts` (new) — `authenticateApiKey()` using admin client + `timingSafeEqual`
-3. `src/app/api/v1/_lib/with-api-auth.ts` (new) — HOC: auth + rate limit + error handling wrapper
-4. `src/lib/api/rate-limit.ts` (new) — Upstash sliding-window rate limiter, keyed by `key_id`
-5. `src/lib/services/` (new) — extracted carousel, project, render services shared by server actions and route handlers
-6. 10 route handler files under `src/app/api/v1/` — thin handlers calling `withApiAuth` + services
-7. `supabase/migrations/007_api_keys.sql` (new) — `api_keys` table, partial index on `key_hash WHERE NOT revoked`, RLS for web UI
-8. `src/app/(dashboard)/settings/api-keys/page.tsx` (new) — create/revoke/list UI following existing settings layout
+1. `src/lib/types/slide.ts` — Add `TextEffects` hierarchy interfaces; add `hook_effects`/`body_effects` to `SlideStyleOverrides` and `effects` to `CustomText`
+2. `src/lib/render/resolve-styles.ts` — Add `resolveTextEffects()` with `SHADOW_PRESETS` map; extend `ResolvedSlideStyles`
+3. `src/lib/render/render-slide-satori.tsx` — Apply resolved effect styles to hook/body/custom text JSX; add highlight wrapper divs
+4. `src/lib/render/render-slide.ts` — Apply effect CSS strings to HTML output
+5. `src/components/slides/slide-preview.tsx` — Apply resolved effect styles to React inline styles; add highlight wrappers
+6. `src/components/editor/text-effects-controls.tsx` (NEW) — Reusable toggle + color + size controls; used three times (hook, body, selected custom text)
+7. `src/components/editor/text-editor-panel.tsx` — Import and render `TextEffectsControls` for all three text element types
+
+**Build order:** Types -> Resolution -> Satori renderer -> HTML renderer -> Preview renderer -> Editor UI. Renderer steps 3-5 are independent of each other once step 2 is complete.
 
 ### Critical Pitfalls
 
-1. **Middleware redirects API requests to `/login`** — The existing middleware has no `/api/v1` exclusion; API consumers get 307 HTML redirects instead of 401 JSON. Must add early return for `/api/v1/*` as the very first change, before any route handler exists.
+1. **Building duplicate-element workarounds before testing native Satori CSS** — Run a 30-minute spike rendering `textShadow` and `WebkitTextStrokeWidth` via `/api/render` before writing any implementation code. Native support is verified; workarounds are unnecessary and add 10-15 hours of complexity.
 
-2. **`===` on hash comparison enables timing attacks** — Standard string equality leaks information about the correct hash via response time variance. Use `crypto.timingSafeEqual(Buffer.from(providedHash), Buffer.from(storedHash))` everywhere a hash is compared.
+2. **Three renderers drifting out of sync** — Create `buildEffectStyles(effects: TextEffects): React.CSSProperties` as a shared utility before adding effects to any renderer. Never copy-paste effect logic across renderer files.
 
-3. **Cookie-based Supabase client in route handlers silently returns empty data** — `createClient()` relies on `auth.uid()` via cookies; API requests have no session, so RLS blocks all queries. Use `createAdminClient()` (service role) and manually append `.eq('user_id', userId)` to every query.
+3. **Tight highlight broken on multi-line text in Satori** — Satori does not support `box-decoration-break: clone`. Test with 4-line body text in Satori specifically. Accept full-width fallback in PNG export; keep per-line tight rendering in browser preview and HTML export.
 
-4. **In-memory rate limiter does not work across serverless instances** — Vercel routes concurrent requests to different instances, each with a fresh Map. The existing `rate-limit.ts` even documents this. Replace with `@upstash/ratelimit` for all `/api/v1/*` traffic.
+4. **Satori `textShadow` rgba syntax bug** — Never use `rgba(r, g, b, percentage%)` format (triggers Issue #441). Use 8-digit hex (`#00000080`) or decimal-alpha `rgba(0,0,0,0.5)` throughout.
 
-5. **API key plaintext in logs or error responses** — The Authorization header contains the raw key on every request. Log sanitization and immediate hashing on receipt must be established before any handler writes to stdout.
+5. **Effects implemented for hook/body but not custom text boxes** — The three text types have separate code paths in all renderers. Implement effects for all three types in the same phase using the shared utility. Do not ship without verifying the effects panel appears for selected custom text boxes.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on combined research, the milestone maps cleanly to 3 phases with a mandatory validation spike before implementation.
 
-### Phase 1: Foundation — Auth, Middleware, Database
+### Phase 1: Validation Spike + Data Model
+**Rationale:** The entire implementation strategy depends on confirmed native Satori CSS support. A 30-minute render test must confirm this before committing to the unified approach. Types must be defined before any renderer work can start.
+**Delivers:** Confirmed rendering strategy + complete TypeScript type definitions for the `TextEffects` hierarchy
+**Addresses:** Pitfall 1 (native vs duplicates), foundation for all features
+**Avoids:** Building the wrong architecture; type drift between renderers
 
-**Rationale:** Everything depends on the `api_keys` table and `withApiAuth` infrastructure. The middleware bypass is a one-line blocker that, if missing, causes 307 redirects for all API traffic. Security properties (timing-safe comparison, admin client pattern, log hygiene) must be established here so no subsequent implementation can accidentally regress them.
+### Phase 2: Renderer Implementation (Shadow + Outline + Full-Width Highlight)
+**Rationale:** Renderers must be updated before UI exists. Shadow and outline use identical CSS across all renderers — implement together. Full-width highlight is structurally similar (wrapper div) and low-risk; include here. Tight highlight is deferred to Phase 3 due to Satori complexity.
+**Delivers:** Working PNG export and browser preview for shadow, outline, and full-width highlight on all three text element types (hook, body, custom)
+**Implements:** `resolve-styles.ts` additions, `render-slide-satori.tsx`, `render-slide.ts`, `slide-preview.tsx` updates
+**Avoids:** Pitfall 2 (renderer drift) via shared utility; Pitfall 5 (custom text forgotten) by implementing all three text types in this phase
 
-**Delivers:** Working API key lifecycle (create/list/revoke), authenticated request pipeline, safe infrastructure for all subsequent route handlers to plug into.
-
-**Addresses:** API keys table, Create/List/Revoke UI, Bearer auth, middleware bypass, key management settings page.
-
-**Avoids:** Middleware redirect pitfall, timing attack pitfall, RLS blocking pitfall, key leakage in logs, CDN caching (response helpers set correct headers from day one).
-
-### Phase 2: Rate Limiting + Error Infrastructure
-
-**Rationale:** The `withApiAuth` wrapper from Phase 1 has a stub for rate limiting. This phase fills it with Upstash Redis and establishes the canonical error response format. Both must be in place before any route handler is built so every endpoint gets rate limiting and consistent errors automatically.
-
-**Delivers:** Distributed per-key rate limiting with sliding window, `X-RateLimit-*` headers on all responses, structured error responses matching the OpenAPI spec.
-
-**Uses:** `@upstash/ratelimit@^2.0.8`, `@upstash/redis@^1.37.0`, `UPSTASH_REDIS_REST_URL`/`TOKEN` env vars.
-
-**Implements:** `src/lib/api/rate-limit.ts` (Upstash), `src/app/api/v1/_lib/api-response.ts` (success/error helpers).
-
-**Avoids:** In-memory rate limiter pitfall; enable `ephemeralCache: new Map()` in Ratelimit config to reduce Redis calls ~40%.
-
-### Phase 3: Service Extraction
-
-**Rationale:** Route handlers must call business logic without duplicating it from server actions. Extracting services first means route handlers are thin from the start — no copy-paste, no logic drift, no credit deduction inconsistencies.
-
-**Delivers:** `carousel-service.ts`, `project-service.ts`, `render-service.ts` — shared functions callable by both existing server actions and new route handlers. Server actions become thin wrappers.
-
-**Implements:** `src/lib/services/` directory; refactored `project/[id]/actions.ts` and `dashboard/actions.ts`.
-
-**Avoids:** Business logic duplication anti-pattern; credit race condition (services call `deduct_credits` RPC directly, no pre-check bypass).
-
-### Phase 4: REST Endpoints
-
-**Rationale:** With auth, rate limiting, error formatting, and services in place, route handlers are thin boilerplate. Build read-only endpoints first (lower risk, no credit deduction) then mutations, then binary endpoints (render/download require Satori and Supabase Storage).
-
-**Delivers:** All 10 OpenAPI-specified endpoints returning correct response shapes with proper headers.
-
-**Addresses:** POST /carousel, GET+POST /projects, GET+DELETE /projects/:id, GET+PATCH /projects/:id/slides/:index, POST /projects/:id/render, GET /projects/:id/download, GET /projects/:id/download/:index.
-
-**Avoids:** OpenAPI spec drift (validate response shapes against spec as each endpoint lands), CDN caching on authenticated GET endpoints.
-
-### Phase 5: Validation + Polish
-
-**Rationale:** End-to-end verification before declaring v2.2 complete. The "looks done but isn't" checklist from PITFALLS.md is the forcing function.
-
-**Delivers:** Verified API with confirmed credit deduction, rate limit persistence across Vercel instances, spec accuracy, CORS headers, Content-Type correctness, full checklist passing.
-
-**Avoids:** Spec drift (integration test suite validates response shapes), credit race condition (load test: 10 concurrent requests against 1 credit, verify exactly 1 succeeds), in-memory rate limiter shipping to production.
+### Phase 3: Tight Highlight + Editor UI
+**Rationale:** Editor controls require working renderers to provide visible feedback. Tight highlight is the most complex feature (Satori fallback logic) and benefits from isolation. UI reuses existing patterns (toggles, swatches, sliders) and is low-risk.
+**Delivers:** Complete text effects editor panel with toggles, color pickers, and size controls; tight highlight mode with graceful Satori fallback
+**Implements:** `text-effects-controls.tsx` (new), `text-editor-panel.tsx` updates, tight highlight with `box-decoration-break: clone` in preview/HTML + full-width fallback in Satori
+**Avoids:** Pitfall 4 (tight highlight multi-line bug) by testing specifically with 4-line body text in Satori before shipping
 
 ### Phase Ordering Rationale
 
-- **Foundation first:** The middleware bypass must precede any route handler. Auth must precede rate limiting. Both must precede service extraction. Services must precede route handlers. This is a strict dependency chain.
-- **Service extraction before route handlers:** Avoids copy-paste anti-pattern that causes business logic to drift. The refactor cost is mechanical (move logic, add explicit params).
-- **Security properties in Phase 1:** Timing-safe comparison, admin client pattern, and log hygiene cannot be retrofitted — they must be structural from the start.
-- **Rate limiting before endpoints:** The `withApiAuth` wrapper must have a complete rate limit implementation before Phase 4 so every endpoint automatically inherits it.
+- Phase 1 before everything: a failed spike would change the entire architecture; must resolve first
+- Renderers before UI (Phase 2 before 3): controls need visible feedback to be meaningful during development
+- Shadow + outline together in Phase 2: they share the same unified CSS passthrough pattern and similar complexity
+- Tight highlight in Phase 3: isolated from simpler effects; fallback logic is easier to reason about in its own phase
+- All effects must include custom text boxes in the same phase they are implemented (Pitfall 5 prevention)
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
+Phases with standard patterns (skip additional research):
+- **Phase 1 (spike):** Code test against existing codebase — no research needed, just run it
+- **Phase 2 (renderers):** Unified CSS passthrough is well-documented; Satori CSS properties verified; build order is deterministic
+- **Phase 3 (UI):** UI patterns already established in `text-editor-panel.tsx`; reuse existing toggle/slider/swatch components
 
-- **Phase 4 (REST endpoints):** The render and download endpoints depend on existing Satori/ImageResponse rendering and Supabase Storage integration. Confirm the exact surface area of those integrations in the codebase before estimating task effort.
-- **Phase 5 (Validation):** Load testing with concurrent credit deduction and Vercel preview behavior (rate limit persistence across instances) may surface surprises. Define the test protocol before planning tasks.
-
-Phases with standard patterns (skip research-phase):
-
-- **Phase 1 (Auth/DB):** SHA-256 hashing, `timingSafeEqual`, Supabase admin client, and numbered SQL migrations are well-documented patterns with verified codebase examples.
-- **Phase 2 (Rate limiting):** Upstash ratelimit sliding window setup is fully documented; no novel patterns.
-- **Phase 3 (Service extraction):** Mechanical refactor — no novel patterns.
+No phase in this milestone requires `/gsd-research-phase` — all unknowns are resolved by the Phase 1 spike, which is a 30-minute code test rather than additional research.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Only 2 new packages; both verified on npm. All other capabilities are built-in or already installed. Exact versions confirmed. |
-| Features | HIGH | Grounded in the existing OpenAPI spec (`src/lib/api/openapi.ts`) and competitor analysis (Stripe, OpenAI, Resend, Vercel). 10 endpoints are fully defined. |
-| Architecture | HIGH | Based directly on verified codebase files — middleware.ts, admin.ts, openapi.ts, credits RPC. No speculative patterns. |
-| Pitfalls | HIGH | All 8 pitfalls grounded in either codebase verification or official Next.js 15 / Supabase / Upstash documentation. |
+| Stack | HIGH | Zero new dependencies; all CSS properties verified in compiled `@vercel/og` bundle at `node_modules/next/dist/compiled/@vercel/og/index.node.js` |
+| Features | HIGH | Competitor analysis (Canva, Adobe Express, PostNitro) plus verified Satori rendering compatibility matrix |
+| Architecture | HIGH | Existing codebase inspected; build order confirmed by dependency analysis; component boundaries match existing patterns |
+| Pitfalls | HIGH | Verified against Satori GitHub issues (#441, #645, #578), compiled bundle, and codebase file inspection |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Upstash account/credentials:** Research assumes Upstash Redis is provisioned. If not yet set up, account creation and env var configuration should be a task in Phase 2.
-- **CORS policy:** PITFALLS.md flags that CORS headers are needed for cross-origin API clients. The exact `Access-Control-Allow-Origin` policy (all origins vs. specific) should be decided during Phase 1 when the response helper is built.
-- **Render endpoint caching strategy:** The download endpoints could re-render from scratch on every request. PITFALLS.md notes this as a performance trap (cache in Supabase Storage with content hash). The exact caching implementation is not detailed in any research file — needs design in Phase 4.
-- **Tier-based rate limit values:** STACK.md proposes 60/200/600 req/min for free/plus/pro. These are unvalidated conventions, not benchmarked values. Treat as starting defaults.
+- **Satori `paint-order` for outline:** Browser preview needs explicit `paintOrder: 'stroke'` added to match Satori's auto-behavior. Verify match during Phase 1 spike.
+- **Shadow color defaults on dark templates:** Default `#00000099` is invisible on dark overlay templates. Phase 3 should test all templates and potentially auto-adjust default to white shadow on dark backgrounds.
+- **Slider debounce:** Color pickers and sliders firing `onChange` continuously will flood the undo history (MAX_HISTORY=50) and cause preview jank. Phase 3 must add 150ms debounce to onChange and use `onChangeComplete` for undo history pushes only — not the preview path.
+- **Satori `textShadow` blur fidelity:** Satori renders drop shadows via SVG `feGaussianBlur`; subtle visual differences from browser `text-shadow` are possible at same pixel values. Shadow presets with conservative values mitigate this; verify during Phase 1 spike.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Codebase: `src/lib/api/openapi.ts` — existing OpenAPI 3.1 spec with all 10 endpoints, auth scheme, error codes
-- Codebase: `src/middleware.ts` — confirmed `/api/v1` is NOT currently excluded
-- Codebase: `src/lib/rate-limit.ts` — confirmed in-memory Map with documented serverless caveat
-- Codebase: `src/lib/supabase/admin.ts` — confirmed admin client exists
-- Codebase: `supabase/migrations/005_credit_system.sql` — confirmed `deduct_credits` RPC with `pg_advisory_xact_lock`
-- [Upstash Ratelimit docs](https://upstash.com/docs/redis/sdks/ratelimit-ts/overview) — sliding window, ephemeral cache
-- [Next.js 15 Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers) — caching behavior, params as Promise
-- [Supabase RLS and Service Role](https://supabase.com/docs/guides/database/postgres/row-level-security) — bypass pattern
+- Compiled `@vercel/og` bundle: `node_modules/next/dist/compiled/@vercel/og/index.node.js` — verified `textShadow`, `WebkitTextStrokeWidth`, `WebkitTextStrokeColor` support
+- [Satori GitHub README CSS support table](https://github.com/vercel/satori) — confirmed `boxShadow`, `filter`, `backgroundClip: text` support
+- [Satori text-stroke PR #645](https://github.com/vercel/satori/pull/645) — merged Nov 19, 2024; adds WebkitTextStroke support
+- [Satori Issue #441](https://github.com/vercel/satori/issues/441) — `textShadow` rgba percentage-alpha parse bug; confirmed workaround
+- Existing codebase: `src/lib/render/render-slide-satori.tsx`, `src/components/slides/slide-preview.tsx`, `src/lib/types/slide.ts`, `src/app/api/render/route.ts`
 
 ### Secondary (MEDIUM confidence)
-- [Stripe API Keys docs](https://docs.stripe.com/keys) — competitor pattern for show-once, naming, prefix format
-- [Resend API Keys docs](https://resend.com/docs/dashboard/api-keys/introduction) — last-used timestamp pattern
-- [Vercel Tokens docs](https://vercel.com/docs/sign-in-with-vercel/tokens) — token format conventions
-- [Node.js crypto.timingSafeEqual](https://nodejs.org/api/crypto.html) — timing-safe comparison
+- [Satori CSS Support (DeepWiki)](https://deepwiki.com/vercel/satori/4-advanced-usage) — `display: inline` not supported; `box-decoration-break` not in supported list
+- [Canva text effects help](https://www.canva.com/help/text-effects/) — competitor feature reference for table stakes
+- [CSS box-decoration-break MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-decoration-break) — tight highlight browser technique
 
 ### Tertiary (LOW confidence)
-- Tier-based rate limit values (60/200/600 req/min) — proposed based on general SaaS conventions, not benchmarked
+- [Next.js Issue #72940](https://github.com/vercel/next.js/issues/72940) — satori version tracking in next/og; version confirmed via bundle inspection instead
 
 ---
-*Research completed: 2026-04-08*
+*Research completed: 2026-04-07*
 *Ready for roadmap: yes*

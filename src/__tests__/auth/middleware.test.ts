@@ -83,13 +83,3 @@ describe('updateSession middleware', () => {
     expect(response.status).not.toBe(307)
   })
 })
-
-describe('middleware /api/v1 bypass', () => {
-  it('skips updateSession for /api/v1/* routes', async () => {
-    const { middleware } = await import('@/middleware')
-    const request = new NextRequest('http://localhost:3000/api/v1/templates')
-    const response = await middleware(request)
-    // Should return undefined (early return, no updateSession called)
-    expect(response).toBeUndefined()
-  })
-})
