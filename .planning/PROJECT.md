@@ -74,7 +74,24 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ### Active
 
-(None — start next milestone with `/gsd-new-milestone`)
+- [ ] API keys table with SHA-256 hashing and RLS policies
+- [ ] Token generation UI in settings (create/revoke vsl_ keys)
+- [ ] Bearer token auth middleware for /api/v1/* routes
+- [ ] Implement all OpenAPI-defined REST endpoints
+- [ ] Rate limiting per API key
+- [ ] Credit deduction for API-driven generation
+
+## Current Milestone: v2.2 Public REST API
+
+**Goal:** Implement the full REST API with per-user API key authentication, matching the existing OpenAPI spec.
+
+**Target features:**
+- API keys table in Supabase with SHA-256 hashing, RLS policies
+- Token generation UI in settings (create/revoke `vsl_` prefixed keys)
+- Bearer token auth middleware for `/api/v1/*` routes
+- Implement all 10 OpenAPI-defined endpoints (carousel, projects, slides, templates, render, download)
+- Rate limiting per API key (Upstash Redis)
+- Credit deduction for API-driven generation
 
 ### Out of Scope
 
@@ -144,4 +161,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 after v2.1 milestone completed (Text Effects)*
+*Last updated: 2026-04-08 after v2.2 milestone started (Public REST API)*
