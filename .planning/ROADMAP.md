@@ -427,7 +427,11 @@ Plans:
   3. Developer can PATCH `/api/v1/projects/{id}/slides/{index}` to update slide fields (text, image, position)
   4. Developer can POST `/api/v1/projects/{id}/render` and receive download URLs for all rendered slide images
   5. Developer can GET `/api/v1/projects/{id}/download` and receive a ZIP file containing all slide PNGs
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 25-01-PLAN.md -- Carousel generation, project creation, slide update (write mutations)
+- [ ] 25-02-PLAN.md -- Render URLs and ZIP download (binary output endpoints)
 
 ## Progress
 
@@ -460,4 +464,4 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25
 | 22. Auth Foundation & Key Management | v2.2 | 2/2 | Complete    | 2026-04-09 |
 | 23. Rate Limiting, Credits & Infrastructure | v2.2 | 2/2 | Complete    | 2026-04-09 |
 | 24. REST Endpoints (Read) | v2.2 | 2/2 | Complete    | 2026-04-09 |
-| 25. REST Endpoints (Write & Render) | v2.2 | 0/0 | Not started | - |
+| 25. REST Endpoints (Write & Render) | v2.2 | 0/2 | Not started | - |
