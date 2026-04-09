@@ -5,15 +5,16 @@ import { Dialog } from '@base-ui/react/dialog'
 import { Icon } from '@/components/ui/icon'
 import { createApiKey } from '@/app/(dashboard)/settings/api-keys/actions'
 
-const SNIPPET_TABS = ['curl', 'JavaScript', 'Python'] as const
+const SNIPPET_TABS = ['curl', 'JavaScript', 'Python', 'Claude Desktop'] as const
 
 function getSnippet(tab: (typeof SNIPPET_TABS)[number], key: string): string {
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://viralslidemaker.com'
   switch (tab) {
     case 'curl':
-      return `curl -X GET https://viralslidemaker.com/api/v1/templates \\
+      return `curl -X GET ${baseUrl}/api/v1/templates \\
   -H "Authorization: Bearer ${key}"`
     case 'JavaScript':
-      return `const res = await fetch('https://viralslidemaker.com/api/v1/templates', {
+      return `const res = await fetch('${baseUrl}/api/v1/templates', {
   headers: { 'Authorization': 'Bearer ${key}' }
 });
 const data = await res.json();`
@@ -21,10 +22,21 @@ const data = await res.json();`
       return `import requests
 
 res = requests.get(
-    'https://viralslidemaker.com/api/v1/templates',
+    '${baseUrl}/api/v1/templates',
     headers={'Authorization': 'Bearer ${key}'}
 )
 data = res.json()`
+    case 'Claude Desktop':
+      return `{
+  "mcpServers": {
+    "viralslidemaker": {
+      "url": "${baseUrl}/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${key}"
+      }
+    }
+  }
+}`
   }
 }
 
