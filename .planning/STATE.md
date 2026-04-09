@@ -4,13 +4,13 @@ milestone: v2.2
 milestone_name: Public REST API
 status: planning
 stopped_at: Roadmap created for v2.2 Public REST API
-last_updated: "2026-04-09T00:09:38.349Z"
+last_updated: "2026-04-09T00:44:17.926Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 
 ## Current Position
 
-Phase: 23 of 25 (rate limiting, credits & infrastructure)
+Phase: 24 of 25 (rest endpoints (read))
 Plan: Not started
 Status: Ready to plan
 Last activity: 2026-04-09
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity (from v1.0 + v1.1 + v1.3 + v2.0 + v2.1):**
 
-- Total plans completed: 22
+- Total plans completed: 24
 - Average duration: ~6 min
 - Total execution time: ~2 hours
 
