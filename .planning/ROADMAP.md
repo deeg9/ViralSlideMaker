@@ -364,7 +364,7 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 - [x] **Phase 22: Auth Foundation & Key Management** - API keys table, SHA-256 hashing, middleware bypass, Bearer auth pipeline, key management UI (completed 2026-04-09)
 - [x] **Phase 23: Rate Limiting, Credits & Infrastructure** - Upstash Redis rate limiting, credit enforcement headers, structured errors, CORS, service extraction (completed 2026-04-09)
 - [x] **Phase 24: REST Endpoints (Read)** - Templates, projects list/get/delete, single slide get -- read-only endpoints with no credit deduction (completed 2026-04-09)
-- [ ] **Phase 25: REST Endpoints (Write & Render)** - Carousel generation, project creation, slide update, render, download -- mutation and binary endpoints
+- [x] **Phase 25: REST Endpoints (Write & Render)** - Carousel generation, project creation, slide update, render, download -- mutation and binary endpoints (completed 2026-04-09)
 
 ## Phase Details
 
@@ -430,8 +430,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 25-01-PLAN.md -- Carousel generation, project creation, slide update (write mutations)
-- [ ] 25-02-PLAN.md -- Render URLs and ZIP download (binary output endpoints)
+- [x] 25-01-PLAN.md -- Carousel generation, project creation, slide update (write mutations)
+- [x] 25-02-PLAN.md -- Render URLs and ZIP download (binary output endpoints)
 
 ## Progress
 
@@ -464,4 +464,4 @@ Phases execute in numeric order: 22 -> 23 -> 24 -> 25
 | 22. Auth Foundation & Key Management | v2.2 | 2/2 | Complete    | 2026-04-09 |
 | 23. Rate Limiting, Credits & Infrastructure | v2.2 | 2/2 | Complete    | 2026-04-09 |
 | 24. REST Endpoints (Read) | v2.2 | 2/2 | Complete    | 2026-04-09 |
-| 25. REST Endpoints (Write & Render) | v2.2 | 0/2 | Not started | - |
+| 25. REST Endpoints (Write & Render) | v2.2 | 2/2 | Complete    | 2026-04-09 |
