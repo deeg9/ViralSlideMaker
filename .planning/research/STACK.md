@@ -1,191 +1,204 @@
-# Technology Stack: v2.1 Text Effects (Shadow, Outline, Highlight)
+# Technology Stack: v2.3 MCP Server
 
-**Project:** TikTok Slideshow Creator v2.1
-**Researched:** 2026-04-07
-**Confidence:** HIGH (all CSS properties verified in compiled Satori bundle)
+**Project:** ViralSlideMaker MCP Server
+**Researched:** 2026-04-08
+**Confidence:** HIGH (versions verified via npm, patterns verified via official docs)
 
-> **Scope:** This document covers ONLY the stack needs for v2.1 Text Effects.
-> The existing stack (Next.js 15.5.13, React 19, Supabase, Satori via next/og, react-rnd, 30 Google Fonts, Playwright) is validated and unchanged.
+> **Scope:** This document covers ONLY the stack needed for v2.3 MCP Server.
+> The existing stack (Next.js 15.5.13, React 19, Supabase, withApiAuth, Upstash Redis rate limiting, 10 REST endpoints, zod 4.x) is validated and unchanged.
 
-## Key Finding: Zero New Dependencies Required
+## Key Finding: 2 New Packages Required
 
-All three text effects (shadow, outline, background highlight) are implementable using CSS properties already supported by the existing rendering stack. No new npm packages needed.
+The MCP server needs exactly two new npm packages. Everything else (auth, rate limiting, service layer, zod) is already in the project.
 
-## Verified Satori CSS Support
+## Recommended Stack
 
-Verified by inspecting the compiled bundle at `node_modules/next/dist/compiled/@vercel/og/index.node.js` (Next.js 15.5.13 bundles `@vercel/og` 0.7.2):
+### Core MCP Packages
 
-| CSS Property | Satori Support | How It Renders | Use Case |
-|---|---|---|---|
-| `textShadow` | YES | SVG `<feDropShadow>` filter | Text shadow effect |
-| `WebkitTextStrokeWidth` | YES | SVG `stroke-width` attr | Text outline width |
-| `WebkitTextStrokeColor` | YES | SVG `stroke` attr | Text outline color |
-| `backgroundColor` | YES | Standard fill | Highlight (full-width mode) |
-| `padding` | YES | Standard layout | Highlight padding |
-| `display: inline` | NO (flex/block/none only) | N/A | Limitation for tight highlight |
-| `boxDecorationBreak` | NO | N/A | Limitation for tight highlight |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| `mcp-handler` | ^1.1.0 | Next.js App Router MCP route handler | Vercel's official adapter for Next.js. Handles Streamable HTTP transport, SSE fallback, session management, and protocol negotiation in a single dynamic `[transport]` route. Provides `createMcpHandler` for tool registration and `withMcpAuth` for Bearer token verification. Eliminates manual `NodeStreamableHTTPServerTransport` setup. |
+| `@modelcontextprotocol/sdk` | ^1.26.0 | MCP protocol implementation (peer dep) | Official TypeScript SDK. Provides `McpServer`, `StdioServerTransport`, JSON-RPC handling, and tool registration primitives. Required as peer dependency of `mcp-handler`. Latest stable is 1.29.0; minimum compatible is 1.26.0. |
 
-Satori auto-sets `paint-order: stroke` and `stroke-linejoin: round` when text-stroke is applied, preventing stroke from obscuring the text fill. No manual workaround needed.
+### Already In Project (reuse, DO NOT re-add)
 
-## Implementation Strategy Per Effect
+| Library | Version | Role in MCP |
+|---------|---------|-------------|
+| `zod` | ^4.3.6 | Tool input schema validation. SDK accepts `^3.25 \|\| ^4.0` -- fully compatible. |
+| `next` | 15.5.13 | Route handler host at `app/api/[transport]/route.ts` |
+| `@supabase/supabase-js` | ^2.99.3 | Data access via existing service layer (`generateCarousel`, `listProjects`, etc.) |
+| `@upstash/ratelimit` | ^2.0.8 | Rate limiting via existing `checkRateLimit()` |
+| `@upstash/redis` | ^1.37.0 | Redis client for rate limiting |
 
-### 1. Text Shadow -- Native CSS in All Renderers
+## What NOT to Add
 
-**Approach:** Apply `textShadow` CSS property directly. Works identically in all three renderers.
+| Package | Why Not |
+|---------|---------|
+| `@modelcontextprotocol/server` (v2 package) | v2 SDK is pre-alpha (explicitly stated in official repo). Restructures into separate packages but is NOT production-ready. Stick with `@modelcontextprotocol/sdk` v1.x until v2 reaches stable. |
+| `@modelcontextprotocol/express` | Not needed. `mcp-handler` handles Next.js integration. Express adapter is for Express-only servers. |
+| `@modelcontextprotocol/hono` | Not needed. Same reason -- wrong framework. |
+| `@modelcontextprotocol/node` | Bundled within SDK. `mcp-handler` wraps it internally. |
+| Any OAuth library (better-auth, clerk, etc.) | Existing Bearer token auth with `vsl_` API keys is sufficient. MCP spec supports Bearer tokens directly. OAuth is only needed for third-party authorization flows, which are out of scope. |
+| `mcp-framework` | Over-engineered directory-based discovery for 4 tools. `mcp-handler` + direct registration is simpler. |
 
-**Satori caveat:** Use `rgba(r g b / a)` syntax (modern space-separated) rather than `rgba(r, g, b, a)` (legacy comma syntax). The legacy syntax caused parse errors in older Satori versions. Both work in the bundled version but modern syntax is safer.
+## Architecture: Two Transport Implementations
 
-**Preset system (px values at 1080x1920 reference):**
-```typescript
-const SHADOW_PRESETS = {
-  sm: { offset: '0 2px 4px',   blur: 4  },  // subtle lift
-  md: { offset: '0 4px 8px',   blur: 8  },  // medium depth
-  lg: { offset: '0 8px 16px',  blur: 16 },  // dramatic
-}
+### 1. Streamable HTTP (hosted, primary)
+
+**Route:** `src/app/api/[transport]/route.ts`
+**URL:** `https://viralslidemaker.com/api/mcp` (the `[transport]` segment resolves to `mcp`)
+
+`mcp-handler` creates a single dynamic route that handles:
+- `POST /api/mcp` -- JSON-RPC messages (tool calls, initialization)
+- `GET /api/mcp` -- SSE stream for server-initiated messages
+- `DELETE /api/mcp` -- Session cleanup
+
+**Auth flow:** `withMcpAuth` wraps the handler. It extracts the Bearer token from the `Authorization` header and passes it to a `verifyToken` function. This function reuses the existing `authenticateApiKey` to validate `vsl_` tokens and returns auth info that flows to tool handlers via `extra.authInfo`.
+
+**Tool implementation:** Tools call existing service functions DIRECTLY (same Node.js process). No HTTP roundtrip. The service layer (`generateCarousel`, `listProjects`, slide update functions) is already extracted and shared between web UI server actions and REST endpoints.
+
+**Rate limiting and credits:** Must be implemented in the MCP route since tools bypass REST middleware. Reuse `checkRateLimit(keyId)` and `deductCreditAdmin()` directly.
+
+```
+Client (Claude Desktop/Cursor)
+  |
+  | HTTPS POST /api/mcp (Bearer vsl_xxx)
+  v
+[transport] route.ts
+  |
+  | withMcpAuth -> verifyToken -> authenticateApiKey
+  | checkRateLimit(keyId)
+  v
+MCP Tool Handler
+  |
+  | Direct function call (no HTTP)
+  v
+Service Layer (generateCarousel, etc.)
+  |
+  v
+Supabase / Pexels / Gemini
 ```
 
-### 2. Text Outline -- Native CSS in All Renderers
+### 2. stdio (npm package, secondary)
 
-**Approach:** Apply `WebkitTextStrokeWidth` and `WebkitTextStrokeColor` in preview and Satori. Use `-webkit-text-stroke-width` and `-webkit-text-stroke-color` in the HTML renderer.
+**Package:** `viralslidemaker-mcp` (published to npm)
+**Entry:** `bin/cli.ts` -> `McpServer` + `StdioServerTransport`
 
-**Browser support:** Universal in all modern browsers (Chrome, Firefox, Safari, Edge).
+The npm package is a thin CLI that:
+1. Reads `VIRALSLIDEMAKER_API_KEY` and `VIRALSLIDEMAKER_BASE_URL` from env vars
+2. Creates an `McpServer` with the same 4 tool definitions
+3. Each tool calls the hosted REST API via `fetch()` (HTTP client, not direct service calls)
+4. Connects to `StdioServerTransport` for stdin/stdout communication
 
-**Slider range:** 1-8px. Beyond 8px the stroke starts to visibly eat into the fill on smaller font sizes. The auto `paint-order: stroke` in Satori mitigates this, but the browser preview needs explicit `paintOrder: 'stroke'` to match.
+**Why REST calls instead of direct service calls:** The npm package runs on the user's machine, not the server. It has no access to Supabase, service layer, or server-side code. It must go through the REST API.
 
-### 3. Background Highlight -- Renderer-Specific Strategy
+### Key Integration Pattern
 
-This is the only effect requiring different approaches per renderer due to Satori's `display: inline` limitation.
-
-**Two modes:**
-- **Full-width:** Background spans the entire text box width.
-- **Tight:** Background hugs each line of text individually.
-
-| Renderer | Full-Width | Tight |
-|---|---|---|
-| Preview (browser) | `backgroundColor` + `padding` on container div | `<span>` with `backgroundColor`, `padding`, `boxDecorationBreak: 'clone'`, `display: 'inline'` |
-| HTML export | Same as preview | Same as preview |
-| Satori export | `backgroundColor` + `padding` on container div | **Fallback to full-width.** Satori lacks `display: inline` and `boxDecorationBreak`. |
-
-**Rationale for Satori tight-mode fallback:** Carousel text is typically short (1-3 lines of hook text). The visual difference between tight and full-width highlight is minimal at this text length. Implementing a word-splitting workaround would add complexity for marginal visual benefit. Ship full-width fallback first; revisit only if users report dissatisfaction.
-
-## Data Model Additions
-
-### TextEffects Interface (new, shared across all text elements)
-
-```typescript
-interface TextEffects {
-  shadow?: {
-    enabled: boolean
-    color: string        // hex with alpha, e.g. '#00000080'
-    size: 'sm' | 'md' | 'lg'
-  }
-  outline?: {
-    enabled: boolean
-    color: string        // hex color, e.g. '#000000'
-    width: number        // 1-8 px
-  }
-  highlight?: {
-    enabled: boolean
-    color: string        // hex with alpha, e.g. '#FFD70080'
-    style: 'tight' | 'full'
-    padding: number      // 4-24 px
-  }
-}
+```
+Streamable HTTP tools -> service functions (direct, same process)
+stdio tools          -> REST API (HTTP, remote)
 ```
 
-**Applied to:**
-- `SlideStyleOverrides.hook_text_effects?: TextEffects`
-- `SlideStyleOverrides.body_text_effects?: TextEffects`
-- `CustomText.text_effects?: TextEffects`
+Shared: Tool names, descriptions, input schemas (zod), and response formatting should be defined ONCE in a shared module (`src/lib/mcp/tools.ts`) and imported by both transport implementations.
 
-Each text element gets independent effect controls. No global "apply to all" -- per-element is the right model because hook text typically needs different treatment than body text (e.g., hook with heavy shadow + outline, body with subtle highlight).
+## Tool-to-Endpoint Mapping
 
-## Recommended Stack (Unchanged)
+| MCP Tool | REST Endpoint | Service Function (hosted) | Credit Cost |
+|----------|---------------|---------------------------|-------------|
+| `list_templates` | `GET /api/v1/templates` | Direct template data access | 0 |
+| `create_carousel` | `POST /api/v1/carousel` | `generateCarousel()` | 1 |
+| `edit_slide` | `PATCH /api/v1/projects/[id]/slides/[index]` | Slide update service | 0 |
+| `render_carousel` | `POST /api/v1/projects/[id]/render` | Render service | 0 |
 
-### Core (no changes)
-| Technology | Version | Purpose | Why |
-|---|---|---|---|
-| Next.js | 15.5.13 | Framework + Satori via `next/og` | Bundled Satori supports `textShadow` + `WebkitTextStroke` |
-| React | 19.1.0 | UI rendering for preview | Standard CSS properties for all effects |
-| react-rnd | 10.5.3 | Drag/resize text boxes | Already installed, unaffected |
+## mcp-handler API Reference
 
-### Rendering (no changes)
-| Technology | Version | Purpose | Why |
-|---|---|---|---|
-| Satori (via @vercel/og 0.7.2) | Bundled in Next.js | JSX to SVG | Verified support for shadow + outline |
-| resvg-wasm (via @vercel/og) | Bundled | SVG to PNG | Correctly renders SVG filters and strokes |
-| Playwright | 1.58.2 | HTML renderer | Full CSS support for all effects including tight highlight |
+### `createMcpHandler(setup, options, config)`
 
-### UI Components (no changes)
-| Technology | Version | Purpose | Why |
-|---|---|---|---|
-| @radix-ui/react-switch | 1.2.6 | Toggle switches for effects | Already in deps, use for enable/disable toggles |
-| Tailwind CSS | 4.x | Editor panel styling | Already used |
-| lucide-react | 0.577.0 | Icons for effect controls | Already in deps |
+| Parameter | Type | Purpose |
+|-----------|------|---------|
+| `setup` | `(server: McpServer) => void` | Register tools, resources, prompts |
+| `options` | `object` | Server options (empty `{}` for defaults) |
+| `config.basePath` | `string` | Must match the route path prefix (e.g., `/api`) |
+| `config.maxDuration` | `number` | Max request duration in seconds |
+| `config.verboseLogs` | `boolean` | Enable debug logging |
+
+### `withMcpAuth(handler, verifyToken, options)`
+
+| Parameter | Type | Purpose |
+|-----------|------|---------|
+| `handler` | MCP handler from `createMcpHandler` | The handler to wrap |
+| `verifyToken` | `(req: Request, bearerToken?: string) => Promise<AuthInfo \| undefined>` | Token validation function |
+| `options.required` | `boolean` | If `true`, reject unauthenticated requests |
+
+### Tool Registration
+
+```typescript
+server.registerTool("tool_name", {
+  title: "Human-Readable Title",
+  description: "Description for the LLM",
+  inputSchema: {
+    param: z.string().min(1).max(500),
+    optional: z.number().optional(),
+  },
+}, async (params, extra) => {
+  // extra.authInfo?.clientId = userId
+  // extra.authInfo?.extra?.keyId = keyId
+  return {
+    content: [{ type: "text", text: JSON.stringify(result) }],
+  }
+})
+```
+
+### Route Export
+
+```typescript
+// Must export all three HTTP methods
+export { authHandler as GET, authHandler as POST, authHandler as DELETE }
+```
+
+## Alternatives Considered
+
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| MCP route handler | `mcp-handler` (Vercel) | Raw `@modelcontextprotocol/sdk` with manual `NodeStreamableHTTPServerTransport` | Manual setup requires handling session IDs, SSE streams, JSON-RPC framing, DELETE cleanup, and transport protocol negotiation. `mcp-handler` does this in ~20 lines. |
+| SDK version | v1.x (1.26.0+) | v2 pre-alpha (`@modelcontextprotocol/server`) | v2 restructures into separate packages. Pre-alpha, unstable API, `mcp-handler` does not support it yet. |
+| Auth approach | `withMcpAuth` + existing `authenticateApiKey` | Custom middleware wrapping the handler | `withMcpAuth` provides proper MCP-aware auth with `extra.authInfo` flowing to tool handlers. Reinventing this adds no value. |
+| Hosted tool implementation | Direct service calls | Call own REST API via fetch | Service functions are already extracted. Direct calls avoid HTTP overhead and the circular dependency of the server calling itself. |
+| npm package structure | Separate `packages/mcp-cli/` directory | Inline in main src | The CLI is published independently to npm. It needs its own `package.json`, `tsconfig.json`, and build step. Keep it separate. |
 
 ## Installation
 
 ```bash
-# No new packages needed.
+# 2 new packages
+npm install mcp-handler @modelcontextprotocol/sdk@^1.26.0
 ```
 
-## What NOT to Add
-
-| Library/Tool | Why Not |
-|---|---|
-| `satori` (standalone npm) | Already bundled in `next/og`. Installing standalone creates version conflicts. |
-| `@vercel/og` (standalone) | Already bundled in Next.js 15.5.13. |
-| `canvas` / `node-canvas` | All effects achievable via CSS properties. No pixel manipulation needed. |
-| `fabric.js` / `konva` | Canvas-based renderers. Would require rewriting the entire rendering pipeline. |
-| `sharp` | Image manipulation library, not relevant for text CSS effects. |
-| Any "text effect" npm library | These target canvas-based rendering. The project uses CSS-based rendering. |
-| `css-paint-polyfill` | Satori doesn't use Houdini/Paint API. Standard CSS properties suffice. |
-
-## Alternatives Considered
-
-| Approach | Recommended | Alternative | When to Use Alternative |
-|---|---|---|---|
-| Satori tight highlight | Full-width fallback | Word-splitting into separate `<div>`s with flexWrap | Only if users explicitly report dissatisfaction with full-width in exports |
-| Shadow presets (S/M/L) | YES -- simpler UX | Custom offset/blur/spread sliders | Only if users demand pixel-level shadow control. Presets cover 95% of carousel use cases. |
-| Outline via WebkitTextStroke | YES -- native support | Duplicate text elements offset by 1px in 4/8 directions | Only if WebkitTextStroke has rendering bugs in Satori. Verified working -- not needed. |
-
-## Files to Modify
-
-| File | Change | Complexity |
-|---|---|---|
-| `src/lib/types/slide.ts` | Add `TextEffects` interface, add to `SlideStyleOverrides` + `CustomText` | Low |
-| `src/lib/render/resolve-styles.ts` | Resolve text effects defaults in `resolveSlideStyles()` | Low |
-| `src/components/slides/slide-preview.tsx` | Apply `textShadow`, `WebkitTextStroke*`, highlight styles to text elements | Medium |
-| `src/lib/render/render-slide-satori.tsx` | Apply same CSS properties to JSX inline styles | Medium |
-| `src/lib/render/render-slide.ts` | Apply CSS text-shadow, -webkit-text-stroke, background in HTML template | Medium |
-| New: `src/components/editor/text-effects-panel.tsx` | UI panel with toggles, color pickers, sliders | Medium |
-| `src/lib/editor/use-slide-editor.ts` | Add reducer actions for text effect changes | Low |
+**Bundle size note:** `@modelcontextprotocol/sdk` v1.x bundles express, hono, cors, jose, and other dependencies (~15 transitive deps). This is because v1 is a monolithic package covering all transports. These deps are server-only and do NOT affect client bundle size (route handlers are server-only in Next.js App Router). Tree-shaking in v2 will address this, but v2 is not ready.
 
 ## Confidence Assessment
 
-| Claim | Confidence | Evidence |
-|---|---|---|
-| Satori supports `textShadow` | HIGH | Verified string `textShadow` in compiled bundle; listed in [Satori CSS docs](https://deepwiki.com/vercel/satori/4-advanced-usage) |
-| Satori supports `WebkitTextStroke` | HIGH | Verified `WebkitTextStrokeWidth`/`WebkitTextStrokeColor` in compiled bundle; [PR #645 merged Nov 2024](https://github.com/vercel/satori/pull/645) |
-| Satori does NOT support `display: inline` | HIGH | [Satori docs](https://deepwiki.com/vercel/satori/4-advanced-usage) list only flex/block/none |
-| `boxDecorationBreak` NOT in Satori | MEDIUM | Not in supported properties list; not found in bundle search |
-| Browser support for all CSS properties | HIGH | `-webkit-text-stroke`, `text-shadow`, `box-decoration-break: clone` supported universally |
-| Zero new dependencies needed | HIGH | All effects use CSS properties already in Satori + browsers |
-
-## Key Risk
-
-**Satori `textShadow` syntax sensitivity.** Satori's CSS parser is stricter than browsers. If `rgba()` color values cause parse errors, the entire ImageResponse fails (not a graceful degradation). Mitigation: use hex colors with alpha channel (`#00000080`) instead of `rgba()` functions. Hex colors are parsed more reliably across Satori versions.
+| Decision | Confidence | Basis |
+|----------|------------|-------|
+| `mcp-handler` for Streamable HTTP | HIGH | Official Vercel package, v1.1.0 released March 2026, purpose-built for Next.js, 29 releases |
+| `@modelcontextprotocol/sdk` v1.x | HIGH | Official SDK, npm verified, 1.29.0 latest stable, 1.26.0+ required by mcp-handler |
+| Avoid SDK v2 | HIGH | Explicitly marked "pre-alpha" in official repo README |
+| Bearer token auth via `withMcpAuth` | HIGH | Documented in mcp-handler AUTHORIZATION.md, `verifyToken` hook maps directly to existing `authenticateApiKey` |
+| Zod 4.x compatibility | HIGH | SDK declares `^3.25 \|\| ^4.0`, project has 4.3.6 |
+| Direct service calls for hosted transport | HIGH | Service layer already extracted in v2.2 for exactly this purpose (shared between web UI and API) |
+| stdio via separate npm package | MEDIUM | Standard pattern per MCP ecosystem. Requires maintaining shared tool definitions and a separate build/publish pipeline. |
+| `mcp-handler` peer dep flexibility | MEDIUM | Peer dep pins `1.26.0` exactly, but npm resolves `^1.26.0` range. Tested with 1.29.0 per community reports, but not officially documented. |
 
 ## Sources
 
-- [Satori CSS Support (DeepWiki)](https://deepwiki.com/vercel/satori/4-advanced-usage) -- supported property list
-- [Satori Text-Stroke PR #645](https://github.com/vercel/satori/pull/645) -- merged Nov 19, 2024
-- [Satori -webkit-text-stroke Issue #578](https://github.com/vercel/satori/issues/578) -- closed/resolved
-- [Satori text-shadow parse error Issue #441](https://github.com/vercel/satori/issues/441) -- rgba syntax gotcha
-- [Satori Text and Typography (DeepWiki)](https://deepwiki.com/vercel/satori/6-text-and-typography)
-- [Satori GitHub Releases](https://github.com/vercel/satori/releases) -- latest 0.26.0 (Mar 2026)
-- Local bundle inspection: `node_modules/next/dist/compiled/@vercel/og/index.node.js` -- confirmed WebkitTextStroke* and textShadow present
+- [Vercel mcp-handler GitHub](https://github.com/vercel/mcp-handler) -- v1.1.0, route handler setup, tool registration
+- [mcp-handler Authorization docs](https://github.com/vercel/mcp-handler/blob/main/docs/AUTHORIZATION.md) -- withMcpAuth, verifyToken pattern
+- [MCP TypeScript SDK GitHub](https://github.com/modelcontextprotocol/typescript-sdk) -- v1.29.0 latest stable, v2 pre-alpha status
+- [MCP SDK server docs](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/server.md) -- McpServer, transport setup, tool definitions
+- [MCP SDK v2 docs](https://ts.sdk.modelcontextprotocol.io/v2/) -- confirms v2 is pre-alpha, not recommended
+- [Next.js MCP Guide](https://nextjs.org/docs/app/guides/mcp) -- official Next.js MCP guidance
+- [Vercel MCP deploy docs](https://vercel.com/docs/mcp/deploy-mcp-servers-to-vercel) -- deployment patterns
+- npm registry: `mcp-handler@1.1.0`, `@modelcontextprotocol/sdk@1.29.0` -- version and dependency verification
 
 ---
-*Stack research for: TikTok Slideshow Creator v2.1 -- Text Effects*
-*Researched: 2026-04-07*
+*Stack research for: ViralSlideMaker v2.3 -- MCP Server*
+*Researched: 2026-04-08*

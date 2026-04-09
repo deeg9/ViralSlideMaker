@@ -1,136 +1,175 @@
-# Feature Landscape: Text Effects (v2.1)
+# Feature Research: MCP Server for ViralSlideMaker
 
-**Domain:** Text effects for TikTok/Instagram carousel slide creator
-**Researched:** 2026-04-07
-**Overall confidence:** HIGH
+**Domain:** MCP server integration for SaaS carousel generator
+**Researched:** 2026-04-08
+**Confidence:** HIGH
 
-## Table Stakes
+## Feature Landscape
 
-Features users expect from any design tool offering text effects. Missing = the feature feels half-baked.
+### Table Stakes (Agents Expect These)
+
+Features that every MCP server must have or agents cannot function. These are non-negotiable.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Text shadow with color control | Every design tool (Canva, Adobe Express, Figma) offers shadow with color. Users will compare. | Low | Satori's bundled version in `next/og` (v0.7.2, Next.js 15.5.13) **natively supports `textShadow`** -- no duplicate-element workaround needed. Verified in compiled source. |
-| Text outline with color + thickness | Canva "Hollow" and "Splice" effects, Adobe Express outline -- second most-used text effect after shadow. | Low-Med | Satori natively supports `WebkitTextStrokeWidth` + `WebkitTextStrokeColor` (merged Nov 2024, present in bundled build). Should work directly. |
-| Background highlight behind text | Standard readability technique for text over photos. Canva calls it "Background" effect. Essential for carousel slides where text sits on busy images. | Med | Two sub-styles needed: tight (inline marker) and full-width (banner). Tight is harder in Satori -- see Differentiators. |
-| Per-element independence | Each text box (hook, body, custom) must have its own independent effect settings. Shared global effects would be a dealbreaker. | Low | Already planned in the `TextEffects` interface on `SlideStyleOverrides` and `CustomText`. No extra complexity. |
-| Toggle on/off per effect | Users must be able to enable/disable each effect independently without losing their settings (color, size). | Low | Standard boolean toggle pattern. Sub-controls hidden when toggle is off. |
-| Color picker for each effect | Shadow, outline, and highlight all need color control. Swatch presets + full picker. | Low | Reuse existing color swatch + picker pattern from text color controls in `text-editor-panel.tsx`. |
+| `create_carousel` tool | The core value prop -- one-shot carousel from topic. Without this, the MCP server is pointless. | LOW | Wraps POST `/api/v1/carousel`. Already the highest-value REST endpoint. Must return projectId + download URLs in one response so agents don't need multi-step orchestration. |
+| `list_templates` tool | Agents need to discover available styles before creating. Every SaaS MCP server exposes discovery/list tools. | LOW | Wraps GET `/api/v1/templates`. No credit cost. Returns id + name + textPosition + textAlign. |
+| `edit_slide` tool | Agents need to refine output after creation. "Create then edit" is the natural agent workflow (Notion, Stripe all follow this). | LOW | Wraps PATCH `/api/v1/projects/{id}/slides/{index}`. Support hookText, bodyText, imageQuery, backgroundUrl. Zero credits. |
+| `render_carousel` tool | Agents need to get download URLs after edits. Completes the create-edit-download workflow. | LOW | Wraps POST `/api/v1/projects/{id}/render`. Returns slide download URLs + ZIP URL. Zero credits. |
+| Bearer token auth on `/api/mcp` | Every production MCP server requires auth. Stripe uses OAuth 2.1, Notion uses Bearer tokens. Bearer is simpler and matches the existing `vsl_` key system. | LOW | Reuse existing `withApiAuth` middleware. Same keys work for REST and MCP. |
+| Streamable HTTP transport | The standard remote transport since MCP spec 2025-03-26. SSE is deprecated. Claude Desktop, Cursor, and all modern clients support Streamable HTTP. | MEDIUM | Single Next.js route at `/api/mcp`. Uses `@modelcontextprotocol/sdk` McpServer + StreamableHTTPServerTransport. |
+| stdio transport via npm package | Required for local agent use (Claude Desktop subprocess mode, Cursor local). The other half of the transport story. | MEDIUM | Separate npm package `viralslidemaker-mcp` that wraps the same tool definitions but connects via stdio, calling the REST API internally. |
+| Descriptive tool schemas with examples | Agents select tools based on descriptions. Poor descriptions = agents pick wrong tools or pass bad params. Research shows this is the #1 cause of MCP failures. | LOW | Every tool needs: clear description of what it does, when to use it, parameter constraints, what it returns, and credit cost. |
+| Structured error responses | Agents need parseable errors to self-correct. "Something went wrong" is useless; "INSUFFICIENT_CREDITS: 0 remaining, need 1" lets agents inform users. | LOW | Already have structured JSON errors from REST API. Pass through as MCP error content with code + message. |
 
-## Differentiators
+### Differentiators (Competitive Advantage)
 
-Features that set the product apart from carousel-specific competitors. PostNitro, aiCarousels, and PostWaffle have **zero** text effects -- shipping any of these puts the product ahead.
+Features that make this MCP server better than a raw API wrapper. Not required, but make the agent experience noticeably better.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Shadow size presets (S/M/L) | Simpler than Canva's offset-x/offset-y/blur/spread sliders. Faster for carousel creators who want "good enough" quickly. Three presets mapping to offset values (2px/4px/6px) is the right abstraction level. | Low | Canva uses 4 sliders (offset, direction, blur, transparency). Our preset approach trades flexibility for speed -- correct tradeoff for the carousel use case. |
-| Tight highlight ("marker" style) | Text with per-line background color, like a highlighter pen. Very popular on Instagram/TikTok carousels for readability. Most carousel tools lack this. | Med-High | Requires `box-decoration-break: clone` on inline `<span>` elements in browser renderers (preview + HTML export). Satori likely does NOT support `box-decoration-break` for inline elements -- will need a per-line-wrapping workaround or accept full-width-only in PNG export. **This is the hardest feature in the set.** |
-| Full-width highlight (banner style) | Colored rectangle behind entire text box. Simpler variant of highlight. | Low | Just a `<div>` with `backgroundColor` and padding behind the text. Works in all three renderers including Satori. |
-| Highlight padding control | Slider for padding around highlighted text (4-24px). Gives users fine control over how much "breathing room" the highlight has. | Low | Simple numeric slider mapped to padding value. |
-| Effect combinations | Shadow + outline + highlight can all be enabled simultaneously on the same text element. | Low | Each effect is independent in the data model. CSS properties and Satori styles compose naturally. |
+| Outcome-oriented `create_carousel` response | Return projectId + slideCount + download URLs + ZIP URL all in one response. Agent gets everything needed without a follow-up `render_carousel` call. Follows the "outcomes over operations" MCP best practice. | LOW | The REST API already returns projectId. Add render URLs to the MCP tool response by calling render internally after creation. Saves agents a round-trip. |
+| Credit balance in every response | Return `creditsRemaining` in every tool response so agents can proactively warn users before running out. No other carousel MCP server does this. | LOW | Already in REST response headers (`x-credits-remaining`). Surface in MCP response body. |
+| `get_project` tool for inspection | Let agents retrieve a project to review current state before editing. Enables "show me slide 3" workflows. | LOW | Wraps GET `/api/v1/projects/{id}`. Returns full project with all slides. |
+| Prompt template: `create-carousel` | Pre-built MCP prompt that guides agents through the optimal workflow: pick template, create carousel, review, edit. Reduces agent guesswork. | LOW | MCP prompts are user-invocable templates. Define one that structures the carousel creation flow with argument slots for topic and style preference. |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build in this milestone.
+Features that seem good but create real problems in the MCP context.
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Blur radius control for shadow | Satori renders shadows as sharp-edged (no blur in SVG text-shadow). Adding a blur slider would look correct in the browser preview but wrong in PNG export -- creating a confusing WYSIWYG mismatch. | Use the S/M/L presets which control offset only. The sharp shadow at 1080x1920 looks fine. Revisit blur if/when switching to Playwright renderer. |
-| Gradient text fills | Requires `background-clip: text` which Satori supports but is complex to combine with outline and shadow effects. Different feature category. | Defer to a future "Advanced Text Effects" milestone. |
-| Neon glow effect | Requires blurred shadow (multiple `text-shadow` values with blur). Same WYSIWYG mismatch problem as blur radius. Canva's neon is impressive but Satori cannot reproduce it. | Defer until Playwright/canvas renderer is available. |
-| Curved/warped text | Completely different rendering approach (SVG path text). Not a "text effect" in the CSS sense. | Separate milestone entirely. |
-| Per-character effects | Animating or styling individual characters differently. Massive complexity for minimal carousel value. | Not applicable to static carousel images. |
-| Offset X/Y sliders for shadow | Canva-style directional shadow control. Over-engineered for carousel use case. Most users just want "add shadow to make text readable." | S/M/L presets with fixed 45-degree offset direction. Simpler, faster, and avoids the Satori blur mismatch. |
-| Outline-only text (hollow) | Canva's "Hollow" removes fill color leaving only stroke. Niche use case, adds UI complexity (need to explain fill vs stroke). | Can be achieved by setting text color to transparent + enabling outline. Don't need a separate toggle. |
-| Multiple shadows | CSS supports comma-separated `text-shadow` values for stacked effects. Over-engineered for v2.1. | Single shadow per element is sufficient. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Expose ALL 10 REST endpoints as MCP tools | "Feature parity" instinct -- if the API has it, MCP should too | Tool count bloat kills agent accuracy. Research shows accuracy drops from 95% to 71% when tool count gets excessive. `list_projects`, `create_project`, `delete_project`, `get_slide`, `download_slide`, `download_zip` add 6 more tools but agents rarely need them -- they work with one carousel at a time. | Keep to 4-6 curated tools. Agents that need raw CRUD can use the REST API directly. |
+| Granular slide-level CRUD tools (add_slide, remove_slide, reorder_slides, duplicate_slide) | Power users want full editor control via agents | Agents are bad at multi-step layout decisions. Adding/removing/reordering slides requires understanding visual flow -- agents generate better results by regenerating with different slide counts than by surgically modifying structure. Also bloats tool count. | Let `create_carousel` accept `slideCount` param. For removal, agents can edit unwanted slides to be CTAs or regenerate. |
+| Binary file download tools | "Agent should download the images directly" | MCP tools return text/JSON, not binary. Returning base64-encoded PNGs would bloat context windows massively (a single 1080x1920 PNG is ~500KB = ~700K base64 chars). | Return download URLs. The user or a separate download tool handles fetching. This is how Stripe MCP handles invoices -- returns URLs, not PDFs. |
+| Style/theme customization tools | "Agent should control fonts, colors, overlay opacity per slide" | Exposes 15+ style parameters as tool inputs. Agents struggle with visual design decisions (font size 24 vs 28? overlay opacity 60 vs 70?). Creates confusing tool schemas and bad output. | Templates handle styling. The `create_carousel` tool accepts `templateId`. For advanced users, `edit_slide` accepts `style_overrides` as an optional escape hatch but it should not be a separate tool. |
+| Real-time streaming of generation progress | "Agent should show progress as slides generate" | MCP tools are request-response, not streaming. The generation takes 5-15 seconds -- acceptable for a tool call. Adding SSE/streaming within MCP adds protocol complexity for marginal UX improvement. | Return the complete result. 5-15s is within normal MCP tool call timeout ranges. |
+| `delete_project` as an MCP tool | Agents should be able to clean up | Destructive operations via AI agents are dangerous. One misunderstood instruction and a user's project is gone. Stripe MCP intentionally restricts destructive tools. | Omit from MCP. Users delete via web UI. If needed later, add with confirmation_token pattern. |
 
 ## Feature Dependencies
 
 ```
-Text shadow --------> Color picker component (exists)
-                  \-> S/M/L preset button group (new, but pattern exists in text position presets)
+[list_templates]
+    └──informs──> [create_carousel] (agent picks templateId)
+                      └──produces──> [edit_slide] (needs projectId + slideIndex)
+                      └──produces──> [render_carousel] (needs projectId)
+                      └──produces──> [get_project] (needs projectId)
 
-Text outline -------> Color picker component (exists)
-                  \-> Thickness slider (new, but pattern exists in font-size slider)
+[Bearer auth middleware]
+    └──required by──> ALL tools (auth is enforced before any tool execution)
 
-Background highlight -> Color picker component (exists)
-                    \-> Style toggle: tight/full-width (new button group)
-                    \-> Padding slider (new, reuse slider pattern)
-                    \-> Tight highlight needs per-line wrapping logic (new, complex)
+[REST API v2.2 endpoints]
+    └──required by──> ALL MCP tools (MCP tools wrap REST handlers)
 
-All effects ---------> TextEffects interface in slide.ts (new)
-                    \-> Per-element storage on SlideStyleOverrides + CustomText (new fields)
-                    \-> Three renderers updated: preview, Satori, HTML
+[Streamable HTTP transport]
+    └──independent of──> [stdio transport] (separate implementations, same tool definitions)
 
-Satori renderer -----> textShadow CSS property (verified: supported in bundled @vercel/og 0.7.2)
-                    \-> WebkitTextStrokeWidth/Color (verified: supported in bundled build)
-                    \-> backgroundColor on wrapping elements (verified: supported)
+[@modelcontextprotocol/sdk]
+    └──required by──> [Streamable HTTP transport]
+    └──required by──> [stdio transport]
 ```
 
-**Critical dependency chain:** Types -> Satori renderer -> Preview renderer -> HTML renderer -> Editor UI. Types must be defined first. Renderer updates must happen before UI so there is something to preview.
+### Dependency Notes
 
-## Rendering Compatibility Matrix
+- **All MCP tools require REST API v2.2:** The MCP server is a thin wrapper. It reuses service layer functions, not HTTP calls internally. This means service extraction (already done in v2.2) is the critical dependency.
+- **`create_carousel` informs `edit_slide`:** The projectId returned by creation is needed for all subsequent operations. This is the natural agent workflow.
+- **Transports are independent:** Streamable HTTP and stdio share tool definitions but have different transport layers. Build tools first, then wire to both transports.
+- **`list_templates` informs `create_carousel`:** Agents call `list_templates` first to discover available styles, then pass a `templateId` to `create_carousel`. However, `create_carousel` should have a sensible default (`bold-minimal`) so this step is optional.
 
-This is the key constraint driving feature decisions.
+## MVP Definition
 
-| Effect | Browser Preview | Satori PNG Export | HTML Export | Fidelity Match |
-|--------|----------------|-------------------|-------------|----------------|
-| Shadow (no blur) | `text-shadow` CSS | `textShadow` (native) | `text-shadow` CSS | HIGH -- all three use real CSS/equivalent |
-| Outline | `-webkit-text-stroke` | `WebkitTextStrokeWidth` + `WebkitTextStrokeColor` (native) | `-webkit-text-stroke` | HIGH -- native support confirmed |
-| Highlight: full-width | `div` with `backgroundColor` | `div` with `backgroundColor` | `div` with `backgroundColor` | HIGH -- identical approach |
-| Highlight: tight | `span` + `box-decoration-break: clone` | Likely needs wrapper `div` per line or accept full-width fallback | `span` + `box-decoration-break: clone` | LOW-MED -- Satori may not match browser rendering |
+### Launch With (v2.3)
 
-## Satori Native Support Finding (IMPORTANT)
+The minimum viable MCP server that delivers the core agent workflow.
 
-**The design doc (`docs/plans/2026-04-07-text-effects-design.md`) recommends duplicate-element workarounds for shadow and outline in Satori. This research finds that native CSS properties may work directly, which would significantly reduce implementation complexity.**
+- [ ] `create_carousel` tool -- the entire value proposition in one tool call
+- [ ] `list_templates` tool -- template discovery for informed creation
+- [ ] `edit_slide` tool -- post-creation refinement
+- [ ] `render_carousel` tool -- get download URLs after edits
+- [ ] Streamable HTTP transport at `/api/mcp` -- remote agent access
+- [ ] Bearer token auth reusing existing `vsl_` API keys
+- [ ] Descriptive tool schemas with parameter constraints and credit cost documentation
+- [ ] Structured MCP error responses
 
-Verified by inspecting the compiled `@vercel/og` (v0.7.2) bundled with Next.js 15.5.13:
-- `textShadow` is parsed and rendered (found: parser function, shadow offset/radius/color handling)
-- `WebkitTextStrokeWidth` and `WebkitTextStrokeColor` are in the supported property set
-- Both are in the inheritable text properties set
+### Add After Validation (v2.3.x)
 
-**Recommendation:** Try native CSS properties in Satori FIRST. Only fall back to duplicate-element workarounds if native rendering produces visual artifacts. This could save 10+ hours of implementation time.
+Features to add once the core 4 tools are working and agents are using them.
 
-**Confidence:** HIGH -- verified in actual compiled source code at `node_modules/next/dist/compiled/@vercel/og/index.node.js`.
+- [ ] `get_project` tool -- when agents need to inspect existing projects before editing
+- [ ] stdio npm package (`viralslidemaker-mcp`) -- when users request local agent support
+- [ ] MCP prompt template for guided carousel creation -- when usage data shows agents struggling with workflow
+- [ ] Credit balance in tool responses -- low effort, high value, add in first iteration if time permits
 
-**Caveat:** The `paint-order` behavior for outline depends on the resvg version bundled with `@vercel/og`. If stroke renders on top of fill (obscuring thin text), the 4-element cardinal workaround may still be needed for outline specifically. A quick spike will determine this.
+### Future Consideration (v2.4+)
 
-## MVP Recommendation
+Features to defer until MCP usage patterns are established.
 
-Prioritize in this order:
+- [ ] `list_projects` tool -- only if agents need to browse existing work (unlikely for creation-focused tool)
+- [ ] MCP resources for template thumbnails -- once MCP resource support matures in clients
+- [ ] Webhook/notification on generation complete -- if generation times increase significantly
+- [ ] OAuth 2.1 auth flow -- if distributing via MCP marketplaces that require it
 
-1. **TextEffects type + data model** -- Foundation for everything. Low complexity, zero risk.
-2. **Text shadow (all three renderers)** -- Highest user impact (readability on photos), lowest complexity given native Satori support. Use native `textShadow` in Satori, no duplicate elements.
-3. **Text outline (all three renderers)** -- Second highest impact, also natively supported. Use `WebkitTextStrokeWidth`/`Color` in Satori.
-4. **Background highlight: full-width** -- Simple `div` with `backgroundColor` works identically in all renderers. Ship this first.
-5. **Background highlight: tight** -- Most complex feature due to Satori limitations with inline `box-decoration-break`. May need a per-line wrapper approach or accept visual difference between preview and export. Ship as stretch goal or accept full-width fallback in PNG export.
-6. **Editor UI panel** -- Build after renderers are working so controls have visible feedback.
+## Feature Prioritization Matrix
 
-**Defer from MVP:** Blur radius for shadow, neon glow, gradient text, curved text. These all require a rendering pipeline change (Satori to Playwright/canvas).
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| `create_carousel` tool | HIGH | LOW | P1 |
+| `list_templates` tool | HIGH | LOW | P1 |
+| `edit_slide` tool | HIGH | LOW | P1 |
+| `render_carousel` tool | HIGH | LOW | P1 |
+| Streamable HTTP transport | HIGH | MEDIUM | P1 |
+| Bearer auth on `/api/mcp` | HIGH | LOW | P1 |
+| Tool schema documentation | HIGH | LOW | P1 |
+| Structured MCP errors | MEDIUM | LOW | P1 |
+| `get_project` tool | MEDIUM | LOW | P2 |
+| stdio npm package | MEDIUM | MEDIUM | P2 |
+| Credit balance in responses | MEDIUM | LOW | P2 |
+| MCP prompt templates | LOW | LOW | P3 |
+| `list_projects` tool | LOW | LOW | P3 |
+| OAuth 2.1 | LOW | HIGH | P3 |
 
-## Complexity Assessment
+**Priority key:**
+- P1: Must have for launch -- the 4-tool MCP server with Streamable HTTP
+- P2: Should have, add in same milestone if time permits
+- P3: Nice to have, defer to future milestone
 
-| Feature | Implementation Effort | Risk |
-|---------|----------------------|------|
-| Shadow (native Satori) | 2-3 hours | Low -- native support verified |
-| Shadow (duplicate-element fallback) | 4-6 hours | Low -- well-understood pattern, but likely unnecessary |
-| Outline (native Satori) | 2-3 hours | Low-Med -- `paint-order` rendering depends on resvg version |
-| Outline (4-element cardinal fallback) | 6-8 hours | Med -- alignment edge cases at different font sizes |
-| Highlight: full-width | 2-3 hours | Low -- simple wrapper div |
-| Highlight: tight | 6-10 hours | Med-High -- `box-decoration-break` unlikely in Satori, need line-splitting logic |
-| Editor UI (all controls) | 4-6 hours | Low -- reuses existing patterns (toggles, swatches, sliders) |
-| Per-element data model | 1-2 hours | Low -- optional fields on existing interfaces |
+## Competitor Feature Analysis
 
-**Total estimate (native approach):** 15-25 hours
-**Total estimate (workaround approach):** 25-35 hours
+| Aspect | Stripe MCP (27 tools) | Notion MCP (18 tools) | Supabase MCP (20+ tools) | ViralSlideMaker MCP (4-6 tools) |
+|--------|----------------------|----------------------|--------------------------|-------------------------------|
+| Tool count | 27 (too many -- causes context bloat) | 18 (moderate, well-organized) | 20+ (grouped by feature flags) | 4-6 (focused, outcome-oriented) |
+| Read vs Write ratio | 15 read / 12 write | ~10 read / 8 write | Mostly read, writes gated | 1 read / 3 write |
+| Auth model | OAuth 2.1 | Bearer token | Access token | Bearer token (existing `vsl_` keys) |
+| Transport | Remote HTTP + local npm | Hosted + stdio | stdio primarily | Streamable HTTP + stdio npm |
+| Destructive ops | Restricted (refunds gated) | Available (delete pages) | Read-only mode available | Omitted entirely |
+| Design philosophy | Comprehensive coverage | Comprehensive coverage | Developer infrastructure | Curated outcomes |
+
+**Key insight:** Stripe and Notion are platform products with broad API surfaces, so high tool counts make sense. ViralSlideMaker is a focused creation tool -- the MCP server should reflect that focus. 4 tools that work perfectly beats 15 that confuse agents.
+
+## Tool Count Guidance from Research
+
+Industry best practice from philschmid.de and multiple sources:
+- **5-15 tools per server** is the sweet spot
+- **40+ tools** causes Cursor to truncate (hard limit)
+- **Agent accuracy drops 24 percentage points** when tool count gets excessive
+- **GitHub MCP server alone consumes 42,000 tokens** of context just for definitions
+- **"One server, one job"** -- ViralSlideMaker's job is carousel creation, not a general content platform
+
+The proposed 4-tool MVP with 2 optional additions (6 max) is well within the sweet spot and leaves plenty of context budget for the agent's actual reasoning.
 
 ## Sources
 
-- [Satori GitHub repository](https://github.com/vercel/satori) -- CSS support reference
-- [Satori text-stroke PR #645](https://github.com/vercel/satori/pull/645) -- Merged Nov 2024, adds WebkitTextStroke support
-- [Satori outdated in next/og - Issue #72940](https://github.com/vercel/next.js/issues/72940) -- Version tracking
-- [Canva text effects help](https://www.canva.com/help/text-effects/) -- Competitor feature reference
-- [Adobe Express shadow effects](https://helpx.adobe.com/express/web/add-effects-to-your-designs/add-text/add-shadow-effects-to-text.html) -- Competitor reference
-- [CSS box-decoration-break MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-decoration-break) -- Tight highlight technique
-- [Multi-line padded text CSS-Tricks](https://css-tricks.com/multi-line-padded-text/) -- Implementation patterns for tight highlights
-- Verified: compiled `@vercel/og` source at `node_modules/next/dist/compiled/@vercel/og/index.node.js` confirms `textShadow`, `WebkitTextStrokeWidth`, `WebkitTextStrokeColor` support
+- [MCP Best Practices - philschmid.de](https://www.philschmid.de/mcp-best-practices) - Tool granularity, naming, outcome-oriented design (HIGH confidence)
+- [Notion MCP Supported Tools](https://developers.notion.com/guides/mcp/mcp-supported-tools) - 18-tool reference implementation (HIGH confidence)
+- [Stripe MCP Documentation](https://docs.stripe.com/mcp) - 27-tool enterprise MCP server (HIGH confidence)
+- [Supabase MCP Server](https://supabase.com/blog/mcp-server) - Feature-flagged tool groups (HIGH confidence)
+- [MCP Context Overload](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/) - Tool count impact on agent accuracy (MEDIUM confidence)
+- [MCP Tool Overload Solutions](https://www.lunar.dev/post/why-is-there-mcp-tool-overload-and-how-to-solve-it-for-your-ai-agents) - Context window consumption data (MEDIUM confidence)
+- [Nordic APIs MCP Best Practices](https://nordicapis.com/8-tips-and-best-practices-for-mcp-server-development/) - Server design patterns (MEDIUM confidence)
+- [Next.js MCP Guide](https://nextjs.org/docs/app/guides/mcp) - Next.js integration patterns (HIGH confidence)
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) - Official SDK (HIGH confidence)
+- [WorkOS MCP Features Guide](https://workos.com/blog/mcp-features-guide) - Tools vs Resources vs Prompts (MEDIUM confidence)
+
+---
+*Feature research for: MCP Server integration for ViralSlideMaker SaaS*
+*Researched: 2026-04-08*

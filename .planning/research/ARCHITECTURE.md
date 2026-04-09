@@ -1,344 +1,486 @@
-# Architecture: Text Effects (Shadow, Outline, Highlight)
+# Architecture Research: MCP Server Integration
 
-**Domain:** Text effect rendering across three-renderer slide creator
-**Researched:** 2026-04-07
+**Domain:** MCP server (Streamable HTTP + stdio) integration with existing Next.js 15 App Router REST API
+**Researched:** 2026-04-08
 **Confidence:** HIGH
 
-## Critical Finding: Satori Supports Native CSS Effects
-
-The milestone context assumed Satori cannot render `text-shadow`, `-webkit-text-stroke`, or CSS `filter`, requiring duplicate-element workarounds. **This is incorrect.** Verification of the bundled `@vercel/og` in Next.js 15.5.13 confirms:
-
-| CSS Property | Satori Support | Verified How |
-|---|---|---|
-| `textShadow` | YES -- rendered as SVG `<filter>` with `feGaussianBlur` + `feOffset` + `feMerge` | Found `buildDropShadow` and `satori_s-` filter IDs in compiled bundle |
-| `WebkitTextStrokeWidth` / `WebkitTextStrokeColor` | YES -- parsed and rendered as SVG `stroke` + `strokeWidth` on text | Found parser at line 16267 of compiled bundle |
-| `boxShadow` | YES | Confirmed in Satori README CSS support table |
-| `filter` | YES | Confirmed in Satori README |
-| `backgroundClip: 'text'` | YES (`border-box`, `text` values) | Confirmed in Satori README |
-
-**Source:** [Satori GitHub README CSS support table](https://github.com/vercel/satori), verified against compiled `node_modules/next/dist/compiled/@vercel/og/index.node.js`.
-
-**Implication:** The entire "fake shadow with duplicate offset elements" and "fake outline with 4 cardinal-direction duplicates" approach is unnecessary. All three renderers (React preview, Satori PNG, HTML export) can use the same CSS properties directly. This reduces complexity by roughly 60%.
-
-## Recommended Architecture
-
-### Overview: Unified CSS Approach
-
-Since all three renderers support the same CSS properties, the architecture is straightforward: add effect data to the type system, resolve effect CSS in `resolve-styles.ts`, and apply the same CSS in all three renderers.
+## System Overview
 
 ```
-TextEffects data (types/slide.ts)
-    |
-    v
-resolveSlideStyles() adds resolved effect CSS strings
-    |
-    +---> SlidePreview (React inline styles -- textShadow, WebkitTextStrokeWidth, etc.)
-    +---> buildSlideElement (Satori JSX -- same inline styles, rendered as SVG filters)
-    +---> buildSlideHtml (HTML/CSS -- text-shadow, -webkit-text-stroke, etc.)
+┌─────────────────────────────────────────────────────────────────┐
+│                     MCP Clients                                  │
+│  ┌──────────────┐  ┌──────────┐  ┌──────────────────────┐       │
+│  │Claude Desktop│  │  Cursor  │  │ Other MCP Clients    │       │
+│  └──────┬───────┘  └────┬─────┘  └──────────┬───────────┘       │
+│         │               │                    │                   │
+│    ┌────┴───────────────┴────────────────────┴─────────┐        │
+│    │           Streamable HTTP Transport                │        │
+│    │    POST/GET https://viralslidemaker.com/api/mcp   │        │
+│    └───────────────────────┬───────────────────────────┘        │
+└────────────────────────────┼────────────────────────────────────┘
+                             │
+┌────────────────────────────┼────────────────────────────────────┐
+│  Next.js 15 App Router     │                                     │
+│                            v                                     │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  src/app/api/[transport]/route.ts                        │    │
+│  │  mcp-handler: createMcpHandler + withMcpAuth             │    │
+│  │  (Bearer token auth via authenticateApiKey)              │    │
+│  └─────────────────────┬───────────────────────────────────┘    │
+│                        │                                         │
+│                        v                                         │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  src/lib/mcp/tools.ts                                    │    │
+│  │  4 MCP tool definitions:                                 │    │
+│  │  list_templates | create_carousel | edit_slide | render  │    │
+│  └─────────────────────┬───────────────────────────────────┘    │
+│                        │                                         │
+│                        v                                         │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  src/lib/services/ (EXISTING - no changes)               │    │
+│  │  carousel.ts | projects.ts                               │    │
+│  └─────────────────────┬───────────────────────────────────┘    │
+│                        │                                         │
+│                        v                                         │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Supabase (admin client) + Pexels + Gemini               │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  stdio Transport (npm package: viralslidemaker-mcp)              │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  packages/mcp-cli/                                        │   │
+│  │  Thin wrapper: stdin/stdout <-> HTTP calls to /api/mcp    │   │
+│  │  Uses mcp-remote to bridge transports                     │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Data Model: TextEffects Interface
+## Component Responsibilities
 
-Add a single `TextEffects` interface that all text elements reference. This keeps the effect definition DRY and allows per-element independence.
+| Component | Responsibility | New/Modified | Implementation |
+|-----------|----------------|--------------|----------------|
+| `src/app/api/[transport]/route.ts` | MCP endpoint (Streamable HTTP) | **NEW** | `mcp-handler` createMcpHandler + withMcpAuth |
+| `src/lib/mcp/tools.ts` | MCP tool definitions (4 tools) | **NEW** | Calls service layer directly |
+| `src/lib/mcp/auth.ts` | MCP auth adapter (reuses authenticateApiKey) | **NEW** | Thin wrapper returning AuthInfo |
+| `src/lib/api/auth.ts` | Bearer token authentication | **UNCHANGED** | Already works for vsl_ keys |
+| `src/lib/services/carousel.ts` | Carousel generation logic | **UNCHANGED** | Already decoupled from HTTP |
+| `src/lib/services/projects.ts` | Project CRUD logic | **UNCHANGED** | Already decoupled from HTTP |
+| `src/lib/api/rate-limit.ts` | Upstash Redis rate limiting | **REUSED** | Called from MCP auth wrapper |
+| `src/middleware.ts` | Session auth bypass | **MODIFIED** | Add `/api/mcp` bypass alongside `/api/v1` |
+| `packages/mcp-cli/` | stdio npm package | **NEW** | Separate package in monorepo |
 
+## Recommended Project Structure
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── [transport]/        # NEW: mcp-handler dynamic route
+│   │   │   └── route.ts        # createMcpHandler + withMcpAuth exports
+│   │   └── v1/                 # EXISTING: REST API (unchanged)
+│   │       ├── carousel/route.ts
+│   │       ├── projects/...
+│   │       └── templates/route.ts
+│   └── ...
+├── lib/
+│   ├── mcp/                    # NEW: MCP-specific code
+│   │   ├── tools.ts            # 4 tool registrations
+│   │   └── auth.ts             # verifyToken adapter for withMcpAuth
+│   ├── api/                    # EXISTING: REST API utilities
+│   │   ├── auth.ts             # authenticateApiKey (reused by MCP)
+│   │   ├── rate-limit.ts       # checkRateLimit (reused by MCP)
+│   │   └── ...
+│   └── services/               # EXISTING: shared business logic
+│       ├── carousel.ts         # generateCarousel (called by MCP tools)
+│       └── projects.ts         # getProject, updateProjectService, etc.
+├── middleware.ts                # MODIFIED: add /api/mcp bypass
+└── ...
+
+packages/                       # NEW: monorepo packages dir
+└── mcp-cli/                    # npm package for stdio transport
+    ├── package.json            # name: "viralslidemaker-mcp"
+    ├── tsconfig.json
+    ├── src/
+    │   └── index.ts            # stdio server entry point
+    └── bin/
+        └── cli.js              # npx entry point
+```
+
+### Structure Rationale
+
+- **`src/app/api/[transport]/route.ts`:** The `mcp-handler` library uses a dynamic `[transport]` segment to auto-detect Streamable HTTP vs SSE. The route lives at `basePath: "/api"` so `/api/mcp` resolves correctly. This is the official pattern from Vercel's mcp-handler.
+- **`src/lib/mcp/`:** Separates MCP-specific code (tool definitions, auth adapter) from REST API code. Tools call the service layer directly -- no internal HTTP calls.
+- **`packages/mcp-cli/`:** Separate publishable package for `npx viralslidemaker-mcp`. Makes HTTP calls to the hosted `/api/mcp` endpoint, translating stdio to Streamable HTTP.
+
+## Architectural Patterns
+
+### Pattern 1: Direct Service Layer Calls (NOT Internal REST Calls)
+
+**What:** MCP tools call `src/lib/services/` functions directly instead of making HTTP requests to `/api/v1/*` endpoints.
+**When to use:** Always -- for the MCP server hosted in the same Next.js process.
+**Trade-offs:** Faster (no HTTP overhead), simpler (no self-referencing fetch), shares the same database connection. Slight risk of logic divergence between REST validation and MCP validation -- mitigate by keeping validation in service layer and using Zod schemas in both.
+
+**Why NOT internal REST calls:**
+- Self-fetch in serverless is fragile (cold starts, connection limits, circular invocation on Vercel)
+- Adds ~50-100ms latency per tool call for no benefit
+- The service layer already exists and is decoupled from HTTP concerns (designed in v2.2)
+
+**Example:**
 ```typescript
-// src/lib/types/slide.ts
+// src/lib/mcp/tools.ts
+import { generateCarousel } from '@/lib/services/carousel'
+import { getProject, updateProjectService } from '@/lib/services/projects'
+import { templates } from '@/lib/render/templates'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { deductCreditAdmin } from '@/lib/credits/check-credits'
 
-export interface TextShadowEffect {
-  enabled: boolean
-  color: string          // hex, e.g. '#000000'
-  size: 'sm' | 'md' | 'lg'  // maps to predefined offset+blur values
-}
+export function registerTools(server: McpServer) {
+  server.registerTool(
+    "create_carousel",
+    {
+      title: "Create Carousel",
+      description: "Create a TikTok/Instagram carousel from a topic. Costs 1 credit.",
+      inputSchema: {
+        topic: z.string().min(1).max(500),
+        templateId: z.string().optional().default("bold-minimal"),
+        slideCount: z.number().int().min(3).max(20).optional().default(7),
+        imageSource: z.enum(["stock", "ai"]).optional().default("stock"),
+      },
+    },
+    async ({ topic, templateId, slideCount, imageSource }, extra) => {
+      const userId = extra.authInfo?.extra?.userId as string
+      const supabase = createAdminClient()
 
-export interface TextOutlineEffect {
-  enabled: boolean
-  color: string          // hex
-  width: number          // 1-8 px
-}
+      // Credit check + deduction (same logic as REST handler)
+      const { data: balance } = await supabase.rpc('get_credit_balance', { p_user_id: userId })
+      if ((balance ?? 0) < 1) {
+        return { content: [{ type: "text", text: JSON.stringify({ error: "INSUFFICIENT_CREDITS" }) }] }
+      }
+      await deductCreditAdmin(supabase, userId, 'carousel_generation', `Carousel: ${topic}`, undefined, 1)
 
-export interface TextHighlightEffect {
-  enabled: boolean
-  color: string          // hex with alpha, e.g. '#000000cc'
-  style: 'tight' | 'full'  // tight = inline padding, full = full-width block
-  padding: number        // 2-16 px
-}
+      const result = await generateCarousel(supabase, userId, {
+        topic, templateId, slideCount, imageSource,
+      })
 
-export interface TextEffects {
-  shadow?: TextShadowEffect
-  outline?: TextOutlineEffect
-  highlight?: TextHighlightEffect
-}
-```
-
-**Where effects attach:**
-
-```typescript
-// SlideStyleOverrides -- hook and body text
-export interface SlideStyleOverrides {
-  // ... existing fields ...
-  hook_effects?: TextEffects
-  body_effects?: TextEffects
-}
-
-// CustomText -- each custom text box
-export interface CustomText {
-  // ... existing fields ...
-  effects?: TextEffects
-}
-```
-
-### Style Resolution: Effect CSS Generation
-
-Add effect resolution to `resolve-styles.ts`. The resolver converts the semantic `TextEffects` data into concrete CSS property values.
-
-```typescript
-// src/lib/render/resolve-styles.ts (additions)
-
-const SHADOW_PRESETS = {
-  sm: { offsetX: 1, offsetY: 1, blur: 2 },
-  md: { offsetX: 2, offsetY: 2, blur: 4 },
-  lg: { offsetX: 3, offsetY: 4, blur: 8 },
-} as const
-
-export interface ResolvedTextEffectStyles {
-  textShadow?: string                 // CSS text-shadow value
-  WebkitTextStrokeWidth?: string      // e.g. '2px'
-  WebkitTextStrokeColor?: string      // hex color
-  // Highlight is structural (needs wrapper element), not just CSS on the text
-  highlight?: {
-    enabled: boolean
-    color: string
-    style: 'tight' | 'full'
-    padding: number
-  }
-}
-
-export function resolveTextEffects(effects?: TextEffects): ResolvedTextEffectStyles {
-  const result: ResolvedTextEffectStyles = {}
-
-  if (effects?.shadow?.enabled) {
-    const preset = SHADOW_PRESETS[effects.shadow.size]
-    result.textShadow = `${preset.offsetX}px ${preset.offsetY}px ${preset.blur}px ${effects.shadow.color}`
-  }
-
-  if (effects?.outline?.enabled) {
-    result.WebkitTextStrokeWidth = `${effects.outline.width}px`
-    result.WebkitTextStrokeColor = effects.outline.color
-  }
-
-  if (effects?.highlight?.enabled) {
-    result.highlight = {
-      enabled: true,
-      color: effects.highlight.color,
-      style: effects.highlight.style,
-      padding: effects.highlight.padding,
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            projectId: result.projectId,
+            slideCount: result.slideCount,
+          }),
+        }],
+      }
     }
-  }
-
-  return result
+  )
 }
 ```
 
-The `ResolvedSlideStyles` interface gains three new fields:
+### Pattern 2: Auth Adapter (Reuse authenticateApiKey via withMcpAuth)
 
+**What:** Create a thin `verifyToken` function that wraps the existing key lookup + rate limiting to satisfy `mcp-handler`'s `withMcpAuth` interface.
+**When to use:** For the Streamable HTTP endpoint auth.
+**Trade-offs:** Reuses all existing auth infrastructure (SHA-256 key hashing, timing-safe comparison, rate limiting). Does not require duplicating auth logic. Cannot reuse `withApiAuth` directly because it returns NextResponse objects with JSON error bodies, while `withMcpAuth` expects `AuthInfo | undefined`.
+
+**Example:**
 ```typescript
-export interface ResolvedSlideStyles {
-  // ... existing fields ...
-  hookEffects: ResolvedTextEffectStyles
-  bodyEffects: ResolvedTextEffectStyles
-  customTexts: Array<CustomText & {
-    resolvedFontFamily: string
-    resolvedEffects: ResolvedTextEffectStyles  // NEW
-  }>
+// src/lib/mcp/auth.ts
+import { createHash, timingSafeEqual } from 'crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit } from '@/lib/api/rate-limit'
+import type { AuthInfo } from 'mcp-handler'
+
+export async function verifyToken(
+  req: Request,
+  bearerToken?: string
+): Promise<AuthInfo | undefined> {
+  if (!bearerToken || !bearerToken.startsWith('vsl_')) {
+    return undefined  // triggers 401 from withMcpAuth
+  }
+
+  const keyHash = createHash('sha256').update(bearerToken).digest('hex')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('api_keys')
+    .select('id, user_id, key_hash')
+    .eq('key_hash', keyHash)
+    .single()
+
+  if (error || !data) return undefined
+
+  // Timing-safe comparison
+  const storedHashBuf = Buffer.from(data.key_hash, 'utf8')
+  const computedHashBuf = Buffer.from(keyHash, 'utf8')
+  if (!timingSafeEqual(storedHashBuf, computedHashBuf)) {
+    return undefined
+  }
+
+  // Rate limit check
+  const rl = await checkRateLimit(data.id)
+  if (!rl.success) return undefined
+
+  // Fire-and-forget: update last_used_at
+  admin.from('api_keys')
+    .update({ last_used_at: new Date().toISOString() })
+    .eq('id', data.id)
+    .then(() => {})
+
+  return {
+    token: bearerToken,
+    clientId: data.id,
+    scopes: ['carousel:create', 'carousel:read', 'carousel:edit'],
+    extra: { userId: data.user_id, keyId: data.id },
+  }
 }
 ```
 
-### Component Boundaries
+### Pattern 3: mcp-handler Dynamic Route with withMcpAuth
 
-| Component | Responsibility | Changes |
-|---|---|---|
-| `src/lib/types/slide.ts` | Data model | Add `TextEffects`, `TextShadowEffect`, `TextOutlineEffect`, `TextHighlightEffect` interfaces; add `effects` field to `SlideStyleOverrides` (as `hook_effects`, `body_effects`) and `CustomText` |
-| `src/lib/render/resolve-styles.ts` | Style resolution | Add `resolveTextEffects()` function, add `SHADOW_PRESETS` map, extend `ResolvedSlideStyles` and `resolveSlideStyles()` |
-| `src/components/slides/slide-preview.tsx` | Editor preview | Apply `textShadow`, `WebkitTextStrokeWidth`/`Color` to text style objects; render highlight wrapper divs around text |
-| `src/lib/render/render-slide-satori.tsx` | Satori PNG export | Apply same CSS properties to JSX inline styles; wrap text in highlight divs when enabled |
-| `src/lib/render/render-slide.ts` | HTML export | Add `text-shadow`, `-webkit-text-stroke` CSS; add highlight `<span>` wrappers |
-| `src/components/editor/text-editor-panel.tsx` | Editor controls | Add Effects section with toggle+color+size controls for each effect type |
-| **NEW** `src/components/editor/text-effects-controls.tsx` | Reusable effect controls | Toggle, color picker, size/preset selectors for shadow/outline/highlight -- used by text-editor-panel for hook, body, and custom text |
+**What:** Single route file using `mcp-handler`'s `createMcpHandler` + `withMcpAuth` for the full MCP endpoint.
+**When to use:** For the `/api/mcp` Streamable HTTP endpoint.
+**Trade-offs:** Handles transport detection, session management, and JSON-RPC automatically. Depends on `mcp-handler` package (maintained by Vercel, well-supported).
 
-### Highlight Rendering: The One Structural Concern
+**Example:**
+```typescript
+// src/app/api/[transport]/route.ts
+import { createMcpHandler, withMcpAuth } from 'mcp-handler'
+import { registerTools } from '@/lib/mcp/tools'
+import { verifyToken } from '@/lib/mcp/auth'
 
-Shadow and outline are pure CSS properties on the text element. Highlight requires a structural wrapper because it needs a background behind the text:
+export const maxDuration = 60
 
-**Tight highlight** (inline, wraps each line):
-```tsx
-// All three renderers use the same approach
-<div style={{ position: 'absolute', left: ..., top: ..., width: ... }}>
-  <span style={{
-    backgroundColor: '#000000cc',
-    padding: '4px 8px',
-    // Satori supports display: 'inline' on spans
-    boxDecorationBreak: 'clone',  // NOT supported in Satori
-  }}>
-    {text}
-  </span>
-</div>
-```
-
-**Important Satori caveat:** `box-decoration-break: clone` is NOT in Satori's supported CSS list. This means multi-line tight highlights in Satori will render as a single bounding box rather than per-line background fragments.
-
-**Workaround for tight multi-line highlight in Satori:** Split text into individual lines and wrap each in its own `<span>` with background. This requires knowing line breaks, which is hard without layout information.
-
-**Recommendation:** For v2.1, implement tight highlight as a simple `backgroundColor` on the text container. It will look like a "full-width" block in practice. If per-line tight highlight is needed later, it can be added as a Satori-specific text-splitting enhancement. The "full" style works identically across all renderers with no workaround needed.
-
-**Full-width highlight** (block, full text box width):
-```tsx
-<div style={{
-  position: 'absolute', left: ..., top: ..., width: ...,
-  backgroundColor: '#000000cc',
-  padding: '8px 12px',
-  borderRadius: '4px',
-}}>
-  <span style={{ color: ..., fontSize: ..., /* other text styles */ }}>
-    {text}
-  </span>
-</div>
-```
-
-This works identically in all three renderers -- it is just a `backgroundColor` + `padding` on a container div.
-
-### Data Flow: Complete Path
-
-```
-User toggles shadow ON in TextEffectsControls
-    |
-    v
-TextEditorPanel calls onUpdate({
-  style_overrides: {
-    ...overrides,
-    hook_effects: { shadow: { enabled: true, color: '#000000', size: 'md' } }
+const handler = createMcpHandler(
+  (server) => {
+    registerTools(server)
+  },
+  {
+    name: 'viralslidemaker',
+    version: '1.0.0',
+  },
+  {
+    basePath: '/api',
+    maxDuration: 60,
   }
+)
+
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
 })
-    |
-    v
-useSlideEditor reducer updates Slide.style_overrides.hook_effects
-    |
-    v
-SlidePreview re-renders:
-  - resolveSlideStyles() calls resolveTextEffects(overrides.hook_effects)
-  - Returns { textShadow: '2px 2px 4px #000000' }
-  - Applied as inline style on hook text element
-    |
-    v  (on export)
-render API route:
-  - buildSlideElement() reads same hook_effects from Slide
-  - Applies same textShadow inline style to Satori JSX
-  - Satori converts to SVG <filter> with feGaussianBlur
-  - ImageResponse rasterizes to PNG
+
+export { authHandler as GET, authHandler as POST }
 ```
 
-## Patterns to Follow
+### Pattern 4: stdio Package as HTTP Bridge
 
-### Pattern 1: Effect Controls as Reusable Component
+**What:** The npm package (`viralslidemaker-mcp`) is a thin bridge that delegates to `mcp-remote` to translate stdio to Streamable HTTP.
+**When to use:** For local agent use (Claude Desktop, Cursor with stdio-only support).
+**Trade-offs:** No business logic in the npm package -- zero maintenance burden when tools change. Depends on `mcp-remote` package.
 
-Extract a `TextEffectsControls` component that takes current `TextEffects` and an `onChange` callback. This component is used three times: for hook text, body text, and the selected custom text box.
+**Recommendation: Use mcp-remote.** The npm package is essentially a configuration wrapper:
 
 ```typescript
-// src/components/editor/text-effects-controls.tsx
-interface TextEffectsControlsProps {
-  effects: TextEffects | undefined
-  onChange: (effects: TextEffects) => void
-  label?: string  // "Hook Effects", "Body Effects", etc.
+// packages/mcp-cli/src/index.ts
+import { spawn } from 'child_process'
+
+const apiKey = process.env.VIRALSLIDEMAKER_API_KEY
+const baseUrl = process.env.VIRALSLIDEMAKER_BASE_URL || 'https://viralslidemaker.com'
+
+if (!apiKey) {
+  console.error('VIRALSLIDEMAKER_API_KEY is required')
+  process.exit(1)
+}
+
+// Delegate to mcp-remote with auth headers
+const child = spawn('npx', [
+  '-y', 'mcp-remote',
+  `${baseUrl}/api/mcp`,
+  '--header', `Authorization: Bearer ${apiKey}`,
+], { stdio: 'inherit' })
+
+child.on('exit', (code) => process.exit(code ?? 0))
+```
+
+## Data Flow
+
+### MCP Tool Call Flow (Streamable HTTP)
+
+```
+MCP Client (Claude Desktop)
+    │ POST /api/mcp
+    │ Authorization: Bearer vsl_xxx
+    │ Body: JSON-RPC { method: "tools/call", params: { name: "create_carousel", ... } }
+    v
+[transport] route.ts
+    │ mcp-handler parses JSON-RPC
+    │ withMcpAuth extracts Bearer token
+    v
+verifyToken (src/lib/mcp/auth.ts)
+    │ SHA-256 hash lookup in api_keys table
+    │ Rate limit check via Upstash Redis
+    │ Returns AuthInfo { extra: { userId, keyId } }
+    v
+Tool handler (src/lib/mcp/tools.ts)
+    │ Extracts userId from extra.authInfo
+    │ Credit check + deduction
+    │ Calls generateCarousel() from service layer
+    v
+Service layer (src/lib/services/)
+    │ Gemini AI content generation
+    │ Pexels image search
+    │ Supabase project save
+    v
+Tool returns MCP content response
+    │ { content: [{ type: "text", text: JSON.stringify(result) }] }
+    v
+mcp-handler serializes JSON-RPC response
+    │ Returns to client
+    v
+MCP Client receives result
+```
+
+### stdio Transport Flow
+
+```
+MCP Client (Claude Desktop)
+    │ stdio: spawns `npx viralslidemaker-mcp`
+    │ Writes JSON-RPC to subprocess stdin
+    v
+viralslidemaker-mcp (npm package)
+    │ mcp-remote bridges stdio <-> HTTP
+    │ Forwards to https://viralslidemaker.com/api/mcp
+    │ Adds Authorization header from env
+    v
+Same Streamable HTTP flow as above
+    v
+Response flows back: HTTP -> mcp-remote -> stdout -> MCP Client
+```
+
+## Integration Points
+
+### New Components
+
+| Component | Type | Dependencies | Build Order |
+|-----------|------|--------------|-------------|
+| `src/lib/mcp/auth.ts` | Auth adapter | `src/lib/api/auth.ts` logic, `src/lib/api/rate-limit.ts` | 1st |
+| `src/lib/mcp/tools.ts` | Tool definitions | `src/lib/services/*`, `src/lib/render/templates`, `src/lib/credits/check-credits` | 2nd |
+| `src/app/api/[transport]/route.ts` | Route handler | `mcp-handler`, `src/lib/mcp/*` | 3rd |
+| `packages/mcp-cli/` | npm package | `mcp-remote` | 4th (independent) |
+
+### Modified Components
+
+| Component | Change | Risk |
+|-----------|--------|------|
+| `src/middleware.ts` | Add `/api/mcp` to session auth bypass | LOW -- same pattern as existing `/api/v1` bypass |
+| `package.json` | Add `mcp-handler` dependency | LOW |
+
+### Unchanged Components (Reused As-Is)
+
+| Component | How Reused |
+|-----------|------------|
+| `src/lib/api/auth.ts` | Auth logic extracted into `mcp/auth.ts` adapter |
+| `src/lib/api/rate-limit.ts` | Called from `mcp/auth.ts` |
+| `src/lib/services/carousel.ts` | Called directly from MCP tools |
+| `src/lib/services/projects.ts` | Called directly from MCP tools |
+| `src/lib/render/templates.ts` | Template list used by `list_templates` tool |
+| `src/lib/credits/check-credits.ts` | Credit deduction in tool handlers |
+| `src/lib/supabase/admin.ts` | Admin client for MCP tool DB access |
+
+## Middleware Update
+
+The existing middleware bypasses `/api/v1` for session auth. The `[transport]` dynamic route means the MCP endpoint lives at `/api/mcp`, which does NOT match `/api/v1`.
+
+**Recommended approach -- widen the bypass:**
+```typescript
+// src/middleware.ts
+if (request.nextUrl.pathname.startsWith('/api/v1') ||
+    request.nextUrl.pathname.startsWith('/api/mcp')) {
+  return
 }
 ```
 
-### Pattern 2: Follow Existing Override Merge Pattern
+Alternative: use `/api/v1/mcp` as the path so it's already bypassed. But `/api/v1/mcp` is awkward -- MCP is not part of the REST API versioning scheme. Keep them separate.
 
-The codebase already uses a `slide.style_overrides?.X ?? default` pattern everywhere. Text effects follow the same pattern -- `undefined` means no effect, the presence of the object with `enabled: true` means active.
+## Session Management
 
-### Pattern 3: CSS Property Passthrough
+MCP Streamable HTTP is stateless per-request (no persistent WebSocket). Each JSON-RPC request is an independent HTTP POST with its own Bearer token auth. This means:
 
-Since all three renderers support the same CSS, the resolved styles can be spread directly onto style objects:
+- **No session state needed** on the server between MCP requests
+- **No WebSocket upgrade** -- pure HTTP POST/response
+- **Rate limiting** works per-key exactly as with REST
+- **Credit tracking** works per-request exactly as with REST
+- **`mcp-handler` handles** the JSON-RPC framing, optional SSE streaming for long-running tools, and transport negotiation internally
 
-```typescript
-const effects = resolveTextEffects(overrides.hook_effects)
-const hookStyle = {
-  ...existingHookStyles,
-  textShadow: effects.textShadow,
-  WebkitTextStrokeWidth: effects.WebkitTextStrokeWidth,
-  WebkitTextStrokeColor: effects.WebkitTextStrokeColor,
-}
-```
+## Dynamic Route Conflict Check
 
-No renderer-specific branching needed for shadow and outline.
+The `[transport]` segment at `src/app/api/[transport]/route.ts` is a catch-all for `/api/*`. This could conflict with other `/api/*` routes. However, Next.js App Router resolves static routes before dynamic ones, so:
 
-## Anti-Patterns to Avoid
+- `/api/v1/*` -- matches `src/app/api/v1/` (static, takes priority)
+- `/api/webhooks/*` -- matches if it exists as a static route
+- `/api/render` -- matches if it exists as a static route
+- `/api/mcp` -- matches `src/app/api/[transport]/` (dynamic, as intended)
 
-### Anti-Pattern 1: Duplicate Element Hacks for Satori
+**Verify:** Check that no other `/api/*` routes exist that are NOT in a static folder. If any bare `/api/something` routes exist as dynamic, there could be conflicts. Based on codebase inspection, all API routes are under `/api/v1/` or in specific static folders, so no conflict.
 
-**What:** Creating multiple offset text elements to fake shadows, or 4 cardinal-direction copies to fake outlines.
-**Why bad:** Satori natively supports `textShadow` and `WebkitTextStrokeWidth`/`Color`. Duplicate elements double DOM size, break text selection, complicate position calculations, and produce worse visual output than native CSS.
-**Instead:** Use native CSS properties directly.
+## Anti-Patterns
 
-### Anti-Pattern 2: Renderer-Specific Code Paths
+### Anti-Pattern 1: MCP Tools Calling Internal REST Endpoints
 
-**What:** `if (renderer === 'satori') { ... } else { ... }` branching in style resolution.
-**Why bad:** Since all three renderers support the same CSS properties for these effects, branching adds complexity with no benefit.
-**Instead:** Single `resolveTextEffects()` function, same output for all renderers. Only exception: the HTML renderer uses kebab-case (`text-shadow`) while React/Satori use camelCase (`textShadow`), but that is handled naturally by the different rendering approaches (inline styles vs CSS string).
+**What people do:** MCP tool for `create_carousel` makes `fetch('http://localhost:3000/api/v1/carousel', ...)` internally.
+**Why it's wrong:** Self-fetch in serverless (Vercel) can fail due to cold starts, connection limits, and potential circular invocation. Adds latency. Duplicates auth (MCP auth + REST auth on the same request).
+**Do this instead:** Call service layer functions directly. The service layer is already decoupled from HTTP.
 
-### Anti-Pattern 3: Flat Effect Fields on SlideStyleOverrides
+### Anti-Pattern 2: Using withApiAuth HOC for MCP Routes
 
-**What:** Adding `hook_shadow_enabled`, `hook_shadow_color`, `hook_shadow_size`, `hook_outline_enabled`, etc. as flat fields.
-**Why bad:** Creates an explosion of 18+ new fields (3 effects x 3-4 params x 2 text elements). Hard to manage, hard to extend.
-**Instead:** Use nested `TextEffects` object: `hook_effects: { shadow: { enabled, color, size } }`.
+**What people do:** Wrap the mcp-handler route with the existing `withApiAuth` HOC.
+**Why it's wrong:** `withApiAuth` returns `NextResponse` objects with JSON error bodies. `mcp-handler`'s `withMcpAuth` needs to return proper MCP-spec error responses (JSON-RPC errors). Also, `withApiAuth` handles CORS which MCP does not need.
+**Do this instead:** Use `withMcpAuth` with a `verifyToken` function that reuses the auth *logic* (key lookup, rate limiting) but not the *HTTP response formatting*.
 
-## Files to Create vs Modify
+### Anti-Pattern 3: Building a Custom stdio Server with Full Tool Logic
 
-### New Files
-| File | Purpose |
-|---|---|
-| `src/components/editor/text-effects-controls.tsx` | Reusable UI controls for shadow/outline/highlight toggles, color pickers, size selectors |
+**What people do:** Implement all 4 MCP tools in the npm package, duplicating the business logic.
+**Why it's wrong:** Two codebases to maintain. Business logic changes require npm package republishing.
+**Do this instead:** The npm package should be a transport bridge only. All logic lives in the hosted server. Use `mcp-remote`.
 
-### Modified Files (in build order)
-| File | Change | Depends On |
-|---|---|---|
-| `src/lib/types/slide.ts` | Add `TextEffects`, `TextShadowEffect`, `TextOutlineEffect`, `TextHighlightEffect` interfaces; add `hook_effects`/`body_effects` to `SlideStyleOverrides`, `effects` to `CustomText` | Nothing |
-| `src/lib/render/resolve-styles.ts` | Add `resolveTextEffects()`, `SHADOW_PRESETS`, extend `ResolvedSlideStyles` and `resolveSlideStyles()` | Types |
-| `src/lib/render/render-slide-satori.tsx` | Apply resolved effect styles to hook/body/custom text JSX elements; add highlight wrapper divs | Types, resolve-styles |
-| `src/lib/render/render-slide.ts` | Apply effect CSS to HTML output; add highlight spans | Types, resolve-styles |
-| `src/components/slides/slide-preview.tsx` | Apply resolved effect styles to text elements; add highlight wrappers | Types, resolve-styles |
-| `src/components/editor/text-effects-controls.tsx` | NEW -- build reusable effect controls component | Types |
-| `src/components/editor/text-editor-panel.tsx` | Import and render `TextEffectsControls` for hook, body, and selected custom text | Types, text-effects-controls |
+### Anti-Pattern 4: Duplicating Validation Logic
 
-### Tests to Add/Modify
-| File | Change |
-|---|---|
-| `src/lib/render/resolve-styles.test.ts` | Add tests for `resolveTextEffects()` with all effect combinations |
-| `src/__tests__/render/render-slide.test.ts` | Verify HTML output includes text-shadow, -webkit-text-stroke, background highlight |
+**What people do:** Re-implement all the input validation from REST handlers inside MCP tool handlers.
+**Why it's wrong:** Leads to divergence over time. Two places to update when validation rules change.
+**Do this instead:** Use Zod schemas in MCP tool `inputSchema` (handled natively by mcp-handler) and let the service layer throw on invalid data. Keep complex validation in services if shared.
 
-## Suggested Build Order
+## Build Order
 
-Build order is dictated by dependencies. Each step should be independently testable.
+Based on dependency analysis:
 
-1. **Types** (`slide.ts`) -- Add all new interfaces and fields. No runtime impact, just type definitions.
-2. **Resolution** (`resolve-styles.ts` + test) -- Add `resolveTextEffects()` with `SHADOW_PRESETS`. Unit test this in isolation.
-3. **Satori renderer** (`render-slide-satori.tsx`) -- Apply resolved effects to JSX. Test by rendering a slide with effects and inspecting the PNG output.
-4. **HTML renderer** (`render-slide.ts`) -- Apply effects as CSS strings. Test by inspecting HTML output.
-5. **Preview renderer** (`slide-preview.tsx`) -- Apply effects to React inline styles. Visual verification in browser.
-6. **Effect controls UI** (`text-effects-controls.tsx` + `text-editor-panel.tsx`) -- Build the editor controls, wire up state updates.
+1. **Install mcp-handler** -- `npm install mcp-handler` (requires `@modelcontextprotocol/sdk` >= 1.26.0, already have 1.27.1; requires `zod`, already installed)
+2. **Auth adapter** (`src/lib/mcp/auth.ts`) -- depends only on existing `auth.ts` logic and `rate-limit.ts`
+3. **Tool definitions** (`src/lib/mcp/tools.ts`) -- depends on auth adapter + existing services
+4. **Route handler** (`src/app/api/[transport]/route.ts`) -- depends on auth + tools + `mcp-handler`
+5. **Middleware update** (`src/middleware.ts`) -- trivial, do alongside route handler
+6. **Test end-to-end** -- use Claude Desktop or curl with JSON-RPC to verify
+7. **npm package** (`packages/mcp-cli/`) -- independent, can be done in parallel after route handler works
+8. **MCP guide verification** (`docs/MCP-GUIDE.md`) -- after everything is wired up and tested
 
-Steps 3, 4, and 5 are independent of each other and could be done in parallel once step 2 is complete.
+## Scaling Considerations
 
-## Scalability Considerations
-
-| Concern | Current (no effects) | With effects | Notes |
-|---|---|---|---|
-| Satori render time | ~200-400ms per slide | ~250-500ms per slide | SVG filters add minimal overhead |
-| Data model size | ~500 bytes per slide | ~700 bytes per slide | TextEffects adds ~200 bytes when populated |
-| HTML output size | ~1.5KB per slide | ~1.8KB per slide | Minor CSS additions |
-| Editor re-renders | Per-keystroke on text | Same + per-effect-toggle | No concern -- React handles this efficiently |
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-1k API keys | Current architecture is fine. Single Next.js deployment handles both REST and MCP. |
+| 1k-10k API keys | Upstash Redis rate limiting already handles this. Monitor Supabase connection pooling. |
+| 10k+ API keys | Consider edge caching for `list_templates` (static data). MCP tool calls are identical load to REST. |
 
 ## Sources
 
-- [Satori GitHub README -- CSS support table](https://github.com/vercel/satori) (verified 2026-04-07)
-- Compiled `@vercel/og` bundle analysis: `node_modules/next/dist/compiled/@vercel/og/index.node.js`
-- Existing codebase: `resolve-styles.ts`, `render-slide-satori.tsx`, `render-slide.ts`, `slide-preview.tsx`
+- [Vercel mcp-handler GitHub](https://github.com/vercel/mcp-handler) -- route handler pattern, withMcpAuth API, basePath configuration (HIGH confidence)
+- [mcp-handler Authorization docs](https://github.com/vercel/mcp-handler/blob/main/docs/AUTHORIZATION.md) -- Bearer token verification pattern (HIGH confidence)
+- [mcp-handler docs site](https://www.mcphandler.org/docs) -- withMcpAuth usage, tool auth context (HIGH confidence)
+- [mcp-remote npm](https://www.npmjs.com/package/mcp-remote) -- stdio-to-HTTP bridge for npm package (HIGH confidence)
+- [@modelcontextprotocol/sdk](https://www.npmjs.com/package/@modelcontextprotocol/sdk) -- v1.27.1 already installed (HIGH confidence)
+- Existing codebase inspection: `with-api-auth.ts`, `auth.ts`, `rate-limit.ts`, `carousel.ts`, `projects.ts`, `middleware.ts` (HIGH confidence)
+
+---
+*Architecture research for: MCP Server integration with ViralSlideMaker*
+*Researched: 2026-04-08*

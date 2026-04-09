@@ -1,123 +1,245 @@
-# Pitfalls Research: Text Effects (v2.1)
+# Pitfalls Research: MCP Server (v2.3)
 
-**Domain:** Adding text shadow, outline, and background highlight to Satori-based carousel slide rendering
-**Researched:** 2026-04-07
-**Confidence:** HIGH (codebase verified, Satori docs and GitHub issues checked)
+**Domain:** Adding MCP server to existing Next.js 15 SaaS with REST API
+**Researched:** 2026-04-08
+**Confidence:** MEDIUM-HIGH (MCP spec verified, Next.js patterns verified, tool design evidence from multiple production deployments)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Using Duplicate Elements When Satori Supports Native CSS
+### Pitfall 1: Wrapping REST Endpoints 1:1 as MCP Tools (Operation-Oriented Design)
 
 **What goes wrong:**
-The design doc prescribes duplicate text elements for shadow (1 copy offset behind) and outline (4 cardinal-direction copies). But Satori actually supports `text-shadow` natively (renders via SVG `buildDropShadow` filters) and `-webkit-text-stroke` was merged in PR #645 (Nov 2024, satori main). The project uses Next.js 15.5.13 whose bundled satori version (post-0.15.x, likely 0.20+) almost certainly includes both features. Building the duplicate-element workaround adds complexity, DOM bloat, and visual inconsistency for no reason if native CSS works.
+The existing REST API has 10 endpoints (carousel, projects CRUD, slides, templates, render, download). The natural instinct is to create one MCP tool per endpoint -- `create_project`, `list_projects`, `get_project`, `update_project`, `delete_project`, `get_templates`, `get_slide`, `update_slide`, `render_project`, `download_project`. This produces 10 tools that force the LLM to orchestrate multi-step workflows: "create carousel" becomes create_project + wait + render_project + download_project. Research shows models fail at tool selection with 20+ tools and degrade noticeably above 10. More critically, multi-step chains compound failure -- if each step has 90% success, a 4-step chain drops to 65%.
+
+Block rebuilt their Linear MCP server from 30+ tools to 2. GitHub Copilot cut from 40 to 13 and saw measurable benchmark improvements. Speakeasy found perfect task success at 10 tools but complete failure at 107.
 
 **Why it happens:**
-The design doc was written based on older Satori limitations. Satori has rapidly evolved (0.10.x to 0.26.x in recent months) and the CSS subset has expanded significantly. Developers assume Satori "doesn't support X" without checking the current bundled version.
+Developers map MCP tools from existing API structure rather than from user outcomes. The REST API was designed for programmatic clients that handle orchestration; MCP tools are consumed by LLMs that work best with outcome-oriented, self-contained operations.
 
 **How to avoid:**
-Before writing a single line of duplicate-element code, run a 30-minute spike: create a test `buildSlideElement` with `textShadow: '0 4px 8px rgba(0,0,0,0.6)'` and `WebkitTextStrokeWidth: '2px'` / `WebkitTextStrokeColor: '#000'` set directly on the text div, render it via the `/api/render` route, and inspect the output PNG. If native properties work, use them in all three renderers and skip the duplicate approach entirely. This collapses the Satori renderer, preview, and HTML export to nearly identical CSS -- massively simpler.
+Design 4 outcome-oriented tools as already planned in PROJECT.md:
+1. `create_carousel` -- topic in, project ID + slide count out (wraps carousel + render internally)
+2. `list_templates` -- returns available templates with descriptions
+3. `edit_slide` -- modify a specific slide's text, image, or style
+4. `render_carousel` -- trigger render and return download URL
+
+Each tool should complete a full user outcome in one call. The `create_carousel` tool should internally call the carousel service, wait for generation, and return a ready result -- not require the LLM to chain multiple calls.
 
 **Warning signs:**
-- Writing helper functions like `buildShadowDuplicates()` or `buildOutlineDuplicates()` before testing native support
-- The Satori renderer code is 3x longer than the preview code for the same effect
-- You are counting cardinal directions
+- Tool count exceeding 6
+- Tools that return IDs the LLM must pass to subsequent tools
+- Tool descriptions that say "first call X, then call Y"
+- LLMs calling tools in wrong order or skipping steps
 
 **Phase to address:**
-Phase 1 -- validation spike before any implementation.
+Phase 1 -- tool schema design, before any implementation.
 
 ---
 
-### Pitfall 2: Three Renderers Drifting Out of Sync
+### Pitfall 2: Serverless Function Timeout on Long-Running Carousel Generation
 
 **What goes wrong:**
-The project has three rendering paths that must produce visually identical output:
-1. **React preview** (`slide-preview.tsx`) -- browser CSS, uses `className`, `Rnd` wrappers, `%`-based positioning, has `z-index`
-2. **Satori export** (`render-slide-satori.tsx`) -- inline styles, `px`-based positioning via `pxX()`/`pxY()`, no z-index (DOM order = layer order)
-3. **HTML export** (`render-slide.ts`) -- if it exists, full CSS
+The `create_carousel` tool wraps `generateCarousel` which calls Gemini AI for content generation, Pexels API for images, and potentially server-side rendering. This chain can take 15-45 seconds. Vercel serverless functions default to 10 seconds on Hobby and 60 seconds on Pro. The existing REST endpoint already sets `maxDuration = 60`. But MCP Streamable HTTP adds protocol overhead -- the MCP SDK must parse the JSON-RPC request, invoke the tool handler, and serialize the response. If the tool handler itself takes 50+ seconds, the total request can exceed the function timeout.
 
-When effects are added, a change in one renderer is easily missed in another. The preview shows a shadow, the exported PNG has no shadow, and the user blames the product.
+Additionally, Vercel's Fluid compute model means the function may be cold-started, adding 2-5 seconds.
 
 **Why it happens:**
-The renderers are physically separate files with completely different style APIs. There is no shared abstraction for "apply text effects to this element." Each renderer independently interprets the `TextEffects` data model.
+MCP tool calls are synchronous request-response over Streamable HTTP. Unlike the REST API where the client controls retry logic, an MCP client (Claude Desktop, Cursor) expects a response within a reasonable timeframe. There is no built-in progress notification in a stateless Streamable HTTP setup.
 
 **How to avoid:**
-Create a single shared utility: `buildEffectStyles(effects: TextEffects): React.CSSProperties` that returns the CSS properties for text effects. If native Satori CSS works (see Pitfall 1), this function returns the SAME object for all three renderers -- the three-renderer problem disappears for effects. Both the preview (`slide-preview.tsx` line 147-161 hookTextStyle/bodyTextStyle) and Satori renderer (`render-slide-satori.tsx` line 89-117) should merge in the effect styles from this shared utility.
-
-Write a visual regression check: render a slide with all effects via `/api/render`, compare to preview at same dimensions.
+- Set `maxDuration = 60` on the MCP route handler (matching the carousel endpoint)
+- Keep `create_carousel` as the only long-running tool; `list_templates`, `edit_slide`, and `render_carousel` should complete in under 5 seconds
+- Return progress information in the tool response (e.g., "Generated 7 slides, project ID: xyz, render in progress")
+- For Vercel Pro: configure function concurrency to avoid cold starts on the MCP endpoint
+- Consider an async pattern: `create_carousel` returns immediately with a project ID, and a separate `get_project_status` tool polls -- but this adds tool count and complexity, so only do this if timeouts become a real problem
 
 **Warning signs:**
-- Effect looks different in preview vs. exported PNG
-- Bug fix applied to one renderer but not the others
-- Text effects code copy-pasted between files with slight variations
+- MCP clients showing "tool call timed out" errors
+- Intermittent failures on carousel creation but not on simpler tools
+- Cold start + generation time exceeding 60 seconds
 
 **Phase to address:**
-Phase 1 -- the shared utility must exist before effects are added to any renderer.
+Phase 2 -- implementation. Set maxDuration early, test with real Gemini API calls.
 
 ---
 
-### Pitfall 3: Outline Duplicate Elements Misaligned on Multi-Line Text
+### Pitfall 3: Auth Model Mismatch -- MCP Session vs Bearer Token
 
 **What goes wrong:**
-If the duplicate-element approach is used for outlines (4+ copies offset in cardinal directions), the duplicates may not line-break at the same points as the original when the text wraps. Satori's text layout engine may compute slightly different line breaks for offset duplicates if their container position differs by even 1px. The result is visible artifacts at line boundaries -- stray outline fragments.
+The existing REST API uses `withApiAuth` which extracts a Bearer token from the `Authorization` header, validates it against the `api_keys` table (SHA-256 hash lookup), and provides `userId`, `keyId`, `supabase`, and `creditBalance` to the handler. MCP's Streamable HTTP transport passes auth differently depending on the client:
 
-Additionally, a fixed-pixel outline (e.g., 2px) looks disproportionately thick on 32px body text compared to 64px hook text.
+1. **Claude Desktop / Cursor**: These clients configure auth in their MCP server config (usually a Bearer token in headers). The token arrives in the `Authorization` header on every request -- this works with the existing `withApiAuth` pattern.
+2. **MCP spec OAuth 2.1 flow**: The MCP spec defines a full OAuth 2.1 authorization flow with PKCE, resource indicators, and dynamic client registration. Implementing this is massive overkill for this project and most MCP clients do not use it.
+3. **stdio transport**: No HTTP headers at all -- the token must be passed as an environment variable or constructor argument.
+
+The pitfall is either over-engineering (implementing full OAuth 2.1) or under-engineering (not handling the Bearer token extraction at the transport layer).
 
 **Why it happens:**
-The outline thickness is absolute pixels, but readability depends on the font-size-to-thickness ratio. Multi-line text compounds the problem because Satori computes layout per-element.
+The MCP spec's authorization section describes OAuth 2.1 as the standard, which can mislead developers into thinking they need a full OAuth server. In practice, most MCP clients pass a static Bearer token. The existing `withApiAuth` middleware is designed for Next.js route handlers (`NextRequest` -> `NextResponse`), not for MCP SDK tool handlers.
 
 **How to avoid:**
-If `-webkit-text-stroke` works natively (see Pitfall 1), this entire problem vanishes -- the stroke is applied per-glyph at the SVG path level and handles wrapping perfectly. If stuck with duplicates: (a) use 8 directions (N/NE/E/SE/S/SW/W/NW) for smoother corners, (b) ensure all duplicates share the exact same container dimensions (only vary `left`/`top`), and (c) cap outline thickness relative to font size.
+- For Streamable HTTP: Extract the Bearer token at the route handler level (before passing to the MCP SDK transport), validate it using the existing `authenticateApiKey` function, and pass `userId`/`keyId` into the MCP server context
+- Do NOT implement OAuth 2.1 -- use the existing `vsl_` API key system. Users create an API key in settings and paste it into their Claude Desktop / Cursor config
+- For stdio transport: Accept the API key as a constructor argument or environment variable (`VSL_API_KEY`), and pass it in the MCP server context
+- Create a thin auth adapter that bridges `withApiAuth` logic to MCP context without coupling to `NextRequest`/`NextResponse`
 
 **Warning signs:**
-- Outline gaps at text-wrap boundaries
-- Outline "doubles up" at overlap points between copies
-- Outline looks wrong at extreme font sizes
+- Building an OAuth 2.1 server for MCP auth
+- MCP tool handlers directly calling `authenticateApiKey` with request objects
+- stdio transport has no auth mechanism
+- Rate limiting not applied to MCP requests
 
 **Phase to address:**
-Phase 1 spike determines if this pitfall is relevant at all.
+Phase 1 -- design the auth bridge before implementing tools.
 
 ---
 
-### Pitfall 4: "Tight" Highlight Breaks on Multi-Line Text in Satori
+### Pitfall 4: Streamable HTTP Session State in Serverless
 
 **What goes wrong:**
-The "tight" highlight effect (background color hugging each line like a highlighter marker) requires `box-decoration-break: clone` in CSS so the background repeats per line. Satori's documented CSS subset does NOT include `box-decoration-break`. A `<span>` with `backgroundColor` in Satori will produce a single rectangle behind all lines, not the per-line highlight effect. The preview will look correct (browsers support `box-decoration-break: clone`) but the Satori export will render a full-width block.
+The MCP SDK's `StreamableHTTPServerTransport` maintains session state (session ID, transport instance) in an in-memory Map. On Vercel serverless, each invocation may hit a different function instance. If a client sends request 1 to instance A (which creates session "abc123"), then request 2 hits instance B, the session is not found. The server returns a 404 or creates a new session, breaking the conversation.
 
 **Why it happens:**
-The design doc says "Satori supports inline backgrounds" but does not distinguish between block-level backgrounds (supported) and inline-fragmented backgrounds (requires `box-decoration-break: clone`, not supported). Testing with single-line text hides the problem.
+The MCP TypeScript SDK examples show `new Map<string, StreamableHTTPServerTransport>()` as session storage, which works in long-running Node.js processes but fails in serverless environments where instances are ephemeral and not shared.
 
 **How to avoid:**
-For tight highlights in Satori, either: (a) split multi-line text into individual `<div>`s per line, each with its own background (requires pre-computing line breaks -- hard), or (b) use `display: flex; flexDirection: column; alignItems: flex-start` with the text as a child span that has `backgroundColor` (may work for short text), or (c) accept that tight highlight in Satori renders as full-width and document this as a known limitation. Option (c) is pragmatic -- users see the correct result in preview, and the exported image has a slightly wider highlight. Test option (b) first.
+Use **stateless mode**. The MCP SDK supports setting `sessionIdGenerator: undefined` on `StreamableHTTPServerTransport`, which disables session tracking entirely. Each request is independent. This is the correct approach for serverless deployments because:
+- The existing REST API is already stateless (each request carries its own Bearer token)
+- MCP tools wrap stateless REST operations
+- No server-side conversation state is needed -- the MCP client maintains context
+- Vercel's `mcp-handler` library defaults to stateless for this reason
+
+If stateful sessions are needed later (e.g., for server-initiated notifications), use Redis-backed session storage via Upstash (already in the project for rate limiting).
 
 **Warning signs:**
-- Tight highlight looks perfect in preview but becomes a full-width block in the exported PNG
-- Only tested with single-line text
+- Using `new Map()` for session storage in a Vercel-deployed route handler
+- Clients getting "session not found" errors on second tool call
+- Setting `sessionIdGenerator` to a UUID function without external storage
 
 **Phase to address:**
-Highlight implementation phase. Test with multi-line body text specifically. Consider making "full-width" the default.
+Phase 1 -- transport configuration. Explicitly set stateless mode from the start.
 
 ---
 
-### Pitfall 5: Effects Implemented for Hook/Body But Not Custom Text Boxes
+### Pitfall 5: Tool Description Quality -- Vague or Missing Context
 
 **What goes wrong:**
-The codebase has three text element types: hook, body, and custom text boxes (array in `slide.custom_texts`). Each has a different code path in all renderers. Effects get implemented for hook and body first (they are in `SlideStyleOverrides`), and custom texts are forgotten or wired differently. User adds a custom text box, enables shadow, nothing happens.
+Research shows 97.1% of MCP tool descriptions contain at least one quality issue, with over half having unclear purpose statements. Poor descriptions cause the LLM to: (a) select the wrong tool, (b) pass wrong parameters, (c) not use available tools at all. For a 4-tool server this matters less than a 30-tool server, but bad descriptions on `edit_slide` (the most complex tool with many parameters) will cause constant failures.
 
 **Why it happens:**
-Hook/body are top-level slide properties with dedicated style resolution (overrides + template fallback). Custom texts are array items with their own `CustomText` interface. The code paths are physically separate: hook/body styles resolved from `overrides.hook_font_size ?? template.hookFontSize`, custom text from `ct.font_size ?? 48`. Easy to add `hook_text_effects` to overrides and forget `text_effects` on `CustomText`.
+Developers write tool descriptions as API documentation ("Updates a slide's properties") rather than as LLM instructions ("Change the text, image, or style of a specific slide in a carousel project. Use this after create_carousel to modify individual slides before rendering.").
 
 **How to avoid:**
-Implement effects for all three text types in the same phase. The design doc correctly specifies `text_effects?: TextEffects` on `CustomText`. Use the shared `buildEffectStyles` utility for all three types so adding effects to a new text type is a one-line call.
+Each tool description must include:
+1. **What it does** in one sentence using the user's vocabulary
+2. **When to use it** -- what user intent maps to this tool
+3. **What it returns** -- so the LLM knows what to expect
+4. **When NOT to use it** -- disambiguate from similar tools
+
+For parameters, include:
+- `description` on every property in the Zod schema
+- Enum values with explanations, not just the value list
+- Example values where format is non-obvious (e.g., "projectId: a UUID like '550e8400-e29b-41d4-a716-446655440000'")
+
+Test with Claude Desktop: ask it to "make me a carousel about productivity tips" and observe whether it selects the right tools and passes correct parameters without guidance.
 
 **Warning signs:**
-- Effects panel only appears for hook/body, not selected custom text
-- `render-slide-satori.tsx` custom text map (line 156-175) does not reference `text_effects`
-- Tests only verify hook/body
+- Tool descriptions under 20 words
+- Parameter schemas without `description` fields
+- LLM asking "which tool should I use?" when intent is clear
+- LLM passing `templateId: "default"` instead of a real template ID
 
 **Phase to address:**
-Same phase as hook/body effects -- do not ship without custom text support.
+Phase 1 -- tool schema design. Iterate descriptions based on testing.
+
+---
+
+### Pitfall 6: stdio Transport npm Package Build and Packaging Errors
+
+**What goes wrong:**
+The stdio transport is packaged as a separate npm package so users can run `npx viral-slide-mcp` in their Claude Desktop config. Common packaging mistakes:
+1. Missing shebang (`#!/usr/bin/env node`) -- the binary is not executable on Unix
+2. `bin` entry pointing to TypeScript source instead of compiled JS
+3. `files` array not including the built output
+4. Package importing from the Next.js app's internal modules (tight coupling)
+5. `type: "module"` mismatch -- ESM package but `npx` invocation expects CJS, or vice versa
+6. Missing `prepublishOnly` build script -- publishing unbuilt source
+
+**Why it happens:**
+The stdio transport is a separate package concern layered on top of a Next.js monorepo. Next.js projects are not set up for npm package publishing. The build tooling (Next.js compiler, Turbopack) is optimized for web bundles, not standalone Node.js CLI binaries.
+
+**How to avoid:**
+- Create a separate directory (e.g., `packages/mcp-stdio/`) with its own `package.json`, `tsconfig.json`, and build script
+- Use `tsup` or `esbuild` to bundle into a single CJS file with shebang prepended
+- The stdio package should import ZERO code from the Next.js app -- it should be a thin wrapper that creates an MCP server with the same tool definitions and makes HTTP calls to the deployed REST API (or directly calls service functions if extracted)
+- Test with `npx` locally before publishing: `npm pack && npx ./viral-slide-mcp-1.0.0.tgz`
+- Verify on both macOS and Linux (file permissions, shebang parsing)
+
+**Warning signs:**
+- `npx viral-slide-mcp` fails with "permission denied" or "not found"
+- Package size > 5MB (bundled node_modules instead of tree-shaken)
+- Import errors referencing `@/lib/` paths from the Next.js app
+- Works with `node packages/mcp-stdio/dist/index.js` but not with `npx`
+
+**Phase to address:**
+Phase 3 -- stdio packaging, after the Streamable HTTP server works.
+
+---
+
+### Pitfall 7: MCP Route Conflicting with Next.js Middleware
+
+**What goes wrong:**
+The existing `middleware.ts` skips session auth for `/api/v1` routes and `/api/webhooks`. If the MCP endpoint is at `/api/mcp`, it will pass through the Supabase `updateSession` middleware, which tries to refresh the session cookie. This fails because MCP clients send Bearer tokens, not session cookies. The middleware may return a redirect to the login page or modify response headers in unexpected ways.
+
+**Why it happens:**
+The middleware matcher catches all routes except static assets. New API routes must be explicitly excluded.
+
+**How to avoid:**
+Add `/api/mcp` to the middleware skip list:
+
+```typescript
+if (request.nextUrl.pathname.startsWith('/api/mcp')) {
+  return
+}
+```
+
+This is a one-line fix but easy to forget. The MCP endpoint will silently fail with confusing auth errors if missed.
+
+**Warning signs:**
+- MCP client gets 307 redirect responses
+- Response includes `set-cookie` headers for Supabase session
+- Auth works in local dev (no middleware) but fails in production
+
+**Phase to address:**
+Phase 2 -- first thing when creating the route handler.
+
+---
+
+### Pitfall 8: Credit Deduction Without Idempotency on MCP Retries
+
+**What goes wrong:**
+MCP clients may retry failed requests (network timeout, connection drop). If `create_carousel` deducts credits in the tool handler and the response is lost but the operation succeeded, the client retries, deducting credits again. The user is charged twice for one carousel.
+
+The existing REST API has the same theoretical issue, but REST clients typically handle retries at the application level with idempotency keys. MCP clients (Claude Desktop, Cursor) handle retries automatically and opaquely.
+
+**Why it happens:**
+The `deductCreditAdmin` function is called inside the tool handler without an idempotency mechanism. MCP's Streamable HTTP transport does not have built-in idempotency semantics.
+
+**How to avoid:**
+- Use the project ID as a natural idempotency key: before deducting credits, check if a project with this generation's fingerprint already exists
+- Alternatively, deduct credits optimistically and refund on duplicate detection
+- For the MVP, this is an acceptable risk if carousel generation is cheap (1 credit). Document it as a known limitation and add idempotency in a follow-up
+- If implementing idempotency: accept an optional `request_id` parameter in `create_carousel` and check against recent completions
+
+**Warning signs:**
+- Users reporting double credit deductions
+- MCP client logs showing retried tool calls
+- Credit balance dropping faster than expected
+
+**Phase to address:**
+Phase 2 for awareness, Phase 4 (post-launch hardening) for full idempotency. Acceptable technical debt for MVP.
 
 ---
 
@@ -125,87 +247,109 @@ Same phase as hook/body effects -- do not ship without custom text support.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Duplicate elements for shadow/outline without testing native CSS | Avoids uncertainty | 5x more rendering code, visual inconsistencies, maintenance burden | Never -- 30 min spike eliminates uncertainty |
-| Hardcoded shadow offsets (S=2px/M=4px/L=6px) without font-size awareness | Simple presets | Shadows look wrong at 16px vs 128px | MVP -- refine later with font-relative offsets |
-| Separate effect logic per renderer | Quick to ship one renderer | Three places to update per effect change | Never -- shared utility is ~1 hour upfront |
-| Storing effect colors without alpha | Simpler color picker | Cannot control transparency independently | Never -- design doc already specifies hex+alpha |
+| Stateless MCP (no session persistence) | Works on serverless, simple to implement | Cannot use server-initiated notifications or sampling | Always for this project -- no need for server push |
+| Bearer token auth instead of OAuth 2.1 | Reuses existing API key system, zero new infrastructure | Not spec-compliant for third-party MCP client discovery | Until third-party client adoption requires OAuth |
+| stdio package makes HTTP calls to deployed API | Clean separation, no shared code coupling | Adds network latency, requires deployed API to be available | MVP -- revisit if latency is unacceptable |
+| No idempotency on credit deduction | Simpler tool handler | Double charges on retries | MVP at 1 credit/operation -- fix before scaling |
+| Tool descriptions hardcoded in route handler | Fast iteration | Must redeploy to change descriptions | Always -- descriptions change rarely after stabilization |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Satori `textShadow` | Using rgba with percentage alpha like `rgba(0,0,0,50%)` which triggers parsing bug (Issue #441) | Use decimal alpha: `rgba(0,0,0,0.5)` or 8-digit hex `#00000080` |
-| Satori `WebkitTextStroke` | Using lowercase `webkitTextStroke` | Must be capital W: `WebkitTextStrokeWidth` and `WebkitTextStrokeColor` (React convention for vendor prefixes) |
-| Next.js bundled satori version | Assuming latest satori features are available | Next.js 15.5.13 bundles a specific satori version. Must verify text-stroke support with actual render test. If too old, install satori directly as standalone. |
-| Color picker alpha | Returning 6-digit hex (#RRGGBB) for shadow/highlight that need transparency | Use 8-digit hex (#RRGGBBAA) or rgba(). Design doc defaults to `#00000099`. |
-| Existing `loadFontBuffersForSlide` | Assuming font loading handles all variants for duplicate elements | Font loading already works for single elements. But if using duplicates, verify the font buffers are shared (they are -- loaded once per render call). |
+| `@modelcontextprotocol/sdk` | Using < v1.26.0 which has security vulnerabilities | Pin to >= 1.26.0. Check for v2 stable release. |
+| Vercel `mcp-handler` | Placing route handler at wrong path (must match `basePath` config) | Route at `app/api/[transport]/route.ts` or `app/api/mcp/route.ts` depending on adapter |
+| Claude Desktop config | Providing wrong URL format or missing trailing path | URL must be the full endpoint: `https://yourapp.com/api/mcp` with Bearer token in headers |
+| Cursor MCP config | Using stdio config format for HTTP server or vice versa | Separate configs: HTTP uses `url` + `headers`, stdio uses `command` + `args` |
+| Upstash rate limiting | Not applying rate limits to MCP endpoint (only on `/api/v1`) | Extract rate limiting logic from `withApiAuth` and apply to MCP auth bridge |
+| Next.js middleware | Not skipping `/api/mcp` route | Add skip condition before `updateSession` call |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Duplicate elements per text (4-8 copies for outline) | Satori render time increases, especially with many text boxes | Use native `-webkit-text-stroke`. If duplicates needed, limit to slides with <10 text elements. | Noticeable with 5+ outlined text boxes |
-| Slider onChange fires on every pixel | Highlight padding or outline thickness slider causes 60+ re-renders/sec, laggy preview | Debounce slider onChange (150ms) or use onPointerUp/onChangeEnd to commit values | Immediately -- laggy slider UX |
-| Color picker onChange fires continuously | Shadow/highlight color change on every mouse move in picker | Debounce or use onChangeComplete callback. Current undo stack limit (MAX_HISTORY=50) also fills instantly. | Immediately -- undo history flooded |
+| Cold start + AI generation chain | First MCP call after idle takes 50+ seconds | Enable Vercel Fluid compute, pre-warm with health check | After 15 min idle on Hobby plan |
+| Tool response too large (full project JSON) | Context window bloat in MCP client, slow response | Return summary fields only (project ID, slide count, status), not full slide data | Projects with 15+ slides and custom elements |
+| No connection pooling for Supabase in MCP handler | New Supabase client per request (already the pattern with `createAdminClient`) | Acceptable for current scale. Use connection pooler URL if hitting Supabase connection limits | 100+ concurrent MCP users |
+
+## Security Mistakes
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Token passthrough (passing MCP client's token to downstream APIs without validation) | Impersonation, unauthorized access | Validate every Bearer token against `api_keys` table with SHA-256 hash lookup -- reuse existing `authenticateApiKey` |
+| Exposing internal project IDs without ownership check | User A can edit User B's project via MCP | Tool handlers must verify `project.user_id === ctx.userId` before any mutation -- reuse existing RLS policies via `supabase` client |
+| stdio transport storing API key in plaintext config | Key visible in Claude Desktop config JSON | Document that users should use environment variables: `"env": { "VSL_API_KEY": "vsl_..." }` rather than inline |
+| No input validation on MCP tool parameters | Injection via topic string, invalid template IDs | Reuse existing validation from REST handlers. Zod schemas in tool definitions provide first-line defense. |
+| MCP endpoint accessible without CORS restrictions | Not a risk for MCP (not browser-based) but may confuse developers | Do NOT add CORS headers to MCP endpoint -- MCP clients are not browsers. CORS is for REST API only. |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Showing all effect controls expanded | 9+ controls visible per text element, overwhelming panel | Collapse sub-controls by default, show only when toggle is on (design doc specifies this -- enforce it) |
-| Shadow defaults invisible on dark templates | Default `#00000099` shadow on dark overlays is black-on-black | Test defaults on all templates. Auto-adjust: use white shadow (`#FFFFFF80`) when template overlay is dark. Or let the spike determine reasonable defaults per template palette. |
-| No live preview during adjustment | User adjusts slider but preview updates with delay | Ensure state updates propagate immediately to preview. React CSS properties (textShadow, etc.) update instantly in browser -- just verify no batching/debounce on the preview path (debounce the undo push, not the preview). |
-| No "reset all effects" action | User experiments, wants to undo all at once | Add "Clear effects" button at bottom of effects panel. One click sets all `_enabled` to false. |
-| Per-element effects without per-slide propagation | User styles effects on slide 1 hook, must repeat 9 more times | Existing gap (affects all text styles). Flag as follow-up: "Apply text style to all slides" button. |
+| Tool returns raw error codes ("VALIDATION_ERROR") | LLM cannot help user fix the issue | Return human-readable error messages: "Template 'xyz' not found. Available templates: modern, minimal, bold..." |
+| `list_templates` returns only IDs | LLM cannot recommend a template | Return template ID, name, description, and visual style keywords so the LLM can suggest the best match |
+| `create_carousel` requires exact templateId | User must know template IDs | Accept template name or description and fuzzy-match, or let the LLM use `list_templates` first (two-step is OK for discovery) |
+| No feedback during long generation | User thinks tool call failed | Return intermediate status if possible, or set expectations in tool description: "This tool takes 15-30 seconds to complete" |
+| Connection guide has wrong config format | User cannot connect, gives up | Test every config example against actual Claude Desktop / Cursor versions before publishing |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Shadow:** Tested with light AND dark template backgrounds
-- [ ] **Shadow:** Exported PNG matches browser preview visually
-- [ ] **Shadow in Satori:** No `rgba()` percentage-alpha format used (triggers Issue #441)
-- [ ] **Outline:** Tested with multi-line wrapping text (3+ lines body text)
-- [ ] **Outline:** Tested at extreme font sizes (24px and 96px+)
-- [ ] **Highlight tight:** Tested with multi-line text in Satori export (not just browser)
-- [ ] **Highlight full-width:** Padding renders correctly in Satori (padding is supported, but verify)
-- [ ] **Custom text boxes:** All three effects work on custom text, not just hook/body
-- [ ] **Existing slides:** Slides without effects render unchanged (all fields optional with `_enabled: false` default)
-- [ ] **All templates:** Effects render correctly across all 5-10 templates
-- [ ] **Combined effects:** Shadow + outline + highlight simultaneously on same element
-- [ ] **Mobile thumbnails:** Effects visible at small preview scale in sidebar
+- [ ] **MCP endpoint:** Responds to GET, POST, and DELETE at `/api/mcp` (all three methods required by Streamable HTTP spec)
+- [ ] **Auth:** Bearer token validated on MCP endpoint, not just passed through
+- [ ] **Rate limiting:** Applied to MCP requests, not just REST API requests
+- [ ] **Credit deduction:** Works through MCP tool calls, credit balance returned in response
+- [ ] **Middleware skip:** `/api/mcp` excluded from Supabase session middleware
+- [ ] **Error format:** MCP JSON-RPC error responses (not REST JSON error format)
+- [ ] **stdio package:** Works via `npx` on a clean machine (no project dependencies)
+- [ ] **stdio package:** Shebang present, file permissions correct, `bin` entry points to built output
+- [ ] **Claude Desktop:** Tested with real Claude Desktop config, not just MCP Inspector
+- [ ] **Cursor:** Tested with real Cursor MCP config
+- [ ] **Tool descriptions:** Tested by asking Claude to "make a carousel" without explicit tool guidance
+- [ ] **Templates tool:** Returns enough context for LLM to recommend a template
+- [ ] **Large responses:** Tool responses under 4KB to avoid context window bloat
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Built duplicate-element system when native CSS works | MEDIUM (2-4 hrs) | Remove duplicate helpers, replace with native CSS on existing elements |
-| Renderers out of sync | LOW-MEDIUM (1-2 hrs/renderer) | Create shared utility, refactor each renderer |
-| Custom text boxes missing effects | LOW (1-2 hrs) | Wire `text_effects` into custom text rendering + editor panel |
-| Tight highlight broken in Satori | LOW (30 min) | Fall back to full-width in Satori, keep tight in browser preview |
-| Slider/color picker performance | LOW (30 min) | Add debounce to onChange, use onChangeComplete |
+| 1:1 REST-to-MCP tool mapping | MEDIUM (4-6 hrs) | Redesign tools as outcome-oriented, consolidate multi-step operations into single tools |
+| Serverless timeout | LOW (30 min) | Set maxDuration, add timeout handling in tool handler, return partial results |
+| Auth model mismatch | MEDIUM (2-4 hrs) | Extract auth logic from withApiAuth into reusable function, create MCP auth bridge |
+| Session state in serverless | LOW (15 min) | Switch to stateless mode: `sessionIdGenerator: undefined` |
+| Bad tool descriptions | LOW (1-2 hrs) | Rewrite descriptions following the what/when/returns/not pattern, test with LLM |
+| stdio packaging broken | MEDIUM (2-4 hrs) | Set up separate build with tsup, test npx workflow end-to-end |
+| Middleware conflict | LOW (5 min) | Add one-line skip condition in middleware.ts |
+| Double credit deduction | MEDIUM (3-4 hrs) | Add idempotency key based on request hash or project fingerprint |
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Native CSS vs duplicates | Phase 1 (spike) | Render test image with textShadow + WebkitTextStroke, inspect PNG |
-| Renderer drift | Phase 1 (shared utility) | Side-by-side preview vs. exported PNG for each effect |
-| Outline multi-line alignment | Phase implementing outline | Test with 3-line body text at multiple font sizes |
-| Tight highlight multi-line | Phase implementing highlight | Render 4-line body with tight highlight in Satori |
-| Custom text forgotten | All effect phases | Verify effects panel for selected custom text + exported PNG |
-| Defaults on dark templates | UI phase | Test all templates, adjust shadow default per palette |
-| Slider performance | UI phase | Test with DevTools 6x CPU throttling, check for jank |
+| REST 1:1 tool mapping | Phase 1 (design) | Review tool list: each tool = one user outcome |
+| Serverless timeout | Phase 2 (implementation) | Test create_carousel via MCP with real AI generation, measure end-to-end time |
+| Auth model mismatch | Phase 1 (design) | Auth bridge function unit tested, Bearer token flows through to userId |
+| Session state in serverless | Phase 1 (transport config) | Deploy to Vercel, make 3+ sequential tool calls, all succeed |
+| Tool description quality | Phase 1 (design) + Phase 3 (testing) | Claude Desktop selects correct tool on first try for 5 different prompts |
+| stdio packaging | Phase 3 (packaging) | `npx viral-slide-mcp` works on clean machine with only env vars configured |
+| Middleware conflict | Phase 2 (route handler) | MCP endpoint returns valid JSON-RPC response, no redirects |
+| Credit idempotency | Phase 4 (hardening) | Simulate retry: credit deducted only once |
 
 ## Sources
 
-- [Satori README -- supported CSS properties including text-shadow, WebkitTextStroke, filter](https://github.com/vercel/satori/blob/main/README.md)
-- [Satori PR #645 -- text stroke support (merged Nov 19, 2024)](https://github.com/vercel/satori/pull/645)
-- [Satori Issue #578 -- webkit-text-stroke feature request](https://github.com/vercel/satori/issues/578)
-- [Satori Issue #441 -- text-shadow parsing bug with rgba percentage alpha](https://github.com/vercel/satori/issues/441)
-- [Satori releases -- 0.19.2 through 0.26.0 (Feb-Mar 2026)](https://github.com/vercel/satori/releases)
-- [Next.js Issue #72940 -- satori version in next/og updated Nov 2024](https://github.com/vercel/next.js/issues/72940)
-- [Satori DeepWiki -- CSS support reference](https://deepwiki.com/vercel/satori/4-advanced-usage)
-- Codebase: `src/lib/render/render-slide-satori.tsx` (Satori renderer, 178 lines)
-- Codebase: `src/components/slides/slide-preview.tsx` (React preview, 823 lines)
-- Codebase: `src/lib/types/slide.ts` (data model, 69 lines)
-- Codebase: `src/app/api/render/route.ts` (render API, uses `next/og` ImageResponse)
-- Codebase: `docs/plans/2026-04-07-text-effects-design.md` (design doc)
+- [MCP TypeScript SDK -- server documentation](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/server.md)
+- [MCP Tool Design: Why Your AI Agent Is Failing](https://dev.to/aws-heroes/mcp-tool-design-why-your-ai-agent-is-failing-and-how-to-fix-it-40fc)
+- [Less is More: 4 design patterns for building better MCP servers](https://www.klavis.ai/blog/less-is-more-mcp-design-patterns-for-ai-agents)
+- [Why MCP Deprecated SSE and Went with Streamable HTTP](https://blog.fka.dev/blog/2025-06-06-why-mcp-deprecated-sse-and-go-with-streamable-http/)
+- [MCP Transports Specification (2025-03-26)](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
+- [Vercel mcp-handler](https://github.com/vercel/mcp-handler)
+- [MCP Authorization Tutorial](https://modelcontextprotocol.io/docs/tutorials/security/authorization)
+- [MCP Server Security Best Practices](https://toolradar.com/blog/mcp-server-security-best-practices)
+- [Mastra -- Publishing an MCP server](https://mastra.ai/docs/mcp/publishing-mcp-server)
+- [The Six-Tool Pattern: MCP Server Design That Scales](https://www.mcpbundles.com/blog/mcp-tool-design-pattern)
+- Codebase: `src/lib/api/with-api-auth.ts` (existing Bearer token auth middleware)
+- Codebase: `src/middleware.ts` (Next.js middleware with route skip logic)
+- Codebase: `src/app/api/v1/carousel/route.ts` (carousel generation endpoint, maxDuration=60)
+
+---
+*Pitfalls research for: MCP Server v2.3*
+*Researched: 2026-04-08*
