@@ -454,7 +454,10 @@ Plans:
   2. A request to /api/mcp without a valid Bearer token returns an authentication error (not a redirect to login)
   3. MCP requests from the same API key that exceed the rate limit receive appropriate rate-limited responses
   4. The MCP endpoint works correctly on Vercel (no in-memory session state; stateless transport mode)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 26-01-PLAN.md -- MCP packages, auth adapter, route handler, middleware bypass
 
 ### Phase 27: MCP Tools
 **Goal**: AI agents can complete the full carousel workflow -- discover templates, create a carousel, edit slides, and get download URLs -- through MCP tool calls
