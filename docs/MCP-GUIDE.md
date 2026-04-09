@@ -109,8 +109,8 @@ Add in **Cursor Settings > MCP Servers**:
 | Tool | Description | Parameters | Returns |
 |------|-------------|------------|---------|
 | `list_templates` | List available carousel visual styles/templates | None | Array of `{ id, name, textPosition, textAlign }` |
-| `create_carousel` | Create a new carousel from a topic. Costs **1 credit**. | `topic` (required), `templateId?`, `slideCount?` (3-20, default 7), `imageSource?` ("stock" or "ai") | `{ projectId, slideCount, downloadUrls, zipUrl }` |
-| `edit_slide` | Edit a slide in an existing project | `projectId` (required), `slideIndex` (required, 0-based), `hookText?`, `bodyText?`, `imageQuery?`, `backgroundUrl?` (https only) | Updated slide object |
+| `create_carousel` | Create a new carousel from a topic. Costs **1 credit**. | `topic` (required), `templateId?`, `slideCount?` (3-20, default 7), `imageSource?` ("stock" or "ai") | `{ projectId, slideCount, downloadUrls, zipUrl, creditsRemaining }` |
+| `edit_slide` | Edit a slide in an existing project | `projectId` (required), `slideIndex` (required, 0-based), `hookText?`, `bodyText?`, `imageQuery?`, `backgroundUrl?` (https only) | `{ slide, slideIndex }` |
 | `render_carousel` | Get download URLs for all slides. **No credit cost.** | `projectId` (required) | `{ projectId, slideCount, downloadUrls, zipUrl }` |
 
 ### Tool Parameter Details
@@ -159,11 +159,12 @@ Returns:
   "projectId": "a1b2c3d4-...",
   "slideCount": 7,
   "downloadUrls": [
-    "/api/v1/projects/a1b2c3d4-.../download/0",
-    "/api/v1/projects/a1b2c3d4-.../download/1",
+    "/api/render?projectId=a1b2c3d4-...&slide=0&download",
+    "/api/render?projectId=a1b2c3d4-...&slide=1&download",
     "..."
   ],
-  "zipUrl": "/api/v1/projects/a1b2c3d4-.../download"
+  "zipUrl": "/api/v1/projects/a1b2c3d4-.../download",
+  "creditsRemaining": 9
 }
 ```
 
@@ -173,7 +174,7 @@ Returns:
 > Use edit_slide with projectId "a1b2c3d4-...", slideIndex 2, hookText "Wake Up at 5 AM"
 ```
 
-Returns the updated slide object.
+Returns `{ slide: { ...updatedSlideData }, slideIndex: 2 }`.
 
 ### 4. Get download URLs
 
@@ -192,7 +193,7 @@ Returns fresh download URLs for all slides plus the ZIP download.
 | `render_carousel` | 0 credits |
 | `list_templates` | 0 credits |
 
-Credit balance is returned in response headers (`x-credits-remaining`, `x-credits-used`) on every API call.
+Credit balance is returned in the `create_carousel` response body as `creditsRemaining`. MCP tool responses do not expose HTTP headers to agents.
 
 ## Troubleshooting
 
