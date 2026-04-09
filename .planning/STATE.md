@@ -1,57 +1,51 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Public REST API
-status: executing
-stopped_at: Roadmap created for v2.2 Public REST API
-last_updated: "2026-04-09T01:14:58.772Z"
-last_activity: 2026-04-09
+milestone: v2.3
+milestone_name: MCP Server
+status: defining_requirements
+stopped_at: Milestone v2.3 started
+last_updated: "2026-04-09T00:00:00.000Z"
+last_activity: 2026-04-09 -- Milestone v2.3 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-08)
+See: .planning/PROJECT.md (updated 2026-04-09)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 25 — REST Endpoints (Write & Render)
+**Current focus:** Defining requirements for v2.3 MCP Server
 
 ## Current Position
 
-Phase: 25
-Plan: Not started
-Status: Executing Phase 25
-Last activity: 2026-04-09
-
-Progress: [░░░░░░░░░░] 0%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-09 — Milestone v2.3 started
 
 ## Performance Metrics
 
-**Velocity (from v1.0 + v1.1 + v1.3 + v2.0 + v2.1):**
+**Velocity (from v1.0 through v2.2):**
 
 - Total plans completed: 28
 - Average duration: ~6 min
-- Total execution time: ~2 hours
+- Total execution time: ~3 hours
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [v2.2 research]: withApiAuth HOC pattern -- auth + rate limit + error handling in one wrapper
-- [v2.2 research]: Middleware must skip /api/v1/* before session refresh (prevents 307 redirects)
-- [v2.2 research]: Use crypto.timingSafeEqual for hash comparison (prevent timing attacks)
-- [v2.2 research]: Admin Supabase client (service role) for all API route handlers (bypass RLS)
-- [v2.2 research]: Only 2 new packages needed (@upstash/ratelimit, @upstash/redis)
+- [v2.2]: withApiAuth HOC pattern chains auth → rate limit → credits → CORS → handler
+- [v2.2]: Admin Supabase client for all API route handlers (bypass RLS)
+- [v2.2]: Service extraction into src/lib/services/ for shared web/API logic
+- [v2.2]: Default text effects (shadow + overlay) applied during generation for readability
 
 ### Pending Todos
 
@@ -59,11 +53,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Vercel plan timeout: confirm deployment tier before production (Hobby = 10s, Pro = 60s)
-- Upstash Redis: confirm account provisioned and env vars available before Phase 23
+- Upstash Redis env vars need provisioning for production rate limiting
 
 ## Session Continuity
 
-Last activity: 2026-04-08
-Stopped at: Roadmap created for v2.2 Public REST API
+Last activity: 2026-04-09
+Stopped at: Milestone v2.3 started
 Resume file: None
