@@ -411,7 +411,11 @@ Plans:
   3. Developer can GET `/api/v1/projects/{id}` and receive the full project with all slides
   4. Developer can DELETE `/api/v1/projects/{id}` and the project is removed
   5. Developer can GET `/api/v1/projects/{id}/slides/{index}` and receive a single slide's data
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 24-01-PLAN.md -- Templates list + projects list endpoints
+- [ ] 24-02-PLAN.md -- Project get/delete + single slide get endpoints
 
 ### Phase 25: REST Endpoints (Write & Render)
 **Goal**: Developers can create carousels, create projects, update slides, and render/download images entirely through the API
