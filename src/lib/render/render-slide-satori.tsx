@@ -105,11 +105,7 @@ export function buildSlideElement(
     color: textColor,
   }
 
-  if (slide.background_url) {
-    rootStyle.backgroundImage = `url(${slide.background_url})`
-    rootStyle.backgroundSize = 'cover'
-    rootStyle.backgroundPosition = 'center'
-  } else {
+  if (!slide.background_url) {
     rootStyle.backgroundColor = template.backgroundColor
   }
 
@@ -159,6 +155,23 @@ export function buildSlideElement(
 
   return (
     <div style={rootStyle}>
+      {/* Background image - use <img> with objectFit instead of CSS backgroundImage
+          because Satori does not support backgroundSize/backgroundPosition properly,
+          causing the image to tile instead of cover. */}
+      {slide.background_url && (
+        <img
+          src={slide.background_url}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: W,
+            height: H,
+            objectFit: 'cover',
+            objectPosition: 'center',
+          }}
+        />
+      )}
       {/* Overlay - rendered before text so text appears on top (Satori has no z-index) */}
       <div
         style={{
