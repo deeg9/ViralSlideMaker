@@ -4,7 +4,6 @@ import { TopNavbar } from '@/components/layout/top-navbar'
 import { Footer } from '@/components/layout/footer'
 import { Icon } from '@/components/ui/icon'
 import { SplineScene } from '@/components/ui/splite'
-import { Testimonials } from '@/components/landing/testimonials-section'
 import { AnimatedWord } from '@/components/landing/animated-word'
 import { MouseSparkles } from '@/components/ui/magic-cursor'
 import { CpuArchitecture } from '@/components/ui/cpu-architecture'
@@ -187,9 +186,6 @@ export default async function Home() {
             </div>
           </div>
         </section>
-
-        {/* Testimonials — Scrolling Columns */}
-        <Testimonials />
 
       </main>
 
