@@ -11,6 +11,10 @@ import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
 
+// Templates that share the news-carousel skip-default-effects behavior.
+// Keep this list in sync with src/lib/ai/prompts.ts and src/lib/services/carousel.ts.
+const NEWS_TEMPLATES = new Set(['news-drop', 'news-cyan'])
+
 export async function generateCarousel(
   projectId: string,
   topic: string,
@@ -145,9 +149,9 @@ export async function generateCarousel(
     }
 
     // 2c. Apply default text effects for readability (shadow + overlay).
-    // News Drop runs on a solid black canvas with constrained images — the readability
-    // shadows and overlay would just dirty the image zone, so skip them.
-    if (templateId !== 'news-drop') {
+    // News Drop / News Cyan run on a solid dark canvas with constrained images
+    // — the readability shadows and overlay would just dirty the image zone, so skip them.
+    if (!NEWS_TEMPLATES.has(templateId)) {
       slides = slides.map(slide => ({
         ...slide,
         style_overrides: {

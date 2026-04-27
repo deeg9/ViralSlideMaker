@@ -1,5 +1,10 @@
+// Templates that share the news-carousel prompt branch + skip-default-effects
+// behavior. News Cyan reuses the entire News Drop generation flow — only the
+// accent color (and a few visual tokens) differ.
+const NEWS_TEMPLATES = new Set(['news-drop', 'news-cyan'])
+
 export function buildSystemPrompt(templateId?: string): string {
-  const newsDropAddendum = templateId === 'news-drop' ? `
+  const newsDropAddendum = templateId && NEWS_TEMPLATES.has(templateId) ? `
 
 NEWS DROP TEMPLATE (active):
 You are writing in the style of a serious news Instagram carousel (think sovereignty.ai, AJ+, NowThis).
