@@ -14,4 +14,8 @@ export const softPastel: SlideTemplate = {
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'italic',
+  sample: {
+    hook_text: 'Glow Up Your Mornings',
+    body_text: '5 habits to start tomorrow.',
+  },
 }

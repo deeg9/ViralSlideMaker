@@ -14,4 +14,8 @@ export const darkGradient: SlideTemplate = {
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'normal',
+  sample: {
+    hook_text: 'Future of AI',
+    body_text: 'What changes in 2026.',
+  },
 }

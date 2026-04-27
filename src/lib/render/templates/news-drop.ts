@@ -19,4 +19,16 @@ export const newsDrop: SlideTemplate = {
   textPosition: 'bottom',
   hookStyle: 'uppercase',
   accentColor: '#C8FF00',
+  sample: {
+    hook_text: 'OPENAI WINS LANDMARK COPYRIGHT CASE',
+    body_text: 'Federal court rules training on public data is fair use.',
+    hook_segments: [
+      { text: 'OPENAI', accent: true },
+      { text: 'WINS' },
+      { text: 'LANDMARK' },
+      { text: 'COPYRIGHT', accent: true },
+      { text: 'CASE' },
+    ],
+    layout: 'cover',
+  },
 }

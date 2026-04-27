@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 
 describe('templates', () => {
-  it('templates array has exactly 6 entries', async () => {
+  it('templates array has exactly 12 entries', async () => {
     const { templates } = await import('@/lib/render/templates/index')
-    expect(templates).toHaveLength(6)
+    expect(templates).toHaveLength(12)
   })
 
   it('each template has all required SlideTemplate fields', async () => {

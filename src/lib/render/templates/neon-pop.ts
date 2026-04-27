@@ -14,4 +14,8 @@ export const neonPop: SlideTemplate = {
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'uppercase',
+  sample: {
+    hook_text: 'LEVEL UP',
+    body_text: 'Productivity hacks that actually work.',
+  },
 }

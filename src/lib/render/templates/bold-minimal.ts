@@ -14,4 +14,8 @@ export const boldMinimal: SlideTemplate = {
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'uppercase',
+  sample: {
+    hook_text: 'STOP DOING THIS',
+    body_text: 'Your morning routine is broken.',
+  },
 }

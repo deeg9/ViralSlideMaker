@@ -14,4 +14,8 @@ export const cleanSerif: SlideTemplate = {
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'normal',
+  sample: {
+    hook_text: 'The Quiet Power of Routine',
+    body_text: 'Why high performers protect their mornings.',
+  },
 }
