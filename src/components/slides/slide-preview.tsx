@@ -110,7 +110,7 @@ export function SlidePreview({
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
   // Font family overrides (Phase 12)
-  const hookFontFamily = overrides.hook_font_family ?? template.fontFamily
+  const hookFontFamily = overrides.hook_font_family ?? template.headingFontFamily ?? template.fontFamily
   const bodyFontFamily = overrides.body_font_family ?? template.fontFamily
 
   // Bold/italic overrides (Phase 11)

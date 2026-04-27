@@ -150,7 +150,7 @@ export function buildSlideElement(
     rootStyle.backgroundColor = template.backgroundColor
   }
 
-  // Hook text style
+  // Hook text style — heading font falls back to body font
   const hookStyle: React.CSSProperties = {
     position: 'absolute',
     left: pxX(hookX),
@@ -160,6 +160,7 @@ export function buildSlideElement(
     fontSize: hookFontSize,
     fontWeight: 900,
     lineHeight: 1.1,
+    fontFamily: template.headingFontFamily ?? template.fontFamily,
   }
 
   if (template.hookStyle === 'uppercase') {

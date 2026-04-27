@@ -17,6 +17,9 @@ export interface SlideTemplate {
   name: string
   thumbnail: string
   fontFamily: string
+  // Optional separate heading/hook font (260427-bkt). Falls back to fontFamily.
+  // Built-in templates leave this undefined → no behavior change.
+  headingFontFamily?: string
   hookFontSize: string
   bodyFontSize: string
   textColor: string
