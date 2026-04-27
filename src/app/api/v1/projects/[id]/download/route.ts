@@ -61,12 +61,13 @@ export const GET = withApiAuth(async (req, ctx) => {
 
   // Forced free-tier watermark: ctx.userId is the owner (getProject enforces ownership)
   const ownerTier = await getUserTier(ctx.userId)
+  const origin = new URL(req.url).origin
 
   // Render each slide sequentially to avoid memory pressure
   const zip = new JSZip()
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
-    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier)
+    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin)
     const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
     const imgRes = new ImageResponse(element, {
       width: 1080,

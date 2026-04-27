@@ -95,6 +95,7 @@ export function buildSlideElement(
   template: SlideTemplate,
   brandKit?: BrandKit | null,
   tier?: ForcedWatermarkTier | null,
+  origin?: string,
 ): React.ReactElement {
   const overrides = slide.style_overrides ?? {}
   const resolved = resolveSlideStyles(slide, template)
@@ -198,7 +199,11 @@ export function buildSlideElement(
   const watermark = resolveWatermark(brandKit ?? null, slide, { width: W, height: H })
 
   // Forced free-tier watermark (260427-wmk). Rendered last in JSX so it sits on top.
+  // Satori requires absolute URLs — when origin is provided we prepend it to /logo.png.
   const forced = resolveForcedWatermark(tier, { width: W, height: H })
+  const forcedLogoUrl = forced && origin && forced.logoUrl.startsWith('/')
+    ? `${origin}${forced.logoUrl}`
+    : forced?.logoUrl
 
   return (
     <div style={rootStyle}>
@@ -323,7 +328,7 @@ export function buildSlideElement(
           }}
         >
           <img
-            src={forced.logoUrl}
+            src={forcedLogoUrl}
             style={{
               width: forced.logoSize,
               height: forced.logoSize,

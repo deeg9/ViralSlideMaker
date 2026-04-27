@@ -86,7 +86,8 @@ export async function GET(request: Request) {
   const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
   // Forced free-tier watermark: read project owner's tier (server is source of truth)
   const ownerTier = await getUserTier(p.user_id)
-  const element = buildSlideElement(slide, effectiveTemplate, (brandKit as BrandKit) ?? null, ownerTier)
+  const origin = new URL(request.url).origin
+  const element = buildSlideElement(slide, effectiveTemplate, (brandKit as BrandKit) ?? null, ownerTier, origin)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {
