@@ -5,6 +5,7 @@ import { FontPicker } from './font-picker'
 import { TextEffectsControls } from './text-effects-controls'
 import type { Slide, CustomText, TextSegment } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface TextEditorPanelProps {
   slide: Slide
@@ -14,6 +15,7 @@ interface TextEditorPanelProps {
   customTexts?: CustomText[]
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
   onCustomTextRemove?: (id: string) => void
+  brandKit?: BrandKit | null
 }
 
 const colorSwatches = ['#ffffff', '#3d0000', '#7d6161', '#fadbdb']
@@ -30,8 +32,14 @@ export function TextEditorPanel({
   slide, template, onUpdate,
   selectedCustomTextId, customTexts,
   onCustomTextUpdate, onCustomTextRemove,
+  brandKit,
 }: TextEditorPanelProps) {
   const overrides = slide.style_overrides ?? {}
+
+  // Watermark hide toggle (260427-hut): only meaningful when brand kit has an
+  // active watermark configuration.
+  const watermarkActive = !!brandKit?.logo_url && !!brandKit?.logo_position
+  const watermarkHidden = overrides.hide_watermark === true
 
   const selectedCustomText = selectedCustomTextId
     ? (customTexts ?? []).find((ct) => ct.id === selectedCustomTextId)
@@ -468,6 +476,33 @@ export function TextEditorPanel({
           ))}
         </div>
       </div>
+
+      {/* Watermark hide toggle — only when brand kit has an active watermark */}
+      {watermarkActive && (
+        <div className="border-t border-[#dbc1bc]/20 pt-6">
+          <button
+            type="button"
+            onClick={() => {
+              const next = { ...overrides }
+              if (watermarkHidden) {
+                // Remove the override entirely to keep the object minimal
+                delete next.hide_watermark
+              } else {
+                next.hide_watermark = true
+              }
+              onUpdate({ style_overrides: next })
+            }}
+            className={`w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-all ${
+              watermarkHidden
+                ? 'bg-[#3d0000] text-white hover:opacity-90'
+                : 'bg-[#fff0f0] text-[#3d0000] border border-[#dbc1bc]/30 hover:bg-[#fadbdb]'
+            }`}
+          >
+            <Icon name={watermarkHidden ? 'visibility' : 'visibility_off'} size="sm" />
+            {watermarkHidden ? 'Show brand logo on this slide' : 'Hide brand logo on this slide'}
+          </button>
+        </div>
+      )}
 
       {/* Custom Texts Section */}
       {(customTexts ?? []).length > 0 && (

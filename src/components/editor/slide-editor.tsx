@@ -371,6 +371,7 @@ export function SlideEditor({
                 customTexts={currentSlide.custom_texts}
                 onCustomTextUpdate={handleCustomTextUpdate}
                 onCustomTextRemove={handleRemoveCustomText}
+                brandKit={brandKit}
               />
             )}
             {currentSlide && activeTab === 'images' && (
