@@ -13,7 +13,7 @@ const messages: Record<UpgradePromptProps['context'], { title: string; message: 
   },
   project_limit: {
     title: 'Project limit reached',
-    message: 'Free accounts can create up to 10 projects. Upgrade for unlimited projects.',
+    message: 'Free accounts can create up to 3 projects. Upgrade for unlimited projects.',
   },
   feature_gate: {
     title: 'Premium feature',

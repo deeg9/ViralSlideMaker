@@ -1,7 +1,12 @@
 import { withApiAuth } from '@/lib/api/with-api-auth'
 import { apiSuccess } from '@/lib/api/response'
 import { apiError } from '@/lib/api/errors'
-import { deductCreditAdmin, getUserTier } from '@/lib/credits/check-credits'
+import {
+  deductCreditAdmin,
+  getUserTier,
+  checkProjectLimit,
+  FREE_TIER_PROJECT_LIMIT,
+} from '@/lib/credits/check-credits'
 import { generateCarousel } from '@/lib/services/carousel'
 
 export const maxDuration = 60
@@ -51,6 +56,16 @@ export const POST = withApiAuth(async (req, ctx) => {
     return apiError(
       'VALIDATION_ERROR',
       'Free plan is limited to 3 slides per carousel. Upgrade to plus or pro for up to 20.',
+      400
+    )
+  }
+
+  // Free-tier project-count cap
+  const projectAllowed = await checkProjectLimit(ctx.userId, tier)
+  if (!projectAllowed) {
+    return apiError(
+      'VALIDATION_ERROR',
+      `Free plan is limited to ${FREE_TIER_PROJECT_LIMIT} projects. Upgrade for unlimited.`,
       400
     )
   }

@@ -41,6 +41,9 @@ export async function deductCredit(
   return data === true
 }
 
+// Free-tier project cap. Paid tiers are unlimited.
+export const FREE_TIER_PROJECT_LIMIT = 3
+
 export async function checkProjectLimit(userId: string, tier: SubscriptionTier): Promise<boolean> {
   if (tier !== 'free') return true
   const supabase = await createClient()
@@ -48,7 +51,7 @@ export async function checkProjectLimit(userId: string, tier: SubscriptionTier):
     .from('projects')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
-  return (count ?? 0) < 10
+  return (count ?? 0) < FREE_TIER_PROJECT_LIMIT
 }
 
 // --- Admin-client variants for API routes (no session cookies needed) ---

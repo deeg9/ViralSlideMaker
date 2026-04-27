@@ -212,14 +212,14 @@ describe('checkProjectLimit', () => {
     expect(result).toBe(true)
   })
 
-  it('returns true for free tier when count < 10', async () => {
-    mockSupabase({ projectCount: 9 })
+  it('returns true for free tier when count < 3', async () => {
+    mockSupabase({ projectCount: 2 })
     const result = await checkProjectLimit('user-123', 'free')
     expect(result).toBe(true)
   })
 
-  it('returns false for free tier when count >= 10', async () => {
-    mockSupabase({ projectCount: 10 })
+  it('returns false for free tier when count >= 3', async () => {
+    mockSupabase({ projectCount: 3 })
     const result = await checkProjectLimit('user-123', 'free')
     expect(result).toBe(false)
   })

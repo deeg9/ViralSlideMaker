@@ -7,11 +7,25 @@ import {
   deleteProjectService,
   updateProjectService,
 } from '@/lib/services/projects'
+import {
+  getUserTier,
+  checkProjectLimit,
+  FREE_TIER_PROJECT_LIMIT,
+} from '@/lib/credits/check-credits'
 
 export async function createProject(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
+
+  // Free-tier cap. Paid tiers are unlimited.
+  const tier = await getUserTier(user.id)
+  const allowed = await checkProjectLimit(user.id, tier)
+  if (!allowed) {
+    throw new Error(
+      `Free plan is limited to ${FREE_TIER_PROJECT_LIMIT} projects. Upgrade to create more.`,
+    )
+  }
 
   const title = (formData.get('title') as string)?.trim() || 'Untitled Project'
   const description = (formData.get('description') as string)?.trim() || null
