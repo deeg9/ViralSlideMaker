@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
+import Link from 'next/link'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
 import { TemplatePicker } from './template-picker'
 import { Icon } from '@/components/ui/icon'
@@ -9,6 +10,8 @@ import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
 
 export type ImageSource = 'stock' | 'ai'
+
+const FREE_TIER_MAX_SLIDES = 3
 
 interface GenerationFormProps {
   projectId: string
@@ -28,7 +31,9 @@ export function GenerationForm({
   const [topic, setTopic] = useState(currentTopic ?? '')
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'bold-minimal')
   const [imageSource, setImageSource] = useState<ImageSource>('stock')
-  const [slideCount, setSlideCount] = useState(7)
+  const isPaidUser = userTier !== 'free'
+  const sliderMax = isPaidUser ? 20 : FREE_TIER_MAX_SLIDES
+  const [slideCount, setSlideCount] = useState(isPaidUser ? 7 : FREE_TIER_MAX_SLIDES)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
@@ -53,8 +58,9 @@ export function GenerationForm({
 
     setError(null)
     setShowUpgradePrompt(false)
+    const effectiveSlideCount = isPaidUser ? slideCount : Math.min(slideCount, FREE_TIER_MAX_SLIDES)
     startTransition(async () => {
-      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource, slideCount, {
+      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource, effectiveSlideCount, {
         font: advancedFont || undefined,
         fontColor: advancedFontColor || undefined,
         imagePrompt: advancedImagePrompt || undefined,
@@ -69,8 +75,6 @@ export function GenerationForm({
       }
     })
   }
-
-  const isPaidUser = userTier !== 'free'
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -116,8 +120,8 @@ export function GenerationForm({
         </div>
         <input
           type="range"
-          min={3}
-          max={20}
+          min={isPaidUser ? 3 : 1}
+          max={sliderMax}
           step={1}
           value={slideCount}
           onChange={(e) => setSlideCount(Number(e.target.value))}
@@ -125,9 +129,20 @@ export function GenerationForm({
           className="w-full h-1.5 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] disabled:opacity-50"
         />
         <div className="flex justify-between mt-1">
-          <span className="text-[10px] text-[#7d6161]">3</span>
-          <span className="text-[10px] text-[#7d6161]">20</span>
+          <span className="text-[10px] text-[#7d6161]">{isPaidUser ? 3 : 1}</span>
+          <span className="text-[10px] text-[#7d6161]">{sliderMax}</span>
         </div>
+        {!isPaidUser && (
+          <div className="flex items-center gap-1.5 mt-2 ml-1">
+            <Icon name="lock" size="sm" className="text-[#7d6161]" />
+            <Link
+              href="/settings/subscription"
+              className="text-[11px] font-semibold text-[#3d0000] hover:underline"
+            >
+              Upgrade for more slides
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Image Source Toggle */}
