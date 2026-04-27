@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
-import { LogoutButton } from '@/components/auth/logout-button'
+import { ProfileMenu } from './profile-menu'
 
 interface TopNavbarProps {
   variant: 'marketing' | 'app'
@@ -13,9 +13,10 @@ interface TopNavbarProps {
 }
 
 const navItems = [
-  { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-  { href: '/settings', icon: 'settings', label: 'Settings' },
-]
+  { key: 'dashboard', icon: 'dashboard',  label: 'Dashboard', href: '/dashboard' },
+  { key: 'create',    icon: 'add_circle', label: 'Create',    href: '/dashboard?new=1' },
+  { key: 'discover',  icon: 'explore',    label: 'Discover',  href: '/discover' },
+] as const
 
 function Logo({ size = 32 }: { size?: number }) {
   return (
@@ -28,6 +29,7 @@ function Logo({ size = 32 }: { size?: number }) {
 
 export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   if (variant === 'marketing') {
     return (
@@ -55,6 +57,10 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
     )
   }
 
+  const isCreate = searchParams.get('new') === '1'
+  const isDashboard = pathname === '/dashboard' && !isCreate
+  const isDiscover = pathname.startsWith('/discover')
+
   return (
     <header className="sticky top-0 z-30 bg-[#fff8f7]/80 backdrop-blur-md shadow-[0px_20px_40px_rgba(61,0,0,0.06)]">
       <div className="flex justify-between items-center w-full px-8 py-3">
@@ -69,12 +75,14 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const isActive =
-                item.label === 'Settings'
-                  ? pathname.startsWith('/settings')
-                  : pathname === item.href
+                item.key === 'dashboard'
+                  ? isDashboard
+                  : item.key === 'create'
+                    ? isCreate
+                    : isDiscover
               return (
                 <Link
-                  key={item.label}
+                  key={item.key}
                   href={item.href}
                   title={item.label}
                   className={`p-2 rounded-xl transition-colors ${
@@ -89,17 +97,8 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
             })}
           </div>
 
-          {/* Profile */}
-          <div className="flex items-center gap-4 pl-4 border-l border-[#dbc1bc]/20 ml-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-semibold text-[#3d0000] leading-tight">{userName ?? 'User'}</p>
-              {creditDisplay}
-            </div>
-            <div className="w-8 h-8 rounded-full bg-[#fadbdb] flex items-center justify-center">
-              <Icon name="person" size="sm" className="text-[#3d0000]" />
-            </div>
-            <LogoutButton />
-          </div>
+          {/* Profile menu (identity zone) */}
+          <ProfileMenu userName={userName ?? 'User'} creditDisplay={creditDisplay} />
         </div>
       </div>
     </header>
