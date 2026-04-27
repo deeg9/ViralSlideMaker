@@ -77,6 +77,7 @@ None yet.
 | 260427-iun | Top nav restructure - Dashboard/Create/Discover icon row + profile dropdown with Profile/Bookmarks/Settings/Resources/Logout | 2026-04-27 | 9589805 | [260427-iun-top-nav-restructure-dashboard-create-dis](./quick/260427-iun-top-nav-restructure-dashboard-create-dis/) |
 | 260427-jld | Add 6 viral templates + replace synthetic Aa thumbnails with real mini SlidePreview renders | 2026-04-27 | f083c5c | [260427-jld-add-6-viral-templates-replace-synthetic-](./quick/260427-jld-add-6-viral-templates-replace-synthetic-/) |
 | 260427-jwq | Free-tier cap: max 3 slides for free users, locked slider with upgrade upsell, server-side enforcement | 2026-04-27 | bb3cf79 | [260427-jwq-free-tier-cap-max-3-slides-for-free-user](./quick/260427-jwq-free-tier-cap-max-3-slides-for-free-user/) |
+| 260427-wmk | Forced "ViralSlideMaker.com" watermark on every slide for free tier — bottom-left logo+text lockup, server-authoritative across editor preview, per-slide PNG, and ZIP, with inline "Upgrade to remove" upsell | 2026-04-27 | df301e2 | [260427-wmk-free-tier-viralslidemaker-watermark](./quick/260427-wmk-free-tier-viralslidemaker-watermark/) |
 
 ## Session Continuity
 
