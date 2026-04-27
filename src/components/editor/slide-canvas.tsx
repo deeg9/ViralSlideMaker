@@ -12,6 +12,7 @@ interface SlideCanvasProps {
   selectedIndex: number
   onSelectIndex: (index: number) => void
   brandKit?: BrandKit | null
+  userTier?: 'free' | 'plus' | 'pro'
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
   onCustomTextPositionChange?: (id: string, position: TextPosition) => void
@@ -33,6 +34,7 @@ export function SlideCanvas({
   selectedIndex,
   onSelectIndex,
   brandKit,
+  userTier,
   onPositionChange,
   onWidthChange,
   onCustomTextPositionChange,
@@ -66,6 +68,7 @@ export function SlideCanvas({
             index={selectedIndex}
             editable={true}
             brandKit={brandKit}
+            userTier={userTier}
             onPositionChange={onPositionChange}
             onWidthChange={onWidthChange}
             onCustomTextPositionChange={onCustomTextPositionChange}

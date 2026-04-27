@@ -5,6 +5,7 @@ import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { rateLimitBucket } from '@/lib/rate-limit'
+import { getUserTier } from '@/lib/credits/check-credits'
 import type { Project } from '@/lib/types/project'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
@@ -83,7 +84,9 @@ export async function GET(request: Request) {
     .single()
 
   const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
-  const element = buildSlideElement(slide, effectiveTemplate, (brandKit as BrandKit) ?? null)
+  // Forced free-tier watermark: read project owner's tier (server is source of truth)
+  const ownerTier = await getUserTier(p.user_id)
+  const element = buildSlideElement(slide, effectiveTemplate, (brandKit as BrandKit) ?? null, ownerTier)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

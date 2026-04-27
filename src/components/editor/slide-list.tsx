@@ -24,6 +24,7 @@ interface SlideListProps {
   onSelect: (index: number) => void
   onReorder: (oldIndex: number, newIndex: number) => void
   brandKit?: BrandKit | null
+  userTier?: 'free' | 'plus' | 'pro'
 }
 
 export function SlideList({
@@ -33,6 +34,7 @@ export function SlideList({
   onSelect,
   onReorder,
   brandKit,
+  userTier,
 }: SlideListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -72,6 +74,7 @@ export function SlideList({
               isSelected={index === selectedIndex}
               onSelect={onSelect}
               brandKit={brandKit}
+              userTier={userTier}
             />
           ))}
         </SortableContext>

@@ -15,6 +15,7 @@ interface SortableSlideProps {
   isSelected: boolean
   onSelect: (index: number) => void
   brandKit?: BrandKit | null
+  userTier?: 'free' | 'plus' | 'pro'
 }
 
 export function SortableSlide({
@@ -25,6 +26,7 @@ export function SortableSlide({
   isSelected,
   onSelect,
   brandKit,
+  userTier,
 }: SortableSlideProps) {
   const {
     attributes,
@@ -56,7 +58,7 @@ export function SortableSlide({
       data-testid={`sortable-slide-${index}`}
     >
       <div className="aspect-[9/16] rounded-lg overflow-hidden bg-white">
-        <SlidePreview slide={slide} template={template} index={index} brandKit={brandKit} />
+        <SlidePreview slide={slide} template={template} index={index} brandKit={brandKit} userTier={userTier} />
       </div>
     </button>
   )

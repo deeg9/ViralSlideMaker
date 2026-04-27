@@ -8,6 +8,7 @@ import { getTemplate } from '@/lib/render/templates/index'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
+import { getUserTier } from '@/lib/credits/check-credits'
 import type { Slide } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
@@ -58,11 +59,14 @@ export const GET = withApiAuth(async (req, ctx) => {
   const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
   const resolvedBrandKit = (brandKit as BrandKit) ?? null
 
+  // Forced free-tier watermark: ctx.userId is the owner (getProject enforces ownership)
+  const ownerTier = await getUserTier(ctx.userId)
+
   // Render each slide sequentially to avoid memory pressure
   const zip = new JSZip()
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
-    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit)
+    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier)
     const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
     const imgRes = new ImageResponse(element, {
       width: 1080,
