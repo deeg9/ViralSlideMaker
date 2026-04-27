@@ -426,6 +426,17 @@ export function SlideEditor({
                   {exporting ? 'Exporting...' : 'Export'}
                 </button>
               </div>
+              {(userTier ?? 'free') === 'free' && (
+                <p className="text-[11px] text-[#7d6161] leading-snug">
+                  Slides include a ViralSlideMaker watermark.{' '}
+                  <Link
+                    href="/settings/subscription"
+                    className="font-semibold text-[#3d0000] hover:underline"
+                  >
+                    Upgrade to remove
+                  </Link>
+                </p>
+              )}
               <button
                 onClick={() => setShowCaptions(!showCaptions)}
                 className="w-full flex items-center justify-center gap-2 bg-[#fff0f0] text-[#3d0000] border border-[#dbc1bc]/30 rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-[#fadbdb] transition-colors"

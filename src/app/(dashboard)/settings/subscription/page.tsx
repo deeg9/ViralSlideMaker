@@ -17,9 +17,10 @@ const plans = [
     period: '/mo',
     features: [
       '3 credits/month',
+      'Up to 3 slides per carousel',
       'Basic templates',
       'Stock images',
-      'Standard quality exports',
+      'ViralSlideMaker.com watermark on exports',
     ],
     description: 'Perfect for trying out ViralSlideMaker.',
     priceId: null as string | null,
@@ -32,9 +33,10 @@ const plans = [
     period: '/mo',
     features: [
       '50 credits/month',
+      'Up to 20 slides per carousel',
+      'No watermark — clean exports',
       'All templates',
       'Stock images + AI-generated images',
-      'Image exports',
       'Priority generation',
     ],
     description: 'Best for creators who post regularly.',
@@ -48,6 +50,7 @@ const plans = [
     period: '/mo',
     features: [
       '200 credits/month',
+      'No watermark — clean exports',
       'Everything in Plus',
     ],
     description: 'For power creators and agencies.',
