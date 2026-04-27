@@ -69,8 +69,14 @@ None yet.
 - Verify mcp-remote version compatibility with mcp-handler v1.1.0 before Phase 28
 - Confirm create_carousel latency stays under 60s (maxDuration setting) during Phase 27
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260427-hut | Brand logo watermark feature - 9-position picker, size/opacity sliders, auto-apply to all slides with per-slide hide toggle | 2026-04-27 | e94c3b1 | [260427-hut-brand-logo-watermark-feature-9-position-](./quick/260427-hut-brand-logo-watermark-feature-9-position-/) |
+
 ## Session Continuity
 
-Last activity: 2026-04-09
+Last activity: 2026-04-27 - Completed quick task 260427-hut: Brand logo watermark feature
 Stopped at: Roadmap created for v2.3 MCP Server (3 phases, 12 requirements)
 Resume file: None
