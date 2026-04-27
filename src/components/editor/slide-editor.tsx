@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useSlideEditor } from '@/lib/editor/use-slide-editor'
 import { getTemplate } from '@/lib/render/templates/index'
+import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { SlideList } from '@/components/editor/slide-list'
 import { SlideCanvas } from '@/components/editor/slide-canvas'
 import { TextEditorPanel } from '@/components/editor/text-editor-panel'
@@ -42,7 +43,13 @@ export function SlideEditor({
   const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty } =
     useSlideEditor(initialSlides)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
-  const template = getTemplate(currentTemplateId)
+  // Brand-kit template synthesizes from the user's brand_kit row at render time.
+  // Other template ids hit the static templates registry. Falls back to bold-minimal
+  // when brand-kit is selected but the brand kit was deleted.
+  const template =
+    currentTemplateId === BRAND_KIT_TEMPLATE_ID && brandKit
+      ? synthesizeBrandKitTemplate(brandKit)
+      : getTemplate(currentTemplateId)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [activeTab, setActiveTab] = useState<'text' | 'images'>('text')
   const [showCaptions, setShowCaptions] = useState(false)

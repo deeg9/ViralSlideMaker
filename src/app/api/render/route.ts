@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
 import { getTemplate } from '@/lib/render/templates/index'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
-import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
+import { mergeWithBrandKit, synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { rateLimitBucket } from '@/lib/rate-limit'
 import { getUserTier } from '@/lib/credits/check-credits'
@@ -74,20 +74,28 @@ export async function GET(request: Request) {
     )
   }
 
-  const template = getTemplate(p.template_id ?? 'bold-minimal')
-
-  // Fetch the brand kit for the project owner and apply overrides
-  const { data: brandKit } = await supabase
+  // Fetch the brand kit for the project owner — needed for both brand-kit
+  // template resolution AND mergeWithBrandKit overrides on built-in templates.
+  const { data: brandKitRow } = await supabase
     .from('brand_kits')
     .select('*')
     .eq('user_id', p.user_id)
     .single()
+  const brandKit = (brandKitRow as BrandKit) ?? null
 
-  const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
+  // When the project picked the brand-kit template, synthesize directly from
+  // the user's brand_kit row. Falls back to bold-minimal if the brand kit was
+  // deleted after project save.
+  const template =
+    p.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
+      ? synthesizeBrandKitTemplate(brandKit)
+      : getTemplate(p.template_id ?? 'bold-minimal')
+
+  const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   // Forced free-tier watermark: read project owner's tier (server is source of truth)
   const ownerTier = await getUserTier(p.user_id)
   const origin = new URL(request.url).origin
-  const element = buildSlideElement(slide, effectiveTemplate, (brandKit as BrandKit) ?? null, ownerTier, origin)
+  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

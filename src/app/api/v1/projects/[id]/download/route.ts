@@ -6,7 +6,7 @@ import { apiError } from '@/lib/api/errors'
 import { getProject } from '@/lib/services/projects'
 import { getTemplate } from '@/lib/render/templates/index'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
-import { mergeWithBrandKit } from '@/lib/brand-kit/get-effective-template'
+import { mergeWithBrandKit, synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { getUserTier } from '@/lib/credits/check-credits'
 import type { Slide } from '@/lib/types/slide'
@@ -47,17 +47,22 @@ export const GET = withApiAuth(async (req, ctx) => {
     return apiError('NOT_FOUND', 'Project has no slides', 404)
   }
 
-  const template = getTemplate(project.template_id ?? 'bold-minimal')
-
   // Fetch brand kit for the project owner
   const { data: brandKit } = await ctx.supabase
     .from('brand_kits')
     .select('*')
     .eq('user_id', ctx.userId)
     .single()
-
-  const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
   const resolvedBrandKit = (brandKit as BrandKit) ?? null
+
+  // When project.template_id === 'brand-kit', synthesize a template from the
+  // user's brand_kit row. Falls back to bold-minimal if no brand kit exists.
+  const template =
+    project.template_id === BRAND_KIT_TEMPLATE_ID && resolvedBrandKit
+      ? synthesizeBrandKitTemplate(resolvedBrandKit)
+      : getTemplate(project.template_id ?? 'bold-minimal')
+
+  const effectiveTemplate = mergeWithBrandKit(template, resolvedBrandKit)
 
   // Forced free-tier watermark: ctx.userId is the owner (getProject enforces ownership)
   const ownerTier = await getUserTier(ctx.userId)
