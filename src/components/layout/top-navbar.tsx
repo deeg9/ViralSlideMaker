@@ -78,7 +78,7 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
                   key={item.key}
                   href={item.href}
                   title={item.label}
-                  className={`p-2 rounded-xl transition-colors ${
+                  className={`p-2.5 rounded-full transition-colors ${
                     isActive
                       ? 'bg-[#fadbdb] text-[#3d0000]'
                       : 'text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000]'

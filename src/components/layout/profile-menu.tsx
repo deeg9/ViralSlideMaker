@@ -20,12 +20,6 @@ interface MenuRow {
 
 const rows: MenuRow[] = [
   {
-    label: 'Bookmarks',
-    icon: 'bookmark',
-    href: '/bookmarks',
-    isActive: (p) => p.startsWith('/bookmarks'),
-  },
-  {
     label: 'Settings',
     icon: 'settings',
     href: '/settings',
