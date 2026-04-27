@@ -4,6 +4,7 @@ import type { BrandKit } from '../types/brand-kit'
 import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
+import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -92,7 +93,8 @@ function satoriHighlightStyle(effects: ResolvedTextEffectStyles): React.CSSPrope
 export function buildSlideElement(
   slide: Slide,
   template: SlideTemplate,
-  brandKit?: BrandKit | null
+  brandKit?: BrandKit | null,
+  tier?: ForcedWatermarkTier | null,
 ): React.ReactElement {
   const overrides = slide.style_overrides ?? {}
   const resolved = resolveSlideStyles(slide, template)
@@ -194,6 +196,9 @@ export function buildSlideElement(
   // Brand watermark layer (260427-hut). Satori has no z-index — placement after
   // custom_images in JSX order makes it sit on top.
   const watermark = resolveWatermark(brandKit ?? null, slide, { width: W, height: H })
+
+  // Forced free-tier watermark (260427-wmk). Rendered last in JSX so it sits on top.
+  const forced = resolveForcedWatermark(tier, { width: W, height: H })
 
   return (
     <div style={rootStyle}>
@@ -305,6 +310,41 @@ export function buildSlideElement(
           </div>
         )
       })}
+      {/* Forced free-tier watermark (260427-wmk). Rendered last so it sits on top in Satori DOM order. */}
+      {forced && (
+        <div
+          style={{
+            position: 'absolute',
+            left: forced.x,
+            top: forced.y,
+            display: 'flex',
+            alignItems: 'center',
+            opacity: forced.opacity,
+          }}
+        >
+          <img
+            src={forced.logoUrl}
+            style={{
+              width: forced.logoSize,
+              height: forced.logoSize,
+              objectFit: 'contain',
+              marginRight: forced.gap,
+            }}
+          />
+          <div
+            style={{
+              fontSize: forced.fontSize,
+              fontWeight: 700,
+              color: forced.textColor,
+              textShadow: forced.textShadow,
+              letterSpacing: -0.2,
+              lineHeight: 1,
+            }}
+          >
+            {forced.text}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -8,6 +8,7 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
+import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
 
 // Reference canvas dimensions (matches TikTok/Instagram 9:16)
 const REF_WIDTH = 1080
@@ -64,6 +65,7 @@ interface SlidePreviewProps {
   index: number
   editable?: boolean
   brandKit?: BrandKit | null
+  userTier?: 'free' | 'plus' | 'pro'
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
   onCustomTextPositionChange?: (id: string, position: TextPosition) => void
@@ -80,7 +82,7 @@ interface SlidePreviewProps {
 }
 
 export function SlidePreview({
-  slide, template, index, editable, brandKit,
+  slide, template, index, editable, brandKit, userTier,
   onPositionChange, onWidthChange,
   onCustomTextPositionChange, onCustomTextWidthChange,
   onCustomTextUpdate, onCustomTextSelect, onCustomTextRemove,
@@ -408,6 +410,52 @@ export function SlidePreview({
                   userSelect: 'none',
                 }}
               />
+            )
+          })()}
+
+          {/* Forced free-tier watermark (260427-wmk) — non-editable preview */}
+          {(() => {
+            const fw = resolveForcedWatermark(userTier, { width: REF_WIDTH, height: REF_HEIGHT })
+            if (!fw) return null
+            return (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: fw.x,
+                  top: fw.y,
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: fw.opacity,
+                  zIndex: 19,
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                }}
+              >
+                <img
+                  src={fw.logoUrl}
+                  draggable={false}
+                  alt=""
+                  style={{
+                    width: fw.logoSize,
+                    height: fw.logoSize,
+                    objectFit: 'contain',
+                    marginRight: fw.gap,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: fw.fontSize,
+                    fontWeight: 700,
+                    color: fw.textColor,
+                    textShadow: fw.textShadow,
+                    letterSpacing: -0.2,
+                    lineHeight: 1,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {fw.text}
+                </span>
+              </div>
             )
           })()}
 
@@ -896,6 +944,52 @@ export function SlidePreview({
                 userSelect: 'none',
               }}
             />
+          )
+        })()}
+
+        {/* Forced free-tier watermark (260427-wmk) — editable view */}
+        {(() => {
+          const fw = resolveForcedWatermark(userTier, { width: REF_WIDTH, height: REF_HEIGHT })
+          if (!fw) return null
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                left: fw.x,
+                top: fw.y,
+                display: 'flex',
+                alignItems: 'center',
+                opacity: fw.opacity,
+                zIndex: 19,
+                pointerEvents: 'none',
+                userSelect: 'none',
+              }}
+            >
+              <img
+                src={fw.logoUrl}
+                draggable={false}
+                alt=""
+                style={{
+                  width: fw.logoSize,
+                  height: fw.logoSize,
+                  objectFit: 'contain',
+                  marginRight: fw.gap,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: fw.fontSize,
+                  fontWeight: 700,
+                  color: fw.textColor,
+                  textShadow: fw.textShadow,
+                  letterSpacing: -0.2,
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {fw.text}
+              </span>
+            </div>
           )
         })()}
 

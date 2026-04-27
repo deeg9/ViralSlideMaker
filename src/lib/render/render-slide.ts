@@ -3,6 +3,7 @@ import type { Slide, TextSegment } from '../types/slide'
 import type { BrandKit } from '../types/brand-kit'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
+import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -111,7 +112,8 @@ function highlightCSS(effects: ResolvedTextEffectStyles, mode: 'full' | 'native'
 export function buildSlideHtml(
   slide: Slide,
   template: SlideTemplate,
-  brandKit?: BrandKit | null
+  brandKit?: BrandKit | null,
+  tier?: ForcedWatermarkTier | null,
 ): string {
   const overrides = slide.style_overrides ?? {}
   const resolved = resolveSlideStyles(slide, template)
@@ -166,6 +168,12 @@ export function buildSlideHtml(
   const watermark = resolveWatermark(brandKit ?? null, slide, { width: 1080, height: 1920 })
   const watermarkHtml = watermark
     ? `<img src="${watermark.url}" style="position:absolute; left:${watermark.x}px; top:${watermark.y}px; width:${watermark.width}px; height:auto; opacity:${watermark.opacity}; z-index:5; pointer-events:none;" />`
+    : ''
+
+  // Forced free-tier watermark (260427-wmk). z-index:6 so it sits above the brand-kit watermark.
+  const forced = resolveForcedWatermark(tier, { width: 1080, height: 1920 })
+  const forcedWatermarkHtml = forced
+    ? `<div style="position:absolute; left:${forced.x}px; top:${forced.y}px; display:flex; align-items:center; opacity:${forced.opacity}; z-index:6; pointer-events:none;"><img src="${forced.logoUrl}" style="width:${forced.logoSize}px; height:${forced.logoSize}px; object-fit:contain; margin-right:${forced.gap}px;" /><span style="font-size:${forced.fontSize}px; font-weight:700; color:${forced.textColor}; text-shadow:${forced.textShadow}; letter-spacing:-0.2px; line-height:1;">${forced.text}</span></div>`
     : ''
 
   // Build custom text HTML with effects
@@ -260,6 +268,7 @@ export function buildSlideHtml(
   ${customImageHtml}
   ${customTextHtml}
   ${watermarkHtml}
+  ${forcedWatermarkHtml}
 </body>
 </html>`
 }
