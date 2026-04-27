@@ -43,6 +43,38 @@ export async function saveBrandKit(
     const font_family = (formData.get('font_family') as string) || null
     const logo_url = (formData.get('logo_url') as string) || null
 
+    // Watermark fields (260427-hut). Treat empty / "null" string as null;
+    // clamp size to 4–20 and opacity to 10–100 server-side as defense-in-depth.
+    const ALLOWED_POSITIONS = new Set([
+      'top-left', 'top-center', 'top-right',
+      'middle-left', 'middle-center', 'middle-right',
+      'bottom-left', 'bottom-center', 'bottom-right',
+    ])
+    const rawPosition = formData.get('logo_position')
+    const positionStr =
+      typeof rawPosition === 'string' && rawPosition !== '' && rawPosition !== 'null'
+        ? rawPosition
+        : null
+    const logo_position = positionStr && ALLOWED_POSITIONS.has(positionStr) ? positionStr : null
+
+    const rawSize = formData.get('logo_size_pct')
+    let logo_size_pct: number | null = null
+    if (typeof rawSize === 'string' && rawSize !== '' && rawSize !== 'null') {
+      const parsed = parseInt(rawSize, 10)
+      if (!isNaN(parsed)) {
+        logo_size_pct = Math.min(20, Math.max(4, parsed))
+      }
+    }
+
+    const rawOpacity = formData.get('logo_opacity_pct')
+    let logo_opacity_pct: number | null = null
+    if (typeof rawOpacity === 'string' && rawOpacity !== '' && rawOpacity !== 'null') {
+      const parsed = parseInt(rawOpacity, 10)
+      if (!isNaN(parsed)) {
+        logo_opacity_pct = Math.min(100, Math.max(10, parsed))
+      }
+    }
+
     const { error } = await supabase.from('brand_kits').upsert(
       {
         user_id: user.id,
@@ -53,6 +85,9 @@ export async function saveBrandKit(
         background_color,
         font_family,
         logo_url,
+        logo_position,
+        logo_size_pct,
+        logo_opacity_pct,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' }

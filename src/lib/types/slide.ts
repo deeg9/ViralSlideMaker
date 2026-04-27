@@ -90,6 +90,8 @@ export interface SlideStyleOverrides {
   body_text_effects?: TextEffects
   // News-carousel: cover (image top, text bar bottom) vs body (text top, image bottom)
   layout?: 'cover' | 'body'
+  // Per-slide watermark hide toggle (260427-hut)
+  hide_watermark?: boolean
 }
 
 export interface Slide {
