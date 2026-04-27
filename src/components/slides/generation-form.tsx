@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/icon'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 export type ImageSource = 'stock' | 'ai'
 
@@ -19,6 +20,7 @@ interface GenerationFormProps {
   currentTemplateId?: string
   hasSlides: boolean
   userTier?: 'free' | 'pro' | 'plus'
+  brandKit?: BrandKit | null
 }
 
 export function GenerationForm({
@@ -27,6 +29,7 @@ export function GenerationForm({
   currentTemplateId,
   hasSlides,
   userTier = 'free',
+  brandKit,
 }: GenerationFormProps) {
   const [topic, setTopic] = useState(currentTopic ?? '')
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'bold-minimal')
@@ -107,7 +110,7 @@ export function GenerationForm({
             Select Visual Style
           </label>
         </div>
-        <TemplatePicker selectedId={templateId} onSelect={setTemplateId} />
+        <TemplatePicker selectedId={templateId} onSelect={setTemplateId} brandKit={brandKit} />
       </div>
 
       {/* Slide Count */}

@@ -81,6 +81,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         currentTemplateId={p.template_id}
         hasSlides={false}
         userTier={tier}
+        brandKit={brandKit}
       />
     </div>
   )
