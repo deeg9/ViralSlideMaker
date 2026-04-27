@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Dialog } from '@base-ui/react/dialog'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
@@ -15,11 +15,18 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
   const [open, setOpen] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const wantsNew = searchParams.get('new') === '1'
+
+  useEffect(() => {
+    if (wantsNew && !asPlaceholderCard) setOpen(true)
+  }, [wantsNew, asPlaceholderCard])
 
   async function handleSubmit(formData: FormData) {
     const projectId = await createProject(formData)
     setOpen(false)
     formRef.current?.reset()
+    if (wantsNew) router.replace('/dashboard')
     if (projectId) {
       router.push(`/project/${projectId}`)
     }
@@ -40,7 +47,13 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
   )
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next && wantsNew) router.replace('/dashboard')
+      }}
+    >
       <Dialog.Trigger render={trigger} />
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/40 z-40" />
