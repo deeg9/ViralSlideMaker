@@ -20,12 +20,6 @@ interface MenuRow {
 
 const rows: MenuRow[] = [
   {
-    label: 'Profile',
-    icon: 'account_circle',
-    href: '/settings/profile',
-    isActive: (p) => p.startsWith('/settings/profile'),
-  },
-  {
     label: 'Bookmarks',
     icon: 'bookmark',
     href: '/bookmarks',
@@ -35,8 +29,7 @@ const rows: MenuRow[] = [
     label: 'Settings',
     icon: 'settings',
     href: '/settings',
-    // Active for /settings only, NOT /settings/profile (Profile owns that)
-    isActive: (p) => p === '/settings',
+    isActive: (p) => p.startsWith('/settings'),
   },
   {
     label: 'Resources',

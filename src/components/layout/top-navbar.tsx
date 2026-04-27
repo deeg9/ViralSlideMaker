@@ -15,7 +15,6 @@ interface TopNavbarProps {
 const navItems = [
   { key: 'dashboard', icon: 'dashboard',  label: 'Dashboard', href: '/dashboard' },
   { key: 'create',    icon: 'add_circle', label: 'Create',    href: '/dashboard?new=1' },
-  { key: 'discover',  icon: 'explore',    label: 'Discover',  href: '/discover' },
 ] as const
 
 function Logo({ size = 32 }: { size?: number }) {
@@ -59,7 +58,6 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
 
   const isCreate = searchParams.get('new') === '1'
   const isDashboard = pathname === '/dashboard' && !isCreate
-  const isDiscover = pathname.startsWith('/discover')
 
   return (
     <header className="sticky top-0 z-30 bg-[#fff8f7]/80 backdrop-blur-md shadow-[0px_20px_40px_rgba(61,0,0,0.06)]">
@@ -74,12 +72,7 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
           {/* Nav icons (hidden on mobile) */}
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
-              const isActive =
-                item.key === 'dashboard'
-                  ? isDashboard
-                  : item.key === 'create'
-                    ? isCreate
-                    : isDiscover
+              const isActive = item.key === 'dashboard' ? isDashboard : isCreate
               return (
                 <Link
                   key={item.key}
