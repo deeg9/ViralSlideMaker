@@ -5,7 +5,7 @@ import { searchPhotos } from '@/lib/pexels/search-photos'
 import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createClient } from '@/lib/supabase/server'
-import { checkCredits, deductCredit, getCreditBalance } from '@/lib/credits/check-credits'
+import { checkCredits, deductCredit, getCreditBalance, getUserTier } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
@@ -42,6 +42,17 @@ export async function generateCarousel(
         success: false,
         error: `No credits remaining on the ${credits.tier} plan. Upgrade for more.`,
         upgradeEligible: credits.tier === 'free',
+      }
+    }
+
+    // Free-tier slide-count cap (matches client-side gate in generation-form.tsx)
+    const tier = await getUserTier(user.id)
+    const FREE_TIER_MAX_SLIDES = 3
+    if (tier === 'free' && slideCount > FREE_TIER_MAX_SLIDES) {
+      return {
+        success: false,
+        error: `Free plan is limited to ${FREE_TIER_MAX_SLIDES} slides. Upgrade for up to 20.`,
+        upgradeEligible: true,
       }
     }
 

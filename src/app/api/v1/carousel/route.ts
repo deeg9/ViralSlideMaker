@@ -1,7 +1,7 @@
 import { withApiAuth } from '@/lib/api/with-api-auth'
 import { apiSuccess } from '@/lib/api/response'
 import { apiError } from '@/lib/api/errors'
-import { deductCreditAdmin } from '@/lib/credits/check-credits'
+import { deductCreditAdmin, getUserTier } from '@/lib/credits/check-credits'
 import { generateCarousel } from '@/lib/services/carousel'
 
 export const maxDuration = 60
@@ -43,6 +43,16 @@ export const POST = withApiAuth(async (req, ctx) => {
 
   if (advancedOptions !== undefined && (typeof advancedOptions !== 'object' || advancedOptions === null)) {
     return apiError('VALIDATION_ERROR', 'advancedOptions must be an object', 400)
+  }
+
+  // Free-tier slide-count cap
+  const tier = await getUserTier(ctx.userId)
+  if (tier === 'free' && validSlideCount > 3) {
+    return apiError(
+      'VALIDATION_ERROR',
+      'Free plan is limited to 3 slides per carousel. Upgrade to plus or pro for up to 20.',
+      400
+    )
   }
 
   // Check credit balance
