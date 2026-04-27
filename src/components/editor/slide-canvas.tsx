@@ -4,12 +4,14 @@ import { Icon } from '@/components/ui/icon'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface SlideCanvasProps {
   slides: Slide[]
   template: SlideTemplate
   selectedIndex: number
   onSelectIndex: (index: number) => void
+  brandKit?: BrandKit | null
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
   onCustomTextPositionChange?: (id: string, position: TextPosition) => void
@@ -30,6 +32,7 @@ export function SlideCanvas({
   template,
   selectedIndex,
   onSelectIndex,
+  brandKit,
   onPositionChange,
   onWidthChange,
   onCustomTextPositionChange,
@@ -62,6 +65,7 @@ export function SlideCanvas({
             template={template}
             index={selectedIndex}
             editable={true}
+            brandKit={brandKit}
             onPositionChange={onPositionChange}
             onWidthChange={onWidthChange}
             onCustomTextPositionChange={onCustomTextPositionChange}

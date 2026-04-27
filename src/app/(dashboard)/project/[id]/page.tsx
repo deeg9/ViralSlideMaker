@@ -7,6 +7,7 @@ import type { Slide } from '@/lib/types/slide'
 import { GenerationForm } from '@/components/slides/generation-form'
 import { SlideEditor } from '@/components/editor/slide-editor'
 import { getUserTier } from '@/lib/credits/check-credits'
+import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -33,6 +34,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const hasSlides = slides.length > 0
 
   const tier = user ? await getUserTier(user.id) : 'free' as const
+  const brandKit = user ? await getBrandKit() : null
 
   // Editor mode: render full-width with no extra chrome
   if (hasSlides) {
@@ -44,6 +46,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         topic={p.topic ?? ''}
         title={p.title}
         userTier={tier}
+        brandKit={brandKit}
       />
     )
   }

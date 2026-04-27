@@ -1,6 +1,8 @@
 import type { SlideTemplate } from './templates'
 import type { Slide, TextSegment } from '../types/slide'
+import type { BrandKit } from '../types/brand-kit'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
+import { resolveWatermark } from './resolve-watermark'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -108,7 +110,8 @@ function highlightCSS(effects: ResolvedTextEffectStyles, mode: 'full' | 'native'
 
 export function buildSlideHtml(
   slide: Slide,
-  template: SlideTemplate
+  template: SlideTemplate,
+  brandKit?: BrandKit | null
 ): string {
   const overrides = slide.style_overrides ?? {}
   const resolved = resolveSlideStyles(slide, template)
@@ -158,6 +161,12 @@ export function buildSlideHtml(
   const customImageHtml = (slide.custom_images ?? []).map((ci) =>
     `<img src="${ci.url}" style="position:absolute; left:${ci.x}%; top:${ci.y}%; width:${ci.width}%; height:${ci.height}%; object-fit:cover; opacity:${(ci.opacity ?? 100) / 100}; border-radius:${ci.border_radius ?? 0}px; z-index:1;" />`
   ).join('\n  ')
+
+  // Brand watermark layer (260427-hut). Sits above custom_images at z-index:5.
+  const watermark = resolveWatermark(brandKit ?? null, slide, { width: 1080, height: 1920 })
+  const watermarkHtml = watermark
+    ? `<img src="${watermark.url}" style="position:absolute; left:${watermark.x}px; top:${watermark.y}px; width:${watermark.width}px; height:auto; opacity:${watermark.opacity}; z-index:5; pointer-events:none;" />`
+    : ''
 
   // Build custom text HTML with effects
   const customTextHtml = (slide.custom_texts ?? []).map((ct) => {
@@ -250,6 +259,7 @@ export function buildSlideHtml(
   })()}</div>
   ${customImageHtml}
   ${customTextHtml}
+  ${watermarkHtml}
 </body>
 </html>`
 }

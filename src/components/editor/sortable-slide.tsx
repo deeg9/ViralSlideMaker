@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface SortableSlideProps {
   id: string
@@ -13,6 +14,7 @@ interface SortableSlideProps {
   index: number
   isSelected: boolean
   onSelect: (index: number) => void
+  brandKit?: BrandKit | null
 }
 
 export function SortableSlide({
@@ -22,6 +24,7 @@ export function SortableSlide({
   index,
   isSelected,
   onSelect,
+  brandKit,
 }: SortableSlideProps) {
   const {
     attributes,
@@ -53,7 +56,7 @@ export function SortableSlide({
       data-testid={`sortable-slide-${index}`}
     >
       <div className="aspect-[9/16] rounded-lg overflow-hidden bg-white">
-        <SlidePreview slide={slide} template={template} index={index} />
+        <SlidePreview slide={slide} template={template} index={index} brandKit={brandKit} />
       </div>
     </button>
   )

@@ -4,8 +4,10 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition, CustomText, TextSegment } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import type { BrandKit } from '@/lib/types/brand-kit'
 import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
+import { resolveWatermark } from '@/lib/render/resolve-watermark'
 
 // Reference canvas dimensions (matches TikTok/Instagram 9:16)
 const REF_WIDTH = 1080
@@ -61,6 +63,7 @@ interface SlidePreviewProps {
   template: SlideTemplate
   index: number
   editable?: boolean
+  brandKit?: BrandKit | null
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
   onCustomTextPositionChange?: (id: string, position: TextPosition) => void
@@ -77,7 +80,7 @@ interface SlidePreviewProps {
 }
 
 export function SlidePreview({
-  slide, template, index, editable,
+  slide, template, index, editable, brandKit,
   onPositionChange, onWidthChange,
   onCustomTextPositionChange, onCustomTextWidthChange,
   onCustomTextUpdate, onCustomTextSelect, onCustomTextRemove,
@@ -383,6 +386,30 @@ export function SlidePreview({
               }}
             />
           ))}
+
+          {/* Brand watermark (non-editable) — coords resolved at REF canvas size; CSS scale handles container size */}
+          {(() => {
+            const wm = resolveWatermark(brandKit ?? null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
+            if (!wm) return null
+            return (
+              <img
+                src={wm.url}
+                draggable={false}
+                alt=""
+                style={{
+                  position: 'absolute',
+                  left: wm.x,
+                  top: wm.y,
+                  width: wm.width,
+                  height: 'auto',
+                  opacity: wm.opacity,
+                  zIndex: 18,
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                }}
+              />
+            )
+          })()}
 
           {/* Custom texts (non-editable) */}
           {(slide.custom_texts ?? []).map((ct) => {
@@ -847,6 +874,30 @@ export function SlidePreview({
             </Rnd>
           )
         })}
+
+        {/* Brand watermark (editable view) — non-interactive, sits above custom images */}
+        {(() => {
+          const wm = resolveWatermark(brandKit ?? null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
+          if (!wm) return null
+          return (
+            <img
+              src={wm.url}
+              draggable={false}
+              alt=""
+              style={{
+                position: 'absolute',
+                left: wm.x,
+                top: wm.y,
+                width: wm.width,
+                height: 'auto',
+                opacity: wm.opacity,
+                zIndex: 18,
+                pointerEvents: 'none',
+                userSelect: 'none',
+              }}
+            />
+          )
+        })()}
 
         {/* Trash zone — appears when dragging custom elements */}
         {draggingElementId && (

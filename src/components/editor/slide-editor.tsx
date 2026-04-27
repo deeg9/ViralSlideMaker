@@ -18,6 +18,7 @@ import {
   regenerateSlideImageQuery,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface SlideEditorProps {
   initialSlides: Slide[]
@@ -26,6 +27,7 @@ interface SlideEditorProps {
   topic: string
   title?: string
   userTier?: 'free' | 'pro' | 'plus'
+  brandKit?: BrandKit | null
 }
 
 export function SlideEditor({
@@ -35,6 +37,7 @@ export function SlideEditor({
   topic,
   title,
   userTier,
+  brandKit,
 }: SlideEditorProps) {
   const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty } =
     useSlideEditor(initialSlides)
@@ -228,6 +231,7 @@ export function SlideEditor({
               template={template}
               selectedIndex={selectedIndex}
               onSelect={setSelectedIndex}
+              brandKit={brandKit}
               onReorder={(from, to) => {
                 dispatch({ type: 'REORDER_SLIDES', from, to })
                 setSelectedIndex(to)
@@ -314,6 +318,7 @@ export function SlideEditor({
           template={template}
           selectedIndex={selectedIndex}
           onSelectIndex={setSelectedIndex}
+          brandKit={brandKit}
           onPositionChange={handlePositionChange}
           onWidthChange={handleWidthChange}
           onCustomTextPositionChange={handleCustomTextPositionChange}

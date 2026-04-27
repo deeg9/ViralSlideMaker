@@ -1,7 +1,9 @@
 import type { SlideTemplate } from './templates'
 import type { Slide, TextSegment } from '../types/slide'
+import type { BrandKit } from '../types/brand-kit'
 import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
+import { resolveWatermark } from './resolve-watermark'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -89,7 +91,8 @@ function satoriHighlightStyle(effects: ResolvedTextEffectStyles): React.CSSPrope
  */
 export function buildSlideElement(
   slide: Slide,
-  template: SlideTemplate
+  template: SlideTemplate,
+  brandKit?: BrandKit | null
 ): React.ReactElement {
   const overrides = slide.style_overrides ?? {}
   const resolved = resolveSlideStyles(slide, template)
@@ -188,6 +191,10 @@ export function buildSlideElement(
   const bodyHighlight = satoriHighlightStyle(resolved.bodyEffects)
   if (bodyHighlight) Object.assign(bodyStyle, bodyHighlight)
 
+  // Brand watermark layer (260427-hut). Satori has no z-index — placement after
+  // custom_images in JSX order makes it sit on top.
+  const watermark = resolveWatermark(brandKit ?? null, slide, { width: W, height: H })
+
   return (
     <div style={rootStyle}>
       {/* Background image - use <img> with objectFit instead of CSS backgroundImage
@@ -255,6 +262,20 @@ export function buildSlideElement(
           }}
         />
       ))}
+      {/* Brand watermark — rendered after custom_images so it stacks on top in Satori DOM order */}
+      {watermark && (
+        <img
+          src={watermark.url}
+          style={{
+            position: 'absolute',
+            left: watermark.x,
+            top: watermark.y,
+            width: watermark.width,
+            height: 'auto',
+            opacity: watermark.opacity,
+          }}
+        />
+      )}
       {/* Custom text boxes */}
       {(slide.custom_texts ?? []).map((ct) => {
         const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)

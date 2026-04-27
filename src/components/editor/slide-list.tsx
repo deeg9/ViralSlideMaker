@@ -15,6 +15,7 @@ import {
 import { SortableSlide } from '@/components/editor/sortable-slide'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface SlideListProps {
   slides: Slide[]
@@ -22,6 +23,7 @@ interface SlideListProps {
   selectedIndex: number
   onSelect: (index: number) => void
   onReorder: (oldIndex: number, newIndex: number) => void
+  brandKit?: BrandKit | null
 }
 
 export function SlideList({
@@ -30,6 +32,7 @@ export function SlideList({
   selectedIndex,
   onSelect,
   onReorder,
+  brandKit,
 }: SlideListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -68,6 +71,7 @@ export function SlideList({
               index={index}
               isSelected={index === selectedIndex}
               onSelect={onSelect}
+              brandKit={brandKit}
             />
           ))}
         </SortableContext>

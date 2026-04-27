@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     .single()
 
   const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
-  const element = buildSlideElement(slide, effectiveTemplate)
+  const element = buildSlideElement(slide, effectiveTemplate, (brandKit as BrandKit) ?? null)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

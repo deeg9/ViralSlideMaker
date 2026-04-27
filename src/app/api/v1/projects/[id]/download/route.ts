@@ -56,12 +56,13 @@ export const GET = withApiAuth(async (req, ctx) => {
     .single()
 
   const effectiveTemplate = mergeWithBrandKit(template, (brandKit as BrandKit) ?? null)
+  const resolvedBrandKit = (brandKit as BrandKit) ?? null
 
   // Render each slide sequentially to avoid memory pressure
   const zip = new JSZip()
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
-    const element = buildSlideElement(slide, effectiveTemplate)
+    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit)
     const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
     const imgRes = new ImageResponse(element, {
       width: 1080,
