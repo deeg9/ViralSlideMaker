@@ -75,9 +75,10 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260427-hut | Brand logo watermark feature - 9-position picker, size/opacity sliders, auto-apply to all slides with per-slide hide toggle | 2026-04-27 | e94c3b1 | [260427-hut-brand-logo-watermark-feature-9-position-](./quick/260427-hut-brand-logo-watermark-feature-9-position-/) |
 | 260427-iun | Top nav restructure - Dashboard/Create/Discover icon row + profile dropdown with Profile/Bookmarks/Settings/Resources/Logout | 2026-04-27 | 9589805 | [260427-iun-top-nav-restructure-dashboard-create-dis](./quick/260427-iun-top-nav-restructure-dashboard-create-dis/) |
+| 260427-jld | Add 6 viral templates + replace synthetic Aa thumbnails with real mini SlidePreview renders | 2026-04-27 | f083c5c | [260427-jld-add-6-viral-templates-replace-synthetic-](./quick/260427-jld-add-6-viral-templates-replace-synthetic-/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-27 - Completed quick task 260427-iun: Top nav restructure
+Last activity: 2026-04-27 - Completed quick task 260427-jld: 6 new viral templates + real preview thumbnails
 Stopped at: Roadmap created for v2.3 MCP Server (3 phases, 12 requirements)
 Resume file: None
