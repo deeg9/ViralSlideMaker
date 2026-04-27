@@ -1,5 +1,5 @@
 import type { SlideTemplate } from './templates'
-import type { Slide } from '../types/slide'
+import type { Slide, TextSegment } from '../types/slide'
 import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 
@@ -12,8 +12,37 @@ const SAFE = {
   bottom: { hookY: 48, bodyY: 62 },
 }
 
+// Mirrors NEWS_LAYOUT in render-slide.ts — keep in sync.
+const NEWS_LAYOUT = {
+  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 80 },
+  body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
+} as const
+
 const W = 1080
 const H = 1920
+
+/**
+ * Build segment children for Satori. Satori supports inline <span style={{color}}> inside a text <div>.
+ * Falls back to a plain string when no segments are provided.
+ */
+function renderSegmentChildren(
+  text: string,
+  segments: TextSegment[] | undefined,
+  baseColor: string,
+  accentColor: string,
+): React.ReactNode {
+  if (!segments || segments.length === 0) return text
+  return segments.map((seg, i) => {
+    const color = seg.accent ? accentColor : baseColor
+    const sep = i < segments.length - 1 ? ' ' : ''
+    return (
+      <span key={i} style={{ color }}>
+        {seg.text}
+        {sep}
+      </span>
+    )
+  })
+}
 
 function pxX(pct: number) {
   return Math.round(W * pct / 100)
@@ -74,9 +103,14 @@ export function buildSlideElement(
     ? overrides.body_font_size
     : parseInt(template.bodyFontSize, 10) || 32
 
-  // Resolve text positions using safe-zone defaults
+  const accentColor = template.accentColor ?? template.textColor
+
+  // News-carousel layouts override Y defaults and constrain the bg image.
+  const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+
+  // Resolve text positions: news layouts win over text_position; user-supplied positions still win over both.
   const posPreset = overrides.text_position ?? template.textPosition
-  const defaults = SAFE[posPreset] ?? SAFE.center
+  const defaults = newsZone ?? SAFE[posPreset] ?? SAFE.center
   const defaultX = SAFE.x
 
   const overlayOpacity = overrides.overlay_opacity != null
@@ -105,7 +139,8 @@ export function buildSlideElement(
     color: textColor,
   }
 
-  if (!slide.background_url) {
+  // News layouts always paint a solid background — the image renders as a constrained <img>.
+  if (!slide.background_url || newsZone) {
     rootStyle.backgroundColor = template.backgroundColor
   }
 
@@ -157,16 +192,17 @@ export function buildSlideElement(
     <div style={rootStyle}>
       {/* Background image - use <img> with objectFit instead of CSS backgroundImage
           because Satori does not support backgroundSize/backgroundPosition properly,
-          causing the image to tile instead of cover. */}
+          causing the image to tile instead of cover.
+          News layouts confine the image to a zone (top half / bottom half) instead of full-bleed. */}
       {slide.background_url && (
         <img
           src={slide.background_url}
           style={{
             position: 'absolute',
-            top: 0,
+            top: newsZone ? pxY(newsZone.imageTop) : 0,
             left: 0,
             width: W,
-            height: H,
+            height: newsZone ? pxY(newsZone.imageHeight) : H,
             objectFit: 'cover',
             objectPosition: 'center',
           }}
@@ -185,9 +221,23 @@ export function buildSlideElement(
         }}
       />
       {/* Hook text */}
-      <div style={hookStyle}>{slide.hook_text}</div>
+      <div style={hookStyle}>
+        {renderSegmentChildren(
+          slide.hook_text,
+          slide.hook_segments,
+          overrides.hook_text_color ?? textColor,
+          accentColor,
+        )}
+      </div>
       {/* Body text */}
-      <div style={bodyStyle}>{slide.body_text}</div>
+      <div style={bodyStyle}>
+        {renderSegmentChildren(
+          slide.body_text,
+          slide.body_segments,
+          overrides.body_text_color ?? textColor,
+          accentColor,
+        )}
+      </div>
       {/* Custom images (before text so text layers on top in Satori DOM order) */}
       {(slide.custom_images ?? []).map((ci) => (
         <img
@@ -210,6 +260,7 @@ export function buildSlideElement(
         const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
         const ctEffects = resolvedCt ? satoriEffectStyles(resolvedCt.resolvedEffects) : {}
         const ctHighlight = resolvedCt ? satoriHighlightStyle(resolvedCt.resolvedEffects) : null
+        const ctBaseColor = ct.color ?? textColor
         return (
           <div
             key={ct.id}
@@ -223,13 +274,13 @@ export function buildSlideElement(
               fontWeight: ct.font_weight ?? 400,
               fontStyle: ct.font_style ?? 'normal',
               lineHeight: 1.3,
-              color: ct.color ?? textColor,
+              color: ctBaseColor,
               fontFamily: ct.font_family ?? template.fontFamily,
               ...ctEffects,
               ...(ctHighlight ?? {}),
             }}
           >
-            {ct.text}
+            {renderSegmentChildren(ct.text, ct.segments, ctBaseColor, accentColor)}
           </div>
         )
       })}

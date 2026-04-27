@@ -3,6 +3,7 @@ import { darkGradient } from './dark-gradient'
 import { softPastel } from './soft-pastel'
 import { neonPop } from './neon-pop'
 import { cleanSerif } from './clean-serif'
+import { newsDrop } from './news-drop'
 
 export interface SlideTemplate {
   id: string
@@ -18,6 +19,9 @@ export interface SlideTemplate {
   textAlign: 'left' | 'center' | 'right'
   textPosition: 'top' | 'center' | 'bottom'
   hookStyle: 'uppercase' | 'normal' | 'italic'
+  // Optional accent color used by two-color news headlines (TextSegment.accent).
+  // Falls back to textColor when not set.
+  accentColor?: string
 }
 
 export const templates: SlideTemplate[] = [
@@ -26,6 +30,7 @@ export const templates: SlideTemplate[] = [
   softPastel,
   neonPop,
   cleanSerif,
+  newsDrop,
 ]
 
 export function getTemplate(id: string): SlideTemplate {

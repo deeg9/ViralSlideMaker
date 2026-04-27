@@ -1,5 +1,5 @@
 import type { SlideTemplate } from './templates'
-import type { Slide } from '../types/slide'
+import type { Slide, TextSegment } from '../types/slide'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
@@ -10,6 +10,15 @@ const SAFE = {
   center: { hookY: 30, bodyY: 48 },
   bottom: { hookY: 48, bodyY: 62 },
 }
+
+// News-carousel layouts: image fills one half, text the other.
+// Returned values are percentages (0-100) on the 1080x1920 canvas.
+// Cover layout: image takes ~55% top, hook+body sit in the lower-middle (not the very bottom)
+// so neither the headline nor the wrapped body lines get pushed off-canvas.
+const NEWS_LAYOUT = {
+  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 80 },
+  body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
+} as const
 
 /**
  * Build a Google Fonts <link> tag for the given font-family CSS value.
@@ -59,6 +68,23 @@ function effectsToCSS(effects: ResolvedTextEffectStyles): string {
   return props.join('\n      ')
 }
 
+/** Render text-or-segments to HTML. Segments override the block color per run. */
+function renderSegments(
+  text: string,
+  segments: TextSegment[] | undefined,
+  baseColor: string,
+  accentColor: string,
+): string {
+  if (!segments || segments.length === 0) return escapeHtml(text)
+  return segments
+    .map((seg, i) => {
+      const color = seg.accent ? accentColor : baseColor
+      const sep = i < segments.length - 1 ? ' ' : ''
+      return `<span style="color:${color}">${escapeHtml(seg.text)}</span>${sep}`
+    })
+    .join('')
+}
+
 /** Build highlight CSS for HTML renderer. Supports both tight and full-width modes. */
 function highlightCSS(effects: ResolvedTextEffectStyles, mode: 'full' | 'native'): { containerCSS: string; spanWrap: boolean; spanCSS: string } {
   if (!effects.highlight?.enabled) return { containerCSS: '', spanWrap: false, spanCSS: '' }
@@ -96,13 +122,21 @@ export function buildSlideHtml(
     ? overrides.overlay_opacity / 100
     : template.overlayOpacity
 
-  const backgroundCss = slide.background_url
-    ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
-    : `background-color: ${template.backgroundColor};`
+  const accentColor = template.accentColor ?? template.textColor
 
-  // Resolve text positions using safe-zone defaults
+  // News-carousel layouts (cover/body) put the background image in a constrained zone
+  // and force a solid page background — overriding the full-bleed default.
+  const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+
+  const backgroundCss = newsZone
+    ? `background-color: ${template.backgroundColor};`
+    : slide.background_url
+      ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
+      : `background-color: ${template.backgroundColor};`
+
+  // Resolve text positions: news layouts override Y defaults; user-supplied positions still win.
   const posPreset = overrides.text_position ?? template.textPosition
-  const defaults = SAFE[posPreset] ?? SAFE.center
+  const defaults = newsZone ?? SAFE[posPreset] ?? SAFE.center
   const defaultX = SAFE.x
 
   const hookX = overrides.hook_position?.x ?? defaultX
@@ -114,6 +148,12 @@ export function buildSlideHtml(
   const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
+  // News-layout background image: rendered as a constrained <img> in the image zone
+  // (instead of full-bleed). Sits at z-index:0 so text/customs stack above.
+  const newsBgImageHtml = newsZone && slide.background_url
+    ? `<img src="${slide.background_url}" style="position:absolute; left:0; top:${newsZone.imageTop}%; width:100%; height:${newsZone.imageHeight}%; object-fit:cover; z-index:0;" />`
+    : ''
+
   // Build custom image HTML
   const customImageHtml = (slide.custom_images ?? []).map((ci) =>
     `<img src="${ci.url}" style="position:absolute; left:${ci.x}%; top:${ci.y}%; width:${ci.width}%; height:${ci.height}%; object-fit:cover; opacity:${(ci.opacity ?? 100) / 100}; border-radius:${ci.border_radius ?? 0}px; z-index:1;" />`
@@ -124,14 +164,16 @@ export function buildSlideHtml(
     const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
     const ctEffectStr = resolvedCt ? effectsToCSS(resolvedCt.resolvedEffects) : ''
     const ctHL = resolvedCt ? highlightCSS(resolvedCt.resolvedEffects, 'native') : { containerCSS: '', spanWrap: false, spanCSS: '' }
+    const ctBaseColor = ct.color ?? textColor
+    const ctInner = renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)
     const ctContent = ctHL.spanWrap
-      ? `<span style="${ctHL.spanCSS}">${escapeHtml(ct.text)}</span>`
-      : escapeHtml(ct.text)
+      ? `<span style="${ctHL.spanCSS}">${ctInner}</span>`
+      : ctInner
 
     const ctEffectInline = ctEffectStr.replace(/\n\s+/g, ' ').trim()
     const ctHighlightInline = ctHL.containerCSS.trim()
 
-    return `<div style="position:absolute; left:${ct.x}%; top:${ct.y}%; width:${ct.width}%; text-align:${ct.text_align ?? 'left'}; font-size:${ct.font_size ?? 48}px; font-weight:${ct.font_weight ?? 400}; font-style:${ct.font_style ?? 'normal'}; line-height:1.3; color:${ct.color ?? textColor}; z-index:2; font-family:'${ct.font_family ?? template.fontFamily}', sans-serif; ${ctEffectInline} ${ctHighlightInline}">${ctContent}</div>`
+    return `<div style="position:absolute; left:${ct.x}%; top:${ct.y}%; width:${ct.width}%; text-align:${ct.text_align ?? 'left'}; font-size:${ct.font_size ?? 48}px; font-weight:${ct.font_weight ?? 400}; font-style:${ct.font_style ?? 'normal'}; line-height:1.3; color:${ctBaseColor}; z-index:2; font-family:'${ct.font_family ?? template.fontFamily}', sans-serif; ${ctEffectInline} ${ctHighlightInline}">${ctContent}</div>`
   }).join('\n  ')
 
   return `<!DOCTYPE html>
@@ -188,18 +230,23 @@ export function buildSlideHtml(
   </style>
 </head>
 <body>
+  ${newsBgImageHtml}
   <div class="overlay"></div>
   <div class="hook">${(() => {
     const hookHL = highlightCSS(resolved.hookEffects, 'native')
+    const hookBase = overrides.hook_text_color ?? textColor
+    const hookInner = renderSegments(slide.hook_text, slide.hook_segments, hookBase, accentColor)
     return hookHL.spanWrap
-      ? `<span style="${hookHL.spanCSS}">${escapeHtml(slide.hook_text)}</span>`
-      : escapeHtml(slide.hook_text)
+      ? `<span style="${hookHL.spanCSS}">${hookInner}</span>`
+      : hookInner
   })()}</div>
   <div class="body">${(() => {
     const bodyHL = highlightCSS(resolved.bodyEffects, 'native')
+    const bodyBase = overrides.body_text_color ?? textColor
+    const bodyInner = renderSegments(slide.body_text, slide.body_segments, bodyBase, accentColor)
     return bodyHL.spanWrap
-      ? `<span style="${bodyHL.spanCSS}">${escapeHtml(slide.body_text)}</span>`
-      : escapeHtml(slide.body_text)
+      ? `<span style="${bodyHL.spanCSS}">${bodyInner}</span>`
+      : bodyInner
   })()}</div>
   ${customImageHtml}
   ${customTextHtml}

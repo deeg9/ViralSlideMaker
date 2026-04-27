@@ -48,18 +48,26 @@ export async function generateCarousel(
       .update({ generation_status: 'generating' })
       .eq('id', projectId)
 
-    // 1. Generate content with Gemini
+    // 1. Generate content with Gemini (templateId steers the prompt for templates like News Drop)
     const clampedCount = Math.max(3, Math.min(20, slideCount))
-    const carousel = await generateSlideContent(topic, clampedCount, advancedOptions?.imagePrompt)
+    const carousel = await generateSlideContent(topic, clampedCount, advancedOptions?.imagePrompt, templateId)
 
     // 2. Fetch background images
     let slides: Slide[]
+
+    // Lift AI-emitted `layout` from the slide root into style_overrides.layout to match the Slide model.
+    const aiSlides = carousel.slides.map((s) => {
+      const { layout, ...rest } = s
+      return layout
+        ? { ...rest, style_overrides: { layout } }
+        : rest
+    })
 
     if (imageSource === 'ai') {
       // Generate a master visual style first so all slides look cohesive
       const masterStyle = await generateCarouselStyle(topic)
 
-      slides = [...carousel.slides] as Slide[]
+      slides = [...aiSlides] as Slide[]
       const batchSize = 2
 
       for (let i = 0; i < slides.length; i += batchSize) {
@@ -99,7 +107,7 @@ export async function generateCarousel(
     } else {
       // Stock photos from Pexels (fast, parallel)
       slides = await Promise.all(
-        carousel.slides.map(async (slide) => {
+        aiSlides.map(async (slide) => {
           const photos = await searchPhotos(slide.image_query, {
             orientation: 'portrait',
             per_page: 1,
@@ -129,20 +137,24 @@ export async function generateCarousel(
       }))
     }
 
-    // 2c. Apply default text effects for readability (shadow + overlay)
-    slides = slides.map((slide) => ({
-      ...slide,
-      style_overrides: {
-        ...slide.style_overrides,
-        overlay_opacity: slide.style_overrides?.overlay_opacity ?? 45,
-        hook_text_effects: slide.style_overrides?.hook_text_effects ?? {
-          shadow: { enabled: true, color: '#000000aa', size: 'lg' },
+    // 2c. Apply default text effects for readability (shadow + overlay).
+    // News Drop runs on a solid black canvas with constrained images — defaults would
+    // dirty the image zone, so skip them.
+    if (templateId !== 'news-drop') {
+      slides = slides.map((slide) => ({
+        ...slide,
+        style_overrides: {
+          ...slide.style_overrides,
+          overlay_opacity: slide.style_overrides?.overlay_opacity ?? 45,
+          hook_text_effects: slide.style_overrides?.hook_text_effects ?? {
+            shadow: { enabled: true, color: '#000000aa', size: 'lg' },
+          },
+          body_text_effects: slide.style_overrides?.body_text_effects ?? {
+            shadow: { enabled: true, color: '#000000aa', size: 'md' },
+          },
         },
-        body_text_effects: slide.style_overrides?.body_text_effects ?? {
-          shadow: { enabled: true, color: '#000000aa', size: 'md' },
-        },
-      },
-    }))
+      }))
+    }
 
     // 3. Save to database
     await supabase

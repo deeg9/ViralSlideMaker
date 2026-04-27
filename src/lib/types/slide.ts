@@ -3,6 +3,13 @@ export interface TextPosition {
   y: number  // percentage 0-100, from top
 }
 
+// Per-word/per-run color spans for two-color news headlines.
+// `accent: true` → renderer paints the run with template.accentColor; false → template.textColor.
+export interface TextSegment {
+  text: string
+  accent?: boolean
+}
+
 export interface CustomText {
   id: string
   text: string
@@ -16,6 +23,7 @@ export interface CustomText {
   color?: string
   text_align?: 'left' | 'center' | 'right'
   text_effects?: TextEffects
+  segments?: TextSegment[]
 }
 
 export interface CustomImage {
@@ -80,11 +88,15 @@ export interface SlideStyleOverrides {
   // Phase 19: Text effects
   hook_text_effects?: TextEffects
   body_text_effects?: TextEffects
+  // News-carousel: cover (image top, text bar bottom) vs body (text top, image bottom)
+  layout?: 'cover' | 'body'
 }
 
 export interface Slide {
   hook_text: string
   body_text: string
+  hook_segments?: TextSegment[]
+  body_segments?: TextSegment[]
   image_query: string
   is_cta: boolean
   background_url: string | null

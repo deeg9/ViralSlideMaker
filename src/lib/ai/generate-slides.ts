@@ -4,6 +4,15 @@ import { buildSystemPrompt } from './prompts'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
+const segmentSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    text: { type: Type.STRING, description: 'A single run of text (typically one word)' },
+    accent: { type: Type.BOOLEAN, description: 'Highlight this run with the template accent color' },
+  },
+  required: ['text', 'accent'],
+}
+
 const responseSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -14,8 +23,23 @@ const responseSchema: Schema = {
         type: Type.OBJECT,
         properties: {
           hook_text: { type: Type.STRING, description: 'Attention-grabbing hook for this slide' },
+          hook_segments: {
+            type: Type.ARRAY,
+            description: 'Optional: per-word color spans for two-color news headlines',
+            items: segmentSchema,
+          },
           body_text: { type: Type.STRING, description: 'Supporting body copy' },
+          body_segments: {
+            type: Type.ARRAY,
+            description: 'Optional: per-word color spans for body copy',
+            items: segmentSchema,
+          },
           image_query: { type: Type.STRING, description: 'Pexels search query for background image' },
+          layout: {
+            type: Type.STRING,
+            description: "News-carousel layout: 'cover' (image top, text bar bottom) or 'body' (text top, image bottom)",
+            enum: ['cover', 'body'],
+          },
           is_cta: { type: Type.BOOLEAN, description: 'Whether this is the closing CTA slide' },
         },
         required: ['hook_text', 'body_text', 'image_query', 'is_cta'],
@@ -25,7 +49,12 @@ const responseSchema: Schema = {
   required: ['title', 'slides'],
 }
 
-export async function generateSlideContent(topic: string, slideCount: number = 7, imageStyleHint?: string): Promise<Carousel> {
+export async function generateSlideContent(
+  topic: string,
+  slideCount: number = 7,
+  imageStyleHint?: string,
+  templateId?: string,
+): Promise<Carousel> {
   const imageHintText = imageStyleHint
     ? `\n\nWhen generating image_query values, incorporate this visual preference: "${imageStyleHint}"`
     : ''
@@ -33,7 +62,7 @@ export async function generateSlideContent(topic: string, slideCount: number = 7
     model: 'gemini-2.5-flash',
     contents: `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).${imageHintText}`,
     config: {
-      systemInstruction: buildSystemPrompt(),
+      systemInstruction: buildSystemPrompt(templateId),
       responseMimeType: 'application/json',
       responseSchema,
     },

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { Rnd } from 'react-rnd'
-import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText, TextSegment } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
@@ -17,6 +17,32 @@ const SAFE_ZONE = {
   top: { hookY: 12, bodyY: 30 },
   center: { hookY: 30, bodyY: 48 },
   bottom: { hookY: 48, bodyY: 62 },
+}
+
+// News-carousel layouts — mirrors NEWS_LAYOUT in render-slide.ts / render-slide-satori.tsx
+const NEWS_LAYOUT = {
+  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 80 },
+  body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
+} as const
+
+// Render text-or-segments. When segments present, each run is wrapped in a span with its own color.
+function renderSegments(
+  text: string,
+  segments: TextSegment[] | undefined,
+  baseColor: string,
+  accentColor: string,
+): React.ReactNode {
+  if (!segments || segments.length === 0) return text
+  return segments.map((seg, i) => {
+    const color = seg.accent ? accentColor : baseColor
+    const sep = i < segments.length - 1 ? ' ' : ''
+    return (
+      <span key={i} style={{ color }}>
+        {seg.text}
+        {sep}
+      </span>
+    )
+  })
 }
 
 // Resize handle visual affordance
@@ -95,8 +121,13 @@ export function SlidePreview({
   const hookPos = overrides.hook_position
   const bodyPos = overrides.body_position
 
+  const accentColor = template.accentColor ?? template.textColor
+
+  // News-carousel layouts override Y defaults; user-set positions still win.
+  const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+
   const positionPreset = overrides.text_position ?? template.textPosition
-  const defaults = SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
+  const defaults = newsZone ?? SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
   const defaultX = SAFE_ZONE.x
 
   const resolvedHookX = hookPos?.x ?? defaultX
@@ -179,14 +210,15 @@ export function SlidePreview({
     color: bodyTextColor,
   }
 
-  // Background style (shared)
+  // Background style (shared). News layouts skip the full-bleed bg image and render
+  // it as a constrained <img> below — see newsBgImageNode.
   const innerStyle: React.CSSProperties = {
     width: REF_WIDTH,
     height: REF_HEIGHT,
     fontFamily: template.fontFamily,
     color: textColor,
     backgroundColor: template.backgroundColor,
-    backgroundImage: slide.background_url ? `url(${slide.background_url})` : undefined,
+    backgroundImage: !newsZone && slide.background_url ? `url(${slide.background_url})` : undefined,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     position: 'absolute',
@@ -195,6 +227,22 @@ export function SlidePreview({
     transform: `scale(${scale})`,
     transformOrigin: 'top left',
   }
+
+  const newsBgImageNode = newsZone && slide.background_url ? (
+    <img
+      src={slide.background_url}
+      draggable={false}
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: `${newsZone.imageTop}%`,
+        width: '100%',
+        height: `${newsZone.imageHeight}%`,
+        objectFit: 'cover',
+        zIndex: 0,
+      }}
+    />
+  ) : null
 
   // Helper: build "others" array for snap calculations including custom texts
   const buildOthersForSnap = useCallback((excludeId: string): TextBox[] => {
@@ -268,6 +316,7 @@ export function SlidePreview({
         className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
       >
         <div style={innerStyle}>
+          {newsBgImageNode}
           <div style={{
             position: 'absolute',
             inset: 0,
@@ -289,8 +338,8 @@ export function SlidePreview({
           }}>
             <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{slide.hook_text}</span>
-                : slide.hook_text}
+                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}</span>
+                : renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}
             </p>
           </div>
 
@@ -309,8 +358,8 @@ export function SlidePreview({
             }}>
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{slide.body_text}</span>
-                  : slide.body_text}
+                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}</span>
+                  : renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}
               </p>
             </div>
           )}
@@ -340,6 +389,7 @@ export function SlidePreview({
             const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
             const ctEffectCSS = resolvedCt ? effectToCSS(resolvedCt.resolvedEffects) : {}
             const ctHighlight = resolvedCt?.resolvedEffects.highlight
+            const ctBaseColor = ct.color ?? textColor
             return (
               <div
                 key={ct.id}
@@ -354,7 +404,7 @@ export function SlidePreview({
                   fontFamily: ct.font_family ?? template.fontFamily,
                   fontWeight: ct.font_weight ?? 400,
                   fontStyle: ct.font_style ?? 'normal',
-                  color: ct.color ?? textColor,
+                  color: ctBaseColor,
                   lineHeight: 1.3,
                   ...ctEffectCSS,
                   ...(ctHighlight?.enabled && ctHighlight.style === 'full'
@@ -363,8 +413,8 @@ export function SlidePreview({
                 }}
               >
                 {ctHighlight?.enabled && ctHighlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{ct.text}</span>
-                  : ct.text}
+                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)}</span>
+                  : renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)}
               </div>
             )
           })}
@@ -437,6 +487,7 @@ export function SlidePreview({
           }
         }}
       >
+        {newsBgImageNode}
         {/* Overlay */}
         <div style={{
           position: 'absolute',
@@ -500,8 +551,8 @@ export function SlidePreview({
           }}>
             <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{slide.hook_text}</span>
-                : slide.hook_text}
+                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}</span>
+                : renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}
             </p>
           </div>
         </Rnd>
@@ -562,8 +613,8 @@ export function SlidePreview({
             }}>
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{slide.body_text}</span>
-                  : slide.body_text}
+                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}</span>
+                  : renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}
               </p>
             </div>
           </Rnd>
@@ -581,6 +632,7 @@ export function SlidePreview({
           const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
           const ctEffectCSS = resolvedCt ? effectToCSS(resolvedCt.resolvedEffects) : {}
           const ctHighlight = resolvedCt?.resolvedEffects.highlight
+          const ctBaseColor = ct.color ?? textColor
 
           return (
             <Rnd
@@ -657,7 +709,7 @@ export function SlidePreview({
                   fontFamily: ct.font_family ?? template.fontFamily,
                   fontWeight: ct.font_weight ?? 400,
                   fontStyle: ct.font_style ?? 'normal',
-                  color: ct.color ?? textColor,
+                  color: ctBaseColor,
                   lineHeight: 1.3,
                   outline: 'none',
                   ...ctEffectCSS,
@@ -674,9 +726,11 @@ export function SlidePreview({
                   setEditingCustomTextId(null)
                 }}
               >
-                {ctHighlight?.enabled && ctHighlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{ct.text}</span>
-                  : ct.text}
+                {isEditing ? ct.text : (
+                  ctHighlight?.enabled && ctHighlight.style === 'tight'
+                    ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)}</span>
+                    : renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)
+                )}
               </div>
             </Rnd>
           )

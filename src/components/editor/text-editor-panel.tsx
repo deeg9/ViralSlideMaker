@@ -3,7 +3,7 @@
 import { Icon } from '@/components/ui/icon'
 import { FontPicker } from './font-picker'
 import { TextEffectsControls } from './text-effects-controls'
-import type { Slide, CustomText } from '@/lib/types/slide'
+import type { Slide, CustomText, TextSegment } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
 interface TextEditorPanelProps {
@@ -18,6 +18,14 @@ interface TextEditorPanelProps {
 
 const colorSwatches = ['#ffffff', '#3d0000', '#7d6161', '#fadbdb']
 
+// Split a hook into per-word segments. Used as the initial seed when the user
+// opens the accent toggler on a slide that doesn't have segments yet.
+function splitToSegments(text: string): TextSegment[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+  return trimmed.split(/\s+/).map((word) => ({ text: word, accent: false }))
+}
+
 export function TextEditorPanel({
   slide, template, onUpdate,
   selectedCustomTextId, customTexts,
@@ -29,15 +37,58 @@ export function TextEditorPanel({
     ? (customTexts ?? []).find((ct) => ct.id === selectedCustomTextId)
     : null
 
+  // News-style template: surface the layout toggle and accent-word UI.
+  const isNewsTemplate = !!template.accentColor
+  const accentColor = template.accentColor ?? '#C8FF00'
+
+  // Resolve segments — fall back to splitting the current text so the chips always render.
+  const hookSegments: TextSegment[] = slide.hook_segments ?? splitToSegments(slide.hook_text)
+  const bodySegments: TextSegment[] = slide.body_segments ?? splitToSegments(slide.body_text)
+
+  function toggleHookAccent(index: number) {
+    const next = hookSegments.map((s, i) => i === index ? { ...s, accent: !s.accent } : s)
+    onUpdate({ hook_segments: next })
+  }
+  function toggleBodyAccent(index: number) {
+    const next = bodySegments.map((s, i) => i === index ? { ...s, accent: !s.accent } : s)
+    onUpdate({ body_segments: next })
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6" data-testid="text-editor-panel">
+      {/* News-carousel layout selector — only shown for news templates */}
+      {isNewsTemplate && (
+        <div className="space-y-2">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">News Layout</label>
+          <div className="flex gap-2">
+            {(['cover', 'body'] as const).map((opt) => {
+              const active = overrides.layout === opt
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => onUpdate({ style_overrides: { ...overrides, layout: active ? undefined : opt } })}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                    active
+                      ? 'bg-[#3d0000] text-white'
+                      : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+                  }`}
+                >
+                  {opt === 'cover' ? 'Cover (image top)' : 'Body (image bottom)'}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Hook Text */}
       <div className="space-y-2">
         <label className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Hook Text</label>
         <div className="relative">
           <textarea
             value={slide.hook_text}
-            onChange={(e) => onUpdate({ hook_text: e.target.value })}
+            onChange={(e) => onUpdate({ hook_text: e.target.value, hook_segments: undefined })}
             rows={3}
             className="w-full bg-white border-none border-b border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
             placeholder="Enter headline..."
@@ -96,6 +147,35 @@ export function TextEditorPanel({
             <Icon name="format_italic" size="sm" />
           </button>
         </div>
+        {/* Accent words — only for news templates */}
+        {isNewsTemplate && hookSegments.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Accent Words</span>
+              <span className="flex items-center gap-1 text-[10px] text-[#7d6161]">
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: accentColor }} />
+                Tap a word
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {hookSegments.map((seg, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => toggleHookAccent(i)}
+                  className="px-2 py-1 rounded text-xs font-bold uppercase border transition-all"
+                  style={{
+                    backgroundColor: seg.accent ? accentColor : '#fff0f0',
+                    color: seg.accent ? '#000' : '#7d6161',
+                    borderColor: seg.accent ? accentColor : '#dbc1bc',
+                  }}
+                >
+                  {seg.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <TextEffectsControls
           effects={overrides.hook_text_effects}
           onChange={(hookFx) =>
@@ -111,7 +191,7 @@ export function TextEditorPanel({
         <label className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Body Text</label>
         <textarea
           value={slide.body_text}
-          onChange={(e) => onUpdate({ body_text: e.target.value })}
+          onChange={(e) => onUpdate({ body_text: e.target.value, body_segments: undefined })}
           rows={4}
           className="w-full bg-white border-none border-b border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
           placeholder="Enter details..."
@@ -166,6 +246,29 @@ export function TextEditorPanel({
             <Icon name="format_italic" size="sm" />
           </button>
         </div>
+        {/* Accent words (body) — only for news templates */}
+        {isNewsTemplate && bodySegments.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Accent Words (Body)</span>
+            <div className="flex flex-wrap gap-1.5">
+              {bodySegments.map((seg, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => toggleBodyAccent(i)}
+                  className="px-2 py-0.5 rounded text-[11px] font-semibold border transition-all"
+                  style={{
+                    backgroundColor: seg.accent ? accentColor : '#fff0f0',
+                    color: seg.accent ? '#000' : '#7d6161',
+                    borderColor: seg.accent ? accentColor : '#dbc1bc',
+                  }}
+                >
+                  {seg.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <TextEffectsControls
           effects={overrides.body_text_effects}
           onChange={(bodyFx) =>
