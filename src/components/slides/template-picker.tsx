@@ -1,10 +1,30 @@
 'use client'
 
 import { templates } from '@/lib/render/templates/index'
+import type { SlideTemplate } from '@/lib/render/templates/index'
+import type { Slide } from '@/lib/types/slide'
+import { SlidePreview } from './slide-preview'
 
 interface TemplatePickerProps {
   selectedId: string
   onSelect: (id: string) => void
+}
+
+// Build a minimal Slide from the template's `sample` for the picker preview.
+// `background_url: null` keeps the preview snappy (no remote image fetch),
+// `is_cta: false` keeps any CTA-only render branches off.
+function makeSampleSlide(template: SlideTemplate): Slide {
+  const sample = template.sample
+  return {
+    hook_text: sample?.hook_text ?? 'Sample headline',
+    body_text: sample?.body_text ?? 'Sample body text.',
+    hook_segments: sample?.hook_segments,
+    image_query: '',
+    is_cta: false,
+    background_url: null,
+    pexels_photo_id: null,
+    style_overrides: sample?.layout ? { layout: sample.layout } : {},
+  }
 }
 
 export function TemplatePicker({ selectedId, onSelect }: TemplatePickerProps) {
@@ -17,36 +37,22 @@ export function TemplatePicker({ selectedId, onSelect }: TemplatePickerProps) {
             key={template.id}
             type="button"
             onClick={() => onSelect(template.id)}
-            className="flex-none w-48 group text-left"
+            className="flex-none w-40 group text-left"
           >
             <div
-              className={`aspect-[4/3] rounded-xl overflow-hidden mb-3 border-2 transition-all ${
+              className={`aspect-[9/16] rounded-xl overflow-hidden mb-3 border-2 transition-all relative ${
                 isSelected
                   ? 'border-[#3d0000]'
                   : 'border-transparent group-hover:border-[#dbc1bc]'
               }`}
             >
-              <div
-                className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500"
-                style={{ backgroundColor: template.backgroundColor }}
-              >
-                <div
-                  className="w-16 h-16 rounded-lg flex items-center justify-center"
-                  style={{
-                    backgroundColor: template.overlayColor,
-                    opacity: Math.max(template.overlayOpacity, 0.3),
-                  }}
-                >
-                  <span
-                    className="text-2xl font-bold"
-                    style={{
-                      color: template.textColor,
-                      fontFamily: template.fontFamily,
-                    }}
-                  >
-                    Aa
-                  </span>
-                </div>
+              <div className="absolute inset-0 group-hover:scale-105 transition-transform duration-500 pointer-events-none">
+                <SlidePreview
+                  slide={makeSampleSlide(template)}
+                  template={template}
+                  index={0}
+                  editable={false}
+                />
               </div>
             </div>
             <span className={`block text-sm font-semibold ${isSelected ? 'text-[#3d0000]' : 'text-[#3d0000]'}`}>
