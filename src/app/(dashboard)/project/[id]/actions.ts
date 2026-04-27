@@ -56,14 +56,14 @@ export async function generateCarousel(
       }
     }
 
-    // For AI images, check if user has enough credits upfront (1 for carousel + ~6 for images)
+    // For AI images, ensure they can afford at least 1 carousel + 1 AI image = 2 credits.
+    // Mid-generation, individual AI images that exhaust the balance fall back to stock automatically.
     if (imageSource === 'ai') {
       const balance = await getCreditBalance(user.id)
-      // Need 1 for carousel + estimated 6 for images = 7 minimum
-      if (balance < 3) {
+      if (balance < 2) {
         return {
           success: false,
-          error: `AI images need more credits. You have ${balance}, need at least 3. Upgrade or buy credits.`,
+          error: `AI images need more credits. You have ${balance}, need at least 2. Upgrade or buy credits.`,
           upgradeEligible: true,
         }
       }

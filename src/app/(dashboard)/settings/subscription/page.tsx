@@ -227,7 +227,7 @@ export default async function SubscriptionPage({
             <h3 className="text-lg font-semibold text-[#3d0000]">Need more credits?</h3>
             <p className="text-sm text-[#7d6161] mt-1">Get 10 extra credits for $4.99</p>
             <p className="text-xs text-[#7d6161] mt-1">Current balance: <span className="font-semibold text-[#3d0000]">{balance} credits</span></p>
-            <p className="text-xs text-[#7d6161]/70 mt-2">1 credit = carousel generation &middot; 3 credits = AI image &middot; Text &amp; stock image regen = free</p>
+            <p className="text-xs text-[#7d6161]/70 mt-2">1 credit = carousel generation &middot; 1 credit per AI image &middot; Text &amp; stock image regen = free</p>
           </div>
           <form action={createCreditPackCheckout}>
             <button
@@ -254,8 +254,8 @@ export default async function SubscriptionPage({
           <div className="flex items-start gap-3">
             <Icon name="auto_awesome" size="sm" className="text-[#3d0000] mt-0.5" />
             <div>
-              <p className="font-semibold text-[#3d0000]">3 credits = 1 AI image</p>
-              <p className="text-[#7d6161]">AI-generated background images cost 3 credits each.</p>
+              <p className="font-semibold text-[#3d0000]">1 credit = 1 AI image</p>
+              <p className="text-[#7d6161]">AI-generated background images cost 1 credit each, on top of the carousel charge.</p>
             </div>
           </div>
           <div className="flex items-start gap-3">

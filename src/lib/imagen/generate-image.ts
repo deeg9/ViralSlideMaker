@@ -13,7 +13,7 @@ export async function generateImagenBackground(
   projectId: string,
   slideIndex: number,
 ): Promise<ImagenResult> {
-  // 1. Pre-deduct credits atomically (AI images cost 3 credits)
+  // 1. Pre-deduct credits atomically
   const deducted = await deductCredit(
     userId,
     'imagen_generation',
@@ -21,7 +21,7 @@ export async function generateImagenBackground(
     projectId,
     CREDIT_COSTS.imagen_generation,
   )
-  if (!deducted) return { error: 'Insufficient credits (AI images cost 3 credits)' }
+  if (!deducted) return { error: `Insufficient credits (AI images cost ${CREDIT_COSTS.imagen_generation} credit)` }
 
   try {
     // 2. Truncate prompt to 350 words max (Imagen has 480-token limit)
