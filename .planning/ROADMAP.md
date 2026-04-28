@@ -735,7 +735,7 @@ Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 | 33. Bookmarks, Counters & Polish | v2.4 | 1/1 | Complete | 2026-04-27 |
 | 34. API Spec Accuracy (Tier 1) | v2.5 | 1/1 | Complete | 2026-04-28 |
 | 35. Project & Slide CRUD (Tier 2.A) | v2.5 | 2/2 | Complete | 2026-04-28 |
-| 36. Publish & Credits Read (Tier 2.B) | v2.5 | 0/1 | Not started | - |
+| 36. Publish & Credits Read (Tier 2.B) | v2.5 | 1/1 | Complete | 2026-04-28 |
 | 37. AI & Image Sources (Tier 3.A) | v2.5 | 0/2 | Not started | - |
 | 38. Explore, Bookmarks, Forking (Tier 3.B) | v2.5 | 0/2 | Not started | - |
 | 39. Brand Kit & Profile (Tier 3.C) | v2.5 | 0/2 | Not started | - |

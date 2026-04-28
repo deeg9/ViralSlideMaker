@@ -948,5 +948,145 @@ export const openApiSpec = {
         },
       },
     },
+    '/projects/{id}/publish': {
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' as const, format: 'uuid' },
+          description: 'Project ID',
+        },
+      ],
+      post: {
+        operationId: 'publishProject',
+        summary: 'Publish a project to Explore',
+        description: 'Pre-renders slide 1 to a public PNG hero, snapshots slide_data into a new published_carousels row, generates a slug. Idempotent against an already-published project (creates a second snapshot — call DELETE first to unpublish the existing one).',
+        tags: ['Publish'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                required: ['title'],
+                properties: {
+                  title: { type: 'string' as const, minLength: 1, maxLength: 120 },
+                  description: { type: ['string', 'null'] as const, maxLength: 500 },
+                  tags: {
+                    oneOf: [
+                      { type: 'array' as const, items: { type: 'string' as const } },
+                      { type: 'string' as const, description: 'Comma-separated alternative form' },
+                    ],
+                    description: 'Up to 5 tags, each 1-24 chars, lowercased + normalized server-side',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Published',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        publishedId: { type: 'string' as const, format: 'uuid' },
+                        slug: { type: 'string' as const },
+                        url: { type: 'string' as const, format: 'uri' },
+                        hero_image_url: { type: 'string' as const, format: 'uri' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error (bad title/description/tags or empty carousel)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          '404': {
+            description: 'Project not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+      delete: {
+        operationId: 'unpublishProject',
+        summary: 'Unpublish a project',
+        description: 'Soft-deletes the active published_carousels row for this project (sets unpublished_at). Existing forks already taken are preserved. 404 if the project has no active publication.',
+        tags: ['Publish'],
+        responses: {
+          '200': {
+            description: 'Unpublished',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        unpublished_at: { type: 'string' as const, format: 'date-time' },
+                        publishedId: { type: 'string' as const, format: 'uuid' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'No active published carousel for this project',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/me/credits': {
+      get: {
+        operationId: 'getMyCredits',
+        summary: 'Get my credit balance + tier',
+        description: 'Returns the current user\'s subscription tier, credit balance, and the monthly grant amount for that tier.',
+        tags: ['Account'],
+        responses: {
+          '200': {
+            description: 'Credit summary',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        tier: { type: 'string' as const, enum: ['free', 'plus', 'pro'] },
+                        balance: { type: 'integer' as const, minimum: 0 },
+                        monthly_grant: { type: 'integer' as const, minimum: 0 },
+                        period_end: { type: ['string', 'null'] as const, format: 'date-time' },
+                        status: { type: ['string', 'null'] as const },
+                        cancel_at_period_end: { type: ['boolean', 'null'] as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
   },
 }
