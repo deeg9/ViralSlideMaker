@@ -83,9 +83,10 @@ None yet.
 | 260427-vm2 | deletePublishedCarousel server action with paired storage cleanup — fixes the orphan-PNG bug where hard-deleting a published_carousels row leaked a hero file. Test orphan from earlier verification cleaned up via Storage API | 2026-04-27 | 7f757be | [260427-vm2-hero-png-cleanup-on-published-carousels-](./quick/260427-vm2-hero-png-cleanup-on-published-carousels-/) |
 | 260427-w8d | Manage Published dashboard section (View/Unpublish/Delete buttons per published carousel, dimmed HIDDEN state on unpublished rows) + welcome heading reads from public.profiles.display_name. Closes the two v2.4 polish gaps surfaced post-ship | 2026-04-27 | da54996 | [260427-w8d-manage-published-dashboard-section-displ](./quick/260427-w8d-manage-published-dashboard-section-displ/) |
 | 260427-wmg | Top nav now renders on /explore + /explore/[slug] via new explore/layout.tsx (anonymous-friendly via TopNavbar signedIn prop). Bookmarks moved out of the global nav icon row and into the profile dropdown above Settings | 2026-04-27 | 19ee645 | [260427-wmg-top-nav-on-explore-bookmarks-pages-anony](./quick/260427-wmg-top-nav-on-explore-bookmarks-pages-anony/) |
+| 260427-x29 | /explore polish — removed #hashtag pillset row, replaced Trending/New/Featured tab strip with a filter dropdown right of the search bar, removed redundant 'Back to dashboard' link. Added dev-only /api/admin/seed-explore POST/DELETE route (gated by ADMIN_SEED_TOKEN); seeded 12 mock carousels for @diego, one per built-in template, with hand-crafted slides + Pexels backgrounds | 2026-04-28 | 5fe9e34 | [260427-x29-explore-polish-no-tag-chips-filter-dropd](./quick/260427-x29-explore-polish-no-tag-chips-filter-dropd/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-27 - Completed quick task 260427-wmg: top nav on /explore + Bookmarks moved into profile dropdown
-Stopped at: v2.4 Explore + Remix fully shipped, polished, and nav-cleaned
+Last activity: 2026-04-28 - Completed quick task 260427-x29: /explore polish + 12 mock carousels seeded for @diego
+Stopped at: v2.4 Explore + Remix fully populated demo-ready
 Resume file: None
