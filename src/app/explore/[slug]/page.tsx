@@ -6,6 +6,9 @@ import { Icon } from '@/components/ui/icon'
 import { ForkButton } from './fork-button'
 import { BookmarkButton } from './bookmark-button'
 import { ViewTracker } from './view-tracker'
+import { CarouselSlideshow } from './carousel-slideshow'
+import { getTemplate } from '@/lib/render/templates/index'
+import { getUserTier } from '@/lib/credits/check-credits'
 import type { Slide } from '@/lib/types/slide'
 
 export default async function ExploreDetailPage({
@@ -71,6 +74,9 @@ export default async function ExploreDetailPage({
     isBookmarked = !!bm
   }
 
+  const template = getTemplate('bold-minimal')
+  const ownerTier = await getUserTier(c.owner_id)
+
   return (
     <>
       <ViewTracker publishedId={c.id} />
@@ -88,21 +94,29 @@ export default async function ExploreDetailPage({
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 mt-4">
           {/* Slides preview */}
           <div>
-            <div className="bg-white rounded-2xl border border-[#dbc1bc]/30 overflow-hidden">
-              {c.hero_image_url && (
-                <div className="relative aspect-[9/16] bg-[#fadbdb] max-w-md mx-auto">
-                  <Image
-                    src={c.hero_image_url}
-                    alt={c.title}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 600px"
-                    className="object-cover"
-                    unoptimized
-                    priority
-                  />
+            {c.slide_data.length > 0 ? (
+              <CarouselSlideshow
+                slides={c.slide_data}
+                template={template}
+                ownerTier={ownerTier}
+              />
+            ) : (
+              c.hero_image_url && (
+                <div className="bg-white rounded-2xl border border-[#dbc1bc]/30 overflow-hidden">
+                  <div className="relative aspect-[9/16] bg-[#fadbdb] max-w-md mx-auto">
+                    <Image
+                      src={c.hero_image_url}
+                      alt={c.title}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 600px"
+                      className="object-cover"
+                      unoptimized
+                      priority
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+              )
+            )}
             <p className="text-sm text-[#7d6161] mt-3">
               {c.slide_data.length} slide{c.slide_data.length === 1 ? '' : 's'} · published{' '}
               {new Date(c.published_at).toLocaleDateString('en-US', {
