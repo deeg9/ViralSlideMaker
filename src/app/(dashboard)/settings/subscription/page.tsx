@@ -146,17 +146,12 @@ export default async function SubscriptionPage({
         </div>
       )}
 
-      {/* Current plan badge */}
-      <div className="mb-6">
-        <span className="bg-[#fadbdb] text-[#3d0000] px-3 py-1 rounded-full text-sm font-bold">
-          Current Plan: {tierDisplayName(tier)}{isCanceling ? ' (Canceling)' : ''}
-        </span>
-      </div>
-
       {/* Plan Cards */}
       <div className="text-center space-y-4 mb-12">
         <h2 className="text-3xl font-bold tracking-tight text-[#3d0000]">Choose Your Plan</h2>
-        <p className="text-[#55423f] text-base">All plans include access to our AI carousel generator.</p>
+        <span className="inline-block bg-[#fadbdb] text-[#3d0000] px-3 py-1 rounded-full text-sm font-bold">
+          Current Plan: {tierDisplayName(tier)}{isCanceling ? ' (Canceling)' : ''}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
