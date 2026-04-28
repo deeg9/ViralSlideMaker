@@ -12,7 +12,7 @@ import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import { CaptionPanel } from '@/components/captions/caption-panel'
 import { Icon } from '@/components/ui/icon'
 import { downloadSlidesAsZip } from '@/lib/download/zip-slides'
-import { PublishModal } from '@/components/editor/publish-modal'
+import { VisibilityDropdown } from '@/components/editor/visibility-dropdown'
 import {
   saveSlideData,
   saveTemplateId,
@@ -22,6 +22,12 @@ import {
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
+export interface InitialPublishedState {
+  publishedId: string
+  slug: string
+  tags: string[]
+}
+
 interface SlideEditorProps {
   initialSlides: Slide[]
   projectId: string
@@ -30,6 +36,7 @@ interface SlideEditorProps {
   title?: string
   userTier?: 'free' | 'pro' | 'plus'
   brandKit?: BrandKit | null
+  initialPublishedState?: InitialPublishedState | null
 }
 
 export function SlideEditor({
@@ -40,6 +47,7 @@ export function SlideEditor({
   title,
   userTier,
   brandKit,
+  initialPublishedState,
 }: SlideEditorProps) {
   const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty } =
     useSlideEditor(initialSlides)
@@ -56,7 +64,6 @@ export function SlideEditor({
   const [showCaptions, setShowCaptions] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [exporting, setExporting] = useState(false)
-  const [publishOpen, setPublishOpen] = useState(false)
   const [selectedCustomTextId, setSelectedCustomTextId] = useState<string | null>(null)
   const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -421,14 +428,12 @@ export function SlideEditor({
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPublishOpen(true)}
-                    className="px-3 py-1.5 bg-white text-[#3d0000] border border-[#3d0000] rounded-xl font-medium flex items-center gap-1.5 hover:bg-[#fff0f0] active:scale-95 transition-all text-xs"
-                    title="Publish to Explore"
-                  >
-                    <Icon name="public" size="sm" />
-                    Publish
-                  </button>
+                  <VisibilityDropdown
+                    projectId={projectId}
+                    title={title ?? 'Untitled Carousel'}
+                    isPublic={!!initialPublishedState}
+                    tags={initialPublishedState?.tags ?? []}
+                  />
                   <button
                     onClick={async () => {
                       setExporting(true)
@@ -482,12 +487,6 @@ export function SlideEditor({
           onClose={() => setShowCaptions(false)}
         />
       )}
-      <PublishModal
-        projectId={projectId}
-        defaultTitle={title ?? 'Untitled Carousel'}
-        open={publishOpen}
-        onClose={() => setPublishOpen(false)}
-      />
     </div>
   )
 }

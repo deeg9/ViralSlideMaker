@@ -36,6 +36,23 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const tier = user ? await getUserTier(user.id) : 'free' as const
   const brandKit = user ? await getBrandKit() : null
 
+  const { data: publishedRow } = user
+    ? await supabase
+        .from('published_carousels')
+        .select('id, slug, tags')
+        .eq('source_project_id', p.id)
+        .eq('owner_id', user.id)
+        .is('unpublished_at', null)
+        .maybeSingle()
+    : { data: null }
+  const initialPublishedState = publishedRow
+    ? {
+        publishedId: (publishedRow as { id: string }).id,
+        slug: (publishedRow as { slug: string }).slug,
+        tags: ((publishedRow as { tags: string[] | null }).tags ?? []) as string[],
+      }
+    : null
+
   // Editor mode: render full-width with no extra chrome
   if (hasSlides) {
     return (
@@ -47,6 +64,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         title={p.title}
         userTier={tier}
         brandKit={brandKit}
+        initialPublishedState={initialPublishedState}
       />
     )
   }
