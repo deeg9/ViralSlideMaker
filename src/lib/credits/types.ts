@@ -26,8 +26,8 @@ export interface CreditTransaction {
 
 export const TIER_CREDITS: Record<SubscriptionTier, number> = {
   free: 3,
-  plus: 50,
-  pro: 125,
+  plus: 25,
+  pro: 55,
 }
 
 export const CREDIT_COSTS = {

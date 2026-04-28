@@ -31,7 +31,7 @@ const plans = [
     price: '$19.99',
     period: '/mo',
     features: [
-      '50 credits/month',
+      '25 credits/month',
       'No watermark — clean exports',
       'All templates',
       'Stock images + AI-generated images',
@@ -47,7 +47,7 @@ const plans = [
     price: '$49.99',
     period: '/mo',
     features: [
-      '125 credits/month',
+      '55 credits/month',
       'No watermark — clean exports',
       'Everything in Hobbyist',
     ],
