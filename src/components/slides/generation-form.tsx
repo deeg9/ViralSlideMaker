@@ -166,15 +166,9 @@ export function GenerationForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       {/* Textarea */}
       <div>
-        <div className="flex items-end justify-between mb-3 ml-1 mr-1">
-          <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]">
-            Presentation Prompt
-          </label>
-          <div className="flex items-center gap-1.5 text-[#dbc1bc]">
-            <Icon name="auto_awesome" size="sm" />
-            <span className="text-[10px] font-medium uppercase tracking-wider">AI Assisted</span>
-          </div>
-        </div>
+        <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-3 ml-1">
+          Presentation Prompt
+        </label>
         <div className="relative">
           <textarea
             value={topic}

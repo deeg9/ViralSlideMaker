@@ -85,12 +85,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       )}
 
       <div className="text-center mb-12">
-        <h1 className="text-[3.5rem] font-semibold tracking-[-0.02em] leading-tight text-[#3d0000] mb-4">
+        <h1 className="text-[3.5rem] font-semibold tracking-[-0.02em] leading-tight text-[#3d0000]">
           What shall we create?
         </h1>
-        <p className="text-[#55423f] max-w-lg mx-auto leading-relaxed">
-          Describe your content idea and our AI will curate the narrative structure and visual flow for you.
-        </p>
       </div>
 
       <GenerationForm
