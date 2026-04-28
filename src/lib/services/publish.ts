@@ -217,6 +217,9 @@ export async function unpublishProjectAdmin(
  * Find the active (unpublished_at IS NULL) published_carousels row for a project,
  * if one exists. Used by `DELETE /projects/{id}/publish` to convert a project ID
  * into a published_id for unpublishing.
+ *
+ * `POST /publish` allows multiple snapshots per project — when more than one is
+ * active, return the most recent. Caller can DELETE again to peel off the next.
  */
 export async function findActivePublishedRow(
   admin: SupabaseClient,
@@ -229,6 +232,8 @@ export async function findActivePublishedRow(
     .eq('source_project_id', projectId)
     .eq('owner_id', userId)
     .is('unpublished_at', null)
+    .order('published_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
   return data ? { id: data.id as string } : null
 }

@@ -103,6 +103,14 @@ export const POST = withApiAuth(async (req, ctx) => {
       1
     )
   } catch {
+    // Refund the credit deducted above so a failed generation doesn't strand
+    // the caller. Mirrors the imagen-actions refund flow.
+    await ctx.supabase.from('credit_transactions').insert({
+      user_id: ctx.userId,
+      type: 'refund',
+      amount: 1,
+      description: 'Carousel generation failed',
+    })
     return apiError('INTERNAL_ERROR', 'Carousel generation failed', 500)
   }
 })
