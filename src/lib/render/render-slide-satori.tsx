@@ -5,6 +5,7 @@ import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
+import { isNewsTemplate, getNewsHookFontSize } from './news-hook-fit'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -102,9 +103,18 @@ export function buildSlideElement(
 
   const textColor = overrides.text_color ?? template.textColor
   const textAlign = overrides.text_align ?? template.textAlign
+  // News templates auto-shrink the hook size for long headlines so multi-line
+  // hooks don't overflow into the body zone. Manual override always wins.
+  const baseHookSizePx = parseInt(template.hookFontSize, 10) || 64
+  const autoFitHookPx =
+    overrides.hook_font_size == null && isNewsTemplate(template.id)
+      ? getNewsHookFontSize(slide.hook_text, baseHookSizePx)
+      : null
   const hookFontSize = overrides.hook_font_size
     ? overrides.hook_font_size
-    : parseInt(template.hookFontSize, 10) || 64
+    : autoFitHookPx != null
+      ? autoFitHookPx
+      : baseHookSizePx
   const bodyFontSize = overrides.body_font_size
     ? overrides.body_font_size
     : parseInt(template.bodyFontSize, 10) || 32

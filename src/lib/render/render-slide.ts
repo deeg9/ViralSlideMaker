@@ -4,6 +4,7 @@ import type { BrandKit } from '../types/brand-kit'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
+import { isNewsTemplate, getNewsHookFontSize } from './news-hook-fit'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -120,7 +121,18 @@ export function buildSlideHtml(
 
   const textColor = overrides.text_color ?? template.textColor
   const textAlign = overrides.text_align ?? template.textAlign
-  const hookFontSize = overrides.hook_font_size ? `${overrides.hook_font_size}px` : template.hookFontSize
+  // News templates auto-shrink the hook size for long headlines so multi-line
+  // hooks don't overflow into the body zone. Manual override always wins.
+  const baseHookSizePx = parseInt(template.hookFontSize, 10) || 64
+  const autoFitHookPx =
+    overrides.hook_font_size == null && isNewsTemplate(template.id)
+      ? getNewsHookFontSize(slide.hook_text, baseHookSizePx)
+      : null
+  const hookFontSize = overrides.hook_font_size
+    ? `${overrides.hook_font_size}px`
+    : autoFitHookPx != null
+      ? `${autoFitHookPx}px`
+      : template.hookFontSize
   const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
 
   const overlayOpacity = overrides.overlay_opacity != null

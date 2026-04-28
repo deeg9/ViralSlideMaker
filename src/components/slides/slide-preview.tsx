@@ -9,6 +9,7 @@ import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
+import { isNewsTemplate, getNewsHookFontSize } from '@/lib/render/news-hook-fit'
 
 // Reference canvas dimensions (matches TikTok/Instagram 9:16)
 const REF_WIDTH = 1080
@@ -106,7 +107,15 @@ export function SlidePreview({
   const hookTextColor = overrides.hook_text_color ?? textColor
   const bodyTextColor = overrides.body_text_color ?? textColor
   const textAlign = overrides.text_align ?? template.textAlign
-  const hookFontSize = overrides.hook_font_size ?? parseInt(template.hookFontSize)
+  // News templates auto-shrink the hook size for long headlines so multi-line
+  // hooks don't overflow into the body zone (60-80% Y window in cover layout).
+  // Manual `hook_font_size` override always wins.
+  const baseHookSize = parseInt(template.hookFontSize)
+  const autoFitHookSize =
+    overrides.hook_font_size == null && isNewsTemplate(template.id)
+      ? getNewsHookFontSize(slide.hook_text, baseHookSize)
+      : null
+  const hookFontSize = overrides.hook_font_size ?? autoFitHookSize ?? baseHookSize
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
   // Font family overrides (Phase 12)
