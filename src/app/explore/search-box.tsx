@@ -33,7 +33,7 @@ export function ExploreSearchBox({ initialQuery }: { initialQuery: string }) {
   }, [value, router, searchParams])
 
   return (
-    <div className="relative mb-6">
+    <div className="relative">
       <Icon
         name="search"
         size="sm"

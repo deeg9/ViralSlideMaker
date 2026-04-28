@@ -17,6 +17,11 @@ export async function middleware(request: NextRequest) {
     return
   }
 
+  // Skip session auth for dev-only admin routes (uses ADMIN_SEED_TOKEN bearer auth)
+  if (request.nextUrl.pathname.startsWith('/api/admin')) {
+    return
+  }
+
   return await updateSession(request)
 }
 

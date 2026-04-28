@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { Icon } from '@/components/ui/icon'
 import { ExploreSearchBox } from './search-box'
+import { FilterButton } from './filter-button'
 
 type Tab = 'trending' | 'new' | 'featured'
 
@@ -98,51 +99,16 @@ export default async function ExplorePage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex items-end justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-[#3d0000]">Explore</h1>
-            <p className="text-sm text-[#7d6161] mt-1">Discover and remix carousels from the community</p>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-[#3d0000]">Explore</h1>
+          <p className="text-sm text-[#7d6161] mt-1">Discover and remix carousels from the community</p>
+        </div>
+
+        <div className="flex items-stretch gap-2 mb-6">
+          <div className="flex-1 min-w-0">
+            <ExploreSearchBox initialQuery={searchQuery ?? ''} />
           </div>
-          <Link
-            href="/dashboard"
-            className="text-sm font-semibold text-[#3d0000] hover:underline"
-          >
-            Back to dashboard →
-          </Link>
-        </div>
-
-        <ExploreSearchBox initialQuery={searchQuery ?? ''} />
-
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-6 border-b border-[#dbc1bc]/30">
-          <TabLink current={tab} tab="trending" label="Trending" tag={tagFilter} />
-          <TabLink current={tab} tab="new" label="New" tag={tagFilter} />
-          <TabLink current={tab} tab="featured" label="Featured" tag={tagFilter} />
-        </div>
-
-        {/* Tag chips */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <Link
-            href={`/explore?tab=${tab}`}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-              !tagFilter ? 'bg-[#3d0000] text-white' : 'bg-white text-[#7d6161] border border-[#dbc1bc]/40 hover:bg-[#fadbdb]'
-            }`}
-          >
-            All
-          </Link>
-          {PILL_TAGS.map((t) => (
-            <Link
-              key={t}
-              href={`/explore?tab=${tab}&tag=${t}`}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                tagFilter === t
-                  ? 'bg-[#3d0000] text-white'
-                  : 'bg-white text-[#7d6161] border border-[#dbc1bc]/40 hover:bg-[#fadbdb]'
-              }`}
-            >
-              #{t}
-            </Link>
-          ))}
+          <FilterButton current={tab} />
         </div>
 
         {/* Card grid */}
@@ -225,29 +191,3 @@ export default async function ExplorePage({
   )
 }
 
-function TabLink({
-  current,
-  tab,
-  label,
-  tag,
-}: {
-  current: Tab
-  tab: Tab
-  label: string
-  tag: string | null
-}) {
-  const active = current === tab
-  const href = `/explore?tab=${tab}${tag ? `&tag=${tag}` : ''}`
-  return (
-    <Link
-      href={href}
-      className={`px-4 py-2 text-sm font-semibold ${
-        active
-          ? 'text-[#3d0000] border-b-2 border-[#3d0000] -mb-px'
-          : 'text-[#7d6161] hover:text-[#3d0000]'
-      }`}
-    >
-      {label}
-    </Link>
-  )
-}
