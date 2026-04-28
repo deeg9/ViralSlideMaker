@@ -262,6 +262,39 @@ export const openApiSpec = {
           textAlign: { type: 'string' as const, enum: ['left', 'center', 'right'] },
         },
       },
+      PublishedCarousel: {
+        type: 'object' as const,
+        required: ['id', 'slug', 'title', 'owner_id', 'published_at'],
+        properties: {
+          id: { type: 'string' as const, format: 'uuid' },
+          slug: { type: 'string' as const },
+          title: { type: 'string' as const },
+          description: { type: ['string', 'null'] as const },
+          hero_image_url: { type: ['string', 'null'] as const, format: 'uri' },
+          slide_data: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/Slide' },
+            description: 'Snapshot of slides at publish time. Present on the detail endpoint; omitted from the feed listing for payload-size reasons.',
+          },
+          tags: { type: 'array' as const, items: { type: 'string' as const } },
+          owner_id: { type: 'string' as const, format: 'uuid' },
+          bookmark_count: { type: 'integer' as const },
+          remix_count: { type: 'integer' as const },
+          view_count: { type: 'integer' as const },
+          popularity_score: { type: 'number' as const },
+          published_at: { type: 'string' as const, format: 'date-time' },
+          creator: {
+            type: ['object', 'null'] as const,
+            description: 'Owner profile snippet (detail endpoint only).',
+            properties: {
+              username: { type: ['string', 'null'] as const },
+              display_name: { type: ['string', 'null'] as const },
+              avatar_url: { type: ['string', 'null'] as const, format: 'uri' },
+              bio: { type: ['string', 'null'] as const },
+            },
+          },
+        },
+      },
       Project: {
         type: 'object' as const,
         required: ['id', 'user_id', 'title', 'created_at', 'updated_at'],
@@ -1246,6 +1279,226 @@ export const openApiSpec = {
           '404': {
             description: 'Project or slide not found',
             content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/explore': {
+      get: {
+        operationId: 'listExplore',
+        summary: 'List Explore feed',
+        description: 'Mirrors the /explore page query. Sort by trending (popularity_score), new (published_at), or featured (is_featured = true). Optional tag filter and full-text search via search_vector.',
+        tags: ['Explore'],
+        parameters: [
+          { name: 'sort', in: 'query', schema: { type: 'string' as const, enum: ['trending', 'new', 'featured'], default: 'trending' } },
+          { name: 'tag', in: 'query', schema: { type: 'string' as const }, description: 'Filter to carousels containing this tag' },
+          { name: 'q', in: 'query', schema: { type: 'string' as const }, description: 'Full-text search query (websearch syntax)' },
+          { name: 'cursor', in: 'query', schema: { type: 'string' as const }, description: 'Opaque cursor from a previous response\'s next_cursor' },
+        ],
+        responses: {
+          '200': {
+            description: 'Explore feed page',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        items: { type: 'array' as const, items: { $ref: '#/components/schemas/PublishedCarousel' } },
+                        next_cursor: { type: ['string', 'null'] as const },
+                        sort: { type: 'string' as const },
+                        tag: { type: ['string', 'null'] as const },
+                        q: { type: ['string', 'null'] as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/explore/{slug}': {
+      parameters: [
+        { name: 'slug', in: 'path', required: true, schema: { type: 'string' as const }, description: 'Carousel slug from publish' },
+      ],
+      get: {
+        operationId: 'getPublishedCarousel',
+        summary: 'Get a published carousel by slug',
+        description: 'Returns the full snapshot including slide_data and a creator profile snippet.',
+        tags: ['Explore'],
+        responses: {
+          '200': {
+            description: 'Carousel detail',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: { data: { $ref: '#/components/schemas/PublishedCarousel' } },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'Not found (or unpublished/hidden)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/explore/{slug}/fork': {
+      parameters: [
+        { name: 'slug', in: 'path', required: true, schema: { type: 'string' as const } },
+      ],
+      post: {
+        operationId: 'forkPublishedCarousel',
+        summary: 'Fork a published carousel into your dashboard',
+        description: 'Deep-copies slide_data into a new private project owned by the API key holder. template_id defaults to bold-minimal so the forker\'s own brand kit re-resolves at render time. Increments remix_count on the source row.',
+        tags: ['Explore'],
+        responses: {
+          '201': {
+            description: 'Fork created',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: { projectId: { type: 'string' as const, format: 'uuid' } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'Carousel not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/me/bookmarks': {
+      get: {
+        operationId: 'listMyBookmarks',
+        summary: 'List my bookmarks',
+        description: 'Most-recent-first list of carousels the API key holder has bookmarked. Cursor-paginated with PAGE_SIZE = 24.',
+        tags: ['Account'],
+        parameters: [
+          { name: 'cursor', in: 'query', schema: { type: 'string' as const }, description: 'Opaque cursor from a previous response\'s next_cursor' },
+        ],
+        responses: {
+          '200': {
+            description: 'Bookmark page',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        items: { type: 'array' as const, items: { type: 'object' as const } },
+                        next_cursor: { type: ['string', 'null'] as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...commonErrorResponses,
+        },
+      },
+      post: {
+        operationId: 'createBookmark',
+        summary: 'Bookmark a published carousel',
+        description: 'Idempotent — re-bookmarking the same carousel returns 201 without erroring.',
+        tags: ['Account'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                required: ['publishedId'],
+                properties: {
+                  publishedId: { type: 'string' as const, format: 'uuid' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Bookmarked',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        bookmarked: { type: 'boolean' as const },
+                        publishedId: { type: 'string' as const, format: 'uuid' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'Carousel not found (or unpublished/hidden)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/me/bookmarks/{publishedId}': {
+      parameters: [
+        { name: 'publishedId', in: 'path', required: true, schema: { type: 'string' as const, format: 'uuid' } },
+      ],
+      delete: {
+        operationId: 'deleteBookmark',
+        summary: 'Remove a bookmark',
+        description: 'Idempotent — deleting a non-existent bookmark returns 200 without erroring.',
+        tags: ['Account'],
+        responses: {
+          '200': {
+            description: 'Bookmark deleted',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        deleted: { type: 'boolean' as const },
+                        publishedId: { type: 'string' as const, format: 'uuid' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
           ...commonErrorResponses,
         },
