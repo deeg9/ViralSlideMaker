@@ -12,6 +12,7 @@ import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import { CaptionPanel } from '@/components/captions/caption-panel'
 import { Icon } from '@/components/ui/icon'
 import { downloadSlidesAsZip } from '@/lib/download/zip-slides'
+import { PublishModal } from '@/components/editor/publish-modal'
 import {
   saveSlideData,
   saveTemplateId,
@@ -55,6 +56,7 @@ export function SlideEditor({
   const [showCaptions, setShowCaptions] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [exporting, setExporting] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
   const [selectedCustomTextId, setSelectedCustomTextId] = useState<string | null>(null)
   const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -418,20 +420,30 @@ export function SlideEditor({
                     <Icon name="redo" size="sm" />
                   </button>
                 </div>
-                <button
-                  onClick={async () => {
-                    setExporting(true)
-                    try {
-                      await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
-                    } catch { /* silently handle */ }
-                    finally { setExporting(false) }
-                  }}
-                  disabled={exporting}
-                  className="px-4 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
-                >
-                  <Icon name="download" size="sm" />
-                  {exporting ? 'Exporting...' : 'Export'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPublishOpen(true)}
+                    className="px-3 py-1.5 bg-white text-[#3d0000] border border-[#3d0000] rounded-xl font-medium flex items-center gap-1.5 hover:bg-[#fff0f0] active:scale-95 transition-all text-xs"
+                    title="Publish to Explore"
+                  >
+                    <Icon name="public" size="sm" />
+                    Publish
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setExporting(true)
+                      try {
+                        await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
+                      } catch { /* silently handle */ }
+                      finally { setExporting(false) }
+                    }}
+                    disabled={exporting}
+                    className="px-4 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
+                  >
+                    <Icon name="download" size="sm" />
+                    {exporting ? 'Exporting...' : 'Export'}
+                  </button>
+                </div>
               </div>
               {(userTier ?? 'free') === 'free' && (
                 <p className="text-[11px] text-[#7d6161] leading-snug">
@@ -470,6 +482,12 @@ export function SlideEditor({
           onClose={() => setShowCaptions(false)}
         />
       )}
+      <PublishModal
+        projectId={projectId}
+        defaultTitle={title ?? 'Untitled Carousel'}
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+      />
     </div>
   )
 }

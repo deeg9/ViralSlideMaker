@@ -11,6 +11,7 @@ interface EditorToolbarProps {
   onDelete: () => void
   onUndo: () => void
   onRedo: () => void
+  onPublish?: () => void
   canUndo: boolean
   canRedo: boolean
   slideCount: number
@@ -24,6 +25,7 @@ export function EditorToolbar({
   onDelete,
   onUndo,
   onRedo,
+  onPublish,
   canUndo,
   canRedo,
   slideCount,
@@ -96,6 +98,16 @@ export function EditorToolbar({
           <Icon name="redo" size="sm" />
         </button>
         <div className="h-5 w-px bg-[#dbc1bc]/30 mx-1" />
+        {onPublish && (
+          <button
+            onClick={onPublish}
+            className="px-4 py-1.5 bg-white text-[#3d0000] border border-[#3d0000] rounded-xl font-medium flex items-center gap-2 hover:bg-[#fff0f0] active:scale-95 transition-all text-sm"
+            title="Publish to Explore"
+          >
+            <Icon name="public" size="sm" />
+            <span>Publish</span>
+          </button>
+        )}
         <button className="px-4 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all text-sm">
           <Icon name="download" size="sm" />
           <span>Export</span>
