@@ -20,9 +20,13 @@ type Status =
 export function ClaimUsernameForm({
   initialSuggestion,
   next,
+  mode = 'claim',
+  currentUsername = null,
 }: {
   initialSuggestion: string
   next: string
+  mode?: 'claim' | 'change'
+  currentUsername?: string | null
 }) {
   const router = useRouter()
   const [username, setUsername] = useState(initialSuggestion)
@@ -57,7 +61,10 @@ export function ClaimUsernameForm({
     }
   }, [username])
 
-  const canSubmit = status.kind === 'available' && !isSubmitting
+  const normalizedNow = normalizeUsername(username)
+  const isSameAsCurrent =
+    mode === 'change' && currentUsername !== null && normalizedNow === currentUsername
+  const canSubmit = status.kind === 'available' && !isSubmitting && !isSameAsCurrent
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -116,12 +123,18 @@ export function ClaimUsernameForm({
         </div>
       )}
 
+      {isSameAsCurrent && (
+        <p className="text-xs text-[#7d6161]">Pick a different handle to change your username.</p>
+      )}
+
       <button
         type="submit"
         disabled={!canSubmit}
         className="w-full inline-flex items-center justify-center bg-[#3d0000] text-white px-6 py-3 rounded-xl font-medium text-sm transition-all hover:bg-[#3d0000]/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
       >
-        {isSubmitting ? 'Claiming…' : 'Claim username'}
+        {isSubmitting
+          ? mode === 'change' ? 'Saving…' : 'Claiming…'
+          : mode === 'change' ? 'Save username' : 'Claim username'}
       </button>
 
       <p className="text-xs text-[#7d6161]/70 text-center">

@@ -150,7 +150,7 @@ export default function ProfilePage() {
             <div className={`${inputClasses} flex items-center justify-between opacity-80`}>
               <span>{username ? `@${username}` : 'Not set'}</span>
               <Link
-                href="/onboarding/username?next=/settings/profile"
+                href="/onboarding/username?change=1&next=/settings/profile"
                 className="text-xs font-semibold text-[#3d0000] underline"
               >
                 Change

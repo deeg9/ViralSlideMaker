@@ -38,6 +38,7 @@ export async function checkUsernameAvailable(
   }
 
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('profiles')
     .select('id')
@@ -48,6 +49,9 @@ export async function checkUsernameAvailable(
     return { available: false, reason: 'invalid', message: 'Could not check availability' }
   }
   if (data) {
+    if (user && data.id === user.id) {
+      return { available: true, reason: null }
+    }
     return { available: false, reason: 'taken', message: 'Username is taken' }
   }
   return { available: true, reason: null }
