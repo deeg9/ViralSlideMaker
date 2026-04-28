@@ -245,7 +245,7 @@ export default async function SubscriptionPage({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h3 className="text-lg font-semibold text-[#3d0000]">Need more credits?</h3>
-            <p className="text-sm text-[#7d6161] mt-1">Get 10 extra credits for $4.99</p>
+            <p className="text-sm text-[#7d6161] mt-1">Get 5 extra credits for $4.99</p>
             <p className="text-xs text-[#7d6161] mt-1">Current balance: <span className="font-semibold text-[#3d0000]">{balance} credits</span></p>
             {tier === 'free' && (
               <p className="text-xs font-semibold text-[#3d0000] mt-2">Available on Hobbyist and Creator plans</p>
