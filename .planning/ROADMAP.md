@@ -10,7 +10,8 @@
 - v2.1 Text Effects - Phases 19-21 (shipped 2026-04-07)
 - v2.2 Public REST API - Phases 22-25 (shipped 2026-04-09)
 - v2.3 MCP Server - Phases 26-28 (shipped 2026-04-09)
-- v2.4 Explore + Remix - Phases 29-33 (planned)
+- v2.4 Explore + Remix - Phases 29-33 (shipped 2026-04-27)
+- v2.5 Public REST API Parity - Phases 34-39 (planned) — bring REST API to full feature parity with the dashboard. See MILESTONES.md "v2.5 Public REST API Parity (Planned)" for the 28-requirement scope across 3 tiers. Run `/gsd-new-milestone v2.5` to formalize.
 
 ## Phases
 

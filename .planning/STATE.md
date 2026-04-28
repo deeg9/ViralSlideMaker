@@ -92,6 +92,7 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - Completed quick task 260428-rmm: Removed MCP server (not shipped) + cleaned up API reference
-Stopped at: v2.4 Explore + Remix demo-ready; API surface is REST-only (no dead MCP code in repo)
+Last activity: 2026-04-28 - Queued v2.5 Public REST API Parity milestone (28 reqs, 6 phases) in MILESTONES.md + ROADMAP.md after audit revealed API covers ~30% of dashboard capabilities
+Stopped at: v2.4 shipped + MCP retired; v2.5 API parity scoped and ready for `/gsd-new-milestone v2.5`
 Resume file: None
+Next milestone draft: see MILESTONES.md "v2.5 Public REST API Parity (Planned)"
