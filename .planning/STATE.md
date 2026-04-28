@@ -1,34 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.3
-milestone_name: MCP Server
-status: executing
-stopped_at: Roadmap created for v2.3 MCP Server (3 phases, 12 requirements)
-last_updated: "2026-04-09T14:44:24.925Z"
-last_activity: 2026-04-09
+milestone: v2.4
+milestone_name: Explore + Remix
+status: planning
+stopped_at: Roadmap created for v2.4 Explore + Remix (5 phases, 38 requirements)
+last_updated: "2026-04-27T01:50:00.000Z"
+last_activity: 2026-04-27
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 8
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-09)
+See: .planning/PROJECT.md (updated 2026-04-27)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 28 — stdio Package & Documentation
+**Current focus:** Phase 29 — Schema, RPCs & Hero Storage (v2.4 Explore + Remix)
 
 ## Current Position
 
-Phase: 28
+Phase: 29
 Plan: Not started
-Status: Executing Phase 28
-Last activity: 2026-04-09
+Status: Roadmap ready — awaiting `/gsd-plan-phase 29`
+Last activity: 2026-04-27
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -83,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-27 - Completed quick task 260427-nxd: Usernames + public.profiles + onboarding gate (migration pending `supabase db push`)
-Stopped at: Roadmap created for v2.3 MCP Server (3 phases, 12 requirements)
+Last activity: 2026-04-27 - Roadmap created for v2.4 Explore + Remix (5 phases, 38 requirements)
+Stopped at: Awaiting `/gsd-plan-phase 29` to begin v2.4 execution
 Resume file: None

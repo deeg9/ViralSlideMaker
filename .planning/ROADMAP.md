@@ -9,7 +9,8 @@
 - v2.0 API & MCP Platform - Phases 15-18 (shipped 2026-04-07)
 - v2.1 Text Effects - Phases 19-21 (shipped 2026-04-07)
 - v2.2 Public REST API - Phases 22-25 (shipped 2026-04-09)
-- v2.3 MCP Server - Phases 26-28 (in progress)
+- v2.3 MCP Server - Phases 26-28 (shipped 2026-04-09)
+- v2.4 Explore + Remix - Phases 29-33 (planned)
 
 ## Phases
 
@@ -493,10 +494,105 @@ Plans:
 Plans:
 - [ ] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
 
+---
+
+## v2.4 Explore + Remix (Phases 29-33) — PLANNED 2026-04-27
+
+Community publishing + v0.dev-style fork-and-save. Built on `public.profiles` (shipped 2026-04-27). Architecture grounded in `.planning/research/explore-remix.md`.
+
+### Phase 29: Schema, RPCs & Hero Storage
+**Goal**: All Explore data structures exist in Postgres with RLS, the publish/fork/unpublish RPCs work atomically, and the `hero-thumbnails` storage bucket is provisioned — verifiable end-to-end via SQL alone with no UI yet.
+**Depends on**: 260427-nxd (profiles table, shipped as a quick task)
+**Requirements**: SCHEMA-01, SCHEMA-02, SCHEMA-03, SCHEMA-04, SCHEMA-05, SCHEMA-06, SCHEMA-07, MOD-01, MOD-02
+**Success Criteria** (what must be TRUE):
+  1. `published_carousels`, `bookmarks`, `carousel_events` tables exist with RLS policies enforcing public-read / owner-write semantics
+  2. `publish_carousel(...)` RPC validates ownership, generates a unique slug, snapshots `slide_data`, and inserts a published row
+  3. `fork_published_carousel(p_id)` RPC atomically deep-copies into a new private `projects` row owned by the caller and increments `remix_count`
+  4. `unpublish_carousel(p_id)` soft-deletes (sets `unpublished_at`) and the row stops appearing in feeds while preserving counters
+  5. `hero-thumbnails` public Supabase Storage bucket exists with per-user-folder write RLS
+  6. `is_hidden` and `is_featured` columns exist on `published_carousels` and admin can toggle them via Supabase Studio
+  7. `claim_username` reserved-word list verified to include `explore` and `bookmarks`
+**Plans**: 1-2 plans
+
+Plans:
+- [ ] 29-01-PLAN.md -- migration: tables, RLS, RPCs, hero-thumbnails bucket, username reserved-list patch
+
+### Phase 30: Publish Flow
+**Goal**: A user can click "Publish to Explore" inside the editor, confirm a title + tags in a modal, and end up with a public `/explore/[slug]` URL whose hero thumbnail and slide images render for anonymous viewers.
+**Depends on**: Phase 29
+**Requirements**: PUB-01, PUB-02, PUB-03, PUB-04, PUB-05, PUB-06, MOD-03
+**Success Criteria** (what must be TRUE):
+  1. "Publish to Explore" button appears in the slide editor for saved carousels and opens a modal collecting title (required), description (optional), tags (max 5)
+  2. On submit, server pre-renders slide 1 to PNG via existing Satori pipeline, uploads to `hero-thumbnails/${user_id}/${published_id}.png`, calls `publish_carousel` RPC, and redirects to `/explore/[slug]`
+  3. `slide_data` image references that point at private user buckets are re-issued or copied into a public location at publish time, so anonymous visitors to `/explore/[slug]` see all slides correctly
+  4. Tag input accepts free-form lowercase tags (server normalizes lower/trim/dedupe, max 24 chars each, ≤5 per carousel) stored as `text[]`
+  5. Tag denylist server-side rejects offensive submissions
+  6. Republish updates the `slide_data` snapshot and regenerates the hero thumbnail without changing the slug or counters
+  7. "Manage Published" view on the dashboard lets the user unpublish or republish each of their published carousels
+**Plans**: 2 plans
+
+Plans:
+- [ ] 30-01-PLAN.md -- publish modal UI + server action that calls publish_carousel + asset re-resolution
+- [ ] 30-02-PLAN.md -- hero pre-render to public bucket + Manage Published dashboard view
+
+### Phase 31: Explore Feed & Detail Page
+**Goal**: `/explore` shows a card grid of published carousels with Trending/New/Featured tabs, infinite-scroll pagination, and a public `/explore/[slug]` detail page where any visitor (signed-in or not) can see all slides and click Fork.
+**Depends on**: Phase 30
+**Requirements**: EXPL-01, EXPL-02, EXPL-03, EXPL-04, EXPL-06, EXPL-07, EXPL-08, FORK-01, FORK-02, FORK-03, FORK-04, FORK-05, PERF-01
+**Success Criteria** (what must be TRUE):
+  1. `/explore` lists carousels in a card grid (hero thumbnail, title, `@username`, bookmark count, remix count) with three tabs: Trending (default), New, Featured
+  2. `popularity_score` column refreshed every 10 minutes via `pg_cron` running an HN-style gravity formula; Trending tab orders by it
+  3. `/explore/[slug]` server-renders the full carousel as a public page with creator profile link, all slide thumbnails, Fork CTA, Bookmark toggle
+  4. Anonymous visitors can browse `/explore` and `/explore/[slug]`; clicking Fork or Bookmark while logged out routes to login
+  5. Authenticated users clicking Fork land on `/dashboard/projects/[new_id]/edit` with the fork RPC having atomically deep-copied `slide_data`, stripped `brand_kit_id`, re-resolved brand-kit references to the forker's own brand kit, and incremented `remix_count`
+  6. Forking does NOT consume credits
+  7. Infinite-scroll pagination uses cursor-based queries (`popularity_score, published_at` for Trending; `published_at` for New)
+  8. p95 feed query latency is <200ms with a 5,000-row seed dataset (`EXPLAIN ANALYZE` evidence in plan summary)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 31-01-PLAN.md -- /explore feed with tabs, cursor pagination, popularity_score pg_cron job
+- [ ] 31-02-PLAN.md -- /explore/[slug] detail page + Fork RPC integration + brand-kit re-resolution
+
+### Phase 32: Search & Tag Filters
+**Goal**: Users can find carousels via full-text search and tag filter chips on the Explore page; empty-search state surfaces popular tags as discovery prompts.
+**Depends on**: Phase 31
+**Requirements**: EXPL-05, SEARCH-01, SEARCH-02, SEARCH-03
+**Success Criteria** (what must be TRUE):
+  1. `published_carousels.search_vector` is a generated `tsvector` column over `title || description || tags || creator.username` with weights, indexed via GIN
+  2. Search box at top of `/explore` queries via `websearch_to_tsquery()` + `ts_rank` ordering, debounced 250ms client-side
+  3. Tag filter chips on `/explore` scope the feed to carousels containing the selected tag; multiple tags AND together
+  4. Empty-state for "no matches" surfaces the curated 12-tag pillset with friendly copy
+  5. Search query latency is <150ms p95 against the 5,000-row seed dataset
+**Plans**: 1 plan
+
+Plans:
+- [ ] 32-01-PLAN.md -- search_vector + GIN index + search UI + tag chip filters + empty-state pillset
+
+### Phase 33: Bookmarks, Counters & Polish
+**Goal**: Bookmarking works end-to-end across feed cards, the `/bookmarks` standalone page, and the detail page; the async view counter pipeline runs nightly without contention; small Trust & Safety polish items land.
+**Depends on**: Phase 32
+**Requirements**: BM-01, BM-02, BM-03, BM-04, PERF-02, PERF-03, DOC-01, DOC-02
+**Success Criteria** (what must be TRUE):
+  1. Bookmark toggle on every Explore card and detail page inserts/deletes a `public.bookmarks` row idempotently
+  2. `/bookmarks` page lists the user's bookmarks (most-recent first) with the same card UX as `/explore` plus a Fork CTA
+  3. The Bookmarks icon in the top nav (shipped in 260427-iun) is wired to `/bookmarks`
+  4. `bookmark_count` updates via direct trigger on `bookmarks` insert/delete
+  5. View tracking writes to `carousel_events` from the `/explore/[slug]` page; nightly `pg_cron` job aggregates events into `published_carousels.view_count`
+  6. Hero thumbnails stay under 200KB
+  7. PROJECT.md updated with v2.4 milestone summary; in-app docs page has a "How to publish" section
+**Plans**: 2 plans
+
+Plans:
+- [ ] 33-01-PLAN.md -- bookmarks table integration: toggle component, /bookmarks page, top nav wire-up, bookmark_count trigger
+- [ ] 33-02-PLAN.md -- carousel_events view tracking + nightly aggregation + thumbnail size cap + PROJECT.md + docs
+
+---
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 26 -> 27 -> 28
+Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -528,3 +624,8 @@ Phases execute in numeric order: 26 -> 27 -> 28
 | 26. MCP Transport & Auth | v2.3 | 1/1 | Complete    | 2026-04-09 |
 | 27. MCP Tools | v2.3 | 1/1 | Complete    | 2026-04-09 |
 | 28. stdio Package & Documentation | v2.3 | 1/1 | Complete    | 2026-04-09 |
+| 29. Schema, RPCs & Hero Storage | v2.4 | 0/1 | Not started | - |
+| 30. Publish Flow | v2.4 | 0/2 | Not started | - |
+| 31. Explore Feed & Detail Page | v2.4 | 0/2 | Not started | - |
+| 32. Search & Tag Filters | v2.4 | 0/1 | Not started | - |
+| 33. Bookmarks, Counters & Polish | v2.4 | 0/2 | Not started | - |
