@@ -314,13 +314,29 @@ export const openApiSpec = {
       },
       SlidePatch: {
         type: 'object' as const,
-        description: 'At least one field must be provided',
+        description: 'At least one field must be provided. Unrecognized fields are dropped server-side. style_overrides is deep-merged into the existing object; arrays (custom_texts, custom_images) replace wholesale.',
         properties: {
           hook_text: { type: 'string' as const },
           body_text: { type: 'string' as const },
+          hook_segments: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/TextSegment' },
+          },
+          body_segments: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/TextSegment' },
+          },
           image_query: { type: 'string' as const },
           background_url: { type: 'string' as const, format: 'uri', description: 'Must use https://' },
           style_overrides: { $ref: '#/components/schemas/StyleOverrides' },
+          custom_texts: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/CustomText' },
+          },
+          custom_images: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/CustomImage' },
+          },
         },
       },
     },
@@ -508,6 +524,51 @@ export const openApiSpec = {
           ...commonErrorResponses,
         },
       },
+      patch: {
+        operationId: 'updateProject',
+        summary: 'Update project metadata',
+        description: 'Updates `title`, `description`, and/or `template_id`. Other fields are immutable via this endpoint — use the slide endpoints to modify slide_data.',
+        tags: ['Projects'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                description: 'At least one field must be provided',
+                properties: {
+                  title: { type: 'string' as const, minLength: 1, maxLength: 200 },
+                  description: { type: ['string', 'null'] as const },
+                  template_id: { type: ['string', 'null'] as const },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Updated project',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: { data: { $ref: '#/components/schemas/Project' } },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          '404': {
+            description: 'Project not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
       delete: {
         operationId: 'deleteProject',
         summary: 'Delete a project',
@@ -532,6 +593,135 @@ export const openApiSpec = {
                 },
               },
             },
+          },
+          '404': {
+            description: 'Project not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/projects/{id}/slides': {
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' as const, format: 'uuid' },
+          description: 'Project ID',
+        },
+      ],
+      post: {
+        operationId: 'addSlide',
+        summary: 'Add a new slide',
+        description: 'Appends a slide by default. Provide an optional `position` (0-based, ≤ current count) to insert at index. Optional `slide` body to seed initial fields; otherwise a blank slide is created. Hard cap of 20 slides per project.',
+        tags: ['Slides'],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                properties: {
+                  position: { type: 'integer' as const, minimum: 0, description: 'Insertion index. Default = end of array.' },
+                  slide: { $ref: '#/components/schemas/Slide' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Slide added',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        slide: { $ref: '#/components/schemas/Slide' },
+                        position: { type: 'integer' as const },
+                        slideCount: { type: 'integer' as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error (max slide cap, invalid position)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          '404': {
+            description: 'Project not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/projects/{id}/slides/reorder': {
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' as const, format: 'uuid' },
+          description: 'Project ID',
+        },
+      ],
+      post: {
+        operationId: 'reorderSlides',
+        summary: 'Reorder slides',
+        description: 'Body `{ order: number[] }` is a full permutation of the current slide indices (0..N-1, each appearing exactly once). Length must equal current slide count.',
+        tags: ['Slides'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                required: ['order'],
+                properties: {
+                  order: {
+                    type: 'array' as const,
+                    items: { type: 'integer' as const, minimum: 0 },
+                    description: 'Permutation of 0..N-1',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Slides reordered',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        slideCount: { type: 'integer' as const },
+                        order: { type: 'array' as const, items: { type: 'integer' as const } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'order is not a valid permutation',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
           },
           '404': {
             description: 'Project not found',
@@ -620,6 +810,43 @@ export const openApiSpec = {
           },
           '400': {
             description: 'Validation error',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          '404': {
+            description: 'Project or slide not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+      delete: {
+        operationId: 'deleteSlide',
+        summary: 'Delete a slide',
+        description: 'Removes the slide at the given index and shifts subsequent indices down. Rejects when the project has only 1 slide remaining (delete the project instead).',
+        tags: ['Slides'],
+        responses: {
+          '200': {
+            description: 'Slide deleted',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        deleted: { type: 'boolean' as const },
+                        slideCount: { type: 'integer' as const, description: 'New slide count after deletion' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Cannot delete the last remaining slide',
             content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
           },
           '404': {

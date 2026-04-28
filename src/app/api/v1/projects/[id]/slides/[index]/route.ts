@@ -38,7 +38,17 @@ export const GET = withApiAuth(async (req, ctx) => {
   return apiSuccess({ data: slide_data[slideIndex] })
 })
 
-const ALLOWED_PATCH_FIELDS = ['hook_text', 'body_text', 'image_query', 'background_url', 'style_overrides'] as const
+const ALLOWED_PATCH_FIELDS = [
+  'hook_text',
+  'body_text',
+  'hook_segments',
+  'body_segments',
+  'image_query',
+  'background_url',
+  'style_overrides',
+  'custom_texts',
+  'custom_images',
+] as const
 
 export const PATCH = withApiAuth(async (req, ctx) => {
   const { id, indexStr } = extractParams(req)
@@ -68,7 +78,7 @@ export const PATCH = withApiAuth(async (req, ctx) => {
   }
 
   if (Object.keys(patchFields).length === 0) {
-    return apiError('VALIDATION_ERROR', 'At least one field must be provided: hook_text, body_text, image_query, background_url, style_overrides', 400)
+    return apiError('VALIDATION_ERROR', `At least one field must be provided: ${ALLOWED_PATCH_FIELDS.join(', ')}`, 400)
   }
 
   // Validate background_url starts with https:// (T-25-02)
@@ -113,4 +123,42 @@ export const PATCH = withApiAuth(async (req, ctx) => {
   await updateProjectService(ctx.supabase, ctx.userId, id, { slide_data: updatedArray })
 
   return apiSuccess({ data: updatedSlide })
+})
+
+export const DELETE = withApiAuth(async (req, ctx) => {
+  const { id, indexStr } = extractParams(req)
+
+  if (!id || id.length === 0) {
+    return apiError('NOT_FOUND', 'Project not found', 404)
+  }
+
+  const slideIndex = parseInt(indexStr, 10)
+  if (isNaN(slideIndex) || slideIndex < 0) {
+    return apiError('VALIDATION_ERROR', 'Invalid slide index', 400)
+  }
+
+  let project
+  try {
+    project = await getProject(ctx.supabase, ctx.userId, id)
+  } catch {
+    return apiError('NOT_FOUND', 'Project not found', 404)
+  }
+
+  const slideData = (project.slide_data as unknown[] | null) ?? []
+  if (slideIndex >= slideData.length) {
+    return apiError('NOT_FOUND', 'Slide not found', 404)
+  }
+
+  if (slideData.length <= 1) {
+    return apiError(
+      'VALIDATION_ERROR',
+      'Cannot delete the last slide; a project must have at least 1 slide. Delete the project instead.',
+      400,
+    )
+  }
+
+  const updatedArray = slideData.filter((_, i) => i !== slideIndex)
+  await updateProjectService(ctx.supabase, ctx.userId, id, { slide_data: updatedArray })
+
+  return apiSuccess({ data: { deleted: true, slideCount: updatedArray.length } })
 })
