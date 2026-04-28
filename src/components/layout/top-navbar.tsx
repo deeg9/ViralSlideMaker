@@ -17,7 +17,6 @@ const navItems = [
   { key: 'dashboard', icon: 'dashboard',     label: 'Dashboard', href: '/dashboard' },
   { key: 'create',    icon: 'add_circle',    label: 'Create',    href: '/dashboard?new=1' },
   { key: 'explore',   icon: 'explore',       label: 'Explore',   href: '/explore' },
-  { key: 'bookmarks', icon: 'bookmark',      label: 'Bookmarks', href: '/bookmarks' },
 ] as const
 
 function Logo({ size = 32 }: { size?: number }) {
