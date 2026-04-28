@@ -70,7 +70,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto pt-4">
+    <div className="max-w-3xl mx-auto pt-4 px-4 pb-32 md:pb-12">
       {/* Generating state */}
       {p.generation_status === 'generating' && (
         <div className="rounded-xl bg-[#fff0f0] border border-[#dbc1bc]/20 p-8 text-center mb-8">
