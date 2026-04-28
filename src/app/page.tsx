@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TopNavbar } from '@/components/layout/top-navbar'
@@ -97,13 +98,13 @@ export default async function Home() {
               </div>
             </div>
 
-            <a href="/signup" className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-bold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.15)] hover:opacity-95 transition-all active:scale-[0.98]">
+            <Link href="/signup" className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-bold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.15)] hover:opacity-95 transition-all active:scale-[0.98]">
               Generate Carousel
               <Icon name="auto_awesome" />
-            </a>
+            </Link>
             <p className="text-xs text-[#7d6161] text-center mt-3 flex items-center justify-center gap-1">
               <Icon name="info" size="sm" className="text-[#dbc1bc]" />
-              By clicking Generate Carousel, you agree to our <a href="/terms" className="underline hover:text-[#3d0000]">Terms of Service</a>.
+              By clicking Generate Carousel, you agree to our <Link href="/terms" className="underline hover:text-[#3d0000]">Terms of Service</Link>.
             </p>
           </div>
 

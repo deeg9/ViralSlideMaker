@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect, useTransition } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
@@ -187,9 +188,9 @@ export function AIGenerateTab({
       {status === 'insufficient-credits' && (
         <div role="status" className="text-xs text-[#7d6161]">
           Not enough credits.{' '}
-          <a href="/settings/subscription" className="underline text-[#3d0000] font-medium">
+          <Link href="/settings/subscription" className="underline text-[#3d0000] font-medium">
             Buy more credits
-          </a>
+          </Link>
         </div>
       )}
 
