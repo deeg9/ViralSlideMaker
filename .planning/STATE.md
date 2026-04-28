@@ -4,8 +4,8 @@ milestone: v2.4
 milestone_name: Explore + Remix
 status: complete
 stopped_at: v2.4 Explore + Remix shipped autonomously (5 phases, 38 requirements closed)
-last_updated: "2026-04-27T02:30:00.000Z"
-last_activity: 2026-04-27
+last_updated: "2026-04-28T07:15:00.000Z"
+last_activity: 2026-04-28
 progress:
   total_phases: 5
   completed_phases: 5
@@ -84,9 +84,10 @@ None yet.
 | 260427-w8d | Manage Published dashboard section (View/Unpublish/Delete buttons per published carousel, dimmed HIDDEN state on unpublished rows) + welcome heading reads from public.profiles.display_name. Closes the two v2.4 polish gaps surfaced post-ship | 2026-04-27 | da54996 | [260427-w8d-manage-published-dashboard-section-displ](./quick/260427-w8d-manage-published-dashboard-section-displ/) |
 | 260427-wmg | Top nav now renders on /explore + /explore/[slug] via new explore/layout.tsx (anonymous-friendly via TopNavbar signedIn prop). Bookmarks moved out of the global nav icon row and into the profile dropdown above Settings | 2026-04-27 | 19ee645 | [260427-wmg-top-nav-on-explore-bookmarks-pages-anony](./quick/260427-wmg-top-nav-on-explore-bookmarks-pages-anony/) |
 | 260427-x29 | /explore polish — removed #hashtag pillset row, replaced Trending/New/Featured tab strip with a filter dropdown right of the search bar, removed redundant 'Back to dashboard' link. Added dev-only /api/admin/seed-explore POST/DELETE route (gated by ADMIN_SEED_TOKEN); seeded 12 mock carousels for @diego, one per built-in template, with hand-crafted slides + Pexels backgrounds | 2026-04-28 | 5fe9e34 | [260427-x29-explore-polish-no-tag-chips-filter-dropd](./quick/260427-x29-explore-polish-no-tag-chips-filter-dropd/) |
+| 260428-pfp | Public profile page at /[username] — closes the broken /diego byline link from /explore/[slug]. Server component renders profile header (avatar, display name, @handle, bio, joined month, website + tiktok/instagram/x/youtube social-link chips) and a grid of the user's public published carousels. "Edit profile" CTA on own profile only; empty-state card with "Create a carousel" CTA when none. notFound() on unknown username; reserved-usernames list already shields top-level static routes from being shadowed | 2026-04-28 | 6e66d14 | [260428-pfp-public-profile-page-username-route](./quick/260428-pfp-public-profile-page-username-route/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - Completed quick task 260427-x29: /explore polish + 12 mock carousels seeded for @diego
-Stopped at: v2.4 Explore + Remix fully populated demo-ready
+Last activity: 2026-04-28 - Completed quick task 260428-pfp: public profile page at /[username]
+Stopped at: v2.4 Explore + Remix fully populated demo-ready (profile route closed the byline 404)
 Resume file: None
