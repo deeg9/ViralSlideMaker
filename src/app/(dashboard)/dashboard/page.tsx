@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { ProjectList } from '@/components/projects/project-list'
-import { PublishedList, type PublishedCarouselRow } from '@/components/dashboard/published-list'
+import type { ProjectPublishedState } from '@/components/projects/project-card'
 import { Icon } from '@/components/ui/icon'
 import { getCreditBalance, getUserTier, checkProjectLimit } from '@/lib/credits/check-credits'
 import { TIER_CREDITS } from '@/lib/credits/types'
@@ -31,11 +31,26 @@ export default async function DashboardPage() {
   const { data: publishedRows } = user
     ? await supabase
         .from('published_carousels')
-        .select('id, slug, title, hero_image_url, bookmark_count, remix_count, unpublished_at')
+        .select('id, slug, tags, source_project_id')
         .eq('owner_id', user.id)
+        .is('unpublished_at', null)
         .order('published_at', { ascending: false })
     : { data: [] }
-  const published = (publishedRows as PublishedCarouselRow[] | null) ?? []
+  const publishedByProjectId: Record<string, ProjectPublishedState> = {}
+  for (const row of (publishedRows as Array<{
+    id: string
+    slug: string
+    tags: string[] | null
+    source_project_id: string | null
+  }> | null) ?? []) {
+    if (!row.source_project_id) continue
+    if (publishedByProjectId[row.source_project_id]) continue
+    publishedByProjectId[row.source_project_id] = {
+      publishedId: row.id,
+      slug: row.slug,
+      tags: row.tags ?? [],
+    }
+  }
 
   // Ensure subscription exists (bootstraps free tier if needed)
   if (user) await ensureSubscription(user.id)
@@ -94,11 +109,8 @@ export default async function DashboardPage() {
         <UpgradePrompt context="project_limit" />
       )}
 
-      {/* Published to Explore */}
-      <PublishedList rows={published} />
-
       {/* Recent Carousels */}
-      <ProjectList projects={projectList} />
+      <ProjectList projects={projectList} publishedByProjectId={publishedByProjectId} />
     </div>
   )
 }

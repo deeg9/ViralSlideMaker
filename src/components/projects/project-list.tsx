@@ -1,14 +1,15 @@
 import { CreateProjectDialog } from './create-project-dialog'
-import { ProjectCard } from './project-card'
+import { ProjectCard, type ProjectPublishedState } from './project-card'
 import { Icon } from '@/components/ui/icon'
 import type { Project } from '@/lib/types/project'
 
 interface ProjectListProps {
   projects: Project[]
   showCreateOnly?: boolean
+  publishedByProjectId?: Record<string, ProjectPublishedState>
 }
 
-export function ProjectList({ projects, showCreateOnly }: ProjectListProps) {
+export function ProjectList({ projects, showCreateOnly, publishedByProjectId }: ProjectListProps) {
   if (showCreateOnly) {
     return <CreateProjectDialog />
   }
@@ -41,7 +42,11 @@ export function ProjectList({ projects, showCreateOnly }: ProjectListProps) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
           {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              publishedState={publishedByProjectId?.[project.id] ?? null}
+            />
           ))}
           {/* Start Fresh card */}
           <CreateProjectDialog asPlaceholderCard />

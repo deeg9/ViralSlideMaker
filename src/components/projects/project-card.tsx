@@ -4,8 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { deleteProject } from '@/app/(dashboard)/dashboard/actions'
+import { EditVisibilityModal } from './edit-visibility-modal'
 import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
+
+export interface ProjectPublishedState {
+  publishedId: string
+  slug: string
+  tags: string[]
+}
 
 function relativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -22,13 +29,16 @@ function relativeTime(dateStr: string): string {
 
 interface ProjectCardProps {
   project: Project
+  publishedState?: ProjectPublishedState | null
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, publishedState }: ProjectCardProps) {
   const router = useRouter()
   const slides = (project.slide_data ?? []) as Slide[]
   const [menuOpen, setMenuOpen] = useState(false)
+  const [visibilityModalOpen, setVisibilityModalOpen] = useState(false)
   const menuWrapperRef = useRef<HTMLDivElement>(null)
+  const isPublic = !!publishedState
 
   function handleCardClick() {
     router.push(`/project/${project.id}`)
@@ -61,7 +71,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
     await deleteProject(project.id)
   }
 
+  function handleEditVisibility(e: React.MouseEvent) {
+    e.stopPropagation()
+    setMenuOpen(false)
+    setVisibilityModalOpen(true)
+  }
+
   return (
+    <>
     <div className="group cursor-pointer" onClick={handleCardClick}>
       <div className="aspect-[9/16] bg-[#fadbdb] rounded-xl overflow-hidden relative mb-4 transition-all duration-300 group-hover:scale-[1.02]">
         {slides[0]?.background_url ? (
@@ -98,8 +115,16 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <div
               role="menu"
               onClick={(e) => e.stopPropagation()}
-              className="absolute top-full right-0 mt-1 min-w-[120px] bg-white rounded-lg shadow-lg ring-1 ring-black/5 py-1 z-20"
+              className="absolute top-full right-0 mt-1 min-w-[160px] bg-white rounded-lg shadow-lg ring-1 ring-black/5 py-1 z-20"
             >
+              <button
+                role="menuitem"
+                onClick={handleEditVisibility}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-[#3d0000] hover:bg-[#fff0f0] transition-colors"
+              >
+                <Icon name="visibility" size="sm" />
+                Edit visibility
+              </button>
               <button
                 role="menuitem"
                 onClick={handleDelete}
@@ -111,6 +136,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </div>
           )}
         </div>
+        {isPublic && (
+          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#3d0000] text-white text-[0.625rem] font-bold uppercase tracking-wider">
+            Public
+          </span>
+        )}
       </div>
       <h3 className="text-sm font-semibold text-[#3d0000] truncate">{project.title}</h3>
       <div className="flex items-center gap-2 mt-1">
@@ -123,5 +153,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </span>
       </div>
     </div>
+    <EditVisibilityModal
+      open={visibilityModalOpen}
+      onClose={() => setVisibilityModalOpen(false)}
+      projectId={project.id}
+      defaultTitle={project.title}
+      initialVisibility={isPublic ? 'public' : 'private'}
+      initialTags={publishedState?.tags ?? []}
+    />
+    </>
   )
 }
