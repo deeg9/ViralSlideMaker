@@ -154,7 +154,9 @@ export default function ProfilePage() {
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={handleAvatarChange}
-              className="hidden"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             />
             <button
               type="button"
