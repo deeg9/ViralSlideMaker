@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
+import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
+import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
 import { Icon } from '@/components/ui/icon'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
@@ -13,6 +15,7 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 export type ImageSource = 'stock' | 'ai'
 
 const FREE_TIER_MAX_SLIDES = 3
+const MAX_UPLOADS = 20
 
 interface GenerationFormProps {
   projectId: string
@@ -44,6 +47,9 @@ export function GenerationForm({
   const [advancedFont, setAdvancedFont] = useState<string>('')
   const [advancedFontColor, setAdvancedFontColor] = useState<string>('')
   const [advancedImagePrompt, setAdvancedImagePrompt] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   const fontsByCategory = useMemo(() => {
@@ -55,6 +61,61 @@ export function GenerationForm({
     return groups
   }, [])
 
+  const previewUrls = useMemo(
+    () => selectedFiles.map((f) => URL.createObjectURL(f)),
+    [selectedFiles]
+  )
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach(URL.revokeObjectURL)
+    }
+  }, [previewUrls])
+
+  const busy = isPending || uploading
+
+  function handleFilesPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? [])
+    if (picked.length === 0) return
+
+    const valid: File[] = []
+    let firstError: string | null = null
+    for (const file of picked) {
+      const err = validateImageFile(file)
+      if (err) {
+        if (!firstError) firstError = err
+        continue
+      }
+      valid.push(file)
+    }
+
+    if (firstError) setError(firstError)
+    else setError(null)
+
+    if (valid.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...valid].slice(0, MAX_UPLOADS))
+    }
+    e.target.value = ''
+  }
+
+  function removeFile(idx: number) {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  async function uploadAll(files: File[]): Promise<string[]> {
+    const urls: string[] = []
+    for (const file of files) {
+      const { signedUrl, publicUrl } = await createUploadUrl(projectId, file.name)
+      const res = await fetch(signedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      })
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+      urls.push(publicUrl)
+    }
+    return urls
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!topic.trim()) return
@@ -62,12 +123,34 @@ export function GenerationForm({
     setError(null)
     setShowUpgradePrompt(false)
     const effectiveSlideCount = isPaidUser ? slideCount : Math.min(slideCount, FREE_TIER_MAX_SLIDES)
+
     startTransition(async () => {
-      const result = await generateCarousel(projectId, topic.trim(), templateId, imageSource, effectiveSlideCount, {
-        font: advancedFont || undefined,
-        fontColor: advancedFontColor || undefined,
-        imagePrompt: advancedImagePrompt || undefined,
-      })
+      let uploadedImageUrls: string[] = []
+      if (selectedFiles.length > 0) {
+        try {
+          setUploading(true)
+          uploadedImageUrls = await uploadAll(selectedFiles)
+        } catch (err) {
+          setError((err as Error).message || 'Upload failed. Please try again.')
+          setUploading(false)
+          return
+        }
+        setUploading(false)
+      }
+
+      const result = await generateCarousel(
+        projectId,
+        topic.trim(),
+        templateId,
+        imageSource,
+        effectiveSlideCount,
+        {
+          font: advancedFont || undefined,
+          fontColor: advancedFontColor || undefined,
+          imagePrompt: advancedImagePrompt || undefined,
+          uploadedImageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
+        }
+      )
       if (!result.success) {
         setError(result.error)
         if ('upgradeEligible' in result && result.upgradeEligible) {
@@ -83,24 +166,96 @@ export function GenerationForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       {/* Textarea */}
       <div>
-        <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-3 ml-1">
-          Presentation Prompt
-        </label>
+        <div className="flex items-end justify-between mb-3 ml-1 mr-1">
+          <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]">
+            Presentation Prompt
+          </label>
+          <div className="flex items-center gap-1.5 text-[#dbc1bc]">
+            <Icon name="auto_awesome" size="sm" />
+            <span className="text-[10px] font-medium uppercase tracking-wider">AI Assisted</span>
+          </div>
+        </div>
         <div className="relative">
           <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="e.g. 5 tips for growing your Instagram following, benefits of morning routines, how to start investing..."
             rows={6}
-            disabled={isPending}
+            disabled={busy}
             maxLength={500}
-            className="w-full bg-white p-6 rounded-xl border-b-2 border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 transition-all text-lg resize-none placeholder:text-[#dbc1bc] disabled:opacity-50"
+            className="w-full bg-white pt-6 px-6 pb-16 rounded-xl border-b-2 border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 transition-all text-lg resize-none placeholder:text-[#dbc1bc] disabled:opacity-50"
           />
-          <div className="absolute bottom-4 right-4 flex items-center gap-2 text-[#dbc1bc]">
-            <Icon name="auto_awesome" size="sm" />
-            <span className="text-xs font-medium">AI Assisted</span>
+
+          {/* Bottom action row inside textarea container */}
+          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={busy || selectedFiles.length >= MAX_UPLOADS}
+              className="pointer-events-auto flex items-center gap-1 px-2 py-2 rounded-lg hover:bg-[#fff0f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Attach photos for the slideshow"
+              title="Attach photos for the slideshow"
+            >
+              <Icon name="attach_file" size="lg" className="text-[#7d6161] -rotate-45" />
+              {selectedFiles.length > 0 && (
+                <span className="text-xs font-semibold text-[#3d0000]">
+                  {selectedFiles.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="submit"
+              disabled={busy || !topic.trim()}
+              className="pointer-events-auto w-10 h-10 rounded-full bg-white border-2 border-[#3d0000] flex items-center justify-center hover:bg-[#3d0000] hover:text-white text-[#3d0000] transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-white disabled:text-[#3d0000]"
+              aria-label="Generate carousel"
+              title="Generate carousel"
+            >
+              <Icon name="arrow_upward" size="md" />
+            </button>
           </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            multiple
+            onChange={handleFilesPicked}
+            className="hidden"
+          />
         </div>
+
+        {/* Selected photos thumbnail strip */}
+        {selectedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3 ml-1">
+            {selectedFiles.map((file, idx) => (
+              <div
+                key={`${file.name}-${idx}`}
+                className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#dbc1bc]/40 bg-[#fff0f0]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrls[idx]}
+                  alt={file.name}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFile(idx)}
+                  disabled={busy}
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center hover:bg-black/90 disabled:opacity-50"
+                  aria-label={`Remove ${file.name}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <p className="basis-full text-[10px] text-[#7d6161] mt-1">
+              These photos will be used as backgrounds for your first {Math.min(selectedFiles.length, slideCount)} slide
+              {Math.min(selectedFiles.length, slideCount) === 1 ? '' : 's'}.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Template Picker */}
@@ -313,16 +468,20 @@ export function GenerationForm({
       <div className="flex flex-col items-center gap-6">
         <button
           type="submit"
-          disabled={isPending || !topic.trim()}
+          disabled={busy || !topic.trim()}
           className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-semibold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.1)] hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isPending ? (
+          {busy ? (
             <>
               <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              {imageSource === 'ai' ? 'Generating with AI images (~30s)...' : 'Generating slides...'}
+              {uploading
+                ? `Uploading ${selectedFiles.length} photo${selectedFiles.length === 1 ? '' : 's'}...`
+                : imageSource === 'ai'
+                  ? 'Generating with AI images (~30s)...'
+                  : 'Generating slides...'}
             </>
           ) : (
             <>

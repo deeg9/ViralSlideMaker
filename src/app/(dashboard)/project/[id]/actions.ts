@@ -21,7 +21,7 @@ export async function generateCarousel(
   templateId: string,
   imageSource: 'stock' | 'ai' = 'stock',
   slideCount: number = 7,
-  advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string }
+  advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string; uploadedImageUrls?: string[] }
 ): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
   const supabase = await createClient()
 
@@ -144,6 +144,16 @@ export async function generateCarousel(
             pexels_photo_id: photos[0]?.id ?? null,
           }
         })
+      )
+    }
+
+    // 2a-bis. User-uploaded photos override the first N slide backgrounds.
+    const uploaded = advancedOptions?.uploadedImageUrls?.filter((u): u is string => typeof u === 'string' && u.length > 0) ?? []
+    if (uploaded.length > 0) {
+      slides = slides.map((slide, idx) =>
+        idx < uploaded.length
+          ? { ...slide, background_url: uploaded[idx], pexels_photo_id: null }
+          : slide
       )
     }
 
