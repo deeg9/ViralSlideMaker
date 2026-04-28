@@ -62,7 +62,7 @@ const plans = [
 export default async function SubscriptionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; canceled?: string; credits?: string }>
+  searchParams: Promise<{ success?: string; canceled?: string; credits?: string; error?: string }>
 }) {
   const params = await searchParams
 
@@ -110,6 +110,11 @@ export default async function SubscriptionPage({
       {params.credits === 'true' && (
         <div className="mb-6 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
           Credits purchased! Your balance will update shortly.
+        </div>
+      )}
+      {params.error === 'upgrade_required' && (
+        <div className="mb-6 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-700">
+          Upgrade to Plus or Pro to buy extra credits.
         </div>
       )}
 
@@ -227,16 +232,25 @@ export default async function SubscriptionPage({
             <h3 className="text-lg font-semibold text-[#3d0000]">Need more credits?</h3>
             <p className="text-sm text-[#7d6161] mt-1">Get 10 extra credits for $4.99</p>
             <p className="text-xs text-[#7d6161] mt-1">Current balance: <span className="font-semibold text-[#3d0000]">{balance} credits</span></p>
+            {tier === 'free' && (
+              <p className="text-xs font-semibold text-[#3d0000] mt-2">Available on Plus and Pro plans</p>
+            )}
             <p className="text-xs text-[#7d6161]/70 mt-2">1 credit = carousel generation &middot; 1 credit per AI image &middot; Text &amp; stock image regen = free</p>
           </div>
-          <form action={createCreditPackCheckout}>
-            <button
-              type="submit"
-              className="bg-[#3d0000] text-white px-6 py-3 rounded-xl font-medium text-sm transition-all hover:bg-[#3d0000]/90 active:scale-95 whitespace-nowrap"
-            >
-              Buy Credits
-            </button>
-          </form>
+          {tier === 'free' ? (
+            <span className="inline-flex items-center justify-center bg-[#fadbdb] text-[#3d0000] px-6 py-3 rounded-xl font-medium text-sm whitespace-nowrap cursor-default">
+              Upgrade to buy credits
+            </span>
+          ) : (
+            <form action={createCreditPackCheckout}>
+              <button
+                type="submit"
+                className="bg-[#3d0000] text-white px-6 py-3 rounded-xl font-medium text-sm transition-all hover:bg-[#3d0000]/90 active:scale-95 whitespace-nowrap"
+              >
+                Buy Credits
+              </button>
+            </form>
+          )}
         </div>
       </div>
 

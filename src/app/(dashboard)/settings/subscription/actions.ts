@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripeServer } from '@/lib/stripe/client'
 import { STRIPE_PRICES } from '@/lib/stripe/config'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
+import { getUserTier } from '@/lib/credits/check-credits'
 
 async function getAppUrl(): Promise<string> {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -128,9 +129,15 @@ export async function createPortalSession() {
 
 export async function createCreditPackCheckout() {
   const user = await getAuthenticatedUser()
+  const appUrl = await getAppUrl()
+
+  const tier = await getUserTier(user.id)
+  if (tier === 'free') {
+    redirect(`${appUrl}/settings/subscription?error=upgrade_required`)
+  }
+
   const customerId = await getOrCreateStripeCustomer(user.id, user.email ?? '')
   const stripe = getStripeServer()
-  const appUrl = await getAppUrl()
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
