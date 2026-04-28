@@ -176,3 +176,62 @@ export async function unpublishCarousel(
   revalidatePath('/explore')
   return { success: true }
 }
+
+// Pulls the storage path out of a Supabase public URL.
+// Public URLs look like: <project>.supabase.co/storage/v1/object/public/<bucket>/<path>
+// Returns null if the URL doesn't match the expected bucket prefix.
+function extractStoragePath(publicUrl: string | null, bucket: string): string | null {
+  if (!publicUrl) return null
+  const marker = `/object/public/${bucket}/`
+  const idx = publicUrl.indexOf(marker)
+  if (idx === -1) return null
+  const path = publicUrl.slice(idx + marker.length).split('?')[0]
+  return path || null
+}
+
+export async function deletePublishedCarousel(
+  publishedId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const { data: row, error: readErr } = await supabase
+    .from('published_carousels')
+    .select('hero_image_url, owner_id, slug')
+    .eq('id', publishedId)
+    .maybeSingle()
+  if (readErr) return { success: false, error: readErr.message }
+  if (!row) return { success: false, error: 'Published carousel not found' }
+  if (row.owner_id !== user.id) {
+    return { success: false, error: 'Not authorized to delete this carousel' }
+  }
+
+  const heroPath = extractStoragePath(row.hero_image_url as string | null, 'hero-thumbnails')
+
+  // Delete the row first — RLS validates ownership again as defense in depth.
+  // If this fails, nothing else changes.
+  const { error: deleteErr } = await supabase
+    .from('published_carousels')
+    .delete()
+    .eq('id', publishedId)
+  if (deleteErr) return { success: false, error: deleteErr.message }
+
+  // Best-effort storage cleanup. The row is already gone, so a missed file
+  // is at worst a small orphan — never a broken reference.
+  if (heroPath) {
+    const { error: storageErr } = await supabase.storage
+      .from('hero-thumbnails')
+      .remove([heroPath])
+    if (storageErr) {
+      console.error(
+        `[deletePublishedCarousel] Hero file orphaned for ${publishedId}: ${heroPath} (${storageErr.message})`,
+      )
+    }
+  }
+
+  revalidatePath('/explore')
+  revalidatePath(`/explore/${row.slug}`)
+  revalidatePath('/bookmarks')
+  return { success: true }
+}
