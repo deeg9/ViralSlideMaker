@@ -54,10 +54,7 @@ export function ApiKeyTable({ keys: initialKeys }: ApiKeyTableProps) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Icon name="key" size="xl" className="text-[#dbc1bc] mb-4 !text-5xl" />
-        <h2 className="text-lg font-bold text-[#3d0000] mb-2">No API keys yet</h2>
-        <p className="text-sm text-[#7d6161] mb-6 text-center max-w-xs">
-          Create an API key to start using the ViralSlideMaker API programmatically.
-        </p>
+        <h2 className="text-lg font-bold text-[#3d0000] mb-6">No API keys yet</h2>
         <CreateKeyDialog onKeyCreated={handleRefresh} />
       </div>
     )
