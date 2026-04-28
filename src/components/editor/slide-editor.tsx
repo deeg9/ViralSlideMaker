@@ -230,7 +230,7 @@ export function SlideEditor({
     <div className="flex flex-col bg-[#fff8f7] h-[calc(100vh-140px)] lg:h-[calc(100vh-80px)] overflow-hidden">
       {/* Three-panel layout -- no top toolbar */}
       <div
-        className="grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] flex-1 min-h-0 overflow-hidden gap-0 lg:gap-3 px-0 lg:px-2 py-0 lg:py-2"
+        className="grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] flex-1 min-h-0 overflow-hidden gap-0 lg:gap-3 px-0 lg:px-2 py-0 lg:py-2"
         data-testid="editor-grid"
       >
         {/* Left panel: Slide thumbnails + actions at bottom */}
