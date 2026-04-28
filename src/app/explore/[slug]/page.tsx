@@ -74,7 +74,7 @@ export default async function ExploreDetailPage({
     isBookmarked = !!bm
   }
 
-  const template = getTemplate('bold-minimal')
+  const template = getTemplate('highlight-bar')
   const ownerTier = await getUserTier(c.owner_id)
 
   return (

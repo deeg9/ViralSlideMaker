@@ -59,7 +59,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       <SlideEditor
         initialSlides={slides}
         projectId={p.id}
-        templateId={p.template_id ?? 'bold-minimal'}
+        templateId={p.template_id ?? 'highlight-bar'}
         topic={p.topic ?? ''}
         title={p.title}
         userTier={tier}

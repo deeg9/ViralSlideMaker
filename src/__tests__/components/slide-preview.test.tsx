@@ -15,7 +15,7 @@ const mockSlide: Slide = {
 
 describe('SlidePreview', () => {
   it('renders hook_text and body_text content', () => {
-    const template = getTemplate('bold-minimal')
+    const template = getTemplate('highlight-bar')
     render(<SlidePreview slide={mockSlide} template={template} index={0} />)
 
     expect(screen.getByText('Morning Routine Tips')).toBeInTheDocument()
@@ -23,7 +23,7 @@ describe('SlidePreview', () => {
   })
 
   it('applies template textColor and fontFamily as inline styles', () => {
-    const template = getTemplate('bold-minimal')
+    const template = getTemplate('highlight-bar')
     render(<SlidePreview slide={mockSlide} template={template} index={0} />)
 
     const hookEl = screen.getByText('Morning Routine Tips')

@@ -84,12 +84,12 @@ export async function GET(request: Request) {
   const brandKit = (brandKitRow as BrandKit) ?? null
 
   // When the project picked the brand-kit template, synthesize directly from
-  // the user's brand_kit row. Falls back to bold-minimal if the brand kit was
+  // the user's brand_kit row. Falls back to highlight-bar if the brand kit was
   // deleted after project save.
   const template =
     p.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
       ? synthesizeBrandKitTemplate(brandKit)
-      : getTemplate(p.template_id ?? 'bold-minimal')
+      : getTemplate(p.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   // Forced free-tier watermark: read project owner's tier (server is source of truth)

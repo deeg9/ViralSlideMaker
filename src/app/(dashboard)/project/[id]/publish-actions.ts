@@ -44,7 +44,7 @@ async function renderHero(
   const template =
     project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
       ? synthesizeBrandKitTemplate(brandKit)
-      : getTemplate(project.template_id ?? 'bold-minimal')
+      : getTemplate(project.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   const ownerTier = await getUserTier(project.user_id)

@@ -53,8 +53,8 @@ export function SlideEditor({
     useSlideEditor(initialSlides)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
   // Brand-kit template synthesizes from the user's brand_kit row at render time.
-  // Other template ids hit the static templates registry. Falls back to bold-minimal
-  // when brand-kit is selected but the brand kit was deleted.
+  // Other template ids hit the static templates registry. Falls back to the first
+  // registry entry when brand-kit is selected but the brand kit was deleted.
   const template =
     currentTemplateId === BRAND_KIT_TEMPLATE_ID && brandKit
       ? synthesizeBrandKitTemplate(brandKit)

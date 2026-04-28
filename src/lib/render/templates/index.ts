@@ -1,14 +1,7 @@
 import type { TextSegment } from '@/lib/types/slide'
-import { boldMinimal } from './bold-minimal'
-import { darkGradient } from './dark-gradient'
-import { softPastel } from './soft-pastel'
-import { neonPop } from './neon-pop'
-import { cleanSerif } from './clean-serif'
 import { newsDrop } from './news-drop'
 import { newsCyan } from './news-cyan'
 import { highlightBar } from './highlight-bar'
-import { magazine } from './magazine'
-import { quoteCard } from './quote-card'
 import { y2kPop } from './y2k-pop'
 import { boldYellow } from './bold-yellow'
 
@@ -42,17 +35,12 @@ export interface SlideTemplate {
   }
 }
 
+// highlight-bar leads the list so it serves as the default fallback for any
+// legacy template_id values from before the v2.5 trim.
 export const templates: SlideTemplate[] = [
-  boldMinimal,
-  darkGradient,
-  softPastel,
-  neonPop,
-  cleanSerif,
+  highlightBar,
   newsDrop,
   newsCyan,
-  highlightBar,
-  magazine,
-  quoteCard,
   y2kPop,
   boldYellow,
 ]

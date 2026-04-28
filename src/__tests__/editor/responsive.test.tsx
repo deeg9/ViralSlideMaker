@@ -26,8 +26,8 @@ vi.mock('@/components/editor/image-picker-panel', () => ({
 
 vi.mock('@/lib/render/templates/index', () => ({
   getTemplate: () => ({
-    id: 'bold-minimal',
-    name: 'Bold Minimal',
+    id: 'highlight-bar',
+    name: 'Highlight Bar',
     thumbnail: '',
     fontFamily: 'sans-serif',
     hookFontSize: '24px',
@@ -71,7 +71,7 @@ describe('SlideEditor responsive layout', () => {
       <SlideEditor
         initialSlides={initialSlides}
         projectId="proj-1"
-        templateId="bold-minimal"
+        templateId="highlight-bar"
         topic="test topic"
       />
     )
@@ -85,7 +85,7 @@ describe('SlideEditor responsive layout', () => {
       <SlideEditor
         initialSlides={initialSlides}
         projectId="proj-1"
-        templateId="bold-minimal"
+        templateId="highlight-bar"
         topic="test topic"
       />
     )
@@ -102,7 +102,7 @@ describe('SlideEditor responsive layout', () => {
       <SlideEditor
         initialSlides={initialSlides}
         projectId="proj-1"
-        templateId="bold-minimal"
+        templateId="highlight-bar"
         topic="test topic"
       />
     )

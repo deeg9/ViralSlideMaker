@@ -54,8 +54,8 @@ export function mergeWithBrandKit(
  * Used when project.template_id === BRAND_KIT_TEMPLATE_ID — the brand kit
  * IS the template, with neutral defaults filling any unset fields.
  *
- * Hook/body font sizes use the same defaults as bold-minimal (72/36 px) since
- * they are not part of the brand-kit data model in this iteration.
+ * Hook/body font sizes use neutral defaults (72/36 px) since they are not part
+ * of the brand-kit data model in this iteration.
  */
 export function synthesizeBrandKitTemplate(brandKit: BrandKit): SlideTemplate {
   const bodyFont = fontStack(brandKit.body_font_family ?? brandKit.font_family) ?? "'Inter', sans-serif"

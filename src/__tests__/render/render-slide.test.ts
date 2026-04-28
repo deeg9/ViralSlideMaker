@@ -14,7 +14,7 @@ const mockSlide: Slide = {
 
 describe('buildSlideHtml', () => {
   it('produces HTML containing width: 1080px and height: 1920px', () => {
-    const html = buildSlideHtml(mockSlide, getTemplate('bold-minimal'))
+    const html = buildSlideHtml(mockSlide, getTemplate('highlight-bar'))
     expect(html).toContain('width: 1080px')
     expect(html).toContain('height: 1920px')
   })

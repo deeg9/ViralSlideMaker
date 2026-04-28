@@ -48,7 +48,7 @@ function makeSlide(hook: string, body: string, image: string, isCta = false): Sl
 
 const SEED_ENTRIES: SeedEntry[] = [
   {
-    templateId: 'bold-minimal',
+    templateId: 'highlight-bar',
     title: '5 Habits That Saved My Mornings',
     description: 'Tiny tweaks I made over 30 days that doubled my deep work output.',
     tags: ['productivity', 'hooks', 'mindset'],
@@ -63,7 +63,7 @@ const SEED_ENTRIES: SeedEntry[] = [
     ],
   },
   {
-    templateId: 'dark-gradient',
+    templateId: 'news-drop',
     title: 'How I Sleep 8 Hours Every Night',
     description: 'The boring routine that beat my insomnia in 2 weeks.',
     tags: ['sleep', 'mindset', 'tutorial'],
@@ -77,7 +77,7 @@ const SEED_ENTRIES: SeedEntry[] = [
     ],
   },
   {
-    templateId: 'soft-pastel',
+    templateId: 'y2k-pop',
     title: 'A Beginner’s Guide to Investing $100',
     description: 'No jargon, no apps you don’t need. Just the basics.',
     tags: ['finance', 'tutorial'],
@@ -91,7 +91,7 @@ const SEED_ENTRIES: SeedEntry[] = [
     ],
   },
   {
-    templateId: 'neon-pop',
+    templateId: 'bold-yellow',
     title: 'POV: You Just Got Your First DSLR',
     description: 'Five settings to never touch as a beginner.',
     tags: ['design', 'tutorial', 'tech'],
@@ -105,7 +105,7 @@ const SEED_ENTRIES: SeedEntry[] = [
     ],
   },
   {
-    templateId: 'clean-serif',
+    templateId: 'news-cyan',
     title: 'The Quiet Joys of Travel',
     description: 'Six tiny things that made my year of nomadic life worth it.',
     tags: ['travel', 'storytime', 'mindset'],
@@ -159,7 +159,7 @@ const SEED_ENTRIES: SeedEntry[] = [
     ],
   },
   {
-    templateId: 'magazine',
+    templateId: 'highlight-bar',
     title: 'Inside the Studio of a Working Designer',
     description: 'A Tuesday in the life of someone who ships every week.',
     tags: ['design', 'storytime', 'tutorial'],
@@ -173,7 +173,7 @@ const SEED_ENTRIES: SeedEntry[] = [
     ],
   },
   {
-    templateId: 'quote-card',
+    templateId: 'news-drop',
     title: 'Quotes I Read Once a Week',
     description: 'The 7 lines that have steered my career for a decade.',
     tags: ['mindset', 'storytime'],

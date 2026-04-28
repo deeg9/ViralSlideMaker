@@ -25,7 +25,7 @@ export const POST = withApiAuth(async (req, ctx) => {
   if (!published) return apiError('NOT_FOUND', 'Carousel not found', 404)
 
   // Mirrors fork_published_carousel RPC behavior: deep-copy slide_data,
-  // create a new private project owned by the caller, default to bold-minimal
+  // create a new private project owned by the caller, default to highlight-bar
   // template (forker's brand kit re-resolves at render time).
   const { data: newProject, error: insertErr } = await ctx.supabase
     .from('projects')
@@ -34,7 +34,7 @@ export const POST = withApiAuth(async (req, ctx) => {
       title: `Remix of ${published.title as string}`,
       description: (published.description as string | null) ?? null,
       slide_data: published.slide_data,
-      template_id: 'bold-minimal',
+      template_id: 'highlight-bar',
       topic: null,
       generation_status: 'complete',
     })

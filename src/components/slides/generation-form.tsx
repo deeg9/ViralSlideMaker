@@ -35,7 +35,7 @@ export function GenerationForm({
   brandKit,
 }: GenerationFormProps) {
   const [topic, setTopic] = useState(currentTopic ?? '')
-  const [templateId, setTemplateId] = useState(currentTemplateId ?? 'bold-minimal')
+  const [templateId, setTemplateId] = useState(currentTemplateId ?? 'highlight-bar')
   const [imageSource, setImageSource] = useState<ImageSource>('stock')
   const isPaidUser = userTier !== 'free'
   const sliderMax = isPaidUser ? 20 : FREE_TIER_MAX_SLIDES

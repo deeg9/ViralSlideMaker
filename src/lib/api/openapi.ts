@@ -1412,7 +1412,7 @@ export const openApiSpec = {
       post: {
         operationId: 'forkPublishedCarousel',
         summary: 'Fork a published carousel into your dashboard',
-        description: 'Deep-copies slide_data into a new private project owned by the API key holder. template_id defaults to bold-minimal so the forker\'s own brand kit re-resolves at render time. Increments remix_count on the source row.',
+        description: 'Deep-copies slide_data into a new private project owned by the API key holder. template_id defaults to highlight-bar so the forker\'s own brand kit re-resolves at render time. Increments remix_count on the source row.',
         tags: ['Explore'],
         responses: {
           '201': {

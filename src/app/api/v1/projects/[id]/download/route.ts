@@ -56,11 +56,11 @@ export const GET = withApiAuth(async (req, ctx) => {
   const resolvedBrandKit = (brandKit as BrandKit) ?? null
 
   // When project.template_id === 'brand-kit', synthesize a template from the
-  // user's brand_kit row. Falls back to bold-minimal if no brand kit exists.
+  // user's brand_kit row. Falls back to highlight-bar if no brand kit exists.
   const template =
     project.template_id === BRAND_KIT_TEMPLATE_ID && resolvedBrandKit
       ? synthesizeBrandKitTemplate(resolvedBrandKit)
-      : getTemplate(project.template_id ?? 'bold-minimal')
+      : getTemplate(project.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, resolvedBrandKit)
 
