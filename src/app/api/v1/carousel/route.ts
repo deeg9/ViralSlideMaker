@@ -55,7 +55,7 @@ export const POST = withApiAuth(async (req, ctx) => {
   if (tier === 'free' && validSlideCount > 3) {
     return apiError(
       'VALIDATION_ERROR',
-      'Free plan is limited to 3 slides per carousel. Upgrade to plus or pro for up to 10.',
+      'Free plan is limited to 3 slides per carousel. Upgrade to hobbyist or creator for up to 10.',
       400
     )
   }

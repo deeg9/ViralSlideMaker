@@ -340,7 +340,7 @@ export function GenerationForm({
               AI Generated
             </span>
             <span className="text-[10px] text-[#7d6161]">
-              {isPaidUser ? '1 credit per slide' : 'Plus / Pro only'}
+              {isPaidUser ? '1 credit per slide' : 'Hobbyist / Creator only'}
             </span>
           </button>
         </div>

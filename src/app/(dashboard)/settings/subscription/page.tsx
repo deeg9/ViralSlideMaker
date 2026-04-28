@@ -26,7 +26,7 @@ const plans = [
     isPopular: false,
   },
   {
-    name: 'Plus',
+    name: 'Hobbyist',
     tier: 'plus' as SubscriptionTier,
     price: '$19.99',
     period: '/mo',
@@ -42,14 +42,14 @@ const plans = [
     isPopular: true,
   },
   {
-    name: 'Pro',
+    name: 'Creator',
     tier: 'pro' as SubscriptionTier,
     price: '$49.99',
     period: '/mo',
     features: [
       '125 credits/month',
       'No watermark — clean exports',
-      'Everything in Plus',
+      'Everything in Hobbyist',
     ],
     description: 'For power creators and agencies.',
     priceId: STRIPE_PRICES.pro_monthly,
@@ -118,7 +118,7 @@ export default async function SubscriptionPage({
       )}
       {params.error === 'upgrade_required' && (
         <div className="mb-6 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-700">
-          Upgrade to Plus or Pro to buy extra credits.
+          Upgrade to Hobbyist or Creator to buy extra credits.
         </div>
       )}
 
@@ -248,7 +248,7 @@ export default async function SubscriptionPage({
             <p className="text-sm text-[#7d6161] mt-1">Get 10 extra credits for $4.99</p>
             <p className="text-xs text-[#7d6161] mt-1">Current balance: <span className="font-semibold text-[#3d0000]">{balance} credits</span></p>
             {tier === 'free' && (
-              <p className="text-xs font-semibold text-[#3d0000] mt-2">Available on Plus and Pro plans</p>
+              <p className="text-xs font-semibold text-[#3d0000] mt-2">Available on Hobbyist and Creator plans</p>
             )}
             <p className="text-xs text-[#7d6161]/70 mt-2">1 credit = carousel generation &middot; 1 credit per AI image &middot; Text &amp; stock image regen = free</p>
           </div>

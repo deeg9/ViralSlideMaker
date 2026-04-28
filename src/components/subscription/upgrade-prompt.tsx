@@ -17,7 +17,7 @@ const messages: Record<UpgradePromptProps['context'], { title: string; message: 
   },
   feature_gate: {
     title: 'Premium feature',
-    message: 'This feature is available on Plus and Pro plans.',
+    message: 'This feature is available on Hobbyist and Creator plans.',
   },
 }
 
