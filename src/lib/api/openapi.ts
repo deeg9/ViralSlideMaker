@@ -103,6 +103,52 @@ export const openApiSpec = {
           y: { type: 'number' as const, description: 'Percentage 0-100, from top' },
         },
       },
+      TextSegment: {
+        type: 'object' as const,
+        description: 'Per-word/per-run color span used by news-headline two-color rendering. When `accent: true`, the run renders in the template accent color; otherwise the template text color.',
+        required: ['text'],
+        properties: {
+          text: { type: 'string' as const },
+          accent: { type: 'boolean' as const, description: 'Render this run in the accent color rather than the base text color' },
+        },
+      },
+      TextShadowEffect: {
+        type: 'object' as const,
+        required: ['enabled', 'color', 'size'],
+        properties: {
+          enabled: { type: 'boolean' as const },
+          color: { type: 'string' as const, description: '8-digit hex, e.g. #00000080' },
+          size: { type: 'string' as const, enum: ['sm', 'md', 'lg'] },
+        },
+      },
+      TextOutlineEffect: {
+        type: 'object' as const,
+        required: ['enabled', 'color', 'width'],
+        properties: {
+          enabled: { type: 'boolean' as const },
+          color: { type: 'string' as const, description: '6-digit hex, e.g. #000000' },
+          width: { type: 'integer' as const, minimum: 1, maximum: 8, description: 'Outline thickness in px' },
+        },
+      },
+      TextHighlightEffect: {
+        type: 'object' as const,
+        required: ['enabled', 'color', 'style', 'padding'],
+        properties: {
+          enabled: { type: 'boolean' as const },
+          color: { type: 'string' as const, description: '8-digit hex with alpha, e.g. #000000CC' },
+          style: { type: 'string' as const, enum: ['tight', 'full'] },
+          padding: { type: 'integer' as const, minimum: 4, maximum: 24 },
+        },
+      },
+      TextEffects: {
+        type: 'object' as const,
+        description: 'Composite of optional text effects applied to a hook, body, or custom text element',
+        properties: {
+          shadow: { $ref: '#/components/schemas/TextShadowEffect' },
+          outline: { $ref: '#/components/schemas/TextOutlineEffect' },
+          highlight: { $ref: '#/components/schemas/TextHighlightEffect' },
+        },
+      },
       StyleOverrides: {
         type: 'object' as const,
         properties: {
@@ -124,6 +170,17 @@ export const openApiSpec = {
           body_position: { $ref: '#/components/schemas/TextPosition' },
           hook_width: { type: 'number' as const, description: 'Percentage 0-100' },
           body_width: { type: 'number' as const, description: 'Percentage 0-100' },
+          hook_text_effects: { $ref: '#/components/schemas/TextEffects' },
+          body_text_effects: { $ref: '#/components/schemas/TextEffects' },
+          layout: {
+            type: 'string' as const,
+            enum: ['cover', 'body'],
+            description: 'News-carousel layout variant — cover = image top + text bar bottom; body = text top + image bottom. Omit for the default safe-zone layout.',
+          },
+          hide_watermark: {
+            type: 'boolean' as const,
+            description: 'Per-slide override that suppresses the brand watermark (and the forced free-tier watermark on Free plans). Default false.',
+          },
         },
       },
       CustomText: {
@@ -136,11 +193,17 @@ export const openApiSpec = {
           y: { type: 'number' as const },
           width: { type: 'number' as const },
           font_family: { type: 'string' as const },
-          font_size: { type: 'number' as const },
+          font_size: { type: 'number' as const, description: 'px in the 1080x1920 reference canvas' },
           font_weight: { type: 'number' as const },
           font_style: { type: 'string' as const, enum: ['normal', 'italic'] },
           color: { type: 'string' as const },
           text_align: { type: 'string' as const, enum: ['left', 'center', 'right'] },
+          text_effects: { $ref: '#/components/schemas/TextEffects' },
+          segments: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/TextSegment' },
+            description: 'When set, overrides plain `text` rendering with per-run two-color spans (each run inherits accent or base color from the template).',
+          },
         },
       },
       CustomImage: {
@@ -163,6 +226,16 @@ export const openApiSpec = {
         properties: {
           hook_text: { type: 'string' as const },
           body_text: { type: 'string' as const },
+          hook_segments: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/TextSegment' },
+            description: 'When set, overrides plain `hook_text` rendering with per-run two-color spans for news-headline rendering.',
+          },
+          body_segments: {
+            type: 'array' as const,
+            items: { $ref: '#/components/schemas/TextSegment' },
+            description: 'When set, overrides plain `body_text` rendering with per-run two-color spans.',
+          },
           image_query: { type: 'string' as const },
           is_cta: { type: 'boolean' as const },
           background_url: { type: ['string', 'null'] as const },
@@ -196,8 +269,14 @@ export const openApiSpec = {
           id: { type: 'string' as const, format: 'uuid' },
           user_id: { type: 'string' as const, format: 'uuid' },
           title: { type: 'string' as const },
+          description: { type: ['string', 'null'] as const },
           topic: { type: ['string', 'null'] as const },
           template_id: { type: ['string', 'null'] as const },
+          generation_status: {
+            type: 'string' as const,
+            enum: ['draft', 'generating', 'complete', 'error'],
+            description: 'Lifecycle of the AI generation job that produced the current slide_data',
+          },
           slides: {
             type: 'array' as const,
             items: { $ref: '#/components/schemas/Slide' },
@@ -264,23 +343,24 @@ export const openApiSpec = {
         },
         responses: {
           '200': {
-            description: 'Carousel created successfully',
+            description: 'Carousel created successfully. Deducts 1 credit; balance is reflected in the `x-credits-remaining` header.',
             headers: rateLimitHeaders,
             content: {
               'application/json': {
                 schema: {
                   type: 'object' as const,
+                  required: ['success', 'projectId', 'slideCount'],
                   properties: {
-                    success: { type: 'boolean' as const },
-                    projectId: { type: 'string' as const, format: 'uuid' },
-                    slideCount: { type: 'integer' as const },
+                    success: { type: 'boolean' as const, description: 'Always true on 200; non-success outcomes use error status codes.' },
+                    projectId: { type: 'string' as const, format: 'uuid', description: 'ID of the newly created project. Pass to /projects/{id}, /projects/{id}/render, /projects/{id}/download, etc.' },
+                    slideCount: { type: 'integer' as const, description: 'Number of slides generated (matches the requested slideCount).' },
                   },
                 },
               },
             },
           },
           '400': {
-            description: 'Validation error',
+            description: 'Validation error (invalid topic, slideCount out of range, free-tier slide cap, free-tier project cap)',
             content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
           },
           ...creditErrorResponses,

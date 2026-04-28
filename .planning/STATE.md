@@ -8,10 +8,10 @@ last_updated: "2026-04-28T17:30:00.000Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 10
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 10
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 
 ## Current Position
 
-Phase: 34 (next-ready, not started)
-Plan: 34-01-PLAN.md (Tier 1 — spec accuracy)
-Status: v2.5 bootstrapped; Phase 34 is the lowest-risk wedge (spec-only, no behavior change). After Phase 34: Tier 2 (Phases 35-36) closes small CRUD gaps; Tier 3 (Phases 37-39) full programmatic parity.
+Phase: 35 (next-ready, not started)
+Plan: 35-01-PLAN.md (Tier 2.A — PATCH /projects/{id} + expanded slide PATCH)
+Status: Phase 34 (Tier 1 spec accuracy) complete — `/docs` now matches the live Slide/Project types. Phase 35 starts the actual new-endpoint work.
 Last activity: 2026-04-28
 
-Progress: [░░░░░░░░░░] 0% (0/6 phases of v2.5 complete)
+Progress: [█░░░░░░░░░] 10% (1/6 phases of v2.5 complete)
 
 ## Performance Metrics
 
@@ -94,7 +94,7 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - Bootstrapped v2.5 Public REST API Parity inline (archived v2.4 REQUIREMENTS to milestones/, wrote new REQUIREMENTS.md with 28 reqs in 7 sections, appended phases 34-39 to ROADMAP.md with full goal/depends/requirements/success-criteria, updated PROJECT.md current-focus + progress table). Ready to execute Phase 34.
-Stopped at: v2.5 milestone bootstrapped; Phase 34 (Tier 1 spec accuracy) next.
+Last activity: 2026-04-28 - Phase 34 (Tier 1 spec accuracy) complete: closed SPEC-01 through SPEC-07. Added TextSegment + TextEffects (+ shadow/outline/highlight sub-schemas) to openapi.ts, expanded Slide/StyleOverrides/CustomText/Project to match the live types, tightened /carousel response shape with required + descriptions. /docs now accurately documents the existing 7 routes.
+Stopped at: Checkpoint after Phase 34 — Tiers 2 (Phases 35-36) and 3 (Phases 37-39) add ~14 new endpoints across ~3-4 hrs of careful work. Awaiting user decision before continuing autonomously.
 Resume file: None
-Next phase: Phase 34 — see ROADMAP.md "### Phase 34: API Spec Accuracy (Tier 1)"
+Next phase: Phase 35 — see ROADMAP.md "### Phase 35: Project & Slide CRUD (Tier 2.A)"
