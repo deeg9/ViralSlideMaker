@@ -1053,6 +1053,204 @@ export const openApiSpec = {
         },
       },
     },
+    '/pexels/search': {
+      post: {
+        operationId: 'searchPexels',
+        summary: 'Search Pexels stock photos',
+        description: 'Proxies a Pexels search. Free — no credits deducted.',
+        tags: ['Images'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                required: ['query'],
+                properties: {
+                  query: { type: 'string' as const, minLength: 1, maxLength: 200 },
+                  orientation: { type: 'string' as const, enum: ['landscape', 'portrait', 'square'], default: 'portrait' },
+                  perPage: { type: 'integer' as const, minimum: 1, maximum: 80, default: 12 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Pexels search results',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        query: { type: 'string' as const },
+                        orientation: { type: 'string' as const },
+                        photos: {
+                          type: 'array' as const,
+                          items: {
+                            type: 'object' as const,
+                            properties: {
+                              id: { type: 'integer' as const },
+                              url: { type: 'string' as const, format: 'uri' },
+                              photographer: { type: 'string' as const },
+                              photographer_url: { type: 'string' as const, format: 'uri' },
+                              src: { type: 'object' as const, additionalProperties: { type: 'string' as const } },
+                              width: { type: 'integer' as const },
+                              height: { type: 'integer' as const },
+                              alt: { type: 'string' as const },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/projects/{id}/slides/{index}/generate-image': {
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' as const, format: 'uuid' },
+          description: 'Project ID',
+        },
+        {
+          name: 'index',
+          in: 'path',
+          required: true,
+          schema: { type: 'integer' as const, minimum: 0 },
+          description: 'Zero-based slide index',
+        },
+      ],
+      post: {
+        operationId: 'generateSlideImage',
+        summary: 'Generate AI background image for a slide',
+        description: 'Calls Imagen 4 Fast. Body `{ prompt }` overrides the slide\'s image_query. Costs 1 credit; refunded on safety-filter or upstream errors. Persists the result to slide.background_url, sets slide.image_query, and clears pexels_photo_id.',
+        tags: ['Images'],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                properties: {
+                  prompt: { type: 'string' as const, description: 'Override prompt; defaults to current slide.image_query' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Image generated and persisted',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        url: { type: 'string' as const, format: 'uri' },
+                        prompt: { type: 'string' as const },
+                        slideIndex: { type: 'integer' as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error or content filtered (credit refunded)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          '404': {
+            description: 'Project or slide not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...creditErrorResponses,
+        },
+      },
+    },
+    '/projects/{id}/slides/{index}/regenerate-text': {
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' as const, format: 'uuid' },
+          description: 'Project ID',
+        },
+        {
+          name: 'index',
+          in: 'path',
+          required: true,
+          schema: { type: 'integer' as const, minimum: 0 },
+          description: 'Zero-based slide index',
+        },
+      ],
+      post: {
+        operationId: 'regenerateSlideText',
+        summary: 'AI-rewrite the slide hook + body',
+        description: 'Calls Gemini 2.5 Flash to produce alternative hook_text and body_text for the slide. Free — no credits deducted. Set `persist: true` to write the result back to slide_data.',
+        tags: ['Text'],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                properties: {
+                  customPrompt: { type: 'string' as const, description: 'Optional steering instruction (e.g. "more punchy", "rephrase as a question")' },
+                  persist: { type: 'boolean' as const, default: false },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Regenerated text',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        hook_text: { type: 'string' as const },
+                        body_text: { type: 'string' as const },
+                        persisted: { type: 'boolean' as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'Project or slide not found',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
     '/me/credits': {
       get: {
         operationId: 'getMyCredits',
