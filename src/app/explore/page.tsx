@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { Icon } from '@/components/ui/icon'
+import { ExploreSearchBox } from './search-box'
 
 type Tab = 'trending' | 'new' | 'featured'
 
@@ -28,12 +29,13 @@ interface CreatorRow {
 export default async function ExplorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; tag?: string }>
+  searchParams: Promise<{ tab?: string; tag?: string; q?: string }>
 }) {
   const params = await searchParams
   const tab: Tab =
     params.tab === 'new' ? 'new' : params.tab === 'featured' ? 'featured' : 'trending'
   const tagFilter = params.tag?.trim().toLowerCase() || null
+  const searchQuery = params.q?.trim() || null
 
   const supabase = await createClient()
 
@@ -46,7 +48,16 @@ export default async function ExplorePage({
     .eq('is_hidden', false)
     .limit(48)
 
-  if (tab === 'trending') {
+  if (searchQuery) {
+    query = query.textSearch('search_vector', searchQuery, {
+      type: 'websearch',
+      config: 'simple',
+    })
+  }
+
+  if (searchQuery) {
+    query = query.order('published_at', { ascending: false })
+  } else if (tab === 'trending') {
     query = query.order('popularity_score', { ascending: false }).order('published_at', { ascending: false })
   } else if (tab === 'new') {
     query = query.order('published_at', { ascending: false })
@@ -101,6 +112,8 @@ export default async function ExplorePage({
           </Link>
         </div>
 
+        <ExploreSearchBox initialQuery={searchQuery ?? ''} />
+
         {/* Tabs */}
         <div className="flex items-center gap-2 mb-6 border-b border-[#dbc1bc]/30">
           <TabLink current={tab} tab="trending" label="Trending" tag={tagFilter} />
@@ -136,8 +149,28 @@ export default async function ExplorePage({
         {/* Card grid */}
         {carousels.length === 0 ? (
           <div className="text-center py-16 text-[#7d6161]">
-            <p className="text-lg">No carousels yet{tagFilter ? ` with #${tagFilter}` : ''}.</p>
-            <p className="text-sm mt-2">Be the first to publish.</p>
+            {searchQuery ? (
+              <>
+                <p className="text-lg">No matches for &ldquo;{searchQuery}&rdquo;.</p>
+                <p className="text-sm mt-2">Try a popular tag:</p>
+                <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-lg mx-auto">
+                  {PILL_TAGS.map((t) => (
+                    <Link
+                      key={t}
+                      href={`/explore?tag=${t}`}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium bg-white text-[#7d6161] border border-[#dbc1bc]/40 hover:bg-[#fadbdb]"
+                    >
+                      #{t}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-lg">No carousels yet{tagFilter ? ` with #${tagFilter}` : ''}.</p>
+                <p className="text-sm mt-2">Be the first to publish.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
