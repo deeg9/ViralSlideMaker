@@ -2,7 +2,7 @@ import type Stripe from 'stripe'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getStripeServer } from './client'
 import { tierFromPriceId, CREDIT_PACK_AMOUNTS } from './config'
-import { TIER_CREDITS } from '@/lib/credits/types'
+import { TIER_CREDITS, tierDisplayName } from '@/lib/credits/types'
 import type { SubscriptionTier } from '@/lib/credits/types'
 
 export async function handleStripeEvent(
@@ -89,7 +89,7 @@ async function handleCheckoutCompleted(
         user_id: userId,
         type: 'subscription_grant',
         amount: creditAmount,
-        description: `Welcome credits (${tier.charAt(0).toUpperCase() + tier.slice(1)} tier)`,
+        description: `Welcome credits (${tierDisplayName(tier)} tier)`,
         reference_id: session.id,
       })
     }
@@ -199,7 +199,7 @@ async function handleInvoicePaid(
     user_id: sub.user_id,
     type: 'subscription_grant',
     amount: creditAmount,
-    description: `Monthly credit grant (${sub.tier.charAt(0).toUpperCase() + sub.tier.slice(1)} tier)`,
+    description: `Monthly credit grant (${tierDisplayName(sub.tier as SubscriptionTier)} tier)`,
     reference_id: invoice.id,
   })
 }
@@ -289,7 +289,7 @@ export async function syncSubscriptionFromStripe(
     user_id: userId,
     type: 'subscription_grant',
     amount: creditAmount,
-    description: `Monthly credit grant (${tier.charAt(0).toUpperCase() + tier.slice(1)} tier)`,
+    description: `Monthly credit grant (${tierDisplayName(tier)} tier)`,
     reference_id: latestInvoice,
   })
 

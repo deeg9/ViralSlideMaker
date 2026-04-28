@@ -6,7 +6,7 @@ import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { STRIPE_PRICES } from '@/lib/stripe/config'
 import { createCheckoutSession, createCreditPackCheckout, createPortalSession, syncSubscriptionAction } from './actions'
 import { Check, Star } from 'lucide-react'
-import type { SubscriptionTier } from '@/lib/credits/types'
+import { tierDisplayName, type SubscriptionTier } from '@/lib/credits/types'
 
 const plans = [
   {
@@ -129,10 +129,10 @@ export default async function SubscriptionPage({
             <Icon name="info" size="sm" className="text-amber-600 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-amber-800">
-                Your {tier.charAt(0).toUpperCase() + tier.slice(1)} plan has been canceled
+                Your {tierDisplayName(tier)} plan has been canceled
               </p>
               <p className="text-sm text-amber-700 mt-1">
-                You still have access to all {tier.charAt(0).toUpperCase() + tier.slice(1)} features
+                You still have access to all {tierDisplayName(tier)} features
                 {periodEnd ? (
                   <> until <span className="font-semibold">{periodEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></>
                 ) : null}.
@@ -149,7 +149,7 @@ export default async function SubscriptionPage({
       {/* Current plan badge */}
       <div className="mb-6">
         <span className="bg-[#fadbdb] text-[#3d0000] px-3 py-1 rounded-full text-sm font-bold">
-          Current Plan: {tier.charAt(0).toUpperCase() + tier.slice(1)}{isCanceling ? ' (Canceling)' : ''}
+          Current Plan: {tierDisplayName(tier)}{isCanceling ? ' (Canceling)' : ''}
         </span>
       </div>
 

@@ -42,3 +42,16 @@ export const FREE_PROJECT_LIMIT = 10
 export function isValidTier(tier: string): tier is SubscriptionTier {
   return tier === 'free' || tier === 'plus' || tier === 'pro'
 }
+
+// User-facing display name for each tier. The internal enum values stay
+// 'plus' / 'pro' for DB / Stripe compatibility; only the rendered label
+// changes. Use this everywhere the tier is shown to a user.
+export const TIER_DISPLAY_NAME: Record<SubscriptionTier, string> = {
+  free: 'Free',
+  plus: 'Hobbyist',
+  pro: 'Creator',
+}
+
+export function tierDisplayName(tier: SubscriptionTier): string {
+  return TIER_DISPLAY_NAME[tier]
+}
