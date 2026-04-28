@@ -1,102 +1,93 @@
-# Requirements: ViralSlideMaker v2.4 Explore + Remix
+# Requirements: ViralSlideMaker v2.5 Public REST API Parity
 
-**Defined:** 2026-04-27
-**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable. v2.4 adds: publish your work to a community Explore page where others can fork it like v0.dev forks an artifact.
+**Defined:** 2026-04-28
+**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable. v2.5 closes the gap between the dashboard and the public REST API: a customer with an API key can do everything they can do in the UI.
 
-## v2.4 Requirements
+## v2.5 Requirements
 
-Requirements for the Explore + Remix milestone. Each maps to roadmap phases.
+Requirements for the Public REST API Parity milestone. Each maps to roadmap phases (34–39). Audit captured 2026-04-28 — current API at `/api/v1/*` covers ~30% of dashboard capabilities.
 
-### Locked Decisions (from /gsd-new-milestone discussion + research)
+### Locked Decisions
 
-- **Publish model:** opt-in toggle per project. Projects start private; the user explicitly clicks "Publish to Explore" to make a snapshot public.
-- **Remix model:** hard fork — copy everything, no link, no lineage tracking. Forker becomes the sole owner of the new project (matches v0.dev's `POST /chats/{chatId}/fork` behavior).
-- **Discovery:** recency feed + trending feed + tag/category filters + full-text search (all four in v1).
-- **Bookmarks:** standalone `/bookmarks` page.
-- **Hero image:** pre-render slide 1 to a public PNG at publish time.
-- **Free-tier publish quota:** unlimited (everyone can publish, paid tiers don't gate publishing).
-- **Brand-kit on fork:** re-resolve to the forker's own brand kit (matches "make it your own" intent).
-- **Featured carousels:** manual via Supabase Studio (`is_featured` boolean toggle). No admin UI in v1.
+- **Auth:** all new endpoints use the existing Bearer token + rate-limit pattern via `withApiAuth` (`src/lib/api/with-api-auth.ts`). No new auth surface.
+- **Versioning:** stay on v1 path prefix. New endpoints are additive; no breaking changes to existing 7 routes.
+- **Spec parity:** every new endpoint adds a matching OpenAPI path entry in the **same commit**. Spec and impl never diverge.
+- **Credit accounting:** credit-deducting endpoints (`carousel`, AI image generation) deduct via `deductCreditAdmin` and surface `x-credits-remaining` / `x-credits-used` headers per existing convention.
+- **Idempotency:** mutation endpoints accept an optional `Idempotency-Key` header (best-effort; full impl deferred).
+- **Excluded surfaces (deferred to v2.6+):** Stripe checkout/portal/subscription sync (web-only), API key CRUD via API (chicken-and-egg), webhooks for project/fork events, OAuth 2.1.
+- **Tier ordering:** Tier 1 ships first as a single spec-only PR (zero behavior change → low risk → immediate /docs improvement). Tiers 2 and 3 build on top.
 
-### Schema & Backend
+### Tier 1 — Spec Accuracy (Phase 34)
 
-- [ ] **SCHEMA-01**: `public.published_carousels` table snapshots a published version (slug, title, hero_image_url, slide_data, source_project_id, owner_id, tags, counters, timestamps) — a separate row from `projects`, never a direct reference
-- [ ] **SCHEMA-02**: `public.bookmarks` table (user_id, published_carousel_id, created_at) with composite primary key and owner-only RLS
-- [ ] **SCHEMA-03**: `public.carousel_events` append-only event table for high-frequency view counter (flushed nightly by `pg_cron` to update `view_count`); direct triggers update `bookmark_count` and `remix_count`
-- [ ] **SCHEMA-04**: RLS policies — `published_carousels` public SELECT (filtered by `unpublished_at IS NULL AND is_hidden = false`), owner-only INSERT/UPDATE/DELETE; `bookmarks` owner-only across all operations
-- [ ] **SCHEMA-05**: `publish_carousel(p_project_id, p_title, p_tags, p_hero_image_url)` SECURITY DEFINER RPC validates ownership, generates slug from title + nanoid suffix, snapshots `slide_data`, returns the new published row
-- [ ] **SCHEMA-06**: `fork_published_carousel(p_published_id)` SECURITY DEFINER RPC atomically inserts a new private `projects` row owned by `auth.uid()` with `slide_data` deep-copied, increments `remix_count`, returns the new project_id
-- [ ] **SCHEMA-07**: `unpublish_carousel(p_published_id)` SECURITY DEFINER RPC validates ownership, soft-deletes (sets `unpublished_at`), preserves history for already-forked carousels
+Update `src/lib/api/openapi.ts` to fully document everything the existing 7 routes already accept and return. Surfaced via Scalar at `/docs`. No new endpoints.
 
-### Publish Flow
+- [ ] **SPEC-01**: `Slide` schema documents `hook_segments` and `body_segments` (`TextSegment[]`) used by news-headline two-color rendering
+- [ ] **SPEC-02**: `StyleOverrides` schema documents `hook_text_effects`, `body_text_effects` (`TextEffects` with shadow / outline / highlight sub-types), `layout` ('cover' | 'body'), and `hide_watermark` boolean
+- [ ] **SPEC-03**: `CustomText` schema documents `text_effects` and `segments` fields
+- [ ] **SPEC-04**: New `TextSegment` schema (text + accent boolean) added to `components/schemas`
+- [ ] **SPEC-05**: New `TextEffects` schema with `TextShadowEffect` / `TextOutlineEffect` / `TextHighlightEffect` sub-schemas matching `src/lib/types/slide.ts`
+- [ ] **SPEC-06**: `Project` schema documents `description` and `generation_status` fields (current type from `src/lib/types/project.ts`)
+- [ ] **SPEC-07**: `/carousel` POST 200 response schema documents the actual `{ success: true, projectId: string, slideCount: number }` shape
 
-- [ ] **PUB-01**: "Publish to Explore" button in the slide editor, gated behind a "carousel saved" state — opens a modal to set title, optional description, tags
-- [ ] **PUB-02**: Server pre-renders slide 1 to PNG at publish time, uploads to `hero-thumbnails` public Supabase Storage bucket at `${user_id}/${published_id}.png`
-- [ ] **PUB-03**: Image asset re-resolution at publish time — if any `slide_data` references a private bucket URL (e.g. `slide-backgrounds/uuid/...` from the user's private storage), copy or re-issue a public URL so the published snapshot renders for anonymous viewers
-- [ ] **PUB-04**: Tag input accepts free-form lowercase tags (max 5 per carousel, max 24 chars each), normalized on the server (lower, trim, dedupe), stored as `text[]`
-- [ ] **PUB-05**: After successful publish, redirect to `/explore/[slug]` (the public detail page) with a one-time toast "Published! Share this link"
-- [ ] **PUB-06**: A "Manage Published" view on the user's own dashboard lists their published carousels with Unpublish (soft-delete) and Republish (regenerates hero, updates `slide_data` snapshot, keeps slug + counters) actions
+### Tier 2.A — Project & Slide CRUD (Phase 35)
 
-### Explore Page (Discovery)
+Close the project-rename and slide-shape gaps. Each item is a real new endpoint or expanded handler.
 
-- [ ] **EXPL-01**: `/explore` page lists published carousels in card grid — hero thumbnail, title, creator (`@username`), bookmark count, remix count
-- [ ] **EXPL-02**: Tab/filter strip: "Trending", "New", "Featured" — default tab "Trending"
-- [ ] **EXPL-03**: Trending sort uses `popularity_score` column refreshed every 10 min via `pg_cron` running an HN-style gravity update (`(remix_count + bookmark_count*0.5) / (hours_since_published + 2)^1.8`)
-- [ ] **EXPL-04**: Featured rail at top of "Trending" tab shows up to 6 cards where `is_featured = true` (manually toggled by admin via Supabase Studio)
-- [ ] **EXPL-05**: Tag filter chips on the explore page — clicking a tag scopes the feed to carousels containing that tag
-- [ ] **EXPL-06**: Card click navigates to `/explore/[slug]` — public detail page showing hero + all slide thumbnails + creator profile link + Fork CTA + Bookmark toggle
-- [ ] **EXPL-07**: Anonymous users can browse `/explore` and `/explore/[slug]`; Fork and Bookmark CTAs prompt sign-in when clicked while logged out
-- [ ] **EXPL-08**: Pagination — infinite scroll with cursor-based pagination keyed on `popularity_score, published_at DESC` (or `published_at DESC` for the New tab)
+- [ ] **API-01**: `PATCH /projects/{id}` — update `title`, `description`, `template_id`. Validates ownership via existing service layer.
+- [ ] **API-02**: `PATCH /projects/{id}/slides/{index}` accepts new fields beyond the existing 5: `custom_texts`, `custom_images`, `hook_segments`, `body_segments`, `hide_watermark` (style_overrides field). Backwards-compatible — existing 5 fields continue to work.
+- [ ] **API-03**: `POST /projects/{id}/slides` — append a new slide; optional `position` body param to insert at index.
+- [ ] **API-04**: `DELETE /projects/{id}/slides/{index}` — remove a slide. Adjusts indices on remaining slides.
+- [ ] **API-05**: `POST /projects/{id}/slides/reorder` — body `{ order: number[] }` (array of indices). Validates length matches and is a permutation.
 
-### Search
+### Tier 2.B — Publish & Credits Read (Phase 36)
 
-- [ ] **SEARCH-01**: `published_carousels.search_vector` is a generated `tsvector` column over `title || description || tags || creator.username` with weights, indexed via GIN
-- [ ] **SEARCH-02**: Search box at top of `/explore` — `websearch_to_tsquery()` on the `search_vector` with `ts_rank` ordering; debounced 250ms
-- [ ] **SEARCH-03**: Empty-state UX — when search returns nothing, show "No matches. Try popular tags: …" with the curated 12-tag pillset
+Programmatic publishing and a read-only credits surface.
 
-### Bookmarks
+- [ ] **API-06**: `POST /projects/{id}/publish` — calls `publishProjectToExplore` server-action equivalent. Body: `{ title, description?, tags? }`. Returns `{ publishedId, slug, url }`. Reuses existing hero-render + `publish_carousel` RPC.
+- [ ] **API-07**: `DELETE /projects/{id}/publish` — calls `unpublish_carousel` RPC. Returns `{ unpublished_at }`.
+- [ ] **API-08**: `GET /me/credits` — returns `{ tier, balance, monthly_grant, period_end }`. Reuses `getCreditBalance` + `getUserTier`.
 
-- [ ] **BM-01**: Bookmark toggle button on every Explore card and the public detail page; insert/delete `public.bookmarks` row
-- [ ] **BM-02**: `/bookmarks` standalone page lists the current user's bookmarks (most-recent first), each card behaves like an Explore card with a Fork CTA
-- [ ] **BM-03**: Top nav already exposes the Bookmarks icon (shipped in 260427-iun); wire it to `/bookmarks`
-- [ ] **BM-04**: Bookmark count on the published_carousels row updates via direct trigger on `bookmarks` insert/delete (low-frequency operation, no async event table needed)
+### Tier 3.A — AI & Image Sources (Phase 37)
 
-### Fork (Remix)
+- [ ] **API-09**: `POST /pexels/search` — body `{ query, orientation?, perPage? }`. Proxies `searchPhotos`. Free.
+- [ ] **API-10**: `POST /projects/{id}/slides/{index}/generate-image` — body `{ prompt? }` (defaults to slide's `image_query`). Calls Imagen, writes resulting URL to `slide.background_url`, deducts 1 credit.
+- [ ] **API-11**: `POST /projects/{id}/slides/{index}/regenerate-text` — body `{ field: 'hook' | 'body' }`. Calls existing AI text-regen path. Free per current dashboard pricing.
 
-- [ ] **FORK-01**: "Fork to my account" CTA on `/explore/[slug]` calls `fork_published_carousel` RPC, redirects to `/dashboard/projects/[new_project_id]/edit`
-- [ ] **FORK-02**: Fork RPC re-resolves `template_id = 'brand-kit'` against the forker's own brand kit (NOT the original creator's) — matches "make it your own"
-- [ ] **FORK-03**: Fork RPC strips `brand_kit_id` reference from forked `slide_data` (private to original creator); image URLs in `slide_data` reference only the public hero/published URLs that were re-issued at publish time
-- [ ] **FORK-04**: Forking does NOT consume credits in v1 — fork is free; remixed carousels only spend credits on AI regeneration like any normal project
-- [ ] **FORK-05**: Forking increments `remix_count` on the source `published_carousels` row in the same transaction as the new `projects` insert (atomic)
+### Tier 3.B — Explore Feed, Bookmarks, Forking (Phase 38)
 
-### Trust & Safety
+- [ ] **API-12**: `GET /explore` — query params `?sort=trending|new|featured&tag=&q=&cursor=`. Mirrors current `/explore` page query (popularity_score for trending, published_at for new, is_featured filter). Returns `{ items: PublishedCarousel[], next_cursor }`.
+- [ ] **API-13**: `GET /explore/{slug}` — single published carousel detail (slide_data, owner profile snippet, counts). Mirrors current `/explore/[slug]` server fetch.
+- [ ] **API-14**: `POST /explore/{slug}/fork` — calls `fork_published_carousel` RPC. Returns `{ projectId }`.
+- [ ] **API-15**: `POST /me/bookmarks` — body `{ publishedId }`. Inserts into `public.bookmarks`.
+- [ ] **API-16**: `DELETE /me/bookmarks/{publishedId}` — deletes the bookmark row.
+- [ ] **API-17**: `GET /me/bookmarks` — list current user's bookmarks (most-recent first), each item shaped like `PublishedCarousel`.
 
-- [ ] **MOD-01**: `published_carousels.is_hidden` boolean — admin can hide a carousel from the feed via Supabase Studio without deleting the row (preserves forks already taken)
-- [ ] **MOD-02**: Username denylist patch — verify `explore` and `bookmarks` are in the reserved list shipped 2026-04-27, add any missing
-- [ ] **MOD-03**: Tag denylist on publish — server rejects tags matching a small offensive-words set (Supabase function-side check)
+### Tier 3.C — Brand Kit & Profile (Phase 39)
 
-### Performance & Observability
-
-- [ ] **PERF-01**: Explore feed queries return in <200ms p95 with 5,000 published carousels (verified via `EXPLAIN ANALYZE` against a seed dataset)
-- [ ] **PERF-02**: Hero thumbnail PNGs stay under 200KB (slide 1 only, JPEG-comparable quality)
-- [ ] **PERF-03**: View counter writes go to `carousel_events` (no row-lock contention on hot carousels)
+- [ ] **API-18**: `GET /me/brand-kit` — returns the current user's brand kit row (or `null`).
+- [ ] **API-19**: `PUT /me/brand-kit` — upsert brand kit. Body matches the `BrandKit` schema (logo_url, accent_color, font pairings, text-position defaults). Logo upload flow uses an upload-URL pattern: server returns a signed PUT URL on `POST /me/brand-kit/logo-upload-url` (sub-endpoint), client uploads, then `PUT /me/brand-kit` with the resulting public URL.
+- [ ] **API-20**: `GET /me/profile` — returns `public.profiles` row (display_name, bio, avatar_url, website_url, social_links).
+- [ ] **API-21**: `PATCH /me/profile` — update profile fields (excluding username; that has its own claim flow).
 
 ### Documentation
 
-- [ ] **DOC-01**: Update PROJECT.md with v2.4 milestone goal and shipped summary upon completion
-- [ ] **DOC-02**: Add a brief "How to publish" section to the in-app help/docs page
+- [ ] **DOC-01**: Update PROJECT.md with v2.5 milestone goal and shipped summary upon completion
+- [ ] **DOC-02**: README quickstart reflects new credits + publish endpoints
 
-## Out of Scope (deferred to v2.5+)
+## Out of Scope (deferred to v2.6+)
 
-- Comments / reactions on published carousels
-- Following creators (social graph)
-- Notification system for "your carousel got forked"
-- Forks-of-forks lineage tracking
-- Live-template subscription (creator updates → forkers can pull)
-- Real `/admin` page (Supabase Studio is the admin UI in v1)
-- Search ranking tuning beyond `ts_rank` defaults
-- Internationalization (English-only for v1)
+| Feature | Reason |
+|---|---|
+| Stripe checkout / portal / subscription sync | Session-auth surface, not API-key surface |
+| Create / list / revoke API keys via API | Chicken-and-egg; stays in `/settings/api-keys` |
+| Webhooks ("project published", "carousel forked") | Need infra for at-least-once delivery; defer |
+| OAuth 2.1 / per-scope tokens | Static Bearer tokens cover v1 |
+| Pagination cursor encryption | Plain offset/timestamp cursors fine for v1 |
+| GraphQL surface | REST is sufficient for v1 |
 
-## Research Reference
+## Audit Reference
 
-See `.planning/research/explore-remix.md` for the 750-line architecture research (cited URLs: v0.app fork API docs, Figma Community schema patterns, CodePen/Replit fork patterns, HN gravity formula, Supabase pg_cron + tsvector guides, Timanovsky counter-contention pattern).
+Live audit captured 2026-04-28 in conversation transcript:
+- All 7 existing routes' HTTP methods match the spec (no method mismatches).
+- Schema staleness identified per Tier 1 above.
+- Capability gap inventory crossed dashboard features against `/api/v1/*` route handlers.

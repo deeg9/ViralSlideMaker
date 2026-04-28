@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.4
-milestone_name: Explore + Remix
-status: complete
-stopped_at: v2.4 Explore + Remix shipped autonomously (5 phases, 38 requirements closed)
-last_updated: "2026-04-28T08:48:00.000Z"
+milestone: v2.5
+milestone_name: Public REST API Parity
+status: in-progress
+stopped_at: v2.5 bootstrapped (28 reqs across 6 phases, 3 tiers); ready to execute Phase 34
+last_updated: "2026-04-28T17:30:00.000Z"
 last_activity: 2026-04-28
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 10
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-27)
+See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** v2.4 Explore + Remix complete — manual end-to-end verification recommended.
+**Current focus:** v2.5 Public REST API Parity — bring REST API to feature parity with dashboard. Phase 34 (Tier 1 spec accuracy) is the next-ready phase.
 
 ## Current Position
 
-Phase: 33 (complete)
-Plan: All complete
-Status: v2.4 milestone complete; ready for next milestone
-Last activity: 2026-04-27
+Phase: 34 (next-ready, not started)
+Plan: 34-01-PLAN.md (Tier 1 — spec accuracy)
+Status: v2.5 bootstrapped; Phase 34 is the lowest-risk wedge (spec-only, no behavior change). After Phase 34: Tier 2 (Phases 35-36) closes small CRUD gaps; Tier 3 (Phases 37-39) full programmatic parity.
+Last activity: 2026-04-28
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0% (0/6 phases of v2.5 complete)
 
 ## Performance Metrics
 
@@ -94,7 +94,7 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - Queued v2.5 Public REST API Parity milestone (28 reqs, 6 phases) in MILESTONES.md + ROADMAP.md after audit revealed API covers ~30% of dashboard capabilities
-Stopped at: v2.4 shipped + MCP retired; v2.5 API parity scoped and ready for `/gsd-new-milestone v2.5`
+Last activity: 2026-04-28 - Bootstrapped v2.5 Public REST API Parity inline (archived v2.4 REQUIREMENTS to milestones/, wrote new REQUIREMENTS.md with 28 reqs in 7 sections, appended phases 34-39 to ROADMAP.md with full goal/depends/requirements/success-criteria, updated PROJECT.md current-focus + progress table). Ready to execute Phase 34.
+Stopped at: v2.5 milestone bootstrapped; Phase 34 (Tier 1 spec accuracy) next.
 Resume file: None
-Next milestone draft: see MILESTONES.md "v2.5 Public REST API Parity (Planned)"
+Next phase: Phase 34 — see ROADMAP.md "### Phase 34: API Spec Accuracy (Tier 1)"

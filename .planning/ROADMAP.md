@@ -588,6 +588,109 @@ Plans:
 - [ ] 33-01-PLAN.md -- bookmarks table integration: toggle component, /bookmarks page, top nav wire-up, bookmark_count trigger
 - [ ] 33-02-PLAN.md -- carousel_events view tracking + nightly aggregation + thumbnail size cap + PROJECT.md + docs
 
+### Phase 34: API Spec Accuracy (Tier 1)
+**Goal**: `/docs` (Scalar API reference) accurately documents every field of every existing v1 route — no new endpoints, just bring the OpenAPI spec into line with the current `Slide` / `StyleOverrides` / `CustomText` / `Project` shapes and document the actual `/carousel` POST response. Lowest-risk way to ship value to customers reading the reference.
+**Depends on**: Phase 33
+**Requirements**: SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06, SPEC-07
+**Success Criteria** (what must be TRUE):
+  1. `Slide` schema lists `hook_segments` and `body_segments` (`TextSegment[]`)
+  2. `StyleOverrides` schema lists `hook_text_effects`, `body_text_effects`, `layout`, `hide_watermark`
+  3. `CustomText` schema lists `text_effects` and `segments`
+  4. New `TextSegment` and `TextEffects` schemas exist in `components/schemas` and match `src/lib/types/slide.ts`
+  5. `Project` schema lists `description` and `generation_status`
+  6. `/carousel` POST 200 response shape documented as `{ success, projectId, slideCount }` (matches actual return)
+  7. `npx tsc --noEmit` clean against `src/lib/api/openapi.ts`
+  8. `curl /docs` renders without error and the new schemas appear when expanded in Scalar
+**Plans**: 1 plan
+
+Plans:
+- [ ] 34-01-PLAN.md -- expand openapi.ts schemas + verify Scalar render
+
+### Phase 35: Project & Slide CRUD (Tier 2.A)
+**Goal**: API customers can rename projects, change templates, edit every slide field the dashboard exposes (not just 5), and add / delete / reorder slides programmatically.
+**Depends on**: Phase 34
+**Requirements**: API-01, API-02, API-03, API-04, API-05
+**Success Criteria** (what must be TRUE):
+  1. `PATCH /projects/{id}` updates `title` / `description` / `template_id` and rejects unknown fields
+  2. `PATCH /projects/{id}/slides/{index}` accepts `custom_texts`, `custom_images`, `hook_segments`, `body_segments`, and `style_overrides.hide_watermark` in addition to the existing 5 fields, with deep-merge of `style_overrides`
+  3. `POST /projects/{id}/slides` appends a new slide; optional `position` body param inserts at index
+  4. `DELETE /projects/{id}/slides/{index}` removes a slide and adjusts subsequent indices
+  5. `POST /projects/{id}/slides/reorder` validates `{order}` length matches and is a permutation, then applies
+  6. Each new endpoint has a matching OpenAPI path entry in the same commit
+  7. Each endpoint reuses `withApiAuth`, `apiSuccess`/`apiError`, and `updateProjectService` patterns
+**Plans**: 2 plans
+
+Plans:
+- [ ] 35-01-PLAN.md -- PATCH /projects/{id} + expand PATCH /slides/{index} fields
+- [ ] 35-02-PLAN.md -- POST/DELETE /slides + POST /slides/reorder
+
+### Phase 36: Publish & Credits Read (Tier 2.B)
+**Goal**: API customers can publish to Explore, unpublish, and read their own credit balance + tier.
+**Depends on**: Phase 35
+**Requirements**: API-06, API-07, API-08
+**Success Criteria** (what must be TRUE):
+  1. `POST /projects/{id}/publish` calls the existing `publish_carousel` RPC with hero render and returns `{ publishedId, slug, url }`
+  2. `DELETE /projects/{id}/publish` calls `unpublish_carousel` RPC
+  3. `GET /me/credits` returns `{ tier, balance, monthly_grant, period_end }` keyed off the existing `subscriptions` row
+  4. Hero render path reuses `renderHero` logic from `publishProjectToExplore` server action (extract to a shared helper if needed)
+  5. OpenAPI spec entries shipped in same commit
+**Plans**: 1 plan
+
+Plans:
+- [ ] 36-01-PLAN.md -- /publish POST+DELETE + /me/credits GET
+
+### Phase 37: AI & Image Sources (Tier 3.A)
+**Goal**: API customers can swap stock backgrounds via Pexels search and trigger AI image / text regeneration on a per-slide basis.
+**Depends on**: Phase 36
+**Requirements**: API-09, API-10, API-11
+**Success Criteria** (what must be TRUE):
+  1. `POST /pexels/search` accepts `{ query, orientation?, perPage? }` and returns Pexels search results — free
+  2. `POST /projects/{id}/slides/{index}/generate-image` calls existing Imagen path, writes URL to `slide.background_url`, deducts 1 credit, surfaces `x-credits-remaining`
+  3. `POST /projects/{id}/slides/{index}/regenerate-text` accepts `{ field: 'hook' | 'body' }`, returns the new text — free
+  4. Insufficient-credits returns 402 `INSUFFICIENT_CREDITS` per existing convention
+  5. OpenAPI spec entries in same commit
+**Plans**: 2 plans
+
+Plans:
+- [ ] 37-01-PLAN.md -- /pexels/search proxy + spec
+- [ ] 37-02-PLAN.md -- generate-image + regenerate-text endpoints
+
+### Phase 38: Explore, Bookmarks, Forking (Tier 3.B)
+**Goal**: API customers can browse the Explore feed, view single published carousels, fork them, and manage their own bookmarks.
+**Depends on**: Phase 37
+**Requirements**: API-12, API-13, API-14, API-15, API-16, API-17
+**Success Criteria** (what must be TRUE):
+  1. `GET /explore` accepts `?sort=trending|new|featured&tag=&q=&cursor=` and returns `{ items, next_cursor }` matching the existing /explore page query
+  2. `GET /explore/{slug}` returns the published carousel snapshot with creator profile snippet
+  3. `POST /explore/{slug}/fork` calls `fork_published_carousel` RPC, returns `{ projectId }`
+  4. `POST /me/bookmarks` and `DELETE /me/bookmarks/{publishedId}` insert/delete owner-only `bookmarks` rows
+  5. `GET /me/bookmarks` returns most-recent-first list
+  6. New `PublishedCarousel` schema added to OpenAPI spec
+  7. Anonymous Explore reads supported via the existing public RLS policy on `published_carousels`
+**Plans**: 2 plans
+
+Plans:
+- [ ] 38-01-PLAN.md -- /explore GET + /explore/{slug} GET + /explore/{slug}/fork POST
+- [ ] 38-02-PLAN.md -- /me/bookmarks CRUD endpoints
+
+### Phase 39: Brand Kit & Profile (Tier 3.C)
+**Goal**: API customers can read and update their brand kit and public profile programmatically.
+**Depends on**: Phase 38
+**Requirements**: API-18, API-19, API-20, API-21, DOC-01, DOC-02
+**Success Criteria** (what must be TRUE):
+  1. `GET /me/brand-kit` returns the user's brand kit row (or null)
+  2. `PUT /me/brand-kit` upserts brand kit; logo upload uses an upload-URL pattern (`POST /me/brand-kit/logo-upload-url` returns a signed PUT URL)
+  3. `GET /me/profile` returns the `public.profiles` row (display_name, bio, avatar_url, website_url, social_links)
+  4. `PATCH /me/profile` updates non-username fields
+  5. PROJECT.md updated with v2.5 milestone summary
+  6. README quickstart references new credits + publish endpoints
+  7. End-to-end: a fresh customer with a brand-new API key can do everything the dashboard can — generate, edit, publish, fork, manage credits, manage profile — in one curl session
+**Plans**: 2 plans
+
+Plans:
+- [ ] 39-01-PLAN.md -- /me/brand-kit GET + PUT + logo-upload-url + /me/profile GET + PATCH
+- [ ] 39-02-PLAN.md -- PROJECT.md + README updates + e2e curl walk-through
+
 ---
 
 ## Progress
@@ -630,3 +733,9 @@ Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 | 31. Explore Feed & Detail Page | v2.4 | 1/1 | Complete | 2026-04-27 |
 | 32. Search & Tag Filters | v2.4 | 1/1 | Complete | 2026-04-27 |
 | 33. Bookmarks, Counters & Polish | v2.4 | 1/1 | Complete | 2026-04-27 |
+| 34. API Spec Accuracy (Tier 1) | v2.5 | 0/1 | Not started | - |
+| 35. Project & Slide CRUD (Tier 2.A) | v2.5 | 0/2 | Not started | - |
+| 36. Publish & Credits Read (Tier 2.B) | v2.5 | 0/1 | Not started | - |
+| 37. AI & Image Sources (Tier 3.A) | v2.5 | 0/2 | Not started | - |
+| 38. Explore, Bookmarks, Forking (Tier 3.B) | v2.5 | 0/2 | Not started | - |
+| 39. Brand Kit & Profile (Tier 3.C) | v2.5 | 0/2 | Not started | - |
