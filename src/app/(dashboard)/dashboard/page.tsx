@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { ProjectList } from '@/components/projects/project-list'
+import { PublishedList, type PublishedCarouselRow } from '@/components/dashboard/published-list'
 import { Icon } from '@/components/ui/icon'
 import { getCreditBalance, getUserTier, checkProjectLimit } from '@/lib/credits/check-credits'
 import { TIER_CREDITS } from '@/lib/credits/types'
@@ -10,7 +11,15 @@ import type { Project } from '@/lib/types/project'
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const userName = (user?.user_metadata?.first_name as string) || user?.email?.split('@')[0] || 'User'
+
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const userName =
+    (profile?.display_name as string | null) ||
+    (user?.user_metadata?.first_name as string) ||
+    user?.email?.split('@')[0] ||
+    'User'
 
   const { data: projects } = await supabase
     .from('projects')
@@ -18,6 +27,15 @@ export default async function DashboardPage() {
     .order('updated_at', { ascending: false })
 
   const projectList = (projects as Project[]) ?? []
+
+  const { data: publishedRows } = user
+    ? await supabase
+        .from('published_carousels')
+        .select('id, slug, title, hero_image_url, bookmark_count, remix_count, unpublished_at')
+        .eq('owner_id', user.id)
+        .order('published_at', { ascending: false })
+    : { data: [] }
+  const published = (publishedRows as PublishedCarouselRow[] | null) ?? []
 
   // Ensure subscription exists (bootstraps free tier if needed)
   if (user) await ensureSubscription(user.id)
@@ -75,6 +93,9 @@ export default async function DashboardPage() {
       {!canCreateProject && tier === 'free' && (
         <UpgradePrompt context="project_limit" />
       )}
+
+      {/* Published to Explore */}
+      <PublishedList rows={published} />
 
       {/* Recent Carousels */}
       <ProjectList projects={projectList} />
