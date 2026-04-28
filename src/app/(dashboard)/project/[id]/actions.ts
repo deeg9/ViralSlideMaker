@@ -51,7 +51,7 @@ export async function generateCarousel(
     if (tier === 'free' && slideCount > FREE_TIER_MAX_SLIDES) {
       return {
         success: false,
-        error: `Free plan is limited to ${FREE_TIER_MAX_SLIDES} slides. Upgrade for up to 50.`,
+        error: `Free plan is limited to ${FREE_TIER_MAX_SLIDES} slides. Upgrade for up to 10.`,
         upgradeEligible: true,
       }
     }
@@ -82,7 +82,7 @@ export async function generateCarousel(
     }
 
     // 1. Generate content with Gemini (templateId steers the prompt for templates like News Drop)
-    const clampedCount = Math.max(3, Math.min(50, slideCount))
+    const clampedCount = Math.max(3, Math.min(10, slideCount))
     const carousel = await generateSlideContent(topic, clampedCount, advancedOptions?.imagePrompt, templateId)
 
     // 2. Fetch background images

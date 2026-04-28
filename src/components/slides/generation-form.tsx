@@ -38,7 +38,7 @@ export function GenerationForm({
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'highlight-bar')
   const [imageSource, setImageSource] = useState<ImageSource>('stock')
   const isPaidUser = userTier !== 'free'
-  const sliderMax = isPaidUser ? 50 : FREE_TIER_MAX_SLIDES
+  const sliderMax = isPaidUser ? 10 : FREE_TIER_MAX_SLIDES
   const [slideCount, setSlideCount] = useState(isPaidUser ? 7 : FREE_TIER_MAX_SLIDES)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
