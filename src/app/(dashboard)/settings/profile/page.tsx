@@ -79,17 +79,42 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]
     if (!file) return
     setMessage(null)
+
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp']
+    const MAX_BYTES = 2 * 1024 * 1024
+    if (!ALLOWED.includes(file.type)) {
+      setMessage({ type: 'error', text: 'Avatar must be a JPG, PNG, or WebP image.' })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    if (file.size > MAX_BYTES) {
+      setMessage({
+        type: 'error',
+        text: `Avatar must be 2MB or smaller (this one is ${(file.size / 1024 / 1024).toFixed(1)}MB).`,
+      })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     const formData = new FormData()
     formData.set('avatar', file)
     startUpload(async () => {
-      const result = await uploadAvatar(formData)
-      if (result.success) {
-        setAvatarUrl(result.url)
-        setMessage({ type: 'success', text: 'Avatar updated.' })
-      } else {
-        setMessage({ type: 'error', text: result.error })
+      try {
+        const result = await uploadAvatar(formData)
+        if (result.success) {
+          setAvatarUrl(result.url)
+          setMessage({ type: 'success', text: 'Avatar updated.' })
+        } else {
+          setMessage({ type: 'error', text: result.error })
+        }
+      } catch (err) {
+        setMessage({
+          type: 'error',
+          text: err instanceof Error ? `Upload failed: ${err.message}` : 'Upload failed.',
+        })
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = ''
       }
-      if (fileInputRef.current) fileInputRef.current.value = ''
     })
   }
 
