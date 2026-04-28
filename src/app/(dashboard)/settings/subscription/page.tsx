@@ -49,6 +49,7 @@ const plans = [
     period: '/mo',
     features: [
       '200 credits/month',
+      'Up to 20 slides per carousel',
       'No watermark — clean exports',
       'Everything in Plus',
     ],
