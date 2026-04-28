@@ -97,8 +97,7 @@ export default async function ExplorePage({
   ]
 
   return (
-    <div className="min-h-screen bg-[#fff8f7]">
-      <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-[#3d0000]">Explore</h1>
@@ -222,7 +221,6 @@ export default async function ExplorePage({
             })}
           </div>
         )}
-      </div>
     </div>
   )
 }

@@ -72,7 +72,7 @@ export default async function ExploreDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#fff8f7]">
+    <>
       <ViewTracker publishedId={c.id} />
       <div className="mx-auto max-w-5xl px-4 py-8">
         {justPublished && (
@@ -184,6 +184,6 @@ export default async function ExploreDetailPage({
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }

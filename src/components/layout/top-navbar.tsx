@@ -10,6 +10,7 @@ interface TopNavbarProps {
   variant: 'marketing' | 'app'
   userName?: string
   creditDisplay?: React.ReactNode
+  signedIn?: boolean
 }
 
 const navItems = [
@@ -28,7 +29,7 @@ function Logo({ size = 32 }: { size?: number }) {
   )
 }
 
-export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) {
+export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }: TopNavbarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -92,8 +93,25 @@ export function TopNavbar({ variant, userName, creditDisplay }: TopNavbarProps) 
             })}
           </div>
 
-          {/* Profile menu (identity zone) */}
-          <ProfileMenu userName={userName ?? 'User'} creditDisplay={creditDisplay} />
+          {/* Profile menu (identity zone) — or Log In/Sign Up for anonymous viewers */}
+          {signedIn ? (
+            <ProfileMenu userName={userName ?? 'User'} creditDisplay={creditDisplay} />
+          ) : (
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="whitespace-nowrap font-medium text-sm tracking-wide text-[#3d0000] hover:text-[#3d0000]/70 transition-colors"
+              >
+                Log In
+              </Link>
+              <Link
+                href="/signup"
+                className="bg-[#3d0000] text-white px-4 py-2 rounded-xl font-medium text-sm transition-transform active:scale-90 whitespace-nowrap"
+              >
+                Get Started
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>
