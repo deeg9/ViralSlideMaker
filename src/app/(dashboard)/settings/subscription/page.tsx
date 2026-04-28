@@ -47,7 +47,7 @@ const plans = [
     price: '$49.99',
     period: '/mo',
     features: [
-      '200 credits/month',
+      '125 credits/month',
       'No watermark — clean exports',
       'Everything in Plus',
     ],
