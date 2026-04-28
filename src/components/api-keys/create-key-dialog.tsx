@@ -5,7 +5,7 @@ import { Dialog } from '@base-ui/react/dialog'
 import { Icon } from '@/components/ui/icon'
 import { createApiKey } from '@/app/(dashboard)/settings/api-keys/actions'
 
-const SNIPPET_TABS = ['curl', 'JavaScript', 'Python', 'Claude Desktop'] as const
+const SNIPPET_TABS = ['curl', 'JavaScript', 'Python'] as const
 
 function getSnippet(tab: (typeof SNIPPET_TABS)[number], key: string): string {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://viralslidemaker.com'
@@ -26,17 +26,6 @@ res = requests.get(
     headers={'Authorization': 'Bearer ${key}'}
 )
 data = res.json()`
-    case 'Claude Desktop':
-      return `{
-  "mcpServers": {
-    "viralslidemaker": {
-      "url": "${baseUrl}/api/mcp",
-      "headers": {
-        "Authorization": "Bearer ${key}"
-      }
-    }
-  }
-}`
   }
 }
 

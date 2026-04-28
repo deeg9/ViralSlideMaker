@@ -12,11 +12,6 @@ export async function middleware(request: NextRequest) {
     return
   }
 
-  // Skip session auth for MCP routes (uses Bearer token auth via mcp-handler)
-  if (request.nextUrl.pathname.startsWith('/api/mcp')) {
-    return
-  }
-
   // Skip session auth for dev-only admin routes (uses ADMIN_SEED_TOKEN bearer auth)
   if (request.nextUrl.pathname.startsWith('/api/admin')) {
     return

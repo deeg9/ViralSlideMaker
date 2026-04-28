@@ -641,52 +641,5 @@ export const openApiSpec = {
         },
       },
     },
-    '/projects/{id}/download/{index}': {
-      parameters: [
-        {
-          name: 'id',
-          in: 'path',
-          required: true,
-          schema: { type: 'string' as const, format: 'uuid' },
-          description: 'Project ID',
-        },
-        {
-          name: 'index',
-          in: 'path',
-          required: true,
-          schema: { type: 'integer' as const, minimum: 0 },
-          description: 'Zero-based slide index',
-        },
-      ],
-      get: {
-        operationId: 'downloadSlide',
-        summary: 'Download a single slide as PNG',
-        description: 'Renders and returns a single slide image.',
-        tags: ['Rendering'],
-        responses: {
-          '200': {
-            description: 'PNG image of the slide',
-            headers: rateLimitHeaders,
-            content: {
-              'image/png': {
-                schema: {
-                  type: 'string' as const,
-                  format: 'binary',
-                },
-              },
-            },
-          },
-          '400': {
-            description: 'Invalid slide index',
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
-          },
-          '404': {
-            description: 'Project or slide not found',
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
-          },
-          ...commonErrorResponses,
-        },
-      },
-    },
   },
 }
