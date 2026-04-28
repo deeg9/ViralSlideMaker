@@ -82,9 +82,10 @@ None yet.
 | 260427-nxd | Usernames + public.profiles table + deferred /onboarding/username gate + claim_username RPC + avatars storage bucket; settings/profile rewritten to read/write public.profiles with avatar upload. Migration written but NOT yet applied to remote Supabase — user must run `supabase db push` before username gate works | 2026-04-27 | db69f60 | [260427-nxd-add-usernames-and-user-profiles-to-suppo](./quick/260427-nxd-add-usernames-and-user-profiles-to-suppo/) |
 | 260427-vm2 | deletePublishedCarousel server action with paired storage cleanup — fixes the orphan-PNG bug where hard-deleting a published_carousels row leaked a hero file. Test orphan from earlier verification cleaned up via Storage API | 2026-04-27 | 7f757be | [260427-vm2-hero-png-cleanup-on-published-carousels-](./quick/260427-vm2-hero-png-cleanup-on-published-carousels-/) |
 | 260427-w8d | Manage Published dashboard section (View/Unpublish/Delete buttons per published carousel, dimmed HIDDEN state on unpublished rows) + welcome heading reads from public.profiles.display_name. Closes the two v2.4 polish gaps surfaced post-ship | 2026-04-27 | da54996 | [260427-w8d-manage-published-dashboard-section-displ](./quick/260427-w8d-manage-published-dashboard-section-displ/) |
+| 260427-wmg | Top nav now renders on /explore + /explore/[slug] via new explore/layout.tsx (anonymous-friendly via TopNavbar signedIn prop). Bookmarks moved out of the global nav icon row and into the profile dropdown above Settings | 2026-04-27 | 19ee645 | [260427-wmg-top-nav-on-explore-bookmarks-pages-anony](./quick/260427-wmg-top-nav-on-explore-bookmarks-pages-anony/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-27 - Completed quick task 260427-w8d: Manage Published dashboard section + display_name welcome heading
-Stopped at: v2.4 Explore + Remix fully shipped, polished, and verified
+Last activity: 2026-04-27 - Completed quick task 260427-wmg: top nav on /explore + Bookmarks moved into profile dropdown
+Stopped at: v2.4 Explore + Remix fully shipped, polished, and nav-cleaned
 Resume file: None
