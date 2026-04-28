@@ -699,7 +699,7 @@ export const openApiSpec = {
       post: {
         operationId: 'addSlide',
         summary: 'Add a new slide',
-        description: 'Appends a slide by default. Provide an optional `position` (0-based, ≤ current count) to insert at index. Optional `slide` body to seed initial fields; otherwise a blank slide is created. Hard cap of 20 slides per project.',
+        description: 'Appends a slide by default. Provide an optional `position` (0-based, ≤ current count) to insert at index. Optional `slide` body to seed initial fields; otherwise a blank slide is created. Hard cap of 50 slides per project.',
         tags: ['Slides'],
         requestBody: {
           required: false,

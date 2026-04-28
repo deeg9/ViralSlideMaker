@@ -11,7 +11,7 @@ function extractProjectId(req: NextRequest): string | null {
   return id && id.length > 0 ? id : null
 }
 
-const MAX_SLIDES = 20
+const MAX_SLIDES = 50
 
 const blankSlide = () => ({
   hook_text: '',

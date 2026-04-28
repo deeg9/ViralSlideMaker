@@ -42,8 +42,8 @@ export const POST = withApiAuth(async (req, ctx) => {
   }
 
   const validSlideCount = slideCount === undefined ? 7 : Number(slideCount)
-  if (isNaN(validSlideCount) || !Number.isInteger(validSlideCount) || validSlideCount < 3 || validSlideCount > 20) {
-    return apiError('VALIDATION_ERROR', 'slideCount must be an integer between 3 and 20', 400)
+  if (isNaN(validSlideCount) || !Number.isInteger(validSlideCount) || validSlideCount < 3 || validSlideCount > 50) {
+    return apiError('VALIDATION_ERROR', 'slideCount must be an integer between 3 and 50', 400)
   }
 
   if (advancedOptions !== undefined && (typeof advancedOptions !== 'object' || advancedOptions === null)) {
@@ -55,7 +55,7 @@ export const POST = withApiAuth(async (req, ctx) => {
   if (tier === 'free' && validSlideCount > 3) {
     return apiError(
       'VALIDATION_ERROR',
-      'Free plan is limited to 3 slides per carousel. Upgrade to plus or pro for up to 20.',
+      'Free plan is limited to 3 slides per carousel. Upgrade to plus or pro for up to 50.',
       400
     )
   }
