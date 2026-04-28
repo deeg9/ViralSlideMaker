@@ -78,6 +78,7 @@ None yet.
 | 260427-jld | Add 6 viral templates + replace synthetic Aa thumbnails with real mini SlidePreview renders | 2026-04-27 | f083c5c | [260427-jld-add-6-viral-templates-replace-synthetic-](./quick/260427-jld-add-6-viral-templates-replace-synthetic-/) |
 | 260427-jwq | Free-tier cap: max 3 slides for free users, locked slider with upgrade upsell, server-side enforcement | 2026-04-27 | bb3cf79 | [260427-jwq-free-tier-cap-max-3-slides-for-free-user](./quick/260427-jwq-free-tier-cap-max-3-slides-for-free-user/) |
 | 260427-wmk | Forced "ViralSlideMaker.com" watermark on every slide for free tier — bottom-left logo+text lockup, server-authoritative across editor preview, per-slide PNG, and ZIP, with inline "Upgrade to remove" upsell | 2026-04-27 | df301e2 | [260427-wmk-free-tier-viralslidemaker-watermark](./quick/260427-wmk-free-tier-viralslidemaker-watermark/) |
+| 260427-bkt | Brand kit as a first-class selectable template — adds heading+body font pairing, accent color, text align/position, hook style, overlay opacity to brand-kit data model; brand-kit tile in visual-style picker (with empty-state Build CTA); resolved across all 3 render paths | 2026-04-27 | 490e0e7 | [260427-bkt-brand-kit-as-template](./quick/260427-bkt-brand-kit-as-template/) |
 
 ## Session Continuity
 
