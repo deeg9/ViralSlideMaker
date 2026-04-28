@@ -1,6 +1,27 @@
 # Milestones
 
-## v2.5 Public REST API Parity (Planned)
+## v2.5 Public REST API Parity (Shipped: 2026-04-28)
+
+**Phases completed:** 6 phases (34–39), 10 plans, 28 requirements
+
+**Key accomplishments:**
+
+- Tier 1 (Phase 34): closed SPEC-01..07. Added `TextSegment`, `TextEffects` (+ shadow/outline/highlight sub-types) schemas. Expanded `Slide`, `StyleOverrides`, `CustomText`, `Project` to match `src/lib/types/slide.ts` and `src/lib/types/project.ts`. Tightened `/carousel` POST 200 response with `required` + descriptions. Zero behavior change.
+- Tier 2 (Phases 35–36): `PATCH /projects/{id}` (rename + template), expanded `PATCH /slides/{index}` to 9 fields (was 5), `POST /slides`, `DELETE /slides/{index}` (refuses last-slide delete), `POST /slides/reorder` (full permutation only), `POST/DELETE /projects/{id}/publish`, `GET /me/credits`. New `src/lib/services/publish.ts` for the admin-client publish path.
+- Tier 3 (Phases 37–39): `POST /pexels/search`, `POST /slides/{index}/generate-image` (Imagen, 1 credit, refunds on safety filter), `POST /slides/{index}/regenerate-text` (Gemini, free, opt-in persist), `GET /explore` (cursor-paginated 24/page, sort/tag/q), `GET /explore/{slug}`, `POST /explore/{slug}/fork`, `GET/POST /me/bookmarks`, `DELETE /me/bookmarks/{publishedId}`, `GET/PUT /me/brand-kit` + `POST /me/brand-kit/logo-upload-url`, `GET/PATCH /me/profile`. New service modules: `src/lib/services/ai-regen.ts`. New OpenAPI schemas: `BrandKit`, `Profile`, `PublishedCarousel`.
+- ~21 new endpoints across the 6 phases, all reusing the existing `withApiAuth` wrapper. No new auth surface; static Bearer tokens cover everything.
+- Decisions favored API consistency over dashboard parity where they diverged (e.g. bookmark POST is idempotent on conflict; slide DELETE refuses if it would leave 0 slides; reorder requires full permutation not partial).
+- All routes verified to compile and respond 401 to unauthenticated curls; typecheck clean for every touched file.
+
+**Built on:** v2.2 (REST API foundation), v2.3 retired in quick-260428-rmm, v2.4 (Explore + Remix infrastructure).
+
+**Out of scope (deferred to v2.6+):** API-key CRUD via API, Stripe billing endpoints, webhooks for project events, OAuth 2.1, anonymous Explore reads, avatar upload via signed URL, username-claim via API.
+
+---
+
+## v2.5 Public REST API Parity (Planning Snapshot — superseded by Shipped section above)
+
+The original planning scope, kept for historical reference. All requirements below were closed in the shipped milestone.
 
 **Goal:** Bring the public REST API up to full feature parity with the dashboard so a customer with an API key can do everything they can do in the UI — manage projects, slides, custom text/images, AI image generation, Pexels search, publishing, Explore browsing, bookmarks, forking, brand kit, credits.
 

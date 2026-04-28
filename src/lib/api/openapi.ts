@@ -262,6 +262,57 @@ export const openApiSpec = {
           textAlign: { type: 'string' as const, enum: ['left', 'center', 'right'] },
         },
       },
+      BrandKit: {
+        type: 'object' as const,
+        description: 'User\'s brand kit. Drives brand-kit template rendering at slide-render time.',
+        properties: {
+          id: { type: 'string' as const, format: 'uuid' },
+          user_id: { type: 'string' as const, format: 'uuid' },
+          name: { type: ['string', 'null'] as const },
+          primary_color: { type: ['string', 'null'] as const },
+          secondary_color: { type: ['string', 'null'] as const },
+          text_color: { type: ['string', 'null'] as const },
+          background_color: { type: ['string', 'null'] as const },
+          font_family: { type: ['string', 'null'] as const, description: 'Legacy single-font field; preserved for back-compat' },
+          logo_url: { type: ['string', 'null'] as const, format: 'uri' },
+          logo_position: {
+            type: ['string', 'null'] as const,
+            enum: [null, 'top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'],
+          },
+          logo_size_pct: { type: ['number', 'null'] as const, minimum: 4, maximum: 20 },
+          logo_opacity_pct: { type: ['number', 'null'] as const, minimum: 10, maximum: 100 },
+          heading_font_family: { type: ['string', 'null'] as const },
+          body_font_family: { type: ['string', 'null'] as const },
+          accent_color: { type: ['string', 'null'] as const },
+          text_align: { type: ['string', 'null'] as const, enum: [null, 'left', 'center', 'right'] },
+          text_position: { type: ['string', 'null'] as const, enum: [null, 'top', 'center', 'bottom'] },
+          hook_style: { type: ['string', 'null'] as const, enum: [null, 'uppercase', 'normal', 'italic'] },
+          overlay_opacity_pct: { type: ['number', 'null'] as const, minimum: 0, maximum: 100 },
+          created_at: { type: 'string' as const, format: 'date-time' },
+          updated_at: { type: 'string' as const, format: 'date-time' },
+        },
+      },
+      Profile: {
+        type: 'object' as const,
+        properties: {
+          id: { type: 'string' as const, format: 'uuid' },
+          username: { type: ['string', 'null'] as const },
+          display_name: { type: ['string', 'null'] as const },
+          bio: { type: ['string', 'null'] as const, maxLength: 280 },
+          avatar_url: { type: ['string', 'null'] as const, format: 'uri' },
+          website_url: { type: ['string', 'null'] as const, format: 'uri' },
+          social_links: {
+            type: 'object' as const,
+            properties: {
+              tiktok: { type: 'string' as const },
+              instagram: { type: 'string' as const },
+              x: { type: 'string' as const },
+              youtube: { type: 'string' as const },
+            },
+          },
+          created_at: { type: 'string' as const, format: 'date-time' },
+        },
+      },
       PublishedCarousel: {
         type: 'object' as const,
         required: ['id', 'slug', 'title', 'owner_id', 'published_at'],
@@ -1499,6 +1550,221 @@ export const openApiSpec = {
                 },
               },
             },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/me/brand-kit': {
+      get: {
+        operationId: 'getMyBrandKit',
+        summary: 'Get my brand kit',
+        description: 'Returns the caller\'s brand kit row, or null if not yet created.',
+        tags: ['Account'],
+        responses: {
+          '200': {
+            description: 'Brand kit (or null)',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      oneOf: [
+                        { $ref: '#/components/schemas/BrandKit' },
+                        { type: 'null' as const },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...commonErrorResponses,
+        },
+      },
+      put: {
+        operationId: 'upsertMyBrandKit',
+        summary: 'Upsert my brand kit',
+        description: 'Creates the brand kit on first call, updates it on subsequent calls. Logo upload uses POST /me/brand-kit/logo-upload-url to obtain a signed URL, then PUT here with the resulting `logo_url`.',
+        tags: ['Account'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                description: 'Any subset of BrandKit fields. Unknown fields are dropped.',
+                properties: {
+                  name: { type: 'string' as const },
+                  primary_color: { type: ['string', 'null'] as const },
+                  secondary_color: { type: ['string', 'null'] as const },
+                  text_color: { type: ['string', 'null'] as const },
+                  background_color: { type: ['string', 'null'] as const },
+                  font_family: { type: ['string', 'null'] as const },
+                  logo_url: { type: ['string', 'null'] as const, format: 'uri' },
+                  logo_position: { type: ['string', 'null'] as const },
+                  logo_size_pct: { type: ['number', 'null'] as const },
+                  logo_opacity_pct: { type: ['number', 'null'] as const },
+                  heading_font_family: { type: ['string', 'null'] as const },
+                  body_font_family: { type: ['string', 'null'] as const },
+                  accent_color: { type: ['string', 'null'] as const },
+                  text_align: { type: ['string', 'null'] as const },
+                  text_position: { type: ['string', 'null'] as const },
+                  hook_style: { type: ['string', 'null'] as const },
+                  overlay_opacity_pct: { type: ['number', 'null'] as const },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Updated brand kit',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: { data: { $ref: '#/components/schemas/BrandKit' } },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/me/brand-kit/logo-upload-url': {
+      post: {
+        operationId: 'createLogoUploadUrl',
+        summary: 'Create a signed upload URL for the brand-kit logo',
+        description: 'Returns a signed PUT URL the client uses to upload directly to the brand-kit-logos bucket. After uploading, call PUT /me/brand-kit with `logo_url` set to the returned `publicUrl`.',
+        tags: ['Account'],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                properties: {
+                  filename: { type: 'string' as const, default: 'logo.png' },
+                  contentType: { type: 'string' as const, enum: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'], default: 'image/png' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Signed upload URL',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      type: 'object' as const,
+                      properties: {
+                        uploadUrl: { type: 'string' as const, format: 'uri' },
+                        token: { type: 'string' as const },
+                        method: { type: 'string' as const, enum: ['PUT'] },
+                        headers: { type: 'object' as const, additionalProperties: { type: 'string' as const } },
+                        publicUrl: { type: 'string' as const, format: 'uri' },
+                        path: { type: 'string' as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...commonErrorResponses,
+        },
+      },
+    },
+    '/me/profile': {
+      get: {
+        operationId: 'getMyProfile',
+        summary: 'Get my public profile',
+        description: 'Returns display_name, bio, avatar_url, website_url, social_links from the public.profiles row.',
+        tags: ['Account'],
+        responses: {
+          '200': {
+            description: 'Profile (or null if not yet created — e.g. user hasn\'t claimed a username)',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: {
+                    data: {
+                      oneOf: [
+                        { $ref: '#/components/schemas/Profile' },
+                        { type: 'null' as const },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ...commonErrorResponses,
+        },
+      },
+      patch: {
+        operationId: 'updateMyProfile',
+        summary: 'Update my public profile',
+        description: 'Updates display_name, bio, avatar_url, website_url, and/or social_links. Username has its own claim flow (see /onboarding/username) and cannot be changed via this endpoint.',
+        tags: ['Account'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object' as const,
+                description: 'At least one field must be provided',
+                properties: {
+                  display_name: { type: ['string', 'null'] as const },
+                  bio: { type: ['string', 'null'] as const, maxLength: 280 },
+                  avatar_url: { type: ['string', 'null'] as const, format: 'uri' },
+                  website_url: { type: ['string', 'null'] as const, format: 'uri' },
+                  social_links: {
+                    type: 'object' as const,
+                    properties: {
+                      tiktok: { type: 'string' as const },
+                      instagram: { type: 'string' as const },
+                      x: { type: 'string' as const },
+                      youtube: { type: 'string' as const },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Updated profile',
+            headers: rateLimitHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object' as const,
+                  properties: { data: { $ref: '#/components/schemas/Profile' } },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
           },
           ...commonErrorResponses,
         },

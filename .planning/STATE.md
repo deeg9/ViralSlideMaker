@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.5
 milestone_name: Public REST API Parity
-status: in-progress
-stopped_at: v2.5 bootstrapped (28 reqs across 6 phases, 3 tiers); ready to execute Phase 34
+status: complete
+stopped_at: v2.5 shipped autonomously — 6 phases, 28 requirements closed, ~21 new endpoints across REST API + new BrandKit/Profile/PublishedCarousel schemas
 last_updated: "2026-04-28T17:30:00.000Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 6
   total_plans: 10
-  completed_plans: 1
-  percent: 10
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 
 ## Current Position
 
-Phase: 35 (next-ready, not started)
-Plan: 35-01-PLAN.md (Tier 2.A — PATCH /projects/{id} + expanded slide PATCH)
-Status: Phase 34 (Tier 1 spec accuracy) complete — `/docs` now matches the live Slide/Project types. Phase 35 starts the actual new-endpoint work.
+Phase: 39 (complete)
+Plan: All complete
+Status: v2.5 milestone complete — REST API has full feature parity with the dashboard. Manual end-to-end verification with a live API key recommended.
 Last activity: 2026-04-28
 
-Progress: [█░░░░░░░░░] 10% (1/6 phases of v2.5 complete)
+Progress: [██████████] 100% (6/6 phases of v2.5 complete)
 
 ## Performance Metrics
 
@@ -94,7 +94,7 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - Phase 34 (Tier 1 spec accuracy) complete: closed SPEC-01 through SPEC-07. Added TextSegment + TextEffects (+ shadow/outline/highlight sub-schemas) to openapi.ts, expanded Slide/StyleOverrides/CustomText/Project to match the live types, tightened /carousel response shape with required + descriptions. /docs now accurately documents the existing 7 routes.
-Stopped at: Checkpoint after Phase 34 — Tiers 2 (Phases 35-36) and 3 (Phases 37-39) add ~14 new endpoints across ~3-4 hrs of careful work. Awaiting user decision before continuing autonomously.
+Last activity: 2026-04-28 - v2.5 Public REST API Parity SHIPPED. Pushed through Phases 35-39 in one autonomous pass after the Phase 34 spec-accuracy wedge. ~21 new endpoints + BrandKit/Profile/PublishedCarousel schemas. All routes return 401 to unauthenticated curls (expected); typecheck clean for all touched files; no behavior change to the existing 7 routes.
+Stopped at: v2.5 milestone complete; ready for next milestone or live-API verification.
 Resume file: None
-Next phase: Phase 35 — see ROADMAP.md "### Phase 35: Project & Slide CRUD (Tier 2.A)"
+Next: pick a v2.6 theme, OR run a live curl walk-through against a fresh API key to verify the full surface.
