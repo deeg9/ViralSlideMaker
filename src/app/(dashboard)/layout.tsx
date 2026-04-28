@@ -16,7 +16,21 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  const userName = (user.user_metadata?.first_name as string) || user.email?.split('@')[0] || 'User'
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username, display_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.username) {
+    redirect('/onboarding/username')
+  }
+
+  const userName =
+    (profile?.display_name as string | null) ||
+    (user.user_metadata?.first_name as string) ||
+    user.email?.split('@')[0] ||
+    'User'
 
   return (
     <DashboardShell
