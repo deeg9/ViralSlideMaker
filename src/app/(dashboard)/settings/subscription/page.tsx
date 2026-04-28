@@ -4,8 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getUserTier, getCreditBalance } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { STRIPE_PRICES } from '@/lib/stripe/config'
-import { createCheckoutSession, createCreditPackCheckout } from './actions'
-import { ManageSubscriptionButton } from './manage-subscription-button'
+import { createCheckoutSession, createCreditPackCheckout, createPortalSession, syncSubscriptionAction } from './actions'
 import { Check, Star } from 'lucide-react'
 import type { SubscriptionTier } from '@/lib/credits/types'
 
@@ -62,7 +61,7 @@ const plans = [
 export default async function SubscriptionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; canceled?: string; credits?: string; error?: string }>
+  searchParams: Promise<{ success?: string; canceled?: string; credits?: string; error?: string; synced?: string }>
 }) {
   const params = await searchParams
 
@@ -110,6 +109,12 @@ export default async function SubscriptionPage({
       {params.credits === 'true' && (
         <div className="mb-6 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
           Credits purchased! Your balance will update shortly.
+        </div>
+      )}
+      {params.synced && (
+        <div className="mb-6 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+          Synced — your plan is now <span className="font-semibold capitalize">{params.synced}</span>.
+          {params.credits === 'true' && ' Credits granted.'}
         </div>
       )}
       {params.error === 'upgrade_required' && (
@@ -194,9 +199,20 @@ export default async function SubscriptionPage({
               <hr className="w-full my-4 border-[#dbc1bc]/30" />
 
               {isCurrent ? (
-                <span className="inline-flex items-center justify-center rounded-xl text-sm font-semibold tracking-tight py-3 px-6 w-full bg-[#fadbdb] text-[#3d0000] cursor-default">
-                  Current Plan
-                </span>
+                hasStripeCustomer ? (
+                  <form action={createPortalSession}>
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center rounded-xl text-sm font-semibold tracking-tight py-3 px-6 w-full bg-[#3d0000] text-white hover:bg-[#3d0000]/90 transition-all active:scale-95"
+                    >
+                      Manage Subscription
+                    </button>
+                  </form>
+                ) : (
+                  <span className="inline-flex items-center justify-center rounded-xl text-sm font-semibold tracking-tight py-3 px-6 w-full bg-[#fadbdb] text-[#3d0000] cursor-default">
+                    Current Plan
+                  </span>
+                )
               ) : canUpgrade && plan.priceId ? (
                 <form action={async () => {
                   'use server'
@@ -215,7 +231,7 @@ export default async function SubscriptionPage({
                 </form>
               ) : (
                 <span className="inline-flex items-center justify-center rounded-xl text-sm font-semibold tracking-tight py-3 px-6 w-full text-[#7d6161] cursor-default">
-                  {plan.tier === 'free' ? 'Free Plan' : 'Manage via Portal'}
+                  {plan.name} Plan
                 </span>
               )}
 
@@ -289,13 +305,21 @@ export default async function SubscriptionPage({
         </div>
       </div>
 
-      {/* Manage Subscription button */}
-      <div className="bg-white rounded-xl p-6 border border-[#dbc1bc]/10">
-        <ManageSubscriptionButton hasStripeCustomer={hasStripeCustomer} />
-        <p className="text-xs text-[#7d6161] mt-2">
-          Billing is managed through Stripe. You&apos;ll be redirected to a secure portal.
-        </p>
-      </div>
+      {hasStripeCustomer && (
+        <div className="bg-white rounded-xl p-6 border border-[#dbc1bc]/10">
+          <form action={syncSubscriptionAction}>
+            <button
+              type="submit"
+              className="text-sm font-semibold text-[#3d0000] underline underline-offset-2 hover:text-[#3d0000]/80"
+            >
+              Sync from Stripe
+            </button>
+          </form>
+          <p className="text-xs text-[#7d6161] mt-1">
+            Already paid but plan still says Free? Click to refresh from Stripe.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

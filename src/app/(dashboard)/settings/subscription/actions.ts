@@ -8,6 +8,7 @@ import { getStripeServer } from '@/lib/stripe/client'
 import { STRIPE_PRICES } from '@/lib/stripe/config'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { getUserTier } from '@/lib/credits/check-credits'
+import { syncSubscriptionFromStripe } from '@/lib/stripe/sync-subscription'
 
 async function getAppUrl(): Promise<string> {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -125,6 +126,17 @@ export async function createPortalSession() {
   })
 
   redirect(session.url)
+}
+
+export async function syncSubscriptionAction() {
+  const user = await getAuthenticatedUser()
+  const admin = createAdminClient()
+  const appUrl = await getAppUrl()
+
+  await ensureSubscription(user.id)
+  const { tier, granted } = await syncSubscriptionFromStripe(user.id, admin)
+  const creditsParam = granted ? '&credits=true' : ''
+  redirect(`${appUrl}/settings/subscription?synced=${tier}${creditsParam}`)
 }
 
 export async function createCreditPackCheckout() {

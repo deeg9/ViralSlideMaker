@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getStripeServer } from './client'
 import { tierFromPriceId, CREDIT_PACK_AMOUNTS } from './config'
 import { TIER_CREDITS } from '@/lib/credits/types'
+import type { SubscriptionTier } from '@/lib/credits/types'
 
 export async function handleStripeEvent(
   event: Stripe.Event,
@@ -201,6 +202,98 @@ async function handleInvoicePaid(
     description: `Monthly credit grant (${sub.tier.charAt(0).toUpperCase() + sub.tier.slice(1)} tier)`,
     reference_id: invoice.id,
   })
+}
+
+/**
+ * Reconcile a user's `subscriptions` row + monthly credit grant against Stripe's
+ * source of truth. Used by the "Sync from Stripe" button so a dropped/missed
+ * `checkout.session.completed` webhook can self-heal without admin intervention.
+ *
+ * Idempotent: the credit grant is keyed on the active subscription's
+ * `latest_invoice` id, which matches how `handleInvoicePaid` deduplicates — so
+ * calling this after the webhook has already fired (or before it fires later)
+ * never double-grants.
+ */
+export async function syncSubscriptionFromStripe(
+  userId: string,
+  admin: SupabaseClient,
+): Promise<{ tier: SubscriptionTier; granted: boolean }> {
+  const { data: existing } = await admin
+    .from('subscriptions')
+    .select('stripe_customer_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const customerId = existing?.stripe_customer_id as string | undefined
+  if (!customerId) return { tier: 'free', granted: false }
+
+  const stripe = getStripeServer()
+  const list = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'active',
+    limit: 1,
+  })
+  const sub = list.data[0]
+
+  if (!sub) {
+    await admin
+      .from('subscriptions')
+      .update({
+        tier: 'free',
+        status: 'canceled',
+        stripe_subscription_id: null,
+      })
+      .eq('user_id', userId)
+    return { tier: 'free', granted: false }
+  }
+
+  const tier = tierFromPriceId(sub.items.data[0].price.id)
+  if (!tier) return { tier: 'free', granted: false }
+
+  const periodStart = new Date(sub.start_date * 1000).toISOString()
+  const periodEnd = sub.cancel_at
+    ? new Date(sub.cancel_at * 1000).toISOString()
+    : null
+
+  await admin
+    .from('subscriptions')
+    .upsert({
+      user_id: userId,
+      stripe_customer_id: customerId,
+      stripe_subscription_id: sub.id,
+      tier,
+      status: 'active',
+      current_period_start: periodStart,
+      current_period_end: periodEnd,
+      cancel_at_period_end: sub.cancel_at_period_end,
+    }, { onConflict: 'user_id' })
+
+  const latestInvoice = typeof sub.latest_invoice === 'string'
+    ? sub.latest_invoice
+    : sub.latest_invoice?.id ?? null
+  if (!latestInvoice) return { tier, granted: false }
+
+  const creditAmount = TIER_CREDITS[tier]
+  if (!creditAmount) return { tier, granted: false }
+
+  const { count } = await admin
+    .from('credit_transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('type', 'subscription_grant')
+    .eq('reference_id', latestInvoice)
+
+  if (count && count > 0) return { tier, granted: false }
+
+  await admin.from('credit_transactions').insert({
+    user_id: userId,
+    type: 'subscription_grant',
+    amount: creditAmount,
+    description: `Monthly credit grant (${tier.charAt(0).toUpperCase() + tier.slice(1)} tier)`,
+    reference_id: latestInvoice,
+  })
+
+  return { tier, granted: true }
 }
 
 async function handlePaymentFailed(
