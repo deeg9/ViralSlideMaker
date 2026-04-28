@@ -4,7 +4,7 @@ milestone: v2.4
 milestone_name: Explore + Remix
 status: complete
 stopped_at: v2.4 Explore + Remix shipped autonomously (5 phases, 38 requirements closed)
-last_updated: "2026-04-28T07:48:00.000Z"
+last_updated: "2026-04-28T08:48:00.000Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 5
@@ -87,9 +87,10 @@ None yet.
 | 260428-pfp | Public profile page at /[username] — closes the broken /diego byline link from /explore/[slug]. Server component renders profile header (avatar, display name, @handle, bio, joined month, website + tiktok/instagram/x/youtube social-link chips) and a grid of the user's public published carousels. "Edit profile" CTA on own profile only; empty-state card with "Create a carousel" CTA when none. notFound() on unknown username; reserved-usernames list already shields top-level static routes from being shadowed | 2026-04-28 | 6e66d14 | [260428-pfp-public-profile-page-username-route](./quick/260428-pfp-public-profile-page-username-route/) |
 | 260428-0ah | Resources page rewritten — placeholder ("Coming soon") replaced with full Creator Playbook: hero + stat strip (1.9× reach, 8–10 sweet spot, ~2 sec hook window), 4 hook patterns (Question/Bold/Stat/Transformation), text-legibility rules (≥36px headlines, ≥24px body, WCAG 4.5:1, left-align, whitespace), slide-structure timeline, last-slide CTA examples, in-app playbook (Explore→Brand Kit→watermark→free→Pro→ZIP export) with deep links, pre-post checklist, and final CTA banner linking to /explore + /dashboard. Server component, no new deps, matches existing dashboard tokens. Research baked from web search on 2026 viral carousel best practices | 2026-04-28 | 5168e66 | [260428-0ah-build-out-resources-page-with-viral-caro](./quick/260428-0ah-build-out-resources-page-with-viral-caro/) |
 | 260428-vis | Edit visibility from Recent Carousels 3-dot menu — drops the separate Published-to-Explore dashboard section and folds publish/unpublish + title/tag edits into a per-card modal (title + Private\|Public toggle + comma-separated category hashtags). New saveVisibility server action handles all 4 transitions: private→public delegates to existing publishProjectToExplore (hero render + publish_carousel RPC), public→private calls unpublish_carousel, public→public + edits UPDATEs title + tags on the live published_carousels row directly, private→private syncs projects.title. PUBLIC badge added to thumbnail when row is visible. Reuses existing RPCs; no DB migration | 2026-04-28 | 60cd9a4 | [260428-vis-edit-visibility-on-recent-carousel-card](./quick/260428-vis-edit-visibility-on-recent-carousel-card/) |
+| 260428-vdd | Editor visibility dropdown replaces Publish modal — compact Public\|Private toggle in the editor sidebar action row (next to Export). Public is the listed-first "DEFAULT" option per spec; selecting it on a private project triggers the existing publish flow (hero render + publish_carousel RPC); selecting Private unpublishes. Reuses saveVisibility from quick-260428-vis. publish-modal.tsx left on disk but unreferenced | 2026-04-28 | 1d412de | [260428-vdd-editor-visibility-dropdown](./quick/260428-vdd-editor-visibility-dropdown/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - Completed quick task 260428-vis: Edit visibility per-card modal
-Stopped at: v2.4 Explore + Remix fully populated demo-ready (publish UX consolidated into Recent Carousels)
+Last activity: 2026-04-28 - Completed quick task 260428-vdd: Editor visibility dropdown
+Stopped at: v2.4 Explore + Remix fully populated demo-ready (visibility consolidated across editor + dashboard)
 Resume file: None
