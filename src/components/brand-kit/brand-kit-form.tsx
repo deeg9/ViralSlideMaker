@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import type { BrandKit, LogoPosition, BrandKitTextAlign, BrandKitTextPosition, BrandKitHookStyle } from '@/lib/types/brand-kit'
-import { saveBrandKit, uploadLogo } from '@/app/(dashboard)/settings/brand-kit/actions'
+import { saveBrandKit, uploadLogo, extractStyleFromImage } from '@/app/(dashboard)/settings/brand-kit/actions'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import { synthesizeBrandKitTemplate } from '@/lib/brand-kit/get-effective-template'
 import type { Slide } from '@/lib/types/slide'
@@ -85,6 +85,16 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKit | null }) {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Style-extraction state (260428-sty)
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  const [extractConfidence, setExtractConfidence] = useState<{
+    fonts: number
+    colors: number
+    layout: number
+  } | null>(null)
+  const referenceInputRef = useRef<HTMLInputElement>(null)
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setStatus('saving')
@@ -121,6 +131,42 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKit | null }) {
     }
   }
 
+  async function handleReferenceUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setExtracting(true)
+    setExtractError(null)
+    setExtractConfidence(null)
+
+    try {
+      const formData = new FormData()
+      formData.set('file', file)
+      const result = await extractStyleFromImage(formData)
+      if (!result.success) {
+        setExtractError(result.error)
+        return
+      }
+      const s = result.style
+      setPrimaryColor(s.primary_color)
+      setSecondaryColor(s.secondary_color)
+      setAccentColor(s.accent_color)
+      setBackgroundColor(s.background_color)
+      setTextColor(s.text_color)
+      setHeadingFontFamily(s.heading_font_family)
+      setBodyFontFamily(s.body_font_family)
+      setFontFamily(s.body_font_family)
+      setTextAlign(s.text_align)
+      setTextPosition(s.text_position)
+      setHookStyle(s.hook_style)
+      setOverlayOpacityPct(s.overlay_opacity_pct)
+      setExtractConfidence(s.confidence)
+    } finally {
+      setExtracting(false)
+      e.target.value = ''
+    }
+  }
+
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -147,6 +193,53 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKit | null }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+      {/* Generate from Reference (260428-sty) */}
+      <fieldset className="space-y-3 rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/40 p-5">
+        <legend className="text-sm font-semibold px-2 text-blue-900">
+          Generate from Reference
+        </legend>
+        <p className="text-xs text-gray-600 leading-relaxed">
+          Upload a screenshot of a carousel you like and we&apos;ll auto-fill the fields below to
+          match the style.{' '}
+          <span className="text-gray-500">
+            We match the style, not the exact font. Review before saving.
+          </span>
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            ref={referenceInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            onChange={handleReferenceUpload}
+            disabled={extracting}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => referenceInputRef.current?.click()}
+            disabled={extracting}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {extracting ? 'Analyzing reference… ~3s' : 'Upload reference screenshot'}
+          </button>
+          {extractConfidence && !extracting && (
+            <span className="text-xs text-green-700">
+              Style applied. Review &amp; click Save Brand Kit to commit.
+            </span>
+          )}
+        </div>
+        {extractConfidence && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <ConfidenceBadge label="Colors" value={extractConfidence.colors} />
+            <ConfidenceBadge label="Fonts" value={extractConfidence.fonts} />
+            <ConfidenceBadge label="Layout" value={extractConfidence.layout} />
+          </div>
+        )}
+        {extractError && (
+          <p className="text-xs text-red-600">{extractError}</p>
+        )}
+      </fieldset>
+
       {/* Name */}
       <div>
         <label htmlFor="name" className="block text-sm font-medium mb-1">
@@ -540,6 +633,25 @@ function FontField({
         ))}
       </select>
     </div>
+  )
+}
+
+function ConfidenceBadge({ label, value }: { label: string; value: number }) {
+  const pct = Math.round(value * 100)
+  const tier = value >= 0.75 ? 'high' : value >= 0.5 ? 'med' : 'low'
+  const palette =
+    tier === 'high'
+      ? 'bg-green-100 text-green-800 border-green-300'
+      : tier === 'med'
+        ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
+        : 'bg-red-100 text-red-800 border-red-300'
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${palette}`}
+      title={`${label} confidence: ${pct}%`}
+    >
+      {label} {pct}%
+    </span>
   )
 }
 
