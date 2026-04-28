@@ -624,8 +624,8 @@ Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 | 26. MCP Transport & Auth | v2.3 | 1/1 | Complete    | 2026-04-09 |
 | 27. MCP Tools | v2.3 | 1/1 | Complete    | 2026-04-09 |
 | 28. stdio Package & Documentation | v2.3 | 1/1 | Complete    | 2026-04-09 |
-| 29. Schema, RPCs & Hero Storage | v2.4 | 0/1 | Not started | - |
-| 30. Publish Flow | v2.4 | 0/2 | Not started | - |
-| 31. Explore Feed & Detail Page | v2.4 | 0/2 | Not started | - |
-| 32. Search & Tag Filters | v2.4 | 0/1 | Not started | - |
-| 33. Bookmarks, Counters & Polish | v2.4 | 0/2 | Not started | - |
+| 29. Schema, RPCs & Hero Storage | v2.4 | 1/1 | Complete | 2026-04-27 |
+| 30. Publish Flow | v2.4 | 1/1 | Complete | 2026-04-27 |
+| 31. Explore Feed & Detail Page | v2.4 | 1/1 | Complete | 2026-04-27 |
+| 32. Search & Tag Filters | v2.4 | 1/1 | Complete | 2026-04-27 |
+| 33. Bookmarks, Counters & Polish | v2.4 | 1/1 | Complete | 2026-04-27 |
