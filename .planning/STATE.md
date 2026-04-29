@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
-status: verifying
-stopped_at: Plan 44-01 complete (TextSegment + SlideTemplate schema extended). Ready for Plan 44-02 (validator).
-last_updated: "2026-04-29T16:18:27.264Z"
+status: executing
+stopped_at: Plan 45-01 complete — resolve-overlay foundation shipped. Ready for Plan 45-02 (Satori renderer wiring).
+last_updated: "2026-04-29T17:11:21.083Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 44 — template-schema-foundation
+**Current focus:** Phase 45 — renderer-composition
 
 ## Current Position
 
-Phase: 44 (template-schema-foundation) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 45 (renderer-composition) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-04-29
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [██████████] 100%
 | 48. Template Thumbnails & Picker | 0 | - | - |
 | Phase 44 P01 | 3min | 2 tasks | 2 files |
 | Phase 44 P02 | 2min | 2 tasks | 4 files |
+| Phase 45 P01 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Progress: [██████████] 100%
 - [Phase ?]: [v2.7]: TextSegment.highlightStyle uses 'pill' | 'block' (intentionally distinct from sibling TextHighlightEffect.style 'tight' | 'full' to avoid value-space confusion)
 - [Phase ?]: [v2.7]: Phase 44 validator (validateTemplateRegistry) runs at module load via top-level call in templates/index.ts — fails fast on slot/slide-field/page-counter/duplicate-slot misconfig
 - [Phase ?]: [v2.7]: Phase 44 validator is hand-rolled (no zod dep) and split into validate.ts for direct unit-test import — pattern available for Phase 45 renderer adoption
+- [Phase 45]: Phase 45-01 ships resolve-overlay.ts as the parity foundation — single source of truth for overlay content resolution + slot pixel anchors + segment-to-span pill markup + bottom-card RGBA composition. Both Satori (45-02) and React preview (45-03) consume it to guarantee zero preview/export drift (TPLREND-05)
+- [Phase 45]: Phase 45-01 — renderSegments extracted as shared helper (Open Question 4 strong-recommend); SLOT_GEOMETRY colocated in resolve-overlay.ts; bottomCardBackground inlined; <HighlightSpan> NOT extracted yet (defer until wire-up proves duplication)
+- [Phase 45]: Phase 45-01 resolve-overlay.ts at .ts extension (not .tsx) — JSX emitted via React.createElement so the resolver stays tier-neutral and importable without a TSX transform
 
 ### Pending Todos
 
@@ -115,7 +119,7 @@ None yet.
 ## Session Continuity
 
 Last activity: 2026-04-28 - v2.6 roadmap written. 3 phases (40, 41, 42) defined with 100% requirement coverage (19/19 REQ-IDs mapped). Phase 40 is next-ready. Roadmap appended to ROADMAP.md (v1.0–v2.5 history preserved). Traceability section in REQUIREMENTS.md filled in.
-Stopped at: Plan 44-01 complete (TextSegment + SlideTemplate schema extended). Ready for Plan 44-02 (validator).
+Stopped at: Plan 45-01 complete — resolve-overlay foundation shipped. Ready for Plan 45-02 (Satori renderer wiring).
 Resume file: None
 Next: `/gsd-plan-phase 40` — start planning MCP Transport & Auth.
 
