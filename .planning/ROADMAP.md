@@ -787,8 +787,8 @@ Plans:
   2. A user generates a carousel and no slide contains an obvious spelling typo (e.g. "MUSICAN", "CARROUSEL"); the spell-check pass catches and retries on detected errors before persisting
   3. A user generates a carousel with a magazine-style template and the resulting `hook_segments` / `body_segments` already have `highlightColor` set on action verbs and proper nouns matching the template's accent color (no manual editing needed for the Murphy aesthetic)
   4. A user picks `magazine-bold` vs. `documentary` and generates the same topic — the resulting copy tone visibly differs (punchy news-style vs. story-led), driven by the per-template voice-note prompt
-**Plans:** 3 plans
-- [ ] 47-01-PLAN.md — Add aiVoiceNote field to SlideTemplate + populate on 3 premium templates; widen Gemini segmentSchema + Zod TextSegmentSchema with optional highlightColor / highlightStyle (TPLAI-03, TPLAI-04 schema surface)
+**Plans:** 1/3 plans executed
+- [x] 47-01-PLAN.md — Add aiVoiceNote field to SlideTemplate + populate on 3 premium templates; widen Gemini segmentSchema + Zod TextSegmentSchema with optional highlightColor / highlightStyle (TPLAI-03, TPLAI-04 schema surface)
 - [ ] 47-02-PLAN.md — Build src/lib/ai/typos.ts (KNOWN_TYPOS curated set) + src/lib/ai/validate-slides.ts (wordCount, isPremiumTemplate, detectOverflows, detectOrphans, detectTypos, validateAndRepair) with full RED→GREEN unit-test coverage (TPLAI-01, TPLAI-02 logic surface)
 - [ ] 47-03-PLAN.md — Wire validateAndRepair into generateSlideContent with retry-once flow + extend buildSystemPrompt with premium-tier addendum (length caps, highlight pill rules) + voice-note injection; legacy NEWS_TEMPLATES newsDropAddendum unchanged (TPLAI-01..04 runtime wiring)
 
@@ -854,5 +854,5 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 44. Template Schema Foundation | v2.7 | 2/2 | Complete   | 2026-04-29 |
 | 45. Renderer Composition | v2.7 | 3/3 | Complete   | 2026-04-29 |
 | 46. Premium Template Authoring | v2.7 | 2/2 | Complete   | 2026-04-29 |
-| 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |
+| 47. AI Prompt Tuning | v2.7 | 1/3 | In Progress|  |
 | 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |

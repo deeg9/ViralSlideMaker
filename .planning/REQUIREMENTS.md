@@ -36,8 +36,8 @@
 
 - [ ] **TPLAI-01**: `generateCarousel` system/user prompts updated so generated content fits compact bottom-card layouts: hook ≤ 12 words, body ≤ 35 words, no orphans (no duplicate hook/body lines on the same slide).
 - [ ] **TPLAI-02**: Spelling and grammar quality gate — prompts explicitly require correct spelling; a spell-check pass on critical fields catches and retries on obvious typos like "MUSICAN" before persisting.
-- [ ] **TPLAI-03**: AI suggests `hook_segments` / `body_segments` with `highlightColor` set to the template's accent color, marking action verbs and proper nouns as highlighted (matches the reference's mint-pill emphasis pattern).
-- [ ] **TPLAI-04**: Template-aware generation: when the user picks a magazine-style template, the AI is given a one-line "voice note" prompt (e.g. "you are writing for a punchy news-style carousel") to nudge tone toward the template's aesthetic.
+- [x] **TPLAI-03**: AI suggests `hook_segments` / `body_segments` with `highlightColor` set to the template's accent color, marking action verbs and proper nouns as highlighted (matches the reference's mint-pill emphasis pattern).
+- [x] **TPLAI-04**: Template-aware generation: when the user picks a magazine-style template, the AI is given a one-line "voice note" prompt (e.g. "you are writing for a punchy news-style carousel") to nudge tone toward the template's aesthetic.
 
 ### Template Thumbnails (TPLTHUMB)
 

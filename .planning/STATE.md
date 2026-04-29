@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
-status: verifying
+status: executing
 stopped_at: Phase 46 complete (Plan 46-02 done — TPLNEW-05 sealed). Ready for /gsd-verify-phase 46.
-last_updated: "2026-04-29T18:38:27.453Z"
+last_updated: "2026-04-29T19:08:37.830Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 10
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 46 — premium-template-authoring
+**Current focus:** Phase 47 — ai-prompt-tuning
 
 ## Current Position
 
-Phase: 46 (premium-template-authoring) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 47 (ai-prompt-tuning) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-04-29
 
-Progress: [██████████] 100%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 45 P03 | 8min | 3 tasks | 10 files |
 | Phase 46 P01 | 4min | 2 tasks | 5 files |
 | Phase 46 P02 | 5min | 2 tasks | 5 files |
+| Phase 47 P01 | 3min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Progress: [██████████] 100%
 - [Phase ?]: [Phase 46]: Phase 46-01 — premium-tier cohesion contract: magazine-bold + tr3nding-news share mint #A8E0B0 + Anton hook + Inter body + image-with-bottom-card; documentary deliberately diverges (NO mint, NO Anton, NO hook_segments, NO bottom card; image-bleed + free-slot gradient). Pattern available for future tier-coherent template families.
 - [Phase 46]: [Phase 46]: Phase 46-02 ships 21 new tests across 3 files (3 Satori snapshot premium-template + 5 legacy-regression-snapshot + 13 SlidePreview DOM-signature parity); legacy snapshot baseline proven free of Phase 45 layer markers (TPLNEW-05 sealed). Full vitest suite 360 pass / 11 fail (baseline 11 unchanged); npm run build 0; tsc 14 errors (baseline). Phase 46 functionally complete (5/5 requirements).
 - [Phase 46]: [Phase 46]: jsdom test-environment hex→rgb tolerance pattern — added styleHasColor helper that accepts both #HEX and rgb(r,g,b) inline-style forms. Mirrors slide-preview-overlays.test.tsx (Plan 45-03) precedent for future tests that assert on color tokens through <SlidePreview>.
+- [Phase ?]: [Phase 47]: Phase 47-01 ships SlideTemplate.aiVoiceNote optional field + verbatim voice notes on magazine-bold/tr3nding-news/documentary; Gemini segmentSchema and Zod TextSegmentSchema both widened with optional highlightColor + highlightStyle (z.literal('pill') for AI scope; renderer-side TextSegment still permits pill | block for manual editor use). Backward compatible with legacy 5 templates and pre-Phase-47 Gemini responses.
+- [Phase ?]: [Phase 47]: TPLAI-04 voice notes shipped verbatim from CONTEXT.md Area 4 (no rewording per D-04). Phase 47-03 prompt-assembly will read template.aiVoiceNote and conditionally append TEMPLATE VOICE NOTE block to the system prompt; NEWS_TEMPLATES newsDropAddendum coexists for news-drop/news-cyan.
 
 ### Pending Todos
 
