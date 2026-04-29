@@ -78,4 +78,35 @@ Broader MCP tool surface that exposes the rest of the v2.5 REST endpoints as nat
 
 ## Traceability
 
-(Populated by the roadmapper in Step 10. Each REQ-ID maps to exactly one phase.)
+Each v2.6 REQ-ID maps to exactly one phase. 100% coverage (19/19 mapped, no orphans, no duplicates).
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| MCP-TRANS-01 | Phase 40 — MCP Transport & Auth | Pending |
+| MCP-TRANS-02 | Phase 40 — MCP Transport & Auth | Pending |
+| MCP-TRANS-03 | Phase 40 — MCP Transport & Auth | Pending |
+| MCP-TRANS-04 | Phase 40 — MCP Transport & Auth | Pending |
+| MCP-TRANS-05 | Phase 40 — MCP Transport & Auth | Pending |
+| MCP-TRANS-06 | Phase 40 — MCP Transport & Auth | Pending |
+| MCP-TRANS-07 | Phase 40 — MCP Transport & Auth | Pending |
+| MCP-TOOL-01 | Phase 41 — MCP Tool Surface | Pending |
+| MCP-TOOL-02 | Phase 41 — MCP Tool Surface | Pending |
+| MCP-TOOL-03 | Phase 41 — MCP Tool Surface | Pending |
+| MCP-TOOL-04 | Phase 41 — MCP Tool Surface | Pending |
+| MCP-TOOL-05 | Phase 41 — MCP Tool Surface | Pending |
+| MCP-TOOL-06 | Phase 41 — MCP Tool Surface | Pending |
+| MCP-DIST-01 | Phase 42 — Distribution & Documentation | Pending |
+| MCP-DIST-02 | Phase 42 — Distribution & Documentation | Pending |
+| MCP-DIST-03 | Phase 42 — Distribution & Documentation | Pending |
+| MCP-DIST-04 | Phase 42 — Distribution & Documentation | Pending |
+| MCP-DIST-05 | Phase 42 — Distribution & Documentation | Pending |
+| MCP-DIST-06 | Phase 42 — Distribution & Documentation | Pending |
+
+### Coverage Summary
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| Phase 40 — MCP Transport & Auth | MCP-TRANS-01..07 | 7 |
+| Phase 41 — MCP Tool Surface | MCP-TOOL-01..06 | 6 |
+| Phase 42 — Distribution & Documentation | MCP-DIST-01..06 | 6 |
+| **Total** | | **19** |

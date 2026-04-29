@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: MCP Server
-status: planning
-stopped_at: Defining requirements for v2.6 MCP Server (lean 4-tool scope; rebuilds retired v2.3)
-last_updated: "2026-04-28T18:00:00.000Z"
+status: ready_to_plan
+stopped_at: Roadmap defined for v2.6 (Phases 40-42). Phase 40 next-ready for /gsd-plan-phase 40
+last_updated: "2026-04-28T18:30:00.000Z"
 last_activity: 2026-04-28
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,28 +25,28 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 40 — MCP Transport & Auth (next-ready)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-28 — Milestone v2.6 started
+Status: Roadmap complete; ready to plan Phase 40
+Last activity: 2026-04-28 — v2.6 roadmap written; phases 40/41/42 mapped to MCP-TRANS / MCP-TOOL / MCP-DIST categories with 100% requirement coverage (19/19)
 
-Progress: [░░░░░░░░░░] 0% (defining requirements)
+Progress: [░░░░░░░░░░] 0% (0/3 phases complete)
 
 ## Performance Metrics
 
-**Velocity (from v1.0 through v2.2):**
+**Velocity (from v1.0 through v2.5):**
 
-- Total plans completed: 31
+- Total plans completed: 50+
 - Average duration: ~6 min
-- Total execution time: ~3 hours
+- Total execution time: ~5 hours
 
-**v2.3 Progress:**
+**v2.6 Progress:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 26 | 1 | - | - |
-| 27 | 1 | - | - |
-| 28 | 1 | - | - |
+| 40. MCP Transport & Auth | 0 | - | - |
+| 41. MCP Tool Surface | 0 | - | - |
+| 42. Distribution & Documentation | 0 | - | - |
 
 ## Accumulated Context
 
@@ -62,6 +62,8 @@ Progress: [░░░░░░░░░░] 0% (defining requirements)
 - [v2.6]: Build-gate verification step — fail the build if mcp-handler is missing from node_modules (the v2.3 retirement root cause)
 - [v2.6]: Extract bearer-token verification core from src/lib/api/auth.ts so REST and MCP share one helper (avoids NextRequest coupling in MCP path)
 - [v2.6]: Reuse retired v2.3 phase plans at .planning/phases/26-28/ as inputs to v2.6 planning — do NOT clear them
+- [v2.6]: Phase 40 (Transport & Auth) → Phase 41 (Tool Surface) → Phase 42 (Distribution & Docs). 1:1 mapping to the 3 REQUIREMENTS.md categories (MCP-TRANS / MCP-TOOL / MCP-DIST). Strict linear dependency: tools register on the server stood up in 40; bridge + docs validate against the working tool surface from 41.
+- [v2.6]: Tool registry pattern (`src/lib/mcp/tools.ts`) deliberately designed for additive v2.7+ extension — broader surface (publish, fork, bookmarks, brand-kit) lands as new tool definitions, no architectural rework.
 
 ### Pending Todos
 
@@ -70,8 +72,8 @@ None yet.
 ### Blockers/Concerns
 
 - Upstash Redis env vars need provisioning for production rate limiting (carried from v2.2)
-- v2.3 retirement root cause: mcp-handler was in package.json but missing from node_modules. v2.6 must add a CI/build step that explicitly imports from mcp-handler so a missing dep fails the build.
-- Library API drift: mcp-handler and @modelcontextprotocol/sdk versions cited in v2.3 plans are from 2026-04. Verify import paths and signatures against current npm releases at the start of Phase A.
+- v2.3 retirement root cause: mcp-handler was in package.json but missing from node_modules. v2.6 must add a CI/build step that explicitly imports from mcp-handler so a missing dep fails the build. Now codified as MCP-TRANS-06 (Phase 40 success criterion 4).
+- Library API drift: mcp-handler and @modelcontextprotocol/sdk versions cited in v2.3 plans are from 2026-04. Verify import paths and signatures against current npm releases at the start of Phase 40.
 
 ### Quick Tasks Completed
 
@@ -103,7 +105,7 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - v2.6 MCP Server milestone started. Theme picked: rebuild the retired v2.3 MCP server with lean 4-tool scope. PROJECT.md updated with new milestone goals; v2.3 entries removed from Validated (they were retired, not actually shipped working). Earlier in same session: added "Connect to your tools" guide section at src/components/api-keys/automation-guide.tsx wired into /settings/api-keys page so users can wire their vsl_ key into Claude/ChatGPT/Cursor today via REST + OpenAPI spec.
-Stopped at: PROJECT.md + STATE.md updated; ready to define REQUIREMENTS.md and ROADMAP.md.
-Resume file: None
-Next: research decision (Step 8) → define requirements (Step 9) → create roadmap (Step 10).
+Last activity: 2026-04-28 - v2.6 roadmap written. 3 phases (40, 41, 42) defined with 100% requirement coverage (19/19 REQ-IDs mapped). Phase 40 is next-ready. Roadmap appended to ROADMAP.md (v1.0–v2.5 history preserved). Traceability section in REQUIREMENTS.md filled in.
+Stopped at: Ready for `/gsd-plan-phase 40`.
+Resume file: .planning/ROADMAP.md (v2.6 block at the bottom)
+Next: `/gsd-plan-phase 40` — start planning MCP Transport & Auth.
