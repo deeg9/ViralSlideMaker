@@ -722,7 +722,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 
 **Strict dependency order:** TPLSCHEMA (Phase 44) is foundational — TPLREND, TPLNEW, and TPLAI all depend on the schema landing first. TPLTHUMB depends on TPLNEW.
 
-- [ ] **Phase 44: Template Schema Foundation** - Extend `SlideTemplate` type with `overlays`, `backgroundMode`, dynamic content sources, per-segment `highlightColor`, and registry validation
+- [x] **Phase 44: Template Schema Foundation** - Extend `SlideTemplate` type with `overlays`, `backgroundMode`, dynamic content sources, per-segment `highlightColor`, and registry validation (completed 2026-04-29)
 - [ ] **Phase 45: Renderer Composition** - Satori + React-preview parity for overlay zones, full-bleed photo backgrounds, dynamic page counter, per-word highlight pills
 - [ ] **Phase 46: Premium Template Authoring** - Author `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` templates with sample data; verify no regressions on existing 5 templates
 - [ ] **Phase 47: AI Prompt Tuning** - Tune `create_carousel` prompts for compact layouts (≤12-word hooks, ≤35-word bodies, no orphans), spelling quality gate, segment highlight suggestions, template-aware tone
@@ -740,7 +740,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
   5. Booting the app with a malformed template (invalid overlay position, unknown content source) fails fast at startup with a clear error message identifying the offending template
 **Plans**: 2 plans
 - [x] 44-01-PLAN.md — Type extensions: SlideTemplate.overlays + .backgroundMode, OverlayContent discriminated union, TextSegment.highlightColor/highlightStyle (Wave 1)
-- [ ] 44-02-PLAN.md — validateTemplateRegistry module + module-load wiring + tests covering each failure path (Wave 2, depends on 44-01)
+- [x] 44-02-PLAN.md — validateTemplateRegistry module + module-load wiring + tests covering each failure path (Wave 2, depends on 44-01)
 **UI hint**: yes
 
 ### Phase 45: Renderer Composition
@@ -839,7 +839,7 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 40. MCP Transport & Auth | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 41. MCP Tool Surface | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |
-| 44. Template Schema Foundation | v2.7 | 1/2 | In Progress|  |
+| 44. Template Schema Foundation | v2.7 | 2/2 | Complete   | 2026-04-29 |
 | 45. Renderer Composition | v2.7 | 0/0 | Not started | - |
 | 46. Premium Template Authoring | v2.7 | 0/0 | Not started | - |
 | 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |

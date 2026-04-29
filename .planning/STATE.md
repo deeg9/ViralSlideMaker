@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
-status: executing
+status: verifying
 stopped_at: Plan 44-01 complete (TextSegment + SlideTemplate schema extended). Ready for Plan 44-02 (validator).
-last_updated: "2026-04-29T16:13:06.919Z"
+last_updated: "2026-04-29T16:18:27.264Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 
 Phase: 44 (template-schema-foundation) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-29
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [█████░░░░░] 50%
 | 47. AI Prompt Tuning | 0 | - | - |
 | 48. Template Thumbnails & Picker | 0 | - | - |
 | Phase 44 P01 | 3min | 2 tasks | 2 files |
+| Phase 44 P02 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Progress: [█████░░░░░] 50%
 - [Phase ?]: [v2.7]: Phase 44 schema is type-only — overlays + backgroundMode + segment highlights are additive optional fields; no renderer wiring or new templates yet
 - [Phase ?]: [v2.7]: OverlayContent is a discriminated union keyed on `type` (literal | page-counter | slide-field) with slide-field locked to a closed enum (topic | hook_text | body_text)
 - [Phase ?]: [v2.7]: TextSegment.highlightStyle uses 'pill' | 'block' (intentionally distinct from sibling TextHighlightEffect.style 'tight' | 'full' to avoid value-space confusion)
+- [Phase ?]: [v2.7]: Phase 44 validator (validateTemplateRegistry) runs at module load via top-level call in templates/index.ts — fails fast on slot/slide-field/page-counter/duplicate-slot misconfig
+- [Phase ?]: [v2.7]: Phase 44 validator is hand-rolled (no zod dep) and split into validate.ts for direct unit-test import — pattern available for Phase 45 renderer adoption
 
 ### Pending Todos
 
@@ -113,7 +116,7 @@ None yet.
 
 Last activity: 2026-04-28 - v2.6 roadmap written. 3 phases (40, 41, 42) defined with 100% requirement coverage (19/19 REQ-IDs mapped). Phase 40 is next-ready. Roadmap appended to ROADMAP.md (v1.0–v2.5 history preserved). Traceability section in REQUIREMENTS.md filled in.
 Stopped at: Plan 44-01 complete (TextSegment + SlideTemplate schema extended). Ready for Plan 44-02 (validator).
-Resume file: .planning/phases/44-template-schema-foundation/44-02-PLAN.md
+Resume file: None
 Next: `/gsd-plan-phase 40` — start planning MCP Transport & Auth.
 
 **Planned Phase:** 40 (MCP Transport & Auth) — 1 plans — 2026-04-29T01:23:55.217Z
