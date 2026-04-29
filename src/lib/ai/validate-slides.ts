@@ -219,7 +219,9 @@ export function validateAndRepair<
     )
   })
 
-  const orphans = detectOrphans(data.slides)
+  // Orphan detection is premium-tier only per CONTEXT.md D-01 (mirrors
+  // detectOverflows gating above).
+  const orphans = isPremiumTemplate(templateId) ? detectOrphans(data.slides) : []
   orphans.forEach((o) => {
     warnings.push(`slide ${o.slideIndex} hook/body are orphans (>=80% overlap)`)
   })
