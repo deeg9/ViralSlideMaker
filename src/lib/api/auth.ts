@@ -14,8 +14,12 @@ export async function authenticateApiKey(
   try {
     return await verifyApiKeyHash(rawKey)
   } catch (err) {
+    // Preserve the original InvalidApiKeyError type and stack trace.
+    // Its default message is already 'Invalid API key', which keeps the
+    // 'API key' substring contract that with-api-auth.ts:87 relies on for
+    // REST 401 mapping.
     if (err instanceof InvalidApiKeyError) {
-      throw new Error('Invalid API key')
+      throw err
     }
     throw err
   }
