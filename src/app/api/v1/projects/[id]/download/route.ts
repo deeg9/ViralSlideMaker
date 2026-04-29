@@ -75,8 +75,8 @@ export const GET = withApiAuth(async (req, ctx) => {
   const totalSlides = slides.length
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
-    const ctx = { slideIndex: i, totalSlides, topic: project.topic }
-    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin, ctx)
+    const renderCtx = { slideIndex: i, totalSlides, topic: project.topic }
+    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin, renderCtx)
     const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
     const imgRes = new ImageResponse(element, {
       width: 1080,
