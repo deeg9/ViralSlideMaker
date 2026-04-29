@@ -1,6 +1,6 @@
 {
   "name": "viralslidemaker-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP stdio transport for ViralSlideMaker — connects local AI agents to the hosted MCP server",
   "license": "MIT",
   "type": "module",

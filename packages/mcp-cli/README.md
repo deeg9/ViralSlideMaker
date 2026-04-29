@@ -1,8 +1,16 @@
 # viralslidemaker-mcp
 
-MCP stdio bridge for ViralSlideMaker. Connects local AI agents (Claude Desktop, Cursor, Windsurf) to the hosted ViralSlideMaker MCP endpoint at `https://viralslidemaker.com/api/mcp`.
+MCP stdio bridge for ViralSlideMaker. Connects local AI agents (Claude Desktop, Claude Code, Cursor) to the hosted ViralSlideMaker MCP endpoint at `https://viralslidemaker.com/api/mcp`.
 
-The bridge wraps [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) and injects your API key as an `Authorization: Bearer` header so your agent can call the 4 carousel tools natively.
+The bridge wraps [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) and injects your API key as an `Authorization: Bearer` header so your agent can call the 5 carousel tools natively:
+
+- `list_templates` — discover available visual styles
+- `create_carousel` — generate a carousel from a topic (1 credit)
+- `upload_image` — upload a base64 image and get back a public URL (free, daily quota)
+- `edit_slide` — patch any slide field (free)
+- `render_carousel` — get download URLs for all slides (free)
+
+The CLI itself is a stdio passthrough — `0.2.0` matches the v2.7 server adding `upload_image`. `0.1.x` only sees the original 4 tools.
 
 ## Install
 
@@ -15,7 +23,7 @@ npx -y viralslidemaker-mcp
 ## Setup
 
 1. Get a `vsl_` API key at https://viralslidemaker.com/settings/api-keys
-2. Add the bridge to your MCP client config — see the [full setup guide](https://github.com/deeg9/ViralSlideMaker/blob/main/docs/MCP-GUIDE.md) for Claude Desktop, Cursor, Windsurf, and ChatGPT.
+2. Add the bridge to your MCP client config — see the [full setup guide](https://github.com/deeg9/ViralSlideMaker/blob/main/docs/MCP-GUIDE.md) for Claude Desktop, Claude Code, Cursor, and ChatGPT.
 
 ## Environment
 

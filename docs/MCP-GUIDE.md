@@ -4,12 +4,25 @@ Connect Claude Desktop, Claude Code, Cursor, or ChatGPT to your ViralSlideMaker 
 
 ## What you get
 
-| Tool              | Cost      | What it does                                       |
-| ----------------- | --------- | -------------------------------------------------- |
-| `list_templates`  | free      | List available visual style templates              |
-| `create_carousel` | 1 credit  | Generate a full carousel from a topic              |
-| `edit_slide`      | free      | Patch any slide field (headline, body, image, etc) |
-| `render_carousel` | free      | Get download URLs for all slides in a project      |
+| Tool              | Cost      | What it does                                                         |
+| ----------------- | --------- | -------------------------------------------------------------------- |
+| `list_templates`  | free      | List available visual style templates                                |
+| `create_carousel` | 1 credit  | Generate a full carousel from a topic                                |
+| `upload_image`    | free      | Upload a base64-encoded image and get a public URL for `edit_slide`  |
+| `edit_slide`      | free      | Patch any slide field (headline, body, image, etc)                   |
+| `render_carousel` | free      | Get download URLs for all slides in a project                        |
+
+### Typical flow: putting user-disk photos into a carousel
+
+The 5 tools chain together so an agent can take a directory of local photos and turn them into a carousel without any manual hosting:
+
+1. `list_templates` → pick a visual style
+2. `create_carousel(topic, templateId)` → get back a `projectId` (1 credit)
+3. For each user-disk photo: agent reads the file via a filesystem MCP, base64-encodes it, calls `upload_image(imageBase64, mimeType)` → returns a public HTTPS URL
+4. `edit_slide(projectId, slideIndex, { background_url: <url from step 3> })` → swap the photo onto the slide
+5. `render_carousel(projectId)` → final download URLs
+
+`upload_image` accepts static PNG, JPEG, and WebP only (animated formats and HEIC are rejected — convert HEIC to PNG/JPEG client-side first). Max ~5MB binary per image, 200 uploads per API key per day.
 
 ## Prerequisites
 
