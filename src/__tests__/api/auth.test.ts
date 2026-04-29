@@ -79,15 +79,16 @@ describe('authenticateApiKey', () => {
   })
 
   it('uses timingSafeEqual for hash comparison (source verification)', async () => {
-    // Verify timingSafeEqual is used in the source code (AUTH-02 requirement)
+    // Verify timingSafeEqual is used in the source code (AUTH-02 requirement).
+    // After Phase 40 extraction, the crypto logic lives in auth-core.ts (shared by REST + MCP).
     const fs = await import('fs')
     const path = await import('path')
-    const authSource = fs.readFileSync(
-      path.resolve(__dirname, '../../lib/api/auth.ts'),
+    const coreSource = fs.readFileSync(
+      path.resolve(__dirname, '../../lib/api/auth-core.ts'),
       'utf8'
     )
-    expect(authSource).toContain('timingSafeEqual')
-    expect(authSource).toContain("import { createHash, timingSafeEqual } from 'crypto'")
+    expect(coreSource).toContain('timingSafeEqual')
+    expect(coreSource).toContain("import { createHash, timingSafeEqual } from 'crypto'")
   })
 
   it('fires last_used_at update after successful auth (non-blocking)', async () => {

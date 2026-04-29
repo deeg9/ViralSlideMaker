@@ -1,6 +1,6 @@
-import { createHash, timingSafeEqual } from 'crypto'
-import { createAdminClient } from '@/lib/supabase/admin'
+// src/lib/api/auth.ts
 import { NextRequest } from 'next/server'
+import { verifyApiKeyHash, InvalidApiKeyError } from './auth-core'
 
 export async function authenticateApiKey(
   request: NextRequest
@@ -11,32 +11,12 @@ export async function authenticateApiKey(
   }
 
   const rawKey = authHeader.slice(7) // Remove "Bearer "
-  const keyHash = createHash('sha256').update(rawKey).digest('hex')
-
-  const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('api_keys')
-    .select('id, user_id, key_hash')
-    .eq('key_hash', keyHash)
-    .single()
-
-  if (error || !data) {
-    throw new Error('Invalid API key')
+  try {
+    return await verifyApiKeyHash(rawKey)
+  } catch (err) {
+    if (err instanceof InvalidApiKeyError) {
+      throw new Error('Invalid API key')
+    }
+    throw err
   }
-
-  // Timing-safe comparison as defense in depth (per AUTH-02)
-  const storedHashBuf = Buffer.from(data.key_hash, 'utf8')
-  const computedHashBuf = Buffer.from(keyHash, 'utf8')
-  if (!timingSafeEqual(storedHashBuf, computedHashBuf)) {
-    throw new Error('Invalid API key')
-  }
-
-  // Fire-and-forget: update last_used_at (non-blocking)
-  admin
-    .from('api_keys')
-    .update({ last_used_at: new Date().toISOString() })
-    .eq('id', data.id)
-    .then(() => {})
-
-  return { userId: data.user_id, keyId: data.id }
 }
