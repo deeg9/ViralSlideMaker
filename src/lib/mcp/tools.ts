@@ -294,6 +294,14 @@ export function registerTools(server: McpServer): void {
         return errorContent('NOT_FOUND', 'Slide not found')
       }
       const existingSlide = slideData[slideIndex]
+      // Guard against gaps/null entries (e.g., partial-write race in generateCarousel).
+      // Without this, the spread/property access below would throw a TypeError that
+      // bypasses the errorContent envelope. Note: REST has the same gap at
+      // src/app/api/v1/projects/[id]/slides/[index]/route.ts:102 — file follow-up to
+      // patch REST in v2.7+ for parity.
+      if (!existingSlide || typeof existingSlide !== 'object') {
+        return errorContent('NOT_FOUND', 'Slide data is corrupt or missing')
+      }
 
       // Deep-merge style_overrides (mirrors PATCH route lines 105-117)
       let mergedStyleOverrides = existingSlide.style_overrides
