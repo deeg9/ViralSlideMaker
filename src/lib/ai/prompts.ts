@@ -1,3 +1,6 @@
+import { getTemplate } from '@/lib/render/templates'
+import { isPremiumTemplate } from './validate-slides'
+
 // Templates that share the news-carousel prompt branch + skip-default-effects
 // behavior. News Cyan reuses the entire News Drop generation flow — only the
 // accent color (and a few visual tokens) differ.
@@ -19,7 +22,41 @@ You are writing in the style of a serious news Instagram carousel (think soverei
 - Image queries should be photojournalism-style: real subjects, news events, documentary photography.
 ` : ''
 
-  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${newsDropAddendum}
+  // Phase 47 (TPLAI-04): per-template voice note. Reads from the template's
+  // aiVoiceNote field. Existing 5 legacy templates leave aiVoiceNote undefined
+  // → block is empty string → prompt unchanged. NEWS_TEMPLATES newsDropAddendum
+  // stays as-is — the two systems coexist.
+  const template = templateId ? getTemplate(templateId) : undefined
+  const voiceNoteBlock = template?.aiVoiceNote
+    ? `
+
+TEMPLATE VOICE NOTE:
+${template.aiVoiceNote}
+`
+    : ''
+
+  // Phase 47 (TPLAI-01 + TPLAI-03): premium-tier addendum. Length caps,
+  // highlight pill rules, accent color. Gated on isPremiumTemplate so
+  // legacy templates skip this entirely. Documentary opts out of highlights
+  // via an explicit "do NOT populate highlightColor" instruction.
+  const accentHex = template?.accentColor ?? '#ffffff'
+  const isDocumentary = templateId === 'documentary'
+  const premiumAddendum = isPremiumTemplate(templateId)
+    ? `
+
+PREMIUM TEMPLATE TIER (active for ${templateId}):
+- LENGTH CAPS — STRICT: hook_text MUST be 12 words or fewer; body_text MUST be 35 words or fewer. Count whitespace-separated tokens. Hyphenated words ("state-of-the-art") count as one. Compound dollar/number tokens ("$50M", "12-minute") count as one.
+- NO ORPHANS: a slide's hook_text and body_text MUST be substantively different (less than 80% word overlap). Never duplicate the hook line in the body.
+- SPELLING: spell every word correctly. Common AI mis-spellings to AVOID: MUSICAN, BUSSINESS, CARROUSEL, RECIEVE, SEPERATE, OCCURENCE, DEFINATELY, ACCOMODATE.
+${
+  isDocumentary
+    ? `- HIGHLIGHTS: documentary template uses a minimal aesthetic. You do NOT populate highlightColor or highlightStyle on any segment. Leave hook_segments and body_segments unset OR provide segments WITHOUT highlightColor/highlightStyle fields.`
+    : `- HIGHLIGHTS: populate hook_segments AND optionally body_segments with per-word color spans. On 1-2 segments per hook (and 0-1 per body), set highlightColor: '${accentHex}' and highlightStyle: 'pill'. Choose ACTION VERBS, PROPER NOUNS, and NUMBERS/QUANTITIES for highlights — never connector words ("a", "the", "of", "on", "and", "is", "to", "for"). Examples that match the desired aesthetic: "FIGHTS BACK", "CLONED HER VOICE", "$50M", "12 MINUTES".`
+}
+`
+    : ''
+
+  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}
 
 HOOK PATTERNS - Use these proven TikTok hook formulas:
 - Curiosity gaps: "The one thing about X that nobody talks about"
