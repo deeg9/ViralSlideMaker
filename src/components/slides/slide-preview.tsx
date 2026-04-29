@@ -67,7 +67,6 @@ function renderSegments(
 interface BackgroundLayersProps {
   template: SlideTemplate
   slide: Slide
-  useBgMode: boolean
   useBottomCard: boolean
   overlayOpacity: number
 }
@@ -75,11 +74,10 @@ interface BackgroundLayersProps {
 function BackgroundLayers({
   template,
   slide,
-  useBgMode,
   useBottomCard,
   overlayOpacity,
 }: BackgroundLayersProps) {
-  if (!useBgMode) return null
+  // No useBgMode guard needed — caller already gates on useBgMode via ternary
   return (
     <>
       {slide.background_url && (
@@ -504,7 +502,6 @@ export function SlidePreview({
             <BackgroundLayers
               template={template}
               slide={slide}
-              useBgMode={useBgMode}
               useBottomCard={useBottomCard}
               overlayOpacity={overlayOpacity}
             />
@@ -765,7 +762,6 @@ export function SlidePreview({
           <BackgroundLayers
             template={template}
             slide={slide}
-            useBgMode={useBgMode}
             useBottomCard={useBottomCard}
             overlayOpacity={overlayOpacity}
           />
