@@ -26,6 +26,9 @@ async function main(): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true })
 
   for (const template of templates) {
+    if (!/^[a-z0-9-]+$/.test(template.id)) {
+      throw new Error(`[thumbs] Unsafe template id '${template.id}' — must match [a-z0-9-]+`)
+    }
     const slide = makeSampleSlide(template)
     const ctx = { slideIndex: 0, totalSlides: 1, topic: undefined as string | undefined }
     const element = buildSlideElement(slide, template, null, null, undefined, ctx)
