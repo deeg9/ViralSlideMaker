@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, type Schema } from '@google/genai'
 import { CarouselSchema, type Carousel } from './schemas'
 import { buildSystemPrompt } from './prompts'
+import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -72,18 +73,47 @@ export async function generateSlideContent(
   const imageHintText = imageStyleHint
     ? `\n\nWhen generating image_query values, incorporate this visual preference: "${imageStyleHint}"`
     : ''
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).${imageHintText}`,
-    config: {
-      systemInstruction: buildSystemPrompt(templateId),
-      responseMimeType: 'application/json',
-      responseSchema,
-    },
-  })
+  const baseContents = `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).${imageHintText}`
+  const systemInstruction = buildSystemPrompt(templateId)
 
-  const data = JSON.parse(response.text!)
+  async function callGemini(contents: string): Promise<unknown> {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents,
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema,
+      },
+    })
+    return JSON.parse(response.text!)
+  }
 
-  // Validate with Zod
+  // First call.
+  let parsed = (await callGemini(baseContents)) as { slides: unknown[] }
+  let { data, warnings } = validateAndRepair(parsed as never, { templateId })
+
+  // Retry-once gate: only when warnings exist AND the template is premium
+  // (legacy templates are out of length/orphan-cap scope per D-01) OR there
+  // are typo warnings (typo gate applies to ALL templates per D-02).
+  const hasTypoWarning = warnings.some((w) => w.includes('contains typo'))
+  const hasPremiumWarning = isPremiumTemplate(templateId) && warnings.length > 0
+
+  if (hasPremiumWarning || hasTypoWarning) {
+    const diagnostic = warnings.map((w) => `- ${w}`).join('\n')
+    const retryContents = `${baseContents}\n\nThe previous response had issues that must be fixed:\n${diagnostic}\n\nGenerate again, ensuring all length caps, no orphans, and correct spelling.`
+    parsed = (await callGemini(retryContents)) as { slides: unknown[] }
+    const retried = validateAndRepair(parsed as never, { templateId })
+    data = retried.data
+    warnings = retried.warnings
+    if (warnings.length > 0) {
+      console.warn(
+        `[generate-slides] retry still produced ${warnings.length} warning(s) for templateId=${templateId ?? '<none>'}; persisting anyway:`,
+        warnings,
+      )
+    }
+  }
+
+  // Validate final shape with Zod (schema gate — separate from validateAndRepair).
   return CarouselSchema.parse(data)
 }
