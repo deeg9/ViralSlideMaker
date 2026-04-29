@@ -27,7 +27,7 @@ npx -y viralslidemaker-mcp
 ## Notes
 
 - After `render_carousel` returns download URLs, open them in your logged-in browser to download — they require your active session, not your API key.
-- Advanced users can `npm install -g mcp-remote` to skip the npx auto-install on each invocation.
+- Tip: pre-install `mcp-remote` globally (`npm install -g mcp-remote`) so `npx` picks it up from the global prefix instead of re-resolving on cold caches.
 - Avoid running on shared / multi-user servers — process listings expose the API key as a header argument.
 
 ## License
