@@ -445,15 +445,14 @@ Plans:
 
 </details>
 
-### v2.3 MCP Server (In Progress)
+<details>
+<summary>v2.3 MCP Server (Phases 26-28) - RETIRED 2026-04-28 (rebuilt as v2.6)</summary>
 
 **Milestone Goal:** Build the MCP server so AI agents can create carousels through native MCP tool calls, wrapping the v2.2 REST API.
 
 - [x] **Phase 26: MCP Transport & Auth** - Streamable HTTP endpoint at /api/mcp with Bearer auth, middleware bypass, rate limiting, and stateless Vercel-compatible transport (completed 2026-04-09)
 - [x] **Phase 27: MCP Tools** - Four outcome-oriented tools (create_carousel, list_templates, edit_slide, render_carousel) calling the service layer with credit enforcement (completed 2026-04-09)
 - [x] **Phase 28: stdio Package & Documentation** - npm package for local agent use via mcp-remote bridge, and verified MCP connection guide (completed 2026-04-09)
-
-## Phase Details
 
 ### Phase 26: MCP Transport & Auth
 **Goal**: The /api/mcp endpoint accepts MCP protocol requests with Bearer token authentication, rate limiting, and stateless transport compatible with Vercel serverless
@@ -497,9 +496,10 @@ Plans:
 Plans:
 - [ ] 28-01-PLAN.md -- stdio npm package (viralslidemaker-mcp) and MCP guide verification/fix
 
----
+</details>
 
-## v2.4 Explore + Remix (Phases 29-33) — PLANNED 2026-04-27
+<details>
+<summary>v2.4 Explore + Remix (Phases 29-33) - SHIPPED 2026-04-27</summary>
 
 Community publishing + v0.dev-style fork-and-save. Built on `public.profiles` (shipped 2026-04-27). Architecture grounded in `.planning/research/explore-remix.md`.
 
@@ -589,6 +589,13 @@ Plans:
 Plans:
 - [ ] 33-01-PLAN.md -- bookmarks table integration: toggle component, /bookmarks page, top nav wire-up, bookmark_count trigger
 - [ ] 33-02-PLAN.md -- carousel_events view tracking + nightly aggregation + thumbnail size cap + PROJECT.md + docs
+
+</details>
+
+<details>
+<summary>v2.5 Public REST API Parity (Phases 34-39) - SHIPPED 2026-04-28</summary>
+
+~21 new REST endpoints across 3 tiers (spec accuracy → CRUD → AI/Pexels/Explore/Bookmarks/Brand-Kit/Profile). Full feature parity with the dashboard. Archive: `.planning/milestones/v2.5-ROADMAP.md` (when present).
 
 ### Phase 34: API Spec Accuracy (Tier 1)
 **Goal**: `/docs` (Scalar API reference) accurately documents every field of every existing v1 route — no new endpoints, just bring the OpenAPI spec into line with the current `Slide` / `StyleOverrides` / `CustomText` / `Project` shapes and document the actual `/carousel` POST response. Lowest-risk way to ship value to customers reading the reference.
@@ -693,10 +700,7 @@ Plans:
 - [ ] 39-01-PLAN.md -- /me/brand-kit GET + PUT + logo-upload-url + /me/profile GET + PATCH
 - [ ] 39-02-PLAN.md -- PROJECT.md + README updates + e2e curl walk-through
 
----
-
-
----
+</details>
 
 <details>
 <summary>v2.6 MCP Server (Phases 40-42) - SHIPPED 2026-04-28</summary>
@@ -710,8 +714,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 </details>
 
 
-<details>
-<summary>v2.7 Premium Templates (Phases 44-48) - PLANNING 2026-04-29</summary>
+## v2.7 Premium Templates (Phases 44-48) — IN PROGRESS 2026-04-29
 
 **Milestone Goal:** Replace the current 5 visually weak templates with a richer template system + 3 new "magazine-style" premium templates that match modern viral creator aesthetics. Reference design: Murphy Campbell folk-singer carousel (B&W photo + topic chip top-left + page counter top-right + mint-highlighted headline + bottom text card).
 
@@ -785,12 +788,10 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 **UI hint**: yes
 **Plans**: TBD
 
-</details>
-
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
+v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
