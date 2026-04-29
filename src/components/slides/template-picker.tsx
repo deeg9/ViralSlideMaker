@@ -125,7 +125,7 @@ export function TemplatePicker({ selectedId, onSelect, brandKit }: TemplatePicke
                 />
               </div>
             </div>
-            <span className={`block text-sm font-semibold ${isSelected ? 'text-[#3d0000]' : 'text-[#3d0000]'}`}>
+            <span className="block text-sm font-semibold text-[#3d0000]">
               {template.name}
             </span>
             <span className={`block text-[10px] uppercase tracking-wider ${
