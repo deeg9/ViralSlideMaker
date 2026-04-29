@@ -18,7 +18,7 @@ const apiKey = process.env.VIRALSLIDEMAKER_API_KEY;
 if (!apiKey) {
   process.stderr.write(
     'Error: VIRALSLIDEMAKER_API_KEY environment variable is not set.\n' +
-    'Get your API key at https://viralslidemaker.com → Account Settings → API Keys\n'
+    'Get your API key at https://viralslidemaker.com/settings/api-keys\n'
   );
   process.exit(1);
 }
