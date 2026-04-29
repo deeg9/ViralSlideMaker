@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 
 describe('templates', () => {
-  it('templates array has exactly 5 entries', async () => {
+  it('templates array has exactly 8 entries (5 legacy + 3 Phase 46 premium)', async () => {
     const { templates } = await import('@/lib/render/templates/index')
-    expect(templates).toHaveLength(5)
+    expect(templates).toHaveLength(8)
   })
 
   it('each template has all required SlideTemplate fields', async () => {
@@ -35,12 +35,23 @@ describe('templates', () => {
     expect(template.id).toBe('highlight-bar')
   })
 
-  it('module-load validator passes for the live registry (no overlays declared on the 5 existing templates)', async () => {
+  it('module-load validator passes for the live registry (legacy 5 declare no overlays; Phase 46 premium 3 do)', async () => {
     const mod = await import('@/lib/render/templates/index')
     // If validateTemplateRegistry threw at load, this import would have rejected.
-    expect(mod.templates).toHaveLength(5)
+    expect(mod.templates).toHaveLength(8)
+
+    const legacyIds = new Set(['highlight-bar', 'news-drop', 'news-cyan', 'y2k-pop', 'bold-yellow'])
+    const premiumIds = new Set(['magazine-bold', 'tr3nding-news', 'documentary'])
+
     for (const t of mod.templates) {
-      expect(t.overlays).toBeUndefined()
+      if (legacyIds.has(t.id)) {
+        expect(t.overlays).toBeUndefined()
+      } else if (premiumIds.has(t.id)) {
+        expect(Array.isArray(t.overlays)).toBe(true)
+        expect((t.overlays ?? []).length).toBeGreaterThan(0)
+      } else {
+        throw new Error(`unexpected template id in registry: ${t.id}`)
+      }
     }
   })
 })
