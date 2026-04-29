@@ -1,6 +1,6 @@
 # ViralSlideMaker MCP Setup Guide
 
-Connect Claude Desktop, Cursor, Windsurf, or ChatGPT to your ViralSlideMaker account. The MCP server gives the model native tool access to create, edit, and render TikTok / Instagram carousels — no prompt-engineering or REST-call wiring needed.
+Connect Claude Desktop, Claude Code, Cursor, or ChatGPT to your ViralSlideMaker account. The MCP server gives the model native tool access to create, edit, and render TikTok / Instagram carousels — no prompt-engineering or REST-call wiring needed.
 
 ## What you get
 
@@ -75,32 +75,54 @@ The schema is identical to Claude Desktop — paste the same snippet:
 
 Replace `vsl_YOUR_KEY`, then restart Cursor.
 
-## Windsurf
+## Claude Code
 
-Edit your Windsurf MCP config:
+Claude Code (the CLI) supports MCP via a one-liner add command or a checked-in `.mcp.json`.
 
-- macOS / Linux: `~/.codeium/windsurf/mcp_config.json`
-- Windows: `%USERPROFILE%\.codeium\windsurf\mcp_config.json`
+### Recommended one-liner
 
-You can also reach this via the UI: Cmd/Ctrl+, → Windsurf Settings → Manage MCP Servers → "View raw config".
+```bash
+claude mcp add --transport stdio --env VIRALSLIDEMAKER_API_KEY=vsl_YOUR_KEY --scope local viralslidemaker -- npx -y viralslidemaker-mcp
+```
 
-The schema is the same `mcpServers` shape:
+Use `--scope local` to keep credentials private to you, or `--scope project` to share the server config with your team via a committed `.mcp.json`.
+
+### Per-project `.mcp.json`
+
+File location: `.mcp.json` in your repo root. Designed to be **committed to version control** so the whole team gets the server. Use env-var expansion to keep secrets out of the file:
 
 ```json
 {
   "mcpServers": {
     "viralslidemaker": {
+      "type": "stdio",
       "command": "npx",
       "args": ["-y", "viralslidemaker-mcp"],
       "env": {
-        "VIRALSLIDEMAKER_API_KEY": "vsl_YOUR_KEY"
+        "VIRALSLIDEMAKER_API_KEY": "${VIRALSLIDEMAKER_API_KEY}"
       }
     }
   }
 }
 ```
 
-Replace `vsl_YOUR_KEY`, then restart Windsurf.
+Each user then exports `VIRALSLIDEMAKER_API_KEY=vsl_...` in their shell before starting Claude Code.
+
+### Scopes
+
+- **local** (default): loads only in this project, stored in `~/.claude.json`. Personal use.
+- **project**: loads only in this project, stored in `.mcp.json`. Team-shared via git.
+- **user**: loads across all your projects, stored in `~/.claude.json`. Cross-project tools.
+
+### Verifying
+
+Inside a Claude Code session, run `/mcp` — it lists all connected servers and their status. `viralslidemaker` should appear as connected.
+
+### Notes
+
+- **Restart:** `.mcp.json` changes are picked up live. Servers added via `claude mcp add` need a new Claude Code session.
+- **First-use trust prompt:** project-scoped servers ask for approval before connecting (security gate).
+- **Debug:** `claude mcp get viralslidemaker` shows the saved config; `DEBUG=* claude` prints connection logs.
 
 ## ChatGPT (custom connector)
 
@@ -119,7 +141,7 @@ After saving, the connector appears in your tool picker on supported workspaces.
 ## Verifying it works
 
 - Fully quit and restart your MCP client (config files are read once on startup).
-- In Claude Desktop / Cursor / Windsurf, look for the tool picker / hammer icon and confirm the 4 ViralSlideMaker tools appear.
+- In Claude Desktop / Cursor, look for the tool picker / hammer icon and confirm the 4 ViralSlideMaker tools appear. In Claude Code, run `/mcp` to confirm `viralslidemaker` is connected.
 - Try a quick test: ask the agent to "list ViralSlideMaker templates" — `list_templates` should fire and return the template list.
 
 ## Limitations
@@ -151,3 +173,5 @@ The bridge will then connect to `https://staging.example.com/api/mcp` instead of
 | Tools do not appear in the picker                                | Client was not restarted, or the config has a syntax error | `cat <config-file>` and `jq . <config-file>` to validate JSON, then restart the client.   |
 | "I don't see the Connectors menu" (ChatGPT)                      | Free tier or Developer Mode not enabled                   | See workspace requirements above.                                                         |
 | `EventSource` / `SSE` errors in mcp-remote logs                  | Wrong transport selected by older client                  | Add `"--transport", "http-only"` (or `"sse-only"`) to the `args` array after `"viralslidemaker-mcp"`. |
+| Claude Code: server fails to start with stdio transport          | `npx` cannot resolve the package or env var is missing    | Run `npx -y viralslidemaker-mcp` directly in your terminal to confirm. Then `claude mcp get viralslidemaker` to inspect the saved config. |
+| Claude Code: `${VIRALSLIDEMAKER_API_KEY}` not expanding in `.mcp.json` | Env var not exported in the shell that launched Claude Code | `export VIRALSLIDEMAKER_API_KEY=vsl_...` before running `claude`. The env is captured at session start, not per request. |
