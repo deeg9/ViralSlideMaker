@@ -394,7 +394,13 @@ export function SlidePreview({
     fontFamily: template.fontFamily,
     color: textColor,
     backgroundColor: template.backgroundColor,
-    backgroundImage: !newsZone && slide.background_url ? `url(${slide.background_url})` : undefined,
+    // Phase 45: When useBgMode is active, BackgroundLayers renders the photo as
+    // an absolutely-positioned <img> — suppress the CSS backgroundImage to avoid
+    // a redundant second fetch and match Satori which never sets backgroundImage
+    // on the root element (Satori uses only the <img> tag, no CSS background).
+    backgroundImage: !newsZone && !useBgMode && slide.background_url
+      ? `url(${slide.background_url})`
+      : undefined,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     position: 'absolute',
