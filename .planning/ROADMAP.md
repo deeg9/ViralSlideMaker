@@ -771,8 +771,12 @@ Plans:
   3. A user picks the `documentary` template and a generated carousel renders with full photo + bottom gradient darken + minimal sans-serif body copy and no decorative pills
   4. A user opens the template picker and sees real `sample`-data-driven mini-previews for all 3 new templates (not synthetic swatches)
   5. A user picks any of the 5 existing templates (`highlight-bar`, `news-drop`, `news-cyan`, `y2k-pop`, `bold-yellow`) and the rendered output is byte-for-byte identical to the v2.6 baseline (no regression on legacy paths)
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 46-01-PLAN.md — Author 3 premium templates (magazine-bold, tr3nding-news, documentary) + register in templates/index.ts (Phase 44 validator passes at module load)
+- [ ] 46-02-PLAN.md — Premium template Satori snapshot tests + legacy 5-template regression gate (TPLNEW-05) + DOM signature parity tests through <SlidePreview>
 
 ### Phase 47: AI Prompt Tuning
 **Goal**: When a user types a topic, the AI-generated carousel content fits the new compact magazine-style layouts: hooks/body within layout caps, no spelling typos, accent words pre-marked with `highlightColor`, and tone matched to the chosen template.
