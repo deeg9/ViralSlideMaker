@@ -108,7 +108,7 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
     // Bottom-card layer present (rgba(0,0,0,0.85) per Phase 45 bottomCardBackground)
     const bottomCardNode = nodes.find((n) => {
       const s = styleOf(n)
-      return s && s.height === '38%' && typeof s.backgroundColor === 'string' &&
+      return s && s.height === 730 && s.top === 1190 && typeof s.backgroundColor === 'string' &&
         (s.backgroundColor as string).includes('rgba(0, 0, 0, 0.85)')
     })
     expect(bottomCardNode).toBeDefined()
@@ -151,7 +151,7 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
     // Bottom-card present
     const bottomCardNode = nodes.find((n) => {
       const s = styleOf(n)
-      return s && s.height === '38%' && typeof s.backgroundColor === 'string' &&
+      return s && s.height === 730 && s.top === 1190 && typeof s.backgroundColor === 'string' &&
         (s.backgroundColor as string).includes('rgba(0, 0, 0, 0.85)')
     })
     expect(bottomCardNode).toBeDefined()
@@ -198,7 +198,7 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
     // NO bottom-card — image-bleed locks this
     const bottomCardNode = nodes.find((n) => {
       const s = styleOf(n)
-      return s && s.height === '38%' && typeof s.backgroundColor === 'string' &&
+      return s && s.height === 730 && s.top === 1190 && typeof s.backgroundColor === 'string' &&
         (s.backgroundColor as string).includes('rgba(0, 0, 0, 0.85)')
     })
     expect(bottomCardNode).toBeUndefined()

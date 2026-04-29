@@ -161,14 +161,14 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
     style={
       {
         "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "bottom": 0,
         "display": "flex",
         "flexDirection": "column",
-        "height": "38%",
+        "height": 730,
         "left": 0,
         "padding": 80,
         "position": "absolute",
-        "right": 0,
+        "top": 1190,
+        "width": 1080,
       }
     }
   />
@@ -238,20 +238,20 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
         }
       }
     >
-      FOLK SINGER 
+      FOLK SINGER 
     </span>
     <span
       style={
         {
           "backgroundColor": "#A8E0B0",
           "borderRadius": "8px",
-          "color": "#ffffff",
+          "color": "#000000",
           "marginRight": "8px",
           "padding": "4px 12px",
         }
       }
     >
-      FIGHTS BACK 
+      FIGHTS BACK
     </span>
     <span
       style={
@@ -260,15 +260,15 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
         }
       }
     >
-      AFTER AI 
+      AFTER AI 
     </span>
     <span
       style={
         {
           "backgroundColor": "#A8E0B0",
           "borderRadius": "8px",
-          "color": "#ffffff",
-          "marginRight": "8px",
+          "color": "#000000",
+          "marginRight": "0",
           "padding": "4px 12px",
         }
       }
@@ -343,14 +343,14 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
     style={
       {
         "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "bottom": 0,
         "display": "flex",
         "flexDirection": "column",
-        "height": "38%",
+        "height": 730,
         "left": 0,
         "padding": 80,
         "position": "absolute",
-        "right": 0,
+        "top": 1190,
+        "width": 1080,
       }
     }
   />
@@ -421,20 +421,20 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         }
       }
     >
-      STARTUP RAISES 
+      STARTUP RAISES 
     </span>
     <span
       style={
         {
           "backgroundColor": "#A8E0B0",
           "borderRadius": "8px",
-          "color": "#ffffff",
+          "color": "#000000",
           "marginRight": "8px",
           "padding": "4px 12px",
         }
       }
     >
-      $50M 
+      $50M
     </span>
     <span
       style={
@@ -443,15 +443,15 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         }
       }
     >
-      IN 
+      IN 
     </span>
     <span
       style={
         {
           "backgroundColor": "#A8E0B0",
           "borderRadius": "8px",
-          "color": "#ffffff",
-          "marginRight": "8px",
+          "color": "#000000",
+          "marginRight": "0",
           "padding": "4px 12px",
         }
       }

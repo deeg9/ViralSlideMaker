@@ -175,10 +175,13 @@ describe('renderSegments', () => {
     expect(html.toLowerCase()).not.toContain('border-radius')
   })
 
-  it("pill style (default): emits backgroundColor + 4px 12px padding + 8px borderRadius + 8px marginRight", () => {
+  it("pill style (default): emits backgroundColor + 4px 12px padding + 8px borderRadius + 8px marginRight (when not last)", () => {
     const node = renderSegments(
-      'FIGHTS BACK',
-      [{ text: 'FIGHTS BACK', highlightColor: '#9DECC1' }],
+      'FIGHTS BACK PUNCH',
+      [
+        { text: 'FIGHTS BACK', highlightColor: '#9DECC1' },
+        { text: 'PUNCH', highlightColor: '#9DECC1' },
+      ],
       '#FFFFFF',
       '#9DECC1',
     )
@@ -186,6 +189,7 @@ describe('renderSegments', () => {
     expect(html).toMatch(/background-color:\s*(?:#9DECC1|rgb\(157,\s*236,\s*193\))/i)
     expect(html).toMatch(/padding:\s*4px\s+12px/i)
     expect(html).toMatch(/border-radius:\s*8px/i)
+    // First segment (not last) gets marginRight: 8px; last segment gets marginRight: 0.
     expect(html).toMatch(/margin-right:\s*8px/i)
   })
 
@@ -220,7 +224,7 @@ describe('renderSegments', () => {
     expect(html.toLowerCase()).not.toContain('box-decoration-break')
   })
 
-  it('separator preserved between consecutive segments', () => {
+  it('separator preserved between consecutive segments (NBSP for flex-safe gap)', () => {
     const node = renderSegments(
       'A B',
       [{ text: 'A' }, { text: 'B' }],
@@ -228,8 +232,10 @@ describe('renderSegments', () => {
       '#9DECC1',
     )
     const html = renderToStaticMarkup(React.createElement(React.Fragment, null, node))
-    // First segment must have a trailing space before the second span starts.
-    expect(html).toContain('A ')
+    // First segment must have a trailing space (regular OR NBSP U+00A0) before
+    // the second span starts. NBSP survives Satori/CSS flex child whitespace
+    // collapse where regular space does not.
+    expect(html).toMatch(/A[\s ]/)
   })
 })
 

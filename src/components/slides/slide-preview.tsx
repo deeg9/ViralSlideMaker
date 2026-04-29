@@ -279,9 +279,6 @@ export function SlidePreview({
 
   const accentColor = template.accentColor ?? template.textColor
 
-  // News-carousel layouts override Y defaults; user-set positions still win.
-  const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
-
   // Phase 45 — graceful-fallback render context for the shared overlay resolver.
   // slideIndex defaults to `index` (the array position prop already in scope);
   // totalSlides defaults to 1 so the page-counter prints '1/1' in single-tile
@@ -293,13 +290,15 @@ export function SlidePreview({
     topic,
     slide,
   }
-  // Phase 45 — mutual-exclusion gate per CONTEXT.md Area 3: legacy
-  // NEWS_LAYOUT path wins over template.backgroundMode so the 5 existing
-  // templates (which leave backgroundMode undefined) stay byte-identical.
-  const useBgMode =
-    !newsZone &&
-    template.backgroundMode != null &&
-    template.backgroundMode !== 'color'
+  // Phase 45 — mutual-exclusion gate: when a template declares an explicit
+  // `backgroundMode` (premium tier), the template's choice supersedes any
+  // slide-level `style_overrides.layout` (legacy news field). Legacy 5
+  // templates leave backgroundMode undefined → newsZone path runs unchanged.
+  const isTemplateBgMode =
+    template.backgroundMode != null && template.backgroundMode !== 'color'
+  const newsZone =
+    !isTemplateBgMode && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+  const useBgMode = isTemplateBgMode
   const useBottomCard =
     useBgMode && template.backgroundMode === 'image-with-bottom-card'
 

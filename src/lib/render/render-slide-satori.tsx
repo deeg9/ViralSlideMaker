@@ -135,16 +135,17 @@ export function buildSlideElement(
 
   const accentColor = template.accentColor ?? template.textColor
 
-  // News-carousel layouts override Y defaults and constrain the bg image.
-  const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
-
-  // Phase 45: mutual-exclusion gate — newsZone (legacy NEWS_LAYOUT) wins over
-  // template.backgroundMode (CONTEXT.md Area 3). The 5 existing templates
-  // leave backgroundMode undefined → useBgMode = false → zero behavior change.
-  const useBgMode =
-    !newsZone &&
-    template.backgroundMode != null &&
-    template.backgroundMode !== 'color'
+  // Phase 45 mutual-exclusion gate: when a template declares an explicit
+  // `backgroundMode` (premium tier — magazine-bold, tr3nding-news, documentary),
+  // the template's choice supersedes any slide-level `style_overrides.layout`.
+  // This handles the case where AI generation inadvertently fills `layout` for
+  // a premium template (the field is legacy-news-only). Legacy 5 templates
+  // leave backgroundMode undefined → newsZone path runs unchanged.
+  const isTemplateBgMode =
+    template.backgroundMode != null && template.backgroundMode !== 'color'
+  const newsZone =
+    !isTemplateBgMode && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+  const useBgMode = isTemplateBgMode
   const useBottomCard =
     useBgMode && template.backgroundMode === 'image-with-bottom-card'
 
@@ -290,10 +291,13 @@ export function buildSlideElement(
           key="bottom-card"
           style={{
             position: 'absolute',
+            // Satori does not honor `bottom: 0` + `height: '38%'` together —
+            // it anchors to the top instead. Use explicit numeric pixel values:
+            // card spans y=1190 (62% of 1920) to y=1920 (bottom of canvas).
             left: 0,
-            right: 0,
-            bottom: 0,
-            height: '38%',
+            top: Math.round(H * 0.62),
+            width: W,
+            height: Math.round(H * 0.38),
             padding: 80,
             backgroundColor: bottomCardBackground(template.backgroundColor),
             display: 'flex',

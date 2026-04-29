@@ -176,6 +176,7 @@ describe('SlidePreview — Phase 45 overlay parity', () => {
       hook_segments: [
         { text: 'FOLK SINGER' },
         { text: 'FIGHTS BACK', highlightColor: '#9DECC1' },
+        { text: 'AGAIN' },
       ],
     }
     render(
@@ -195,6 +196,7 @@ describe('SlidePreview — Phase 45 overlay parity', () => {
     )
     expect(css).toMatch(/padding:\s*4px 12px/)
     expect(css).toMatch(/border-radius:\s*8px/)
+    // Pill at index 1 (not last) → marginRight: 8px. Last segments get 0.
     expect(css).toMatch(/margin-right:\s*8px/)
   })
 

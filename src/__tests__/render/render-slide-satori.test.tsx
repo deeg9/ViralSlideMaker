@@ -194,15 +194,17 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     })
     expect(tint).toBeDefined()
 
-    // (c) Bottom-card <div>: height:'38%', padding:80, bottom:0, rgba bg
+    // (c) Bottom-card <div>: top:1190 (62% of 1920), height:730 (38% of 1920),
+    // padding:80, rgba bg. Satori does not honor `bottom: 0 + height: %`
+    // together — explicit numeric pixels are required for proper anchoring.
     const bottomCard = nodes.find((n) => {
       if (typeOf(n) !== 'div') return false
       const s = styleOf(n)
       if (s == null) return false
       return (
-        s.height === '38%' &&
+        s.height === 730 &&
+        s.top === 1190 &&
         s.padding === 80 &&
-        (s.bottom === 0 || s.bottom === '0') &&
         s.backgroundColor === 'rgba(0, 0, 0, 0.85)'
       )
     })
@@ -286,6 +288,7 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
       hook_segments: [
         { text: 'FOLK SINGER' },
         { text: 'FIGHTS BACK', highlightColor: '#9DECC1', highlightStyle: 'pill' },
+        { text: 'AGAIN' },
       ],
     }
     const element = buildSlideElement(
@@ -298,6 +301,7 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     expect(element).toMatchSnapshot('hook-with-mint-pill')
 
     const nodes = walk(element)
+    // Pill is at index 1 (not last), so marginRight is '8px'.
     const pillSpan = nodes.find((n) => {
       if (typeOf(n) !== 'span') return false
       const s = styleOf(n)

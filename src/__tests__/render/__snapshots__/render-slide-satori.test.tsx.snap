@@ -276,7 +276,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
 <div
   style={
     {
-      "backgroundColor": "#000000",
       "color": "#FFFFFF",
       "display": "flex",
       "fontFamily": "'Inter', sans-serif",
@@ -291,7 +290,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
     src="https://example.com/folk.jpg"
     style={
       {
-        "height": 1056,
+        "height": 1920,
         "left": 0,
         "objectFit": "cover",
         "objectPosition": "center",
@@ -317,6 +316,21 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
   <div
     style={
       {
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "display": "flex",
+        "flexDirection": "column",
+        "height": 730,
+        "left": 0,
+        "padding": 80,
+        "position": "absolute",
+        "top": 1190,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
@@ -327,7 +341,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
         "position": "absolute",
         "textAlign": "left",
         "textTransform": "uppercase",
-        "top": 1152,
+        "top": 922,
         "width": 842,
       }
     }
@@ -346,7 +360,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
         "opacity": 0.9,
         "position": "absolute",
         "textAlign": "left",
-        "top": 1536,
+        "top": 1190,
         "width": 842,
       }
     }
@@ -477,8 +491,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
         {
           "backgroundColor": "#FFFF00",
           "borderRadius": "0",
-          "color": "#FFFFFF",
-          "marginRight": "8px",
+          "color": "#000000",
+          "marginRight": "0",
           "padding": "4px 8px",
         }
       }
@@ -693,14 +707,14 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-with
     style={
       {
         "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "bottom": 0,
         "display": "flex",
         "flexDirection": "column",
-        "height": "38%",
+        "height": 730,
         "left": 0,
         "padding": 80,
         "position": "absolute",
-        "right": 0,
+        "top": 1190,
+        "width": 1080,
       }
     }
   />
@@ -971,20 +985,29 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
         }
       }
     >
-      FOLK SINGER 
+      FOLK SINGER 
     </span>
     <span
       style={
         {
           "backgroundColor": "#9DECC1",
           "borderRadius": "8px",
-          "color": "#FFFFFF",
+          "color": "#000000",
           "marginRight": "8px",
           "padding": "4px 12px",
         }
       }
     >
       FIGHTS BACK
+    </span>
+    <span
+      style={
+        {
+          "color": "#FFFFFF",
+        }
+      }
+    >
+      AGAIN
     </span>
   </div>
   <div
@@ -1092,14 +1115,14 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders overlays a
     style={
       {
         "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "bottom": 0,
         "display": "flex",
         "flexDirection": "column",
-        "height": "38%",
+        "height": 730,
         "left": 0,
         "padding": 80,
         "position": "absolute",
-        "right": 0,
+        "top": 1190,
+        "width": 1080,
       }
     }
   />
@@ -1260,14 +1283,14 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders slide-fiel
     style={
       {
         "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "bottom": 0,
         "display": "flex",
         "flexDirection": "column",
-        "height": "38%",
+        "height": 730,
         "left": 0,
         "padding": 80,
         "position": "absolute",
-        "right": 0,
+        "top": 1190,
+        "width": 1080,
       }
     }
   />

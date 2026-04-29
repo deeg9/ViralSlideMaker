@@ -125,6 +125,26 @@ export function resolveOverlayContent(
  * Implementation note: uses React.createElement directly so this module
  * stays at .ts (no TSX transform required by importers).
  */
+/**
+ * Pick a readable text color (black or white) for text rendered ON TOP of the
+ * given background hex. Uses standard luminance threshold (≈ 0.55) — mint
+ * #A8E0B0 → black; navy #001a2c → white. Murphy reference uses black on mint.
+ *
+ * Accepts #RGB, #RRGGBB, and #RRGGBBAA. Invalid input falls back to baseColor.
+ */
+export function pickContrastColor(bgHex: string, baseColor: string): string {
+  let h = bgHex.replace('#', '')
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+  if (h.length < 6) return baseColor
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return baseColor
+  // sRGB relative luminance approximation (Y' formula).
+  const y = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return y > 0.55 ? '#000000' : '#ffffff'
+}
+
 export function renderSegments(
   text: string,
   segments: TextSegment[] | undefined,
@@ -132,22 +152,31 @@ export function renderSegments(
   accentColor: string,
 ): React.ReactNode {
   if (!segments || segments.length === 0) return text
+  // Use non-breaking space (U+00A0) as inter-segment separator — Satori/CSS
+  // flex normalizes regular whitespace between siblings; NBSP is preserved.
   return segments.map((seg, i) => {
-    const color = seg.accent ? accentColor : baseColor
-    const sep = i < segments.length - 1 ? ' ' : ''
-    const children = sep ? `${seg.text}${sep}` : seg.text
+    const baseSegmentColor = seg.accent ? accentColor : baseColor
+    const isLast = i === segments.length - 1
     if (seg.highlightColor) {
       const isPill = (seg.highlightStyle ?? 'pill') === 'pill'
+      const pillTextColor = pickContrastColor(seg.highlightColor, baseSegmentColor)
       const pillStyle: React.CSSProperties = {
-        color,
+        color: pillTextColor,
         backgroundColor: seg.highlightColor,
         padding: isPill ? '4px 12px' : '4px 8px',
         borderRadius: isPill ? '8px' : '0',
-        marginRight: '8px',
+        marginRight: isLast ? '0' : '8px',
       }
-      return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: pillStyle }, children)
+      return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: pillStyle }, seg.text)
     }
-    return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: { color } }, children)
+    // Plain span: append NBSP after the text (except last) so flex layout
+    // preserves the inter-word gap. The space sits INSIDE the span so flex
+    // child-stripping doesn't drop it.
+    // Also normalize whitespace WITHIN segment text to NBSP (multi-word
+    // segments like 'Folk Singer' lose their space in flex otherwise).
+    const normalized = seg.text.replace(/\s+/g, ' ')
+    const children = isLast ? normalized : `${normalized} `
+    return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: { color: baseSegmentColor } }, children)
   })
 }
 
