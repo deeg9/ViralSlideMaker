@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
-status: executing
-stopped_at: Plan 46-01 complete — magazine-bold + tr3nding-news + documentary templates shipped + registered. Ready for Plan 46-02 (regression snapshot + DOM signature parity tests).
-last_updated: "2026-04-29T18:26:12.149Z"
+status: verifying
+stopped_at: Phase 46 complete (Plan 46-02 done — TPLNEW-05 sealed). Ready for /gsd-verify-phase 46.
+last_updated: "2026-04-29T18:38:27.453Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
-  percent: 86
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 
 Phase: 46 (premium-template-authoring) — EXECUTING
 Plan: 2 of 2
-Status: Plan 46-01 complete — ready for Plan 46-02
+Status: Phase complete — ready for verification
 Last activity: 2026-04-29
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [█████████░] 86%
 | Phase 45 P02 | 7min | 3 tasks | 8 files |
 | Phase 45 P03 | 8min | 3 tasks | 10 files |
 | Phase 46 P01 | 4min | 2 tasks | 5 files |
+| Phase 46 P02 | 5min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Progress: [█████████░] 86%
 - [Phase ?]: [Phase 46]: Phase 46-01 ships 3 new premium templates (magazine-bold, tr3nding-news, documentary) as TS modules + registry wire-up. Phase 44 validator green at module load for all 8 templates; npm run build exits 0; zero new TS errors and zero new test regressions vs the 45-03 baseline (339 pass / 11 fail). highlight-bar preserved at templates[0] for getTemplate fallback.
 - [Phase ?]: [Phase 46]: Phase 46-01 — dropped width/height/opacity overlay style fields not present in Phase 44 TemplateOverlay.style union (locked); documentary gradient sized via free-slot wrapper at offset.y=1340 (1920-580); counter ghost via background:transparent + padding:0. Schema-shape note documented inline in template files.
 - [Phase ?]: [Phase 46]: Phase 46-01 — premium-tier cohesion contract: magazine-bold + tr3nding-news share mint #A8E0B0 + Anton hook + Inter body + image-with-bottom-card; documentary deliberately diverges (NO mint, NO Anton, NO hook_segments, NO bottom card; image-bleed + free-slot gradient). Pattern available for future tier-coherent template families.
+- [Phase 46]: [Phase 46]: Phase 46-02 ships 21 new tests across 3 files (3 Satori snapshot premium-template + 5 legacy-regression-snapshot + 13 SlidePreview DOM-signature parity); legacy snapshot baseline proven free of Phase 45 layer markers (TPLNEW-05 sealed). Full vitest suite 360 pass / 11 fail (baseline 11 unchanged); npm run build 0; tsc 14 errors (baseline). Phase 46 functionally complete (5/5 requirements).
+- [Phase 46]: [Phase 46]: jsdom test-environment hex→rgb tolerance pattern — added styleHasColor helper that accepts both #HEX and rgb(r,g,b) inline-style forms. Mirrors slide-preview-overlays.test.tsx (Plan 45-03) precedent for future tests that assert on color tokens through <SlidePreview>.
 
 ### Pending Todos
 
@@ -129,7 +132,7 @@ None yet.
 ## Session Continuity
 
 Last activity: 2026-04-28 - v2.6 roadmap written. 3 phases (40, 41, 42) defined with 100% requirement coverage (19/19 REQ-IDs mapped). Phase 40 is next-ready. Roadmap appended to ROADMAP.md (v1.0–v2.5 history preserved). Traceability section in REQUIREMENTS.md filled in.
-Stopped at: Plan 45-01 complete — resolve-overlay foundation shipped. Ready for Plan 45-02 (Satori renderer wiring).
+Stopped at: Phase 46 complete (Plan 46-02 done — TPLNEW-05 sealed). Ready for /gsd-verify-phase 46.
 Resume file: None
 Next: `/gsd-plan-phase 40` — start planning MCP Transport & Auth.
 

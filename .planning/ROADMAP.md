@@ -724,7 +724,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 
 - [x] **Phase 44: Template Schema Foundation** - Extend `SlideTemplate` type with `overlays`, `backgroundMode`, dynamic content sources, per-segment `highlightColor`, and registry validation (completed 2026-04-29)
 - [x] **Phase 45: Renderer Composition** - Satori + React-preview parity for overlay zones, full-bleed photo backgrounds, dynamic page counter, per-word highlight pills (completed 2026-04-29)
-- [ ] **Phase 46: Premium Template Authoring** - Author `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` templates with sample data; verify no regressions on existing 5 templates
+- [x] **Phase 46: Premium Template Authoring** - Author `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` templates with sample data; verify no regressions on existing 5 templates (completed 2026-04-29)
 - [ ] **Phase 47: AI Prompt Tuning** - Tune `create_carousel` prompts for compact layouts (≤12-word hooks, ≤35-word bodies, no orphans), spelling quality gate, segment highlight suggestions, template-aware tone
 - [ ] **Phase 48: Template Thumbnails & Picker** - Render 9:16 thumbnails for new templates from sample data; unify template picker UI to use sample-driven previews for all templates
 
@@ -776,7 +776,7 @@ Plans:
 
 Plans:
 - [x] 46-01-PLAN.md — Author 3 premium templates (magazine-bold, tr3nding-news, documentary) + register in templates/index.ts (Phase 44 validator passes at module load)
-- [ ] 46-02-PLAN.md — Premium template Satori snapshot tests + legacy 5-template regression gate (TPLNEW-05) + DOM signature parity tests through <SlidePreview>
+- [x] 46-02-PLAN.md — Premium template Satori snapshot tests + legacy 5-template regression gate (TPLNEW-05) + DOM signature parity tests through <SlidePreview>
 
 ### Phase 47: AI Prompt Tuning
 **Goal**: When a user types a topic, the AI-generated carousel content fits the new compact magazine-style layouts: hooks/body within layout caps, no spelling typos, accent words pre-marked with `highlightColor`, and tone matched to the chosen template.
@@ -850,6 +850,6 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 44. Template Schema Foundation | v2.7 | 2/2 | Complete   | 2026-04-29 |
 | 45. Renderer Composition | v2.7 | 3/3 | Complete   | 2026-04-29 |
-| 46. Premium Template Authoring | v2.7 | 1/2 | In Progress|  |
+| 46. Premium Template Authoring | v2.7 | 2/2 | Complete   | 2026-04-29 |
 | 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |
 | 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |
