@@ -1,10 +1,11 @@
 ---
 phase: 46
 slug: premium-template-authoring
-status: draft
+status: approved
 shadcn_initialized: true
 preset: base-nova (existing — no new shadcn components added in this phase)
 created: 2026-04-29
+reviewed_at: 2026-04-29T00:00:00Z
 ---
 
 # Phase 46 — UI Design Contract
@@ -69,7 +70,7 @@ The 3 new templates form a "premium tier" with deliberate cohesion-vs-diverge co
 | `fontFamily` | `"'Inter', sans-serif"` | CONTEXT.md (body) |
 | `headingFontFamily` | `"'Anton', sans-serif"` | CONTEXT.md (hook) |
 | `hookFontSize` | `'72px'` | CONTEXT.md (smaller than news-drop 110px because card has 80px padding) |
-| `bodyFontSize` | `'34px'` | CONTEXT.md |
+| `bodyFontSize` | `'32px'` | CONTEXT.md (consolidated to 32px across all 3 templates) |
 | `textColor` | `'#ffffff'` | CONTEXT.md (white text on dark card) |
 | `backgroundColor` | `'#000000'` | CONTEXT.md (Phase 45 wraps with alpha 0.85 via `bottomCardBackground`) |
 | `overlayColor` | `'#000000'` | CONTEXT.md |
@@ -84,8 +85,8 @@ The 3 new templates form a "premium tier" with deliberate cohesion-vs-diverge co
 
 | # | position | content | style | Notes |
 |---|----------|---------|-------|-------|
-| 1 | `top-left` | `{ type: 'slide-field', field: 'topic' }` | `{ background: '#A8E0B0', color: '#000000', padding: '8px 20px', borderRadius: '4px', fontSize: '26px', fontWeight: 700, textTransform: 'uppercase' }` | Topic chip — mint background, black text |
-| 2 | `top-right` | `{ type: 'page-counter' }` | `{ background: 'rgba(0,0,0,0.6)', color: '#ffffff', padding: '8px 16px', borderRadius: '4px', fontSize: '26px', fontWeight: 700 }` | Page counter pill (e.g. `1/5`) |
+| 1 | `top-left` | `{ type: 'slide-field', field: 'topic' }` | `{ background: '#A8E0B0', color: '#000000', padding: '8px 16px', borderRadius: '4px', fontSize: '28px', fontWeight: 700, textTransform: 'uppercase' }` | Topic chip — mint background, black text |
+| 2 | `top-right` | `{ type: 'page-counter' }` | `{ background: 'rgba(0,0,0,0.6)', color: '#ffffff', padding: '8px 16px', borderRadius: '4px', fontSize: '28px', fontWeight: 700 }` | Page counter pill (e.g. `1/5`) |
 | 3 | (implicit) | bottom-card via `backgroundMode` | rendered by Phase 45 `bottomCardBackground` — no explicit overlay | rgba(0,0,0,0.85) per Phase 45 contract |
 
 ### Sample data (locked)
@@ -117,7 +118,7 @@ sample: {
 | `fontFamily` | `"'Inter', sans-serif"` | CONTEXT.md (body) |
 | `headingFontFamily` | `"'Anton', sans-serif"` | CONTEXT.md (hook) |
 | `hookFontSize` | `'72px'` | CONTEXT.md (matches magazine-bold for cohesion) |
-| `bodyFontSize` | `'34px'` | CONTEXT.md |
+| `bodyFontSize` | `'32px'` | CONTEXT.md (consolidated to 32px across all 3 templates) |
 | `textColor` | `'#ffffff'` | CONTEXT.md |
 | `backgroundColor` | `'#000000'` | CONTEXT.md |
 | `overlayColor` | `'#000000'` | CONTEXT.md |
@@ -132,7 +133,7 @@ sample: {
 
 | # | position | content | style | Notes |
 |---|----------|---------|-------|-------|
-| 1 | `top-right` | `{ type: 'page-counter' }` | `{ background: 'rgba(0,0,0,0.6)', color: '#ffffff', padding: '8px 16px', borderRadius: '4px', fontSize: '26px', fontWeight: 700 }` | Identical to magazine-bold counter for sibling cohesion |
+| 1 | `top-right` | `{ type: 'page-counter' }` | `{ background: 'rgba(0,0,0,0.6)', color: '#ffffff', padding: '8px 16px', borderRadius: '4px', fontSize: '28px', fontWeight: 700 }` | Identical to magazine-bold counter for sibling cohesion |
 | 2 | `mid` | `{ type: 'literal', text: 'TR3NDING' }` | `{ background: '#000000', color: '#A8E0B0', padding: '12px 24px', borderRadius: '40px', fontSize: '28px', fontWeight: 700, textTransform: 'uppercase' }` | Mid-pill — black background, mint text, fully rounded (40px = pill shape) |
 | 3 | (implicit) | bottom-card via `backgroundMode` | rendered by Phase 45 | rgba(0,0,0,0.85) |
 
@@ -169,7 +170,7 @@ sample: {
 | `fontFamily` | `"'Inter', sans-serif"` | CONTEXT.md (body) |
 | `headingFontFamily` | `"'Inter', sans-serif"` | CONTEXT.md (hook ALSO Inter — minimal sans-serif voice; deliberate divergence from sibling templates) |
 | `hookFontSize` | `'56px'` | CONTEXT.md (smaller — story-led, not shouting) |
-| `bodyFontSize` | `'30px'` | CONTEXT.md |
+| `bodyFontSize` | `'32px'` | CONTEXT.md (consolidated to 32px to keep type system at 4 sizes total) |
 | `textColor` | `'#ffffff'` | CONTEXT.md |
 | `backgroundColor` | `'#000000'` | CONTEXT.md |
 | `overlayColor` | `'#000000'` | CONTEXT.md |
@@ -184,7 +185,7 @@ sample: {
 
 | # | position | content | style | Notes |
 |---|----------|---------|-------|-------|
-| 1 | `top-right` | `{ type: 'page-counter' }` | `{ color: '#ffffff', opacity: 0.7, fontSize: '24px', fontWeight: 400, padding: '0', background: 'transparent' }` | Ghosted/minimal counter — no pill, transparent background |
+| 1 | `top-right` | `{ type: 'page-counter' }` | `{ color: '#ffffff', opacity: 0.7, fontSize: '28px', fontWeight: 400, padding: '0', background: 'transparent' }` | Ghosted/minimal counter — no pill, transparent background, ghosted via opacity (size matches premium tier overlays) |
 | 2 | `free` | `{ type: 'literal', text: '' }` | `{ width: '1080px', height: '580px', background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.85))' }` with `offset: { x: 0, y: 1340 }` | Bottom-darken gradient surface — empty literal is fine; renderer emits the styled div |
 
 **NO `top-left` chip, NO mid-pill, NO highlight pills on segments.** Minimal aesthetic locks this.
@@ -210,10 +211,9 @@ All values multiples of 4. Phase 46 reuses Phase 45 slot anchors and pill spacin
 | Token | Value | Usage in this phase |
 |-------|-------|----------------------|
 | xs | 4px | (consumed by Phase 45 highlight pill `padding: 4px ...`) |
-| sm | 8px | Top-left chip vertical padding (`8px 20px` on magazine-bold topic chip and counter pill) |
+| sm | 8px | Topic chip + counter pill vertical padding (`8px 16px` shared) |
 | md | 12px | Mid-pill vertical padding (`12px 24px` on tr3nding-news mid-pill) |
-| lg | 16px | Counter pill horizontal padding (`8px 16px`) |
-| xl | 20px | Topic chip horizontal padding (`8px 20px`) |
+| lg | 16px | Topic chip + counter pill horizontal padding (`8px 16px` shared, harmonized to standard set) |
 | 2xl | 24px | Mid-pill horizontal padding (`12px 24px`) |
 | — | 60px | Slot inset from canvas edge (top-left/top-right) — owned by Phase 45 `SLOT_GEOMETRY` |
 | — | 80px | Bottom-card inner padding — owned by Phase 45 `bottomCardBackground` |
@@ -234,16 +234,14 @@ All values multiples of 4. Phase 46 reuses Phase 45 slot anchors and pill spacin
 
 Phase 46 declares **only the type values used by the 3 new templates**. All other type comes from existing template fields and Phase 45 overlay-style rules.
 
+**Phase 46 declares 4 sizes total: `72 / 56 / 32 / 28`. 2 weights total: `400 / 700`.**
+
 | Role | Size | Weight | Family | Used by |
 |------|------|--------|--------|---------|
-| Display hook (premium tier) | 72px | inherits Anton's natural weight (≈900) | Anton | `magazine-bold`, `tr3nding-news` |
-| Display hook (minimal) | 56px | 400 (Inter regular — quiet voice) | Inter | `documentary` |
-| Body | 34px | 400 (Inter regular) | Inter | `magazine-bold`, `tr3nding-news` |
-| Body (minimal) | 30px | 400 | Inter | `documentary` |
-| Topic chip | 26px | 700 | Inter | `magazine-bold` overlay 1 |
-| Page counter (premium tier) | 26px | 700 | Inter | `magazine-bold`, `tr3nding-news` overlay |
-| Page counter (minimal) | 24px | 400 | Inter | `documentary` overlay 1 |
-| Mid-pill | 28px | 700 | Inter | `tr3nding-news` overlay 2 |
+| Display hook (premium tier) | 72px | 700 (rendered as Anton's natural display weight — Anton has no variable axis) | Anton | `magazine-bold`, `tr3nding-news` |
+| Display hook (minimal) | 56px | 400 | Inter | `documentary` |
+| Body (all 3 templates) | 32px (lineHeight 1.5 — inherited from existing renderer body style) | 400 | Inter | `magazine-bold`, `tr3nding-news`, `documentary` |
+| Overlay label (chip / counter / mid-pill) | 28px | 700 (or 400 ghosted in documentary counter) | Inter | All overlay roles across all 3 templates |
 
 ### Phase 46 Typography Rules
 

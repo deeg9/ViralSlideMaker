@@ -34,21 +34,21 @@ What is NOT in scope:
 ### magazine-bold (Murphy Reference) — Area 1
 - **Mint accent hex:** `#A8E0B0` (soft sage-mint pulled from Murphy reference image, used for highlight pills AND topic chip background)
 - **Fonts:** `'Anton', sans-serif` for hook (already loaded for news-drop, condensed display), `'Inter', sans-serif` for body. NO new font loads.
-- **Sizes (bottom-card mode):** `hookFontSize: '72px'` (smaller than news-drop 110px because card has padding 80px), `bodyFontSize: '34px'`. `hookStyle: 'uppercase'`.
+- **Sizes (bottom-card mode):** `hookFontSize: '72px'` (smaller than news-drop 110px because card has padding 80px), `bodyFontSize: '32px'`. `hookStyle: 'uppercase'`.
 - **Background:** `backgroundColor: '#000000'` (the bottom card uses this with alpha 0.85 per Phase 45 `bottomCardBackground`), `backgroundMode: 'image-with-bottom-card'`, `overlayColor: '#000000'`, `overlayOpacity: 0.15` (subtle tint over photo for B&W contrast control).
 - **textColor:** `'#ffffff'` (white text on dark card).
 - **textAlign:** `'left'`. **textPosition:** `'bottom'` (irrelevant for card mode but kept for fallback).
 - **accentColor:** `'#A8E0B0'` (mint).
 - **Overlays (3):**
-  1. `top-left` chip: `content: { type: 'slide-field', field: 'topic' }`, style `{ background: '#A8E0B0', color: '#000000', padding: '8px 20px', borderRadius: '4px', fontSize: '26px', fontWeight: 700, textTransform: 'uppercase' }`.
-  2. `top-right` page-counter: `content: { type: 'page-counter' }`, style `{ background: 'rgba(0,0,0,0.6)', color: '#ffffff', padding: '8px 16px', borderRadius: '4px', fontSize: '26px', fontWeight: 700 }`.
+  1. `top-left` chip: `content: { type: 'slide-field', field: 'topic' }`, style `{ background: '#A8E0B0', color: '#000000', padding: '8px 16px', borderRadius: '4px', fontSize: '28px', fontWeight: 700, textTransform: 'uppercase' }`.
+  2. `top-right` page-counter: `content: { type: 'page-counter' }`, style `{ background: 'rgba(0,0,0,0.6)', color: '#ffffff', padding: '8px 16px', borderRadius: '4px', fontSize: '28px', fontWeight: 700 }`.
   3. Bottom card is implicit via `backgroundMode: 'image-with-bottom-card'` — Phase 45 renders it; no explicit overlay needed.
 
 ### tr3nding-news — Area 2
 - **Mid-pill default content:** `'TR3NDING'` literal — matches Murphy slide-1 reference. Configurable via overlay `content.text` for future variants (`'BREAKING'`, `'EXCLUSIVE'`, `'HOT TAKE'`).
 - **Background mode:** `backgroundMode: 'image-with-bottom-card'` (same composition as magazine-bold for cohesion).
 - **Accent + fonts:** Mint `#A8E0B0` (matches magazine-bold for premium-tier visual cohesion), `'Anton', sans-serif` hook + `'Inter', sans-serif` body.
-- **Sizes:** Same as magazine-bold (`hookFontSize: '72px'`, `bodyFontSize: '34px'`).
+- **Sizes:** Same as magazine-bold (`hookFontSize: '72px'`, `bodyFontSize: '32px'`).
 - **Mid-pill styling:** `{ background: '#000000', color: '#A8E0B0', padding: '12px 24px', borderRadius: '40px', fontSize: '28px', fontWeight: 700, textTransform: 'uppercase' }`. Position `mid` slot.
 - **Overlays (3):**
   1. `top-right` page-counter (same shape as magazine-bold for consistency).
@@ -64,10 +64,10 @@ What is NOT in scope:
   - `content: { type: 'literal', text: '' }` (empty — the overlay div IS the gradient surface)
   - `style: { width: '1080px', height: '580px', background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.85))' }`
   - DOM order: this gradient sits BELOW hook/body in the overlays loop (overlays render before hook per Phase 45 layer stack), so hook/body remain on top. Empty literal is fine — `resolveOverlayContent` returns `''` and the renderer still emits the styled div.
-- **Fonts + sizing:** `'Inter', sans-serif` for both (sans-serif minimal). `hookFontSize: '56px'` (smaller — story-led), `bodyFontSize: '30px'`. `hookStyle: 'normal'` (NOT uppercase — minimal voice). `textColor: '#ffffff'`. `textAlign: 'left'`. `textPosition: 'bottom'` (text sits in the gradient-darkened zone).
+- **Fonts + sizing:** `'Inter', sans-serif` for both (sans-serif minimal). `hookFontSize: '56px'` (smaller — story-led), `bodyFontSize: '32px'` (matches premium tier — body sizes consolidated to 32px across all 3 templates). `hookStyle: 'normal'` (NOT uppercase — minimal voice). `textColor: '#ffffff'`. `textAlign: 'left'`. `textPosition: 'bottom'` (text sits in the gradient-darkened zone).
 - **accentColor:** `'#ffffff'` (no accent pill — minimal).
 - **Overlays (2):**
-  1. `top-right` page-counter — ghosted styling: `{ color: '#ffffff', opacity: 0.7, fontSize: '24px', fontWeight: 400, padding: '0', background: 'transparent' }`.
+  1. `top-right` page-counter — ghosted styling: `{ color: '#ffffff', opacity: 0.7, fontSize: '28px', fontWeight: 400, padding: '0', background: 'transparent' }` (size matches premium tier, ghosted via opacity).
   2. The `free`-slot gradient described above.
 - **NO top-left chip, NO mid-pill, NO highlight pills on segments** — minimal aesthetic locks this.
 
