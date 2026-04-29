@@ -715,7 +715,10 @@ Rebuild of the retired v2.3 MCP Server effort. Zero working code survived the `q
   3. MCP requests from the same API key that exceed the per-key sliding-window budget receive an MCP-protocol rate-limited response, sharing the same Upstash counter as REST `/api/v1/*`
   4. `npm run build` fails fast with a clear error message if `mcp-handler` is removed from `node_modules` — the regression gate against the exact v2.3 failure mode
   5. `src/middleware.ts` bypasses Supabase session auth for `/api/mcp` (matching the existing `/api/v1` and `/api/webhooks` pattern) so the Bearer-token path is the only auth surface
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 40-01-PLAN.md -- install mcp-handler+SDK, extract auth-core, MCP route+adapter, middleware bypass, build-gate tests
 
 ### Phase 41: MCP Tool Surface
 **Goal**: An AI agent connected over MCP can complete the full create → edit → render carousel loop entirely through 4 tools, calling the existing service layer directly (no re-entry through `/api/v1/*`) and respecting the same credit accounting as the REST API.
@@ -789,6 +792,6 @@ Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 | 37. AI & Image Sources (Tier 3.A) | v2.5 | 2/2 | Complete | 2026-04-28 |
 | 38. Explore, Bookmarks, Forking (Tier 3.B) | v2.5 | 2/2 | Complete | 2026-04-28 |
 | 39. Brand Kit & Profile (Tier 3.C) | v2.5 | 2/2 | Complete | 2026-04-28 |
-| 40. MCP Transport & Auth | v2.6 | 0/0 | Not started | - |
+| 40. MCP Transport & Auth | v2.6 | 0/1 | Planned | - |
 | 41. MCP Tool Surface | v2.6 | 0/0 | Not started | - |
 | 42. Distribution & Documentation | v2.6 | 0/0 | Not started | - |
