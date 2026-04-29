@@ -1,0 +1,470 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase 46 premium templates — Satori snapshots > documentary: renders image-bleed full-bleed + ghosted top-right counter + free-slot gradient + NO bottom-card + NO mint accent > documentary-image-bleed-with-gradient-overlay 1`] = `
+<div
+  style={
+    {
+      "color": "#ffffff",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.35,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "background": "transparent",
+        "color": "#ffffff",
+        "display": "flex",
+        "fontSize": "28px",
+        "fontWeight": 400,
+        "lineHeight": 1,
+        "padding": "0",
+        "position": "absolute",
+        "right": 60,
+        "top": 60,
+      }
+    }
+  >
+    1/5
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "background": "linear-gradient(to bottom, transparent, rgba(0,0,0,0.85))",
+        "display": "flex",
+        "fontSize": 28,
+        "fontWeight": 700,
+        "left": 0,
+        "lineHeight": 1,
+        "position": "absolute",
+        "top": 1340,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 56,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    The Last Glassblower of Murano
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    How four centuries of craft survive in a digital age.
+  </div>
+</div>
+`;
+
+exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: renders image-with-bottom-card + top-left mint chip + top-right counter + bottom-card + mint pill segments > magazine-bold-bottom-card-with-overlays 1`] = `
+<div
+  style={
+    {
+      "color": "#ffffff",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.15,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "bottom": 0,
+        "display": "flex",
+        "flexDirection": "column",
+        "height": "38%",
+        "left": 0,
+        "padding": 80,
+        "position": "absolute",
+        "right": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "background": "#A8E0B0",
+        "borderRadius": "4px",
+        "color": "#000000",
+        "display": "flex",
+        "fontSize": "28px",
+        "fontWeight": 700,
+        "left": 60,
+        "lineHeight": 1,
+        "padding": "8px 16px",
+        "position": "absolute",
+        "textTransform": "uppercase",
+        "top": 60,
+      }
+    }
+  >
+    folk-music
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "background": "rgba(0,0,0,0.6)",
+        "borderRadius": "4px",
+        "color": "#ffffff",
+        "display": "flex",
+        "fontSize": "28px",
+        "fontWeight": 700,
+        "lineHeight": 1,
+        "padding": "8px 16px",
+        "position": "absolute",
+        "right": 60,
+        "top": 60,
+      }
+    }
+  >
+    1/5
+  </div>
+  <div
+    style={
+      {
+        "fontFamily": "'Anton', sans-serif",
+        "fontSize": 72,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    <span
+      style={
+        {
+          "color": "#ffffff",
+        }
+      }
+    >
+      FOLK SINGER 
+    </span>
+    <span
+      style={
+        {
+          "backgroundColor": "#A8E0B0",
+          "borderRadius": "8px",
+          "color": "#ffffff",
+          "marginRight": "8px",
+          "padding": "4px 12px",
+        }
+      }
+    >
+      FIGHTS BACK 
+    </span>
+    <span
+      style={
+        {
+          "color": "#ffffff",
+        }
+      }
+    >
+      AFTER AI 
+    </span>
+    <span
+      style={
+        {
+          "backgroundColor": "#A8E0B0",
+          "borderRadius": "8px",
+          "color": "#ffffff",
+          "marginRight": "8px",
+          "padding": "4px 12px",
+        }
+      }
+    >
+      CLONED HER VOICE
+    </span>
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell, a folk singer from Western North Carolina, sues OpenAI for copyright theft.
+  </div>
+</div>
+`;
+
+exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: renders image-with-bottom-card + top-right counter + mid-pill TR3NDING + mint pill segments > tr3nding-news-bottom-card-with-mid-pill 1`] = `
+<div
+  style={
+    {
+      "color": "#ffffff",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.15,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "bottom": 0,
+        "display": "flex",
+        "flexDirection": "column",
+        "height": "38%",
+        "left": 0,
+        "padding": 80,
+        "position": "absolute",
+        "right": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "background": "rgba(0,0,0,0.6)",
+        "borderRadius": "4px",
+        "color": "#ffffff",
+        "display": "flex",
+        "fontSize": "28px",
+        "fontWeight": 700,
+        "lineHeight": 1,
+        "padding": "8px 16px",
+        "position": "absolute",
+        "right": 60,
+        "top": 60,
+      }
+    }
+  >
+    1/5
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "background": "#000000",
+        "borderRadius": "40px",
+        "color": "#A8E0B0",
+        "display": "flex",
+        "fontSize": "28px",
+        "fontWeight": 700,
+        "left": "50%",
+        "lineHeight": 1,
+        "padding": "12px 24px",
+        "position": "absolute",
+        "textTransform": "uppercase",
+        "top": "55%",
+        "transform": "translateX(-50%)",
+      }
+    }
+  >
+    TR3NDING
+  </div>
+  <div
+    style={
+      {
+        "fontFamily": "'Anton', sans-serif",
+        "fontSize": 72,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    <span
+      style={
+        {
+          "color": "#ffffff",
+        }
+      }
+    >
+      STARTUP RAISES 
+    </span>
+    <span
+      style={
+        {
+          "backgroundColor": "#A8E0B0",
+          "borderRadius": "8px",
+          "color": "#ffffff",
+          "marginRight": "8px",
+          "padding": "4px 12px",
+        }
+      }
+    >
+      $50M 
+    </span>
+    <span
+      style={
+        {
+          "color": "#ffffff",
+        }
+      }
+    >
+      IN 
+    </span>
+    <span
+      style={
+        {
+          "backgroundColor": "#A8E0B0",
+          "borderRadius": "8px",
+          "color": "#ffffff",
+          "marginRight": "8px",
+          "padding": "4px 12px",
+        }
+      }
+    >
+      12 MINUTES
+    </span>
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    AI infrastructure boom drives record-breaking seed round.
+  </div>
+</div>
+`;
