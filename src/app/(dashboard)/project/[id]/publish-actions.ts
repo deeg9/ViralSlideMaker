@@ -48,7 +48,11 @@ async function renderHero(
 
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   const ownerTier = await getUserTier(project.user_id)
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin)
+  // Phase 45: hero render is always slide 0 of a single-slide payload — overlay
+  // counter resolves to '1/1' (per CONTEXT.md graceful-fallback path); topic
+  // comes from the project for slide-field overlays.
+  const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
+  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

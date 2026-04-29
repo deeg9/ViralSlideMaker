@@ -95,7 +95,11 @@ export async function GET(request: Request) {
   // Forced free-tier watermark: read project owner's tier (server is source of truth)
   const ownerTier = await getUserTier(p.user_id)
   const origin = new URL(request.url).origin
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin)
+  // Phase 45: thread render context (slideIndex/totalSlides/topic) so overlays
+  // resolve through the shared resolveOverlayContent — same source as React preview.
+  const totalSlides = (p.slide_data ?? []).length
+  const ctx = { slideIndex: index, totalSlides, topic: p.topic }
+  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

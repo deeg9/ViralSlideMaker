@@ -70,9 +70,13 @@ export const GET = withApiAuth(async (req, ctx) => {
 
   // Render each slide sequentially to avoid memory pressure
   const zip = new JSZip()
+  // Phase 45: per-slide render ctx (slideIndex/totalSlides/topic) flows into
+  // overlay resolution — same shape used by /api/render single-slide endpoint.
+  const totalSlides = slides.length
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
-    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin)
+    const ctx = { slideIndex: i, totalSlides, topic: project.topic }
+    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin, ctx)
     const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
     const imgRes = new ImageResponse(element, {
       width: 1080,

@@ -56,7 +56,10 @@ export async function renderHeroBuffer(
 
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   const ownerTier = await getUserTier(project.user_id)
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin)
+  // Phase 45: same shape as publish-actions — hero render is slide 0 of a
+  // single-slide payload; topic from project flows into slide-field overlays.
+  const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
+  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

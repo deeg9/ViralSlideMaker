@@ -237,7 +237,11 @@ function nanoidSuffix(): string {
 async function renderHero(slide: Slide, templateId: string, origin: string): Promise<Buffer> {
   const template = getTemplate(templateId)
   const effectiveTemplate = mergeWithBrandKit(template, null)
-  const element = buildSlideElement(slide, effectiveTemplate, null, 'free', origin)
+  // Phase 45: seed-explore renders ONLY the hero (slide 0 of a single-slide
+  // payload). No project.topic in scope; resolver returns '' for slide-field
+  // topic and '1/1' for page-counter — graceful fallback per CONTEXT.md Area 4.
+  const ctx = { slideIndex: 0, totalSlides: 1, topic: undefined }
+  const element = buildSlideElement(slide, effectiveTemplate, null, 'free', origin, ctx)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
   const imageResponse = new ImageResponse(element, {
     width: 1080,
