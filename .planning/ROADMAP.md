@@ -775,7 +775,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 46-01-PLAN.md — Author 3 premium templates (magazine-bold, tr3nding-news, documentary) + register in templates/index.ts (Phase 44 validator passes at module load)
+- [x] 46-01-PLAN.md — Author 3 premium templates (magazine-bold, tr3nding-news, documentary) + register in templates/index.ts (Phase 44 validator passes at module load)
 - [ ] 46-02-PLAN.md — Premium template Satori snapshot tests + legacy 5-template regression gate (TPLNEW-05) + DOM signature parity tests through <SlidePreview>
 
 ### Phase 47: AI Prompt Tuning
@@ -850,6 +850,6 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 44. Template Schema Foundation | v2.7 | 2/2 | Complete   | 2026-04-29 |
 | 45. Renderer Composition | v2.7 | 3/3 | Complete   | 2026-04-29 |
-| 46. Premium Template Authoring | v2.7 | 0/0 | Not started | - |
+| 46. Premium Template Authoring | v2.7 | 1/2 | In Progress|  |
 | 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |
 | 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |

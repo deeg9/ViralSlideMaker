@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
-status: verifying
-stopped_at: Plan 45-01 complete — resolve-overlay foundation shipped. Ready for Plan 45-02 (Satori renderer wiring).
-last_updated: "2026-04-29T17:38:31.615Z"
+status: executing
+stopped_at: Plan 46-01 complete — magazine-bold + tr3nding-news + documentary templates shipped + registered. Ready for Plan 46-02 (regression snapshot + DOM signature parity tests).
+last_updated: "2026-04-29T18:26:12.149Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 7
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 45 — renderer-composition
+**Current focus:** Phase 46 — premium-template-authoring
 
 ## Current Position
 
-Phase: 45 (renderer-composition) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 46 (premium-template-authoring) — EXECUTING
+Plan: 2 of 2
+Status: Plan 46-01 complete — ready for Plan 46-02
 Last activity: 2026-04-29
 
-Progress: [██████████] 100%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [██████████] 100%
 | Phase 45 P01 | 5min | 2 tasks | 3 files |
 | Phase 45 P02 | 7min | 3 tasks | 8 files |
 | Phase 45 P03 | 8min | 3 tasks | 10 files |
+| Phase 46 P01 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Progress: [██████████] 100%
 - [Phase ?]: [Phase 45]: Phase 45-02 — bottom-card layer inserted BEFORE overlay zones (DOM order matches CONTEXT.md Area 1 layers 3 → 4). Walk helper extended to recurse into Array nodes. Permissive type assertion on SLOT_GEOMETRY index. renderSegmentChildren preserved as delegator (function name unchanged) so the 3 internal callsites stay byte-identical.
 - [Phase ?]: Phase 45-03 wires React preview to the shared resolver — <SlidePreview> accepts new optional slideIndex/totalSlides/topic props with graceful fallback, both render branches (non-editable + editable) emit overlay/backgroundMode/pill JSX via private BackgroundLayers + OverlayLayers helpers, and all 7 React callsites pass real index+length+topic. Phase 45 functionally complete: TPLREND-01..05 all satisfied; Phase 46 can ship magazine-bold purely as a config object.
 - [Phase ?]: Phase 45-03 — added jsdom polyfills (ResizeObserver stub + getBoundingClientRect 1080x1920 fallback) to src/__tests__/setup.ts, gated on typeof Element !== 'undefined' so node-environment tests stay green. Side benefit: recovered 1 of 2 pre-existing slide-preview baseline failures from deferred-items.md.
+- [Phase ?]: [Phase 46]: Phase 46-01 ships 3 new premium templates (magazine-bold, tr3nding-news, documentary) as TS modules + registry wire-up. Phase 44 validator green at module load for all 8 templates; npm run build exits 0; zero new TS errors and zero new test regressions vs the 45-03 baseline (339 pass / 11 fail). highlight-bar preserved at templates[0] for getTemplate fallback.
+- [Phase ?]: [Phase 46]: Phase 46-01 — dropped width/height/opacity overlay style fields not present in Phase 44 TemplateOverlay.style union (locked); documentary gradient sized via free-slot wrapper at offset.y=1340 (1920-580); counter ghost via background:transparent + padding:0. Schema-shape note documented inline in template files.
+- [Phase ?]: [Phase 46]: Phase 46-01 — premium-tier cohesion contract: magazine-bold + tr3nding-news share mint #A8E0B0 + Anton hook + Inter body + image-with-bottom-card; documentary deliberately diverges (NO mint, NO Anton, NO hook_segments, NO bottom card; image-bleed + free-slot gradient). Pattern available for future tier-coherent template families.
 
 ### Pending Todos
 

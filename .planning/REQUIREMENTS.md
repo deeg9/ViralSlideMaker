@@ -26,10 +26,10 @@
 
 ### Premium Template Authoring (TPLNEW)
 
-- [ ] **TPLNEW-01**: New template `magazine-bold` matches the Murphy reference design (B&W photo full-bleed, top-left topic chip, top-right page counter, bottom semi-opaque black card with bold all-caps copy + mint highlight pills on selected words). Registered in `src/lib/render/templates/`.
-- [ ] **TPLNEW-02**: New template `tr3nding-news` features a bold mid-card pill above the headline (matching the "TR3NDING" pill aesthetic from the reference) plus mint accent highlights. Mid-pill content is template-configurable so future variants can use other labels ("BREAKING", "EXCLUSIVE", etc.).
-- [ ] **TPLNEW-03**: New template `documentary` — full photo with subtle gradient darken at bottom + minimal sans-serif body copy, no decorative pills. Photo-forward, story-led aesthetic.
-- [ ] **TPLNEW-04**: All new premium templates have populated `sample` data so the template picker can render real mini-previews instead of synthetic swatches (matches existing pattern in `templates/index.ts:SlideTemplate.sample`).
+- [x] **TPLNEW-01**: New template `magazine-bold` matches the Murphy reference design (B&W photo full-bleed, top-left topic chip, top-right page counter, bottom semi-opaque black card with bold all-caps copy + mint highlight pills on selected words). Registered in `src/lib/render/templates/`.
+- [x] **TPLNEW-02**: New template `tr3nding-news` features a bold mid-card pill above the headline (matching the "TR3NDING" pill aesthetic from the reference) plus mint accent highlights. Mid-pill content is template-configurable so future variants can use other labels ("BREAKING", "EXCLUSIVE", etc.).
+- [x] **TPLNEW-03**: New template `documentary` — full photo with subtle gradient darken at bottom + minimal sans-serif body copy, no decorative pills. Photo-forward, story-led aesthetic.
+- [x] **TPLNEW-04**: All new premium templates have populated `sample` data so the template picker can render real mini-previews instead of synthetic swatches (matches existing pattern in `templates/index.ts:SlideTemplate.sample`).
 - [ ] **TPLNEW-05**: Existing 5 templates (`highlight-bar`, `news-drop`, `news-cyan`, `y2k-pop`, `bold-yellow`) continue to work unchanged — additive milestone, no regressions on legacy template render paths.
 
 ### AI Prompt Tuning (TPLAI)
