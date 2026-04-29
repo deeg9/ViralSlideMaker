@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.5
-milestone_name: Public REST API Parity
-status: complete
-stopped_at: v2.5 shipped autonomously — 6 phases, 28 requirements closed, ~21 new endpoints across REST API + new BrandKit/Profile/PublishedCarousel schemas
-last_updated: "2026-04-28T17:30:00.000Z"
+milestone: v2.6
+milestone_name: MCP Server
+status: planning
+stopped_at: Defining requirements for v2.6 MCP Server (lean 4-tool scope; rebuilds retired v2.3)
+last_updated: "2026-04-28T18:00:00.000Z"
 last_activity: 2026-04-28
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** v2.5 Public REST API Parity — bring REST API to feature parity with dashboard. Phase 34 (Tier 1 spec accuracy) is the next-ready phase.
+**Current focus:** v2.6 MCP Server — ship a working `/api/mcp` endpoint + 4 MCP tools + npm bridge package + setup docs. Closes the failure mode that retired v2.3 (`mcp-handler` missing from `node_modules`). Lean scope per user decision: 4 tools (list_templates, create_carousel, edit_slide, render_carousel) — broader v2.5 surface deferred to v2.7+.
 
 ## Current Position
 
-Phase: 39 (complete)
-Plan: All complete
-Status: v2.5 milestone complete — REST API has full feature parity with the dashboard. Manual end-to-end verification with a live API key recommended.
-Last activity: 2026-04-28
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-28 — Milestone v2.6 started
 
-Progress: [██████████] 100% (6/6 phases of v2.5 complete)
+Progress: [░░░░░░░░░░] 0% (defining requirements)
 
 ## Performance Metrics
 
@@ -54,10 +54,14 @@ Progress: [██████████] 100% (6/6 phases of v2.5 complete)
 
 - [v2.2]: withApiAuth HOC pattern chains auth -> rate limit -> credits -> CORS -> handler
 - [v2.2]: Service extraction into src/lib/services/ for shared web/API logic
-- [v2.3]: 4 outcome-oriented MCP tools (not 1:1 REST mapping) per research findings
-- [v2.3]: mcp-handler + @modelcontextprotocol/sdk stack (Vercel official adapter)
-- [v2.3]: Stateless transport mode for Vercel serverless compatibility
-- [v2.3]: stdio package delegates to mcp-remote bridge (zero duplicated business logic)
+- [v2.3]: 4 outcome-oriented MCP tools (not 1:1 REST mapping) per research findings (carried into v2.6)
+- [v2.3]: mcp-handler + @modelcontextprotocol/sdk stack (Vercel official adapter) (carried into v2.6 — verify versions current)
+- [v2.3]: Stateless transport mode for Vercel serverless compatibility (carried into v2.6)
+- [v2.3]: stdio package delegates to mcp-remote bridge (zero duplicated business logic) (carried into v2.6)
+- [v2.6]: Lean tool scope — 4 tools only (list_templates, create_carousel, edit_slide, render_carousel). Broader v2.5 surface (publish, fork, bookmarks, brand-kit) deferred to v2.7+
+- [v2.6]: Build-gate verification step — fail the build if mcp-handler is missing from node_modules (the v2.3 retirement root cause)
+- [v2.6]: Extract bearer-token verification core from src/lib/api/auth.ts so REST and MCP share one helper (avoids NextRequest coupling in MCP path)
+- [v2.6]: Reuse retired v2.3 phase plans at .planning/phases/26-28/ as inputs to v2.6 planning — do NOT clear them
 
 ### Pending Todos
 
@@ -65,9 +69,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- Upstash Redis env vars need provisioning for production rate limiting
-- Verify mcp-remote version compatibility with mcp-handler v1.1.0 before Phase 28
-- Confirm create_carousel latency stays under 60s (maxDuration setting) during Phase 27
+- Upstash Redis env vars need provisioning for production rate limiting (carried from v2.2)
+- v2.3 retirement root cause: mcp-handler was in package.json but missing from node_modules. v2.6 must add a CI/build step that explicitly imports from mcp-handler so a missing dep fails the build.
+- Library API drift: mcp-handler and @modelcontextprotocol/sdk versions cited in v2.3 plans are from 2026-04. Verify import paths and signatures against current npm releases at the start of Phase A.
 
 ### Quick Tasks Completed
 
@@ -99,7 +103,7 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - v2.5 Public REST API Parity SHIPPED. Pushed through Phases 35-39 in one autonomous pass after the Phase 34 spec-accuracy wedge. ~21 new endpoints + BrandKit/Profile/PublishedCarousel schemas. All routes return 401 to unauthenticated curls (expected); typecheck clean for all touched files; no behavior change to the existing 7 routes.
-Stopped at: v2.5 milestone complete; ready for next milestone or live-API verification.
+Last activity: 2026-04-28 - v2.6 MCP Server milestone started. Theme picked: rebuild the retired v2.3 MCP server with lean 4-tool scope. PROJECT.md updated with new milestone goals; v2.3 entries removed from Validated (they were retired, not actually shipped working). Earlier in same session: added "Connect to your tools" guide section at src/components/api-keys/automation-guide.tsx wired into /settings/api-keys page so users can wire their vsl_ key into Claude/ChatGPT/Cursor today via REST + OpenAPI spec.
+Stopped at: PROJECT.md + STATE.md updated; ready to define REQUIREMENTS.md and ROADMAP.md.
 Resume file: None
-Next: pick a v2.6 theme, OR run a live curl walk-through against a fresh API key to verify the full surface.
+Next: research decision (Step 8) → define requirements (Step 9) → create roadmap (Step 10).
