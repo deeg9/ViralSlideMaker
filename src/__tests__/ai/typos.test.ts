@@ -6,11 +6,13 @@ describe('KNOWN_TYPOS', () => {
     expect(KNOWN_TYPOS).toBeInstanceOf(Set)
   })
 
-  it('has at least 30 entries', () => {
-    expect(KNOWN_TYPOS.size).toBeGreaterThanOrEqual(30)
+  // WR-01: NEEDLES and CALENDER removed (real English words → false positives).
+  // Count is now 28 entries.
+  it('has at least 28 entries', () => {
+    expect(KNOWN_TYPOS.size).toBeGreaterThanOrEqual(28)
   })
 
-  it('contains all required uppercase typo entries from CONTEXT.md Area 2', () => {
+  it('contains all required uppercase typo entries from CONTEXT.md Area 2 (excl. NEEDLES/CALENDER per WR-01)', () => {
     const required = [
       'MUSICAN',
       'CARROUSEL',
@@ -20,7 +22,7 @@ describe('KNOWN_TYPOS', () => {
       'OCCURENCE',
       'BUSSINESS',
       'ACCOMODATE',
-      'CALENDER',
+      // CALENDER removed (WR-01): real word — cloth/paper pressing machine
       'DEFINATELY',
       'EXISTANCE',
       'MAINTENENCE',
@@ -41,11 +43,16 @@ describe('KNOWN_TYPOS', () => {
       'MILLENIUM',
       'PERSUE',
       'RELEVENT',
-      'NEEDLES',
+      // NEEDLES removed (WR-01): real word — sewing/acupuncture needles
     ]
     for (const entry of required) {
       expect(KNOWN_TYPOS.has(entry)).toBe(true)
     }
+  })
+
+  it('does NOT contain NEEDLES or CALENDER (removed per WR-01 false-positive fix)', () => {
+    expect(KNOWN_TYPOS.has('NEEDLES')).toBe(false)
+    expect(KNOWN_TYPOS.has('CALENDER')).toBe(false)
   })
 
   it('every entry is an all-uppercase string (callers normalize input via toUpperCase before lookup)', () => {
