@@ -758,7 +758,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 
 Plans:
 - [x] 45-01-PLAN.md — Shared resolve-overlay foundation (resolveOverlayContent + SLOT_GEOMETRY + renderSegments + bottomCardBackground) with TDD unit coverage; zero callsite churn
-- [ ] 45-02-PLAN.md — Satori renderer extension: buildSlideElement composes overlays + backgroundMode + pills via shared resolver; all 5 server callsites pass ctx; Satori snapshot tests
+- [x] 45-02-PLAN.md — Satori renderer extension: buildSlideElement composes overlays + backgroundMode + pills via shared resolver; all 5 server callsites pass ctx; Satori snapshot tests
 - [ ] 45-03-PLAN.md — React preview extension: <SlidePreview> mirrors Satori in BOTH render branches via shared resolver; all 7 client callsites pass slideIndex/totalSlides; DOM-signature parity tests
 
 ### Phase 46: Premium Template Authoring
@@ -845,7 +845,7 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 41. MCP Tool Surface | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 44. Template Schema Foundation | v2.7 | 2/2 | Complete   | 2026-04-29 |
-| 45. Renderer Composition | v2.7 | 1/3 | In Progress|  |
+| 45. Renderer Composition | v2.7 | 2/3 | In Progress|  |
 | 46. Premium Template Authoring | v2.7 | 0/0 | Not started | - |
 | 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |
 | 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |

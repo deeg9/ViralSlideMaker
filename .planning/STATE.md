@@ -4,14 +4,14 @@ milestone: v2.7
 milestone_name: Premium Templates
 status: executing
 stopped_at: Plan 45-01 complete — resolve-overlay foundation shipped. Ready for Plan 45-02 (Satori renderer wiring).
-last_updated: "2026-04-29T17:11:21.083Z"
+last_updated: "2026-04-29T17:24:03.223Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 ## Current Position
 
 Phase: 45 (renderer-composition) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-29
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [██████░░░░] 60%
 | Phase 44 P01 | 3min | 2 tasks | 2 files |
 | Phase 44 P02 | 2min | 2 tasks | 4 files |
 | Phase 45 P01 | 5min | 2 tasks | 3 files |
+| Phase 45 P02 | 7min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Progress: [██████░░░░] 60%
 - [Phase 45]: Phase 45-01 ships resolve-overlay.ts as the parity foundation — single source of truth for overlay content resolution + slot pixel anchors + segment-to-span pill markup + bottom-card RGBA composition. Both Satori (45-02) and React preview (45-03) consume it to guarantee zero preview/export drift (TPLREND-05)
 - [Phase 45]: Phase 45-01 — renderSegments extracted as shared helper (Open Question 4 strong-recommend); SLOT_GEOMETRY colocated in resolve-overlay.ts; bottomCardBackground inlined; <HighlightSpan> NOT extracted yet (defer until wire-up proves duplication)
 - [Phase 45]: Phase 45-01 resolve-overlay.ts at .ts extension (not .tsx) — JSX emitted via React.createElement so the resolver stays tier-neutral and importable without a TSX transform
+- [Phase ?]: [Phase 45]: Phase 45-02 wires the Satori renderer to the shared resolver — buildSlideElement now accepts optional ctx, composes template.overlays at SLOT_GEOMETRY anchors, branches on backgroundMode, and routes segment rendering through the pill-aware renderSegments helper. All 5 server callsites pass real ctx. Legacy 5 templates render byte-identical.
+- [Phase ?]: [Phase 45]: Phase 45-02 — bottom-card layer inserted BEFORE overlay zones (DOM order matches CONTEXT.md Area 1 layers 3 → 4). Walk helper extended to recurse into Array nodes. Permissive type assertion on SLOT_GEOMETRY index. renderSegmentChildren preserved as delegator (function name unchanged) so the 3 internal callsites stay byte-identical.
 
 ### Pending Todos
 
