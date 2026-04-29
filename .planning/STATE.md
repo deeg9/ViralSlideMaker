@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
-status: planning
-stopped_at: Phase 44 plans authored (44-01 type extensions, 44-02 validator). Awaiting /gsd-execute-phase 44.
-last_updated: "2026-04-29T05:30:00.000Z"
+status: executing
+stopped_at: Plan 44-01 complete (TextSegment + SlideTemplate schema extended). Ready for Plan 44-02 (validator).
+last_updated: "2026-04-29T16:13:06.919Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** v2.7 Premium Templates — extending SlideTemplate schema to support overlay zones (chip/counter/pill/card), updating Satori renderer for layout composition, authoring 3-4 magazine-style templates including the Murphy Campbell folk-singer reference design, tuning create_carousel AI prompts to fit tighter layouts, and shipping fresh template thumbnails.
+**Current focus:** Phase 44 — template-schema-foundation
 
 ## Current Position
 
-Phase: 44 (Template Schema Foundation) — not started
-Plan: —
-Status: Roadmap authored, awaiting first plan
-Last activity: 2026-04-29 — v2.7 ROADMAP.md authored (5 phases, 19/19 requirements mapped)
+Phase: 44 (template-schema-foundation) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-04-29
 
-Progress: [          ] 0/5 phases (0%)
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [          ] 0/5 phases (0%)
 | 46. Premium Template Authoring | 0 | - | - |
 | 47. AI Prompt Tuning | 0 | - | - |
 | 48. Template Thumbnails & Picker | 0 | - | - |
+| Phase 44 P01 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Progress: [          ] 0/5 phases (0%)
 - [v2.6]: Reuse retired v2.3 phase plans at .planning/phases/26-28/ as inputs to v2.6 planning — do NOT clear them
 - [v2.6]: Phase 40 (Transport & Auth) → Phase 41 (Tool Surface) → Phase 42 (Distribution & Docs). 1:1 mapping to the 3 REQUIREMENTS.md categories (MCP-TRANS / MCP-TOOL / MCP-DIST). Strict linear dependency: tools register on the server stood up in 40; bridge + docs validate against the working tool surface from 41.
 - [v2.6]: Tool registry pattern (`src/lib/mcp/tools.ts`) deliberately designed for additive v2.7+ extension — broader surface (publish, fork, bookmarks, brand-kit) lands as new tool definitions, no architectural rework.
+- [Phase ?]: [v2.7]: Phase 44 schema is type-only — overlays + backgroundMode + segment highlights are additive optional fields; no renderer wiring or new templates yet
+- [Phase ?]: [v2.7]: OverlayContent is a discriminated union keyed on `type` (literal | page-counter | slide-field) with slide-field locked to a closed enum (topic | hook_text | body_text)
+- [Phase ?]: [v2.7]: TextSegment.highlightStyle uses 'pill' | 'block' (intentionally distinct from sibling TextHighlightEffect.style 'tight' | 'full' to avoid value-space confusion)
 
 ### Pending Todos
 
@@ -108,8 +112,8 @@ None yet.
 ## Session Continuity
 
 Last activity: 2026-04-28 - v2.6 roadmap written. 3 phases (40, 41, 42) defined with 100% requirement coverage (19/19 REQ-IDs mapped). Phase 40 is next-ready. Roadmap appended to ROADMAP.md (v1.0–v2.5 history preserved). Traceability section in REQUIREMENTS.md filled in.
-Stopped at: Ready for `/gsd-plan-phase 40`.
-Resume file: .planning/ROADMAP.md (v2.6 block at the bottom)
+Stopped at: Plan 44-01 complete (TextSegment + SlideTemplate schema extended). Ready for Plan 44-02 (validator).
+Resume file: .planning/phases/44-template-schema-foundation/44-02-PLAN.md
 Next: `/gsd-plan-phase 40` — start planning MCP Transport & Auth.
 
 **Planned Phase:** 40 (MCP Transport & Auth) — 1 plans — 2026-04-29T01:23:55.217Z

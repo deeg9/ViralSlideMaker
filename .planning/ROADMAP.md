@@ -739,7 +739,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
   4. A `TextSegment` can carry an optional `highlightColor` and `highlightStyle` field; existing segments without these fields parse and render unchanged (backwards compatible)
   5. Booting the app with a malformed template (invalid overlay position, unknown content source) fails fast at startup with a clear error message identifying the offending template
 **Plans**: 2 plans
-- [ ] 44-01-PLAN.md — Type extensions: SlideTemplate.overlays + .backgroundMode, OverlayContent discriminated union, TextSegment.highlightColor/highlightStyle (Wave 1)
+- [x] 44-01-PLAN.md — Type extensions: SlideTemplate.overlays + .backgroundMode, OverlayContent discriminated union, TextSegment.highlightColor/highlightStyle (Wave 1)
 - [ ] 44-02-PLAN.md — validateTemplateRegistry module + module-load wiring + tests covering each failure path (Wave 2, depends on 44-01)
 **UI hint**: yes
 
@@ -839,7 +839,7 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 40. MCP Transport & Auth | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 41. MCP Tool Surface | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |
-| 44. Template Schema Foundation | v2.7 | 0/2 | Not started | - |
+| 44. Template Schema Foundation | v2.7 | 1/2 | In Progress|  |
 | 45. Renderer Composition | v2.7 | 0/0 | Not started | - |
 | 46. Premium Template Authoring | v2.7 | 0/0 | Not started | - |
 | 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |

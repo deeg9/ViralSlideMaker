@@ -10,10 +10,10 @@
 
 ### Template Schema Extensions (TPLSCHEMA)
 
-- [ ] **TPLSCHEMA-01**: `SlideTemplate` type supports a structured `overlays` field declaring zero-to-many overlay components per template (top-left chip, top-right counter, mid pill, bottom card, etc.). Each overlay has a position, styling block, and content source.
-- [ ] **TPLSCHEMA-02**: Overlay content sources include literal text, dynamic page-counter (`{currentSlide}/{totalSlides}`), and slide-field references (e.g. `topic` from project metadata) so the same overlay reads the right data per slide context.
-- [ ] **TPLSCHEMA-03**: Templates can declare a `backgroundMode`: `'color'` (current behavior — flat fill), `'image-bleed'` (full-bleed photo, no overlay card), or `'image-with-bottom-card'` (full-bleed photo with semi-opaque text card at bottom).
-- [ ] **TPLSCHEMA-04**: `TextSegment` type extended with optional `highlightColor` and `highlightStyle` fields supporting per-word background highlight pills (the mint/teal pill behind "FIGHTS BACK", "CLONED HER VOICE" etc. in the reference design). Backwards compatible: existing segments without these fields render unchanged.
+- [x] **TPLSCHEMA-01**: `SlideTemplate` type supports a structured `overlays` field declaring zero-to-many overlay components per template (top-left chip, top-right counter, mid pill, bottom card, etc.). Each overlay has a position, styling block, and content source.
+- [x] **TPLSCHEMA-02**: Overlay content sources include literal text, dynamic page-counter (`{currentSlide}/{totalSlides}`), and slide-field references (e.g. `topic` from project metadata) so the same overlay reads the right data per slide context.
+- [x] **TPLSCHEMA-03**: Templates can declare a `backgroundMode`: `'color'` (current behavior — flat fill), `'image-bleed'` (full-bleed photo, no overlay card), or `'image-with-bottom-card'` (full-bleed photo with semi-opaque text card at bottom).
+- [x] **TPLSCHEMA-04**: `TextSegment` type extended with optional `highlightColor` and `highlightStyle` fields supporting per-word background highlight pills (the mint/teal pill behind "FIGHTS BACK", "CLONED HER VOICE" etc. in the reference design). Backwards compatible: existing segments without these fields render unchanged.
 - [ ] **TPLSCHEMA-05**: Template registry validation — startup-time check that every registered template's overlays declare valid positions and content sources, with a clear error message on misconfiguration.
 
 ### Renderer Composition (TPLREND)
