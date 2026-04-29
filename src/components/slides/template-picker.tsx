@@ -2,10 +2,9 @@
 
 import Link from 'next/link'
 import { templates } from '@/lib/render/templates/index'
-import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { Slide } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
+import { makeSampleSlide } from '@/lib/render/sample-slide'
 import { SlidePreview } from './slide-preview'
 
 interface TemplatePickerProps {
@@ -24,23 +23,6 @@ function isBrandKitConfigured(bk: BrandKit | null | undefined): bk is BrandKit {
   const hasColors = !!(bk.background_color && bk.text_color)
   const hasFont = !!(bk.body_font_family || bk.heading_font_family || bk.font_family)
   return hasColors || hasFont
-}
-
-// Build a minimal Slide from the template's `sample` for the picker preview.
-// `background_url: null` keeps the preview snappy (no remote image fetch),
-// `is_cta: false` keeps any CTA-only render branches off.
-function makeSampleSlide(template: SlideTemplate): Slide {
-  const sample = template.sample
-  return {
-    hook_text: sample?.hook_text ?? 'Sample headline',
-    body_text: sample?.body_text ?? 'Sample body text.',
-    hook_segments: sample?.hook_segments,
-    image_query: '',
-    is_cta: false,
-    background_url: null,
-    pexels_photo_id: null,
-    style_overrides: sample?.layout ? { layout: sample.layout } : {},
-  }
 }
 
 export function TemplatePicker({ selectedId, onSelect, brandKit }: TemplatePickerProps) {
