@@ -47,7 +47,8 @@ function getAppUrl(): string {
 
 function getUserId(extra: unknown): string | undefined {
   const e = extra as { authInfo?: { extra?: Record<string, unknown> } } | undefined
-  return e?.authInfo?.extra?.userId as string | undefined
+  const v = e?.authInfo?.extra?.userId
+  return typeof v === 'string' && v.length > 0 ? v : undefined
 }
 
 function errorContent(code: string, message: string, extra: Record<string, unknown> = {}) {
