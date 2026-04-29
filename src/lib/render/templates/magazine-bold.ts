@@ -29,6 +29,7 @@ export const magazineBold: SlideTemplate = {
   hookStyle: 'uppercase',
   accentColor: '#A8E0B0',
   backgroundMode: 'image-with-bottom-card',
+  aiVoiceNote: 'Write in punchy news-style: tabloid-pitched headlines, statistics over adjectives, action verbs over states-of-being. Tone is urgent and confident, like a magazine cover line.',
   overlays: [
     {
       position: 'top-left',

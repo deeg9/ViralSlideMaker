@@ -39,6 +39,7 @@ export const documentary: SlideTemplate = {
   hookStyle: 'normal',
   accentColor: '#ffffff',
   backgroundMode: 'image-bleed',
+  aiVoiceNote: 'Write in story-led documentary tone: subject-driven, considered, descriptive. Avoid breathless punctuation, hype words, or forced action verbs. Tone is the New Yorker, not BuzzFeed.',
   overlays: [
     {
       position: 'top-right',

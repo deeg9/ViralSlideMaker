@@ -73,6 +73,11 @@ export interface SlideTemplate {
   // Phase 44: background composition mode. Defaults to 'color' (current flat-fill behavior)
   // when undefined, so existing 5 templates require no edits.
   backgroundMode?: 'color' | 'image-bleed' | 'image-with-bottom-card'
+  // Phase 47 (TPLAI-04): optional one-line voice note injected into the AI
+  // system prompt to nudge tone toward the template's aesthetic. Existing 5
+  // legacy templates leave this undefined (no behavior change). NEWS_TEMPLATES
+  // newsDropAddendum stays as-is — the two systems coexist.
+  aiVoiceNote?: string
 }
 
 // highlight-bar leads the list so it serves as the default fallback for any

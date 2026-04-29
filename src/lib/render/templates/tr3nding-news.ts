@@ -27,6 +27,7 @@ export const tr3ndingNews: SlideTemplate = {
   hookStyle: 'uppercase',
   accentColor: '#A8E0B0',
   backgroundMode: 'image-with-bottom-card',
+  aiVoiceNote: 'Write in viral-news pitch: shocking specifics, breakout moments, money/time/scale numbers prominent. Tone is breaking-news energy.',
   overlays: [
     {
       position: 'top-right',
