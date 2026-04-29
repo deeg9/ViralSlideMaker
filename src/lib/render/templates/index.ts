@@ -5,6 +5,36 @@ import { highlightBar } from './highlight-bar'
 import { y2kPop } from './y2k-pop'
 import { boldYellow } from './bold-yellow'
 
+// Phase 44: overlay-zone schema. Named-slot positions map to fixed CSS layout in
+// the Phase 45 renderer. Style block mirrors the CSS subset already used elsewhere.
+export type OverlaySlot = 'top-left' | 'top-right' | 'mid' | 'bottom-card' | 'free'
+
+// Discriminated union — content source for an overlay.
+//   literal      → static text from the template config
+//   page-counter → dynamic '{current}/{total}' rendered per slide (format string parsed by Phase 45 renderer)
+//   slide-field  → reads from the active slide's render context; closed enum (no open keyof Slide)
+export type OverlayContent =
+  | { type: 'literal'; text: string }
+  | { type: 'page-counter'; format?: string }
+  | { type: 'slide-field'; field: 'topic' | 'hook_text' | 'body_text' }
+
+// Overlay declaration. `offset` is fine-tuning relative to the slot's anchor;
+// `style` is an inline CSS subset applied by the renderer.
+export interface TemplateOverlay {
+  position: OverlaySlot
+  content: OverlayContent
+  offset?: { x: number; y: number }
+  style?: {
+    background?: string
+    color?: string
+    padding?: string
+    borderRadius?: string | number
+    fontSize?: string
+    fontWeight?: string | number
+    textTransform?: 'uppercase' | 'lowercase' | 'capitalize' | 'none'
+  }
+}
+
 export interface SlideTemplate {
   id: string
   name: string
@@ -33,6 +63,12 @@ export interface SlideTemplate {
     hook_segments?: TextSegment[]
     layout?: 'cover' | 'body'
   }
+  // Phase 44: optional overlay zones composed on top of the base layout.
+  // Renderer wiring lands in Phase 45; existing 5 templates leave this undefined.
+  overlays?: TemplateOverlay[]
+  // Phase 44: background composition mode. Defaults to 'color' (current flat-fill behavior)
+  // when undefined, so existing 5 templates require no edits.
+  backgroundMode?: 'color' | 'image-bleed' | 'image-with-bottom-card'
 }
 
 // highlight-bar leads the list so it serves as the default fallback for any
