@@ -58,9 +58,9 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     <button
       onClick={handleCopy}
       aria-label={label}
-      className="p-1.5 rounded-lg hover:bg-[#fadbdb] transition-colors focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-2"
+      className="p-1.5 rounded-md bg-white border border-[#dbc1bc]/50 text-[#3d0000] hover:border-[#3d0000]/40 hover:shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-2"
     >
-      <Icon name={copied ? 'check' : 'content_copy'} size="sm" className="text-[#3d0000]" />
+      <Icon name={copied ? 'check' : 'content_copy'} size="sm" />
     </button>
   )
 }
@@ -207,7 +207,7 @@ export function CreateKeyDialog({ onKeyCreated, disabled, triggerClassName }: Cr
 
               {/* Key display */}
               <div className="relative mb-6">
-                <div className="bg-[#fff0f0] rounded-xl p-4 pr-12 font-mono text-[13px] text-[#3d0000] border border-[#dbc1bc]/30 break-all select-all">
+                <div className="bg-[#fff0f0] rounded-xl p-4 pr-14 font-mono text-[13px] text-[#3d0000] border border-[#dbc1bc]/30 break-all select-all">
                   {rawKey}
                 </div>
                 <div className="absolute top-3 right-3">
@@ -260,7 +260,7 @@ export function CreateKeyDialog({ onKeyCreated, disabled, triggerClassName }: Cr
                   </div>
                 </div>
                 <div className="relative">
-                  <pre className="bg-[#fff0f0] rounded-xl p-4 pr-12 font-mono text-[13px] text-[#281718] border border-[#dbc1bc]/30 overflow-x-auto whitespace-pre-wrap">
+                  <pre className="bg-[#fff0f0] rounded-xl p-4 pr-14 font-mono text-[13px] text-[#281718] border border-[#dbc1bc]/30 overflow-x-auto whitespace-pre-wrap">
                     {getSnippet(activeTab, rawKey)}
                   </pre>
                   <div className="absolute top-3 right-3">
