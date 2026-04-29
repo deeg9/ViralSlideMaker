@@ -86,7 +86,12 @@ export async function generateSlideContent(
         responseSchema,
       },
     })
-    return JSON.parse(response.text!)
+    if (!response.text) {
+      throw new Error(
+        `[generate-slides] Gemini returned empty response.text (templateId=${templateId ?? '<none>'})`,
+      )
+    }
+    return JSON.parse(response.text)
   }
 
   // First call.
