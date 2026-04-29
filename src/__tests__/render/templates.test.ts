@@ -34,6 +34,15 @@ describe('templates', () => {
     const template = getTemplate('nonexistent')
     expect(template.id).toBe('highlight-bar')
   })
+
+  it('module-load validator passes for the live registry (no overlays declared on the 5 existing templates)', async () => {
+    const mod = await import('@/lib/render/templates/index')
+    // If validateTemplateRegistry threw at load, this import would have rejected.
+    expect(mod.templates).toHaveLength(5)
+    for (const t of mod.templates) {
+      expect(t.overlays).toBeUndefined()
+    }
+  })
 })
 
 describe('buildSlideHtml', () => {

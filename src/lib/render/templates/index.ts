@@ -4,6 +4,7 @@ import { newsCyan } from './news-cyan'
 import { highlightBar } from './highlight-bar'
 import { y2kPop } from './y2k-pop'
 import { boldYellow } from './bold-yellow'
+import { validateTemplateRegistry } from './validate'
 
 // Phase 44: overlay-zone schema. Named-slot positions map to fixed CSS layout in
 // the Phase 45 renderer. Style block mirrors the CSS subset already used elsewhere.
@@ -80,6 +81,9 @@ export const templates: SlideTemplate[] = [
   y2kPop,
   boldYellow,
 ]
+
+// Phase 44: fail fast at module load if any registered template is misconfigured.
+validateTemplateRegistry(templates)
 
 export function getTemplate(id: string): SlideTemplate {
   return templates.find((t) => t.id === id) ?? templates[0]
