@@ -94,7 +94,11 @@ export function resolveOverlayContent(
           return ctx.slide.hook_text ?? ''
         case 'body_text':
           return ctx.slide.body_text ?? ''
+        default:
+          return ''  // unknown field — graceful fallback per CONTEXT.md Area 4
       }
+    default:
+      return ''  // unknown type — graceful fallback per CONTEXT.md Area 4
   }
 }
 
