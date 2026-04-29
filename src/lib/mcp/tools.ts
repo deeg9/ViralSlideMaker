@@ -152,21 +152,25 @@ export function registerTools(server: McpServer): void {
       const validSlideCount = slideCount ?? 7
       const validImageSource = imageSource ?? 'stock'
 
-      // Free-tier project-count cap (mirrors /api/v1/carousel/route.ts:63-71)
+      // Validation order mirrors /api/v1/carousel/route.ts:53-71 (slide-count cap before project-cap).
       const tier = await getUserTier(userId)
-      const projectAllowed = await checkProjectLimit(userId, tier)
-      if (!projectAllowed) {
-        return errorContent(
-          'PROJECT_LIMIT_EXCEEDED',
-          `Free plan is limited to ${FREE_TIER_PROJECT_LIMIT} projects. Upgrade for unlimited.`
-        )
-      }
 
       // Free-tier slide-count cap (mirrors /api/v1/carousel/route.ts:54-61)
       if (tier === 'free' && validSlideCount > 3) {
         return errorContent(
           'VALIDATION_ERROR',
           'Free plan is limited to 3 slides per carousel. Upgrade to hobbyist or creator for up to 10.'
+        )
+      }
+
+      // Free-tier project-count cap (mirrors /api/v1/carousel/route.ts:63-71)
+      // Use VALIDATION_ERROR for parity with REST so agents branching on error code
+      // see consistent transport behavior.
+      const projectAllowed = await checkProjectLimit(userId, tier)
+      if (!projectAllowed) {
+        return errorContent(
+          'VALIDATION_ERROR',
+          `Free plan is limited to ${FREE_TIER_PROJECT_LIMIT} projects. Upgrade for unlimited.`
         )
       }
 
