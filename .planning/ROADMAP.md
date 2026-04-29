@@ -730,7 +730,10 @@ Plans:
   3. `create_carousel` returns the MCP-protocol-correct insufficient-credits error (not a generic 500) when the calling key's user has 0 credits
   4. `edit_slide` accepts the same 9 patch fields as `PATCH /api/v1/projects/{id}/slides/{index}` (hook_text, body_text, image_query, background_url, style_overrides, custom_texts, custom_images, hook_segments, body_segments) and persists changes visible in the editor on next reload
   5. `render_carousel` returns `{ slides: [{ index, downloadUrl }], zipUrl }` with HTTPS URLs only — no inlined binary image payloads — and an MCP Inspector run can complete the full create→edit→render loop using only the tool descriptions (no external docs)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 41-01-PLAN.md -- Tool registry + 4 MCP tools (list_templates, create_carousel, edit_slide, render_carousel) wired into the Phase 40 server, with TDD test scaffolding and credit-deduct+refund parity to REST
 
 ### Phase 42: Distribution & Documentation
 **Goal**: A user with a `vsl_` key can install `viralslidemaker-mcp` from npm, paste a config snippet into their AI tool of choice (Claude Desktop / Cursor / Windsurf / ChatGPT), and see all 4 ViralSlideMaker tools surface in that tool's MCP picker — verifying the round-trip end-to-end.
@@ -743,6 +746,7 @@ Plans:
   4. Installing `viralslidemaker-mcp@0.1.0` from npm and pasting the documented `claude_desktop_config.json` snippet surfaces all 4 tools in Claude Desktop's tool picker on next restart
   5. The MCP setup guide includes copy-paste config snippets for Claude Desktop, Cursor, Windsurf, and ChatGPT custom-connector — and the `/settings/api-keys` automation guide gets a fourth card linking to it so users discover MCP from their key-management page
 **Plans**: TBD
+
 
 
 
