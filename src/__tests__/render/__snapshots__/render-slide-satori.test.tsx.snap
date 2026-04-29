@@ -1,0 +1,1313 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefully when ctx is omitted — counter renders 1/1 > missing-ctx-counter-1-of-1 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "position": "absolute",
+        "right": 60,
+        "top": 60,
+      }
+    }
+  >
+    1/1
+  </div>
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefully when ctx is omitted — slide-field topic resolves to empty > missing-ctx-slide-field-empty 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 60,
+        "position": "absolute",
+        "top": 60,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overrides.layout=cover wins over backgroundMode=image-with-bottom-card > mutex-news-layout-wins 1`] = `
+<div
+  style={
+    {
+      "backgroundColor": "#000000",
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1056,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 1152,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1536,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders block-style highlight <span> on body segment > body-with-block-highlight 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    <span
+      style={
+        {
+          "backgroundColor": "#FFFF00",
+          "borderRadius": "0",
+          "color": "#FFFFFF",
+          "marginRight": "8px",
+          "padding": "4px 8px",
+        }
+      }
+    >
+      AI
+    </span>
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders image-bleed full-bleed photo at 1080×1920 cover > image-bleed-no-overlays 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders image-with-bottom-card with full-bleed photo + tint + bottom card > image-with-bottom-card-no-overlays 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "bottom": 0,
+        "display": "flex",
+        "flexDirection": "column",
+        "height": "38%",
+        "left": 0,
+        "padding": 80,
+        "position": "absolute",
+        "right": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders legacy template (no overlays, no backgroundMode) — no behavior change > legacy-template-no-overlay-no-bg-mode 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill <span> on hook segment with highlightColor > hook-with-mint-pill 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    <span
+      style={
+        {
+          "color": "#FFFFFF",
+        }
+      }
+    >
+      FOLK SINGER 
+    </span>
+    <span
+      style={
+        {
+          "backgroundColor": "#9DECC1",
+          "borderRadius": "8px",
+          "color": "#FFFFFF",
+          "marginRight": "8px",
+          "padding": "4px 12px",
+        }
+      }
+    >
+      FIGHTS BACK
+    </span>
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders overlays at SLOT_GEOMETRY anchors with literal + page-counter content > image-with-bottom-card-with-overlays 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "bottom": 0,
+        "display": "flex",
+        "flexDirection": "column",
+        "height": "38%",
+        "left": 0,
+        "padding": 80,
+        "position": "absolute",
+        "right": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 60,
+        "position": "absolute",
+        "top": 60,
+      }
+    }
+  >
+    TR3NDING
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "position": "absolute",
+        "right": 60,
+        "top": 60,
+      }
+    }
+  >
+    1/5
+  </div>
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders slide-field topic overlay using ctx.topic > overlay-slide-field-topic 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "bottom": 0,
+        "display": "flex",
+        "flexDirection": "column",
+        "height": "38%",
+        "left": 0,
+        "padding": 80,
+        "position": "absolute",
+        "right": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 60,
+        "position": "absolute",
+        "top": 60,
+      }
+    }
+  >
+    folk-music
+  </div>
+  <div
+    style={
+      {
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 1827.8,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;

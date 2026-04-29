@@ -6,6 +6,13 @@ import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-sty
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
 import { isNewsTemplate, getNewsHookFontSize } from './news-hook-fit'
+import {
+  resolveOverlayContent,
+  SLOT_GEOMETRY,
+  renderSegments as renderSegmentsShared,
+  bottomCardBackground,
+  type OverlayResolveCtx,
+} from './resolve-overlay'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -28,6 +35,12 @@ const H = 1920
 /**
  * Build segment children for Satori. Satori supports inline <span style={{color}}> inside a text <div>.
  * Falls back to a plain string when no segments are provided.
+ *
+ * Phase 45: delegated to the shared resolve-overlay.renderSegments helper so
+ * pill-aware highlight markup (mint-pill aesthetic from the Murphy reference)
+ * lands automatically wherever hook/body/custom_texts segments carry
+ * `highlightColor`. TPLREND-05 parity contract: identical span markup in
+ * Satori PNG export and React DOM preview.
  */
 function renderSegmentChildren(
   text: string,
@@ -35,17 +48,7 @@ function renderSegmentChildren(
   baseColor: string,
   accentColor: string,
 ): React.ReactNode {
-  if (!segments || segments.length === 0) return text
-  return segments.map((seg, i) => {
-    const color = seg.accent ? accentColor : baseColor
-    const sep = i < segments.length - 1 ? ' ' : ''
-    return (
-      <span key={i} style={{ color }}>
-        {seg.text}
-        {sep}
-      </span>
-    )
-  })
+  return renderSegmentsShared(text, segments, baseColor, accentColor)
 }
 
 function pxX(pct: number) {
@@ -97,9 +100,20 @@ export function buildSlideElement(
   brandKit?: BrandKit | null,
   tier?: ForcedWatermarkTier | null,
   origin?: string,
+  ctx?: { slideIndex: number; totalSlides: number; topic?: string },
 ): React.ReactElement {
   const overrides = slide.style_overrides ?? {}
   const resolved = resolveSlideStyles(slide, template)
+
+  // Phase 45: graceful-fallback render context for the shared overlay resolver.
+  // Callers that omit `ctx` get counter='1/1' and slide-field='' (CONTEXT.md
+  // Area 4) — no thrown errors, no behavior change for legacy callsites.
+  const resolveCtx: OverlayResolveCtx = {
+    slideIndex: ctx?.slideIndex ?? 0,
+    totalSlides: ctx?.totalSlides ?? 1,
+    topic: ctx?.topic,
+    slide,
+  }
 
   const textColor = overrides.text_color ?? template.textColor
   const textAlign = overrides.text_align ?? template.textAlign
@@ -123,6 +137,16 @@ export function buildSlideElement(
 
   // News-carousel layouts override Y defaults and constrain the bg image.
   const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+
+  // Phase 45: mutual-exclusion gate — newsZone (legacy NEWS_LAYOUT) wins over
+  // template.backgroundMode (CONTEXT.md Area 3). The 5 existing templates
+  // leave backgroundMode undefined → useBgMode = false → zero behavior change.
+  const useBgMode =
+    !newsZone &&
+    template.backgroundMode != null &&
+    template.backgroundMode !== 'color'
+  const useBottomCard =
+    useBgMode && template.backgroundMode === 'image-with-bottom-card'
 
   // Resolve text positions: news layouts win over text_position; user-supplied positions still win over both.
   const posPreset = overrides.text_position ?? template.textPosition
@@ -221,7 +245,9 @@ export function buildSlideElement(
       {/* Background image - use <img> with objectFit instead of CSS backgroundImage
           because Satori does not support backgroundSize/backgroundPosition properly,
           causing the image to tile instead of cover.
-          News layouts confine the image to a zone (top half / bottom half) instead of full-bleed. */}
+          News layouts confine the image to a zone (top half / bottom half) instead of full-bleed.
+          Phase 45: when useBgMode is active, the same image renders full-bleed
+          (1080×1920 cover) — required NUMERIC pixel sizes per RESEARCH.md Pitfall 3. */}
       {slide.background_url && (
         <img
           src={slide.background_url}
@@ -248,6 +274,72 @@ export function buildSlideElement(
           opacity: overlayOpacity,
         }}
       />
+      {/* Phase 45: bottom-card layer for backgroundMode === 'image-with-bottom-card'.
+          Sits ABOVE tint and BELOW overlays/hook/body per CONTEXT.md Area 1 DOM order.
+          Card height locked at 38% of canvas (≈730px on 1920); padding 80px matches
+          the Murphy reference. Hook+body still flow through their existing position
+          resolution and naturally sit on top of this card surface. */}
+      {useBottomCard && (
+        <div
+          key="bottom-card"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '38%',
+            padding: 80,
+            backgroundColor: bottomCardBackground(template.backgroundColor),
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        />
+      )}
+      {/* Phase 45: overlay zones (chip / counter / mid pill / bottom card surface).
+          Inserted AFTER bottom-card and BEFORE the hook so headline pills stay
+          top-most (CONTEXT.md Area 1 layer 4 vs layer 5). Each overlay's text is
+          resolved via the shared resolveOverlayContent — same source as the React
+          preview to guarantee TPLREND-05 parity. Explicit keys per RESEARCH.md
+          Pitfall 6 (snapshot stability across React 19 minor versions). */}
+      {template.overlays?.map((overlay, i) => {
+        const slot = SLOT_GEOMETRY[overlay.position]
+        const offset = overlay.offset
+        // Index the slot via a permissive view so the additive-nudge branches
+        // remain ergonomic across the SLOT_GEOMETRY union (top-left has `left`,
+        // top-right has `right`, etc.). The runtime guard on `typeof === 'number'`
+        // narrows safely; the type assertion is purely structural.
+        const slotAny = slot as Record<string, unknown> | null
+        const slotStyle: React.CSSProperties =
+          slot == null
+            ? { position: 'absolute', left: offset?.x ?? 0, top: offset?.y ?? 0 }
+            : {
+                position: 'absolute',
+                ...slot,
+                // Additive nudge for slots with numeric anchors. We deliberately
+                // do NOT mutate the right/bottom anchors on top-right etc. —
+                // free slots are the path for fully-custom positions.
+                ...(offset && slotAny && typeof slotAny.left === 'number' && offset.x
+                  ? { left: (slotAny.left as number) + offset.x }
+                  : {}),
+                ...(offset && slotAny && typeof slotAny.top === 'number' && offset.y
+                  ? { top: (slotAny.top as number) + offset.y }
+                  : {}),
+              }
+        const text = resolveOverlayContent(overlay.content, resolveCtx)
+        return (
+          <div
+            key={`overlay-${i}-${overlay.position}`}
+            style={{
+              ...slotStyle,
+              display: 'flex',
+              alignItems: 'center',
+              ...(overlay.style ?? {}),
+            }}
+          >
+            {text}
+          </div>
+        )
+      })}
       {/* Hook text */}
       <div style={hookStyle}>
         {renderSegmentChildren(

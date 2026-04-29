@@ -21,8 +21,15 @@ import type { Slide } from '@/lib/types/slide'
 
 // Recursive flatten helper — walks an element tree (props.children may be
 // array, single child, or null) into a flat node list. RESEARCH.md walk pattern.
+// When `node` itself is an Array (e.g. the result of `template.overlays.map`),
+// we recurse into each element directly — arrays have no `props`.
 function walk(node: unknown): unknown[] {
   if (node == null || typeof node !== 'object') return []
+  if (Array.isArray(node)) {
+    const out: unknown[] = []
+    for (const k of node) out.push(...walk(k))
+    return out
+  }
   const out: unknown[] = [node]
   const props = (node as { props?: { children?: unknown } }).props
   const kids = props?.children
