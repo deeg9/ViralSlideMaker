@@ -70,6 +70,8 @@ export function TemplatePicker({ selectedId, onSelect, brandKit }: TemplatePicke
                 slide={makeSampleSlide(brandKitTemplate)}
                 template={brandKitTemplate}
                 index={0}
+                slideIndex={0}
+                totalSlides={1}
                 editable={false}
                 brandKit={brandKit}
               />
@@ -135,6 +137,8 @@ export function TemplatePicker({ selectedId, onSelect, brandKit }: TemplatePicke
                   slide={makeSampleSlide(template)}
                   template={template}
                   index={0}
+                  slideIndex={0}
+                  totalSlides={1}
                   editable={false}
                 />
               </div>

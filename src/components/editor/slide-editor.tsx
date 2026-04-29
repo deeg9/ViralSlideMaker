@@ -249,6 +249,7 @@ export function SlideEditor({
               onSelect={setSelectedIndex}
               brandKit={brandKit}
               userTier={userTier ?? 'free'}
+              topic={topic}
               onReorder={(from, to) => {
                 dispatch({ type: 'REORDER_SLIDES', from, to })
                 setSelectedIndex(to)
@@ -337,6 +338,7 @@ export function SlideEditor({
           onSelectIndex={setSelectedIndex}
           brandKit={brandKit}
           userTier={userTier ?? 'free'}
+          topic={topic}
           onPositionChange={handlePositionChange}
           onWidthChange={handleWidthChange}
           onCustomTextPositionChange={handleCustomTextPositionChange}

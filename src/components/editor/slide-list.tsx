@@ -25,6 +25,9 @@ interface SlideListProps {
   onReorder: (oldIndex: number, newIndex: number) => void
   brandKit?: BrandKit | null
   userTier?: 'free' | 'plus' | 'pro'
+  // Phase 45 — project topic forwarded to <SortableSlide> → <SlidePreview>
+  // for slide-field overlay resolution. Optional (graceful fallback to '').
+  topic?: string
 }
 
 export function SlideList({
@@ -35,6 +38,7 @@ export function SlideList({
   onReorder,
   brandKit,
   userTier,
+  topic,
 }: SlideListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -71,6 +75,8 @@ export function SlideList({
               slide={slide}
               template={template}
               index={index}
+              totalSlides={slides.length}
+              topic={topic}
               isSelected={index === selectedIndex}
               onSelect={onSelect}
               brandKit={brandKit}

@@ -12,6 +12,11 @@ interface SortableSlideProps {
   slide: Slide
   template: SlideTemplate
   index: number
+  // Phase 45 — totalSlides + topic threaded through to <SlidePreview> for
+  // page-counter / slide-field overlay resolution. totalSlides is required
+  // so the slide-list pass can never accidentally drop it; topic is optional.
+  totalSlides: number
+  topic?: string
   isSelected: boolean
   onSelect: (index: number) => void
   brandKit?: BrandKit | null
@@ -23,6 +28,8 @@ export function SortableSlide({
   slide,
   template,
   index,
+  totalSlides,
+  topic,
   isSelected,
   onSelect,
   brandKit,
@@ -58,7 +65,16 @@ export function SortableSlide({
       data-testid={`sortable-slide-${index}`}
     >
       <div className="aspect-[9/16] rounded-lg overflow-hidden bg-white">
-        <SlidePreview slide={slide} template={template} index={index} brandKit={brandKit} userTier={userTier} />
+        <SlidePreview
+          slide={slide}
+          template={template}
+          index={index}
+          slideIndex={index}
+          totalSlides={totalSlides}
+          topic={topic}
+          brandKit={brandKit}
+          userTier={userTier}
+        />
       </div>
     </button>
   )

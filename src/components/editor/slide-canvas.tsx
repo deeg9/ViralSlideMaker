@@ -13,6 +13,9 @@ interface SlideCanvasProps {
   onSelectIndex: (index: number) => void
   brandKit?: BrandKit | null
   userTier?: 'free' | 'plus' | 'pro'
+  // Phase 45 — project topic forwarded for slide-field overlay resolution.
+  // Optional: when omitted, slide-field topic overlays render '' per Plan 45-01.
+  topic?: string
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
   onCustomTextPositionChange?: (id: string, position: TextPosition) => void
@@ -35,6 +38,7 @@ export function SlideCanvas({
   onSelectIndex,
   brandKit,
   userTier,
+  topic,
   onPositionChange,
   onWidthChange,
   onCustomTextPositionChange,
@@ -66,6 +70,9 @@ export function SlideCanvas({
             slide={currentSlide}
             template={template}
             index={selectedIndex}
+            slideIndex={selectedIndex}
+            totalSlides={slides.length}
+            topic={topic}
             editable={true}
             brandKit={brandKit}
             userTier={userTier}

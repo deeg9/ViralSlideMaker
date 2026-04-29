@@ -27,6 +27,14 @@ export function CarouselSlideshow({ slides, template, ownerTier }: CarouselSlide
             slide={currentSlide}
             template={template}
             index={selectedIndex}
+            slideIndex={selectedIndex}
+            totalSlides={slides.length}
+            // Phase 45: topic intentionally NOT passed — published_carousels is
+            // a snapshot table that does not denormalize project.topic
+            // (RESEARCH.md Pitfall 4 / locked behavior). Slide-field topic
+            // overlays render '' in the public viewer; this is the documented
+            // contract until a follow-up phase persists topic into published
+            // snapshots.
             editable={false}
             userTier={ownerTier}
           />

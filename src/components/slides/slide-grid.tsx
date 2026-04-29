@@ -30,6 +30,8 @@ export function SlideGrid({ slides, templateId }: SlideGridProps) {
           slide={slide}
           template={template}
           index={index}
+          slideIndex={index}
+          totalSlides={slides.length}
         />
       ))}
     </div>

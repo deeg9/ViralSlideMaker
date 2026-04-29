@@ -425,6 +425,8 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKit | null }) {
                 slide={sampleSlide}
                 template={liveTemplate}
                 index={0}
+                slideIndex={0}
+                totalSlides={1}
                 editable={false}
                 brandKit={liveBrandKit}
               />
