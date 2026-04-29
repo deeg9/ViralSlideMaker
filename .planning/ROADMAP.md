@@ -13,6 +13,7 @@
 - v2.4 Explore + Remix - Phases 29-33 (shipped 2026-04-27)
 - v2.5 Public REST API Parity - Phases 34-39 (shipped 2026-04-28) — REST API now has full feature parity with the dashboard. ~21 new endpoints across 3 tiers (spec accuracy, project/slide CRUD, AI/Pexels/Explore/Bookmarks/Brand-Kit/Profile).
 - v2.6 MCP Server - Phases 40-42 (shipped 2026-04-28) — Rebuilt the retired v2.3 with lean 4-tool scope. /api/mcp Streamable HTTP endpoint live with vsl_ Bearer auth + Upstash rate limiting + triple-layer build-gate. 4 tools (list_templates, create_carousel, edit_slide, render_carousel) call services directly. viralslidemaker-mcp@0.1.0 npm bridge ready (publish user-gated). Setup guide at docs/MCP-GUIDE.md covers Claude Desktop / Cursor / Windsurf / ChatGPT. 18/19 reqs satisfied (MCP-DIST-06 deferred for user publish). Archive: .planning/milestones/v2.6-ROADMAP.md
+- v2.7 Premium Templates - Phases 44-48 (planning 2026-04-29) — Replace 5 visually weak templates with overlay-zone schema + 3 magazine-style premium templates (magazine-bold matching Murphy Campbell folk-singer reference, tr3nding-news, documentary). Phase 44 schema foundation → Phase 45 Satori renderer composition (overlays, photo backgrounds, page counter, highlight pills) → Phase 46 author 3 templates → Phase 47 tune create_carousel AI prompts (compact layouts, spelling, segment highlights, template-aware tone) → Phase 48 thumbnails + picker UI. 19 requirements across TPLSCHEMA / TPLREND / TPLNEW / TPLAI / TPLTHUMB.
 
 ## Phases
 
@@ -708,6 +709,84 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 
 </details>
 
+
+<details>
+<summary>v2.7 Premium Templates (Phases 44-48) - PLANNING 2026-04-29</summary>
+
+**Milestone Goal:** Replace the current 5 visually weak templates with a richer template system + 3 new "magazine-style" premium templates that match modern viral creator aesthetics. Reference design: Murphy Campbell folk-singer carousel (B&W photo + topic chip top-left + page counter top-right + mint-highlighted headline + bottom text card).
+
+**Why now:** First Claude Desktop end-to-end test on 2026-04-28 surfaced rendered carousels that look unprofessional next to modern creator references. MCP integration works mechanically (v2.6 shipped) but template visual quality is the next bottleneck for product-quality output.
+
+**Strict dependency order:** TPLSCHEMA (Phase 44) is foundational — TPLREND, TPLNEW, and TPLAI all depend on the schema landing first. TPLTHUMB depends on TPLNEW.
+
+- [ ] **Phase 44: Template Schema Foundation** - Extend `SlideTemplate` type with `overlays`, `backgroundMode`, dynamic content sources, per-segment `highlightColor`, and registry validation
+- [ ] **Phase 45: Renderer Composition** - Satori + React-preview parity for overlay zones, full-bleed photo backgrounds, dynamic page counter, per-word highlight pills
+- [ ] **Phase 46: Premium Template Authoring** - Author `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` templates with sample data; verify no regressions on existing 5 templates
+- [ ] **Phase 47: AI Prompt Tuning** - Tune `create_carousel` prompts for compact layouts (≤12-word hooks, ≤35-word bodies, no orphans), spelling quality gate, segment highlight suggestions, template-aware tone
+- [ ] **Phase 48: Template Thumbnails & Picker** - Render 9:16 thumbnails for new templates from sample data; unify template picker UI to use sample-driven previews for all templates
+
+### Phase 44: Template Schema Foundation
+**Goal**: The `SlideTemplate` type expresses every visual concept needed by the new premium templates (overlay zones, background modes, per-word highlight backgrounds), and a startup registry check prevents misconfigured templates from silently shipping.
+**Depends on**: Phase 42 (v2.6 closed)
+**Requirements**: TPLSCHEMA-01, TPLSCHEMA-02, TPLSCHEMA-03, TPLSCHEMA-04, TPLSCHEMA-05
+**Success Criteria** (what must be TRUE):
+  1. A template author can declare zero-or-more overlay zones (top-left chip, top-right counter, mid pill, bottom card) on a `SlideTemplate` and the type system accepts the configuration
+  2. An overlay's content source can be a literal string, the dynamic `{currentSlide}/{totalSlides}` page-counter, or a slide-field reference (e.g. `topic`) — and the type discriminates between them
+  3. A template can declare `backgroundMode: 'color' | 'image-bleed' | 'image-with-bottom-card'` and the existing 5 templates default to `'color'` without code changes
+  4. A `TextSegment` can carry an optional `highlightColor` and `highlightStyle` field; existing segments without these fields parse and render unchanged (backwards compatible)
+  5. Booting the app with a malformed template (invalid overlay position, unknown content source) fails fast at startup with a clear error message identifying the offending template
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 45: Renderer Composition
+**Goal**: The Satori renderer and the live React preview both compose photo backgrounds, overlay zones, dynamic page counters, and per-word highlight pills with no preview/export drift — turning a Phase 44 template config into the Murphy reference visual.
+**Depends on**: Phase 44
+**Requirements**: TPLREND-01, TPLREND-02, TPLREND-03, TPLREND-04, TPLREND-05
+**Success Criteria** (what must be TRUE):
+  1. A user previews a slide whose template declares `overlays` zones and sees each overlay rendered at the declared position with the correct content (literal text, page counter, or slide-field reference)
+  2. A user previews a slide whose template uses `backgroundMode: 'image-bleed'` or `'image-with-bottom-card'` and sees the photo render full-bleed underneath the overlays (not flat color)
+  3. The page-counter overlay renders the correct `{currentSlide}/{totalSlides}` value on every slide of a multi-slide carousel in both Satori PNG export and the live editor preview
+  4. A user previews and exports a slide containing a `TextSegment` with `highlightColor` and sees a pill background rendered behind that segment in both the editor preview and the downloaded PNG
+  5. The exported PNG and the editor preview render byte-for-byte the same overlay layout, page-counter value, and highlight pill positions for any new-style template (no preview/export drift)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 46: Premium Template Authoring
+**Goal**: The product ships three new premium templates — `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` — selectable in the template picker with populated sample data, and none of the 5 existing templates regress.
+**Depends on**: Phase 45
+**Requirements**: TPLNEW-01, TPLNEW-02, TPLNEW-03, TPLNEW-04, TPLNEW-05
+**Success Criteria** (what must be TRUE):
+  1. A user picks the `magazine-bold` template and a generated carousel renders with B&W photo full-bleed, top-left topic chip, top-right page counter, bottom semi-opaque black card, bold all-caps copy, and mint highlight pills on accent words — visually matching the Murphy reference
+  2. A user picks the `tr3nding-news` template and a generated carousel renders with the configurable mid-pill (default "TR3NDING") above the headline plus mint accent highlights
+  3. A user picks the `documentary` template and a generated carousel renders with full photo + bottom gradient darken + minimal sans-serif body copy and no decorative pills
+  4. A user opens the template picker and sees real `sample`-data-driven mini-previews for all 3 new templates (not synthetic swatches)
+  5. A user picks any of the 5 existing templates (`highlight-bar`, `news-drop`, `news-cyan`, `y2k-pop`, `bold-yellow`) and the rendered output is byte-for-byte identical to the v2.6 baseline (no regression on legacy paths)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 47: AI Prompt Tuning
+**Goal**: When a user types a topic, the AI-generated carousel content fits the new compact magazine-style layouts: hooks/body within layout caps, no spelling typos, accent words pre-marked with `highlightColor`, and tone matched to the chosen template.
+**Depends on**: Phase 46
+**Requirements**: TPLAI-01, TPLAI-02, TPLAI-03, TPLAI-04
+**Success Criteria** (what must be TRUE):
+  1. A user generates a carousel with a magazine-style template and every slide's hook is ≤12 words and body is ≤35 words, with no duplicate hook/body lines on the same slide
+  2. A user generates a carousel and no slide contains an obvious spelling typo (e.g. "MUSICAN", "CARROUSEL"); the spell-check pass catches and retries on detected errors before persisting
+  3. A user generates a carousel with a magazine-style template and the resulting `hook_segments` / `body_segments` already have `highlightColor` set on action verbs and proper nouns matching the template's accent color (no manual editing needed for the Murphy aesthetic)
+  4. A user picks `magazine-bold` vs. `documentary` and generates the same topic — the resulting copy tone visibly differs (punchy news-style vs. story-led), driven by the per-template voice-note prompt
+**Plans**: TBD
+
+### Phase 48: Template Thumbnails & Picker
+**Goal**: The template picker presents all 8 templates (5 legacy + 3 new) with consistent 9:16 sample-driven thumbnails — no mix of swatches and previews — so users can pick by visual identity, not just label.
+**Depends on**: Phase 46
+**Requirements**: TPLTHUMB-01, TPLTHUMB-02
+**Success Criteria** (what must be TRUE):
+  1. A user opens the template picker and sees a 9:16 PNG thumbnail at `public/templates/<id>.png` for each of the 3 new premium templates, rendered from that template's `sample` data
+  2. A user scrolls the template picker and every template (legacy + new) displays in the same `sample`-driven mini-preview format (no template falls back to a synthetic swatch or text-only label)
+**UI hint**: yes
+**Plans**: TBD
+
+</details>
+
 ## Progress
 
 **Execution Order:**
@@ -757,3 +836,8 @@ Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 | 40. MCP Transport & Auth | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 41. MCP Tool Surface | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |
+| 44. Template Schema Foundation | v2.7 | 0/0 | Not started | - |
+| 45. Renderer Composition | v2.7 | 0/0 | Not started | - |
+| 46. Premium Template Authoring | v2.7 | 0/0 | Not started | - |
+| 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |
+| 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |

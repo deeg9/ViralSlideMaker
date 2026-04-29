@@ -59,8 +59,12 @@
 
 ## Traceability
 
-Roadmap mapping populated by `gsd-roadmapper` agent in step 10 of `/gsd-new-milestone`.
-
 | Phase | Requirements |
 |-------|--------------|
-| TBD   | TBD          |
+| 44. Template Schema Foundation | TPLSCHEMA-01, TPLSCHEMA-02, TPLSCHEMA-03, TPLSCHEMA-04, TPLSCHEMA-05 |
+| 45. Renderer Composition | TPLREND-01, TPLREND-02, TPLREND-03, TPLREND-04, TPLREND-05 |
+| 46. Premium Template Authoring | TPLNEW-01, TPLNEW-02, TPLNEW-03, TPLNEW-04, TPLNEW-05 |
+| 47. AI Prompt Tuning | TPLAI-01, TPLAI-02, TPLAI-03, TPLAI-04 |
+| 48. Template Thumbnails & Picker | TPLTHUMB-01, TPLTHUMB-02 |
+
+**Coverage:** 19/19 v2.7 requirements mapped (5 + 5 + 5 + 4 + 2 = 19).
