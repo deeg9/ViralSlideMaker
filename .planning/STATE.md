@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
 status: executing
-stopped_at: Phase 46 complete (Plan 46-02 done — TPLNEW-05 sealed). Ready for /gsd-verify-phase 46.
-last_updated: "2026-04-29T19:08:37.830Z"
+stopped_at: Phase 47 Plan 02 complete (TPLAI-01 + TPLAI-02 sealed). Ready to execute Plan 47-03 (prompt assembly + retry wiring).
+last_updated: "2026-04-29T19:15:25.987Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 ## Current Position
 
 Phase: 47 (ai-prompt-tuning) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-29
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [████████░░] 80%
 | Phase 46 P01 | 4min | 2 tasks | 5 files |
 | Phase 46 P02 | 5min | 2 tasks | 5 files |
 | Phase 47 P01 | 3min | 2 tasks | 7 files |
+| Phase 47 P02 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Progress: [████████░░] 80%
 - [Phase 46]: [Phase 46]: jsdom test-environment hex→rgb tolerance pattern — added styleHasColor helper that accepts both #HEX and rgb(r,g,b) inline-style forms. Mirrors slide-preview-overlays.test.tsx (Plan 45-03) precedent for future tests that assert on color tokens through <SlidePreview>.
 - [Phase ?]: [Phase 47]: Phase 47-01 ships SlideTemplate.aiVoiceNote optional field + verbatim voice notes on magazine-bold/tr3nding-news/documentary; Gemini segmentSchema and Zod TextSegmentSchema both widened with optional highlightColor + highlightStyle (z.literal('pill') for AI scope; renderer-side TextSegment still permits pill | block for manual editor use). Backward compatible with legacy 5 templates and pre-Phase-47 Gemini responses.
 - [Phase ?]: [Phase 47]: TPLAI-04 voice notes shipped verbatim from CONTEXT.md Area 4 (no rewording per D-04). Phase 47-03 prompt-assembly will read template.aiVoiceNote and conditionally append TEMPLATE VOICE NOTE block to the system prompt; NEWS_TEMPLATES newsDropAddendum coexists for news-drop/news-cyan.
+- [Phase 47]: [Phase 47-02]: Pure-logic post-Gemini validation surface — KNOWN_TYPOS Set (30 entries) + 6 helpers (wordCount, isPremiumTemplate, detectOverflows premium-tier-only, detectOrphans Jaccard >=0.80 with exact-equality short-circuit, detectTypos token-based all-templates, validateAndRepair never-throws orchestrator). PREMIUM_TEMPLATE_IDS inlined to avoid circular dep on templates/index.ts. Documentary opt-out: highlightColor/highlightStyle silently stripped on documentary slides (no warning, per D-03).
+- [Phase 47]: [Phase 47-02]: validateAndRepair contract — never throws, never calls Gemini; returns { data, retried: false, warnings: string[] }. Plan 47-03 wraps with retry-once-against-Gemini logic. Warnings are human-readable strings (e.g., 'slide 0 hook_text has 13 words (cap 12)') so 47-03's retry addendum can use them verbatim.
 
 ### Pending Todos
 
@@ -135,7 +138,7 @@ None yet.
 ## Session Continuity
 
 Last activity: 2026-04-28 - v2.6 roadmap written. 3 phases (40, 41, 42) defined with 100% requirement coverage (19/19 REQ-IDs mapped). Phase 40 is next-ready. Roadmap appended to ROADMAP.md (v1.0–v2.5 history preserved). Traceability section in REQUIREMENTS.md filled in.
-Stopped at: Phase 46 complete (Plan 46-02 done — TPLNEW-05 sealed). Ready for /gsd-verify-phase 46.
+Stopped at: Phase 47 Plan 02 complete (TPLAI-01 + TPLAI-02 sealed). Ready to execute Plan 47-03 (prompt assembly + retry wiring).
 Resume file: None
 Next: `/gsd-plan-phase 40` — start planning MCP Transport & Auth.
 
