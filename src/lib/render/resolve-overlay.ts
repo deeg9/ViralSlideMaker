@@ -145,9 +145,9 @@ export function renderSegments(
         borderRadius: isPill ? '8px' : '0',
         marginRight: '8px',
       }
-      return React.createElement('span', { key: i, style: pillStyle }, children)
+      return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: pillStyle }, children)
     }
-    return React.createElement('span', { key: i, style: { color } }, children)
+    return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: { color } }, children)
   })
 }
 
