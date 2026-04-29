@@ -19,17 +19,17 @@ created: 2026-04-28
 |----------|-------|
 | **Framework** | vitest |
 | **Config file** | `vitest.config.ts` (existing) |
-| **Quick run command** | `pnpm vitest run src/__tests__/mcp/` |
-| **Full suite command** | `pnpm vitest run` |
+| **Quick run command** | `npx vitest run src/__tests__/mcp/` |
+| **Full suite command** | `npx vitest run` |
 | **Estimated runtime** | ~10 seconds (mcp/) / ~60s (full) |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `pnpm vitest run src/__tests__/mcp/`
-- **After every plan wave:** Run `pnpm vitest run` + `pnpm build`
-- **Before `/gsd-verify-work`:** Full suite + `pnpm build` must be green
+- **After every task commit:** Run `npx vitest run src/__tests__/mcp/`
+- **After every plan wave:** Run `npx vitest run` + `npm run build`
+- **Before `/gsd-verify-work`:** Full suite + `npm run build` must be green
 - **Max feedback latency:** ~60 seconds
 
 ---
@@ -40,12 +40,12 @@ created: 2026-04-28
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 40-01-XX | 01 | 1 | MCP-TRANS-01 | — | `/api/mcp` accepts JSON-RPC 2.0 | integration | `pnpm vitest run src/__tests__/mcp/route.test.ts` | ❌ W0 | ⬜ pending |
-| 40-01-XX | 01 | 1 | MCP-TRANS-02 | T-40-01 | invalid token → MCP-spec error | integration | `pnpm vitest run src/__tests__/mcp/auth.test.ts` | ❌ W0 | ⬜ pending |
-| 40-01-XX | 01 | 1 | MCP-TRANS-03 | T-40-02 | per-key Upstash rate limit | integration | `pnpm vitest run src/__tests__/mcp/rate-limit.test.ts` | ❌ W0 | ⬜ pending |
+| 40-01-XX | 01 | 1 | MCP-TRANS-01 | — | `/api/mcp` accepts JSON-RPC 2.0 | integration | `npx vitest run src/__tests__/mcp/route.test.ts` | ❌ W0 | ⬜ pending |
+| 40-01-XX | 01 | 1 | MCP-TRANS-02 | T-40-01 | invalid token → MCP-spec error | integration | `npx vitest run src/__tests__/mcp/auth.test.ts` | ❌ W0 | ⬜ pending |
+| 40-01-XX | 01 | 1 | MCP-TRANS-03 | T-40-02 | per-key Upstash rate limit | integration | `npx vitest run src/__tests__/mcp/rate-limit.test.ts` | ❌ W0 | ⬜ pending |
 | 40-01-XX | 01 | 1 | MCP-TRANS-04 | — | stateless transport configured | unit | grep `sessionIdGenerator: undefined` route file | ❌ W0 | ⬜ pending |
-| 40-01-XX | 01 | 1 | MCP-TRANS-05 | T-40-03 | shared auth-core helper | unit | `pnpm vitest run src/__tests__/api/auth-core.test.ts` | ❌ W0 | ⬜ pending |
-| 40-01-XX | 01 | 1 | MCP-TRANS-06 | — | build fails on missing mcp-handler | smoke | `pnpm vitest run src/__tests__/mcp/import-gate.test.ts` + `pnpm build` | ❌ W0 | ⬜ pending |
+| 40-01-XX | 01 | 1 | MCP-TRANS-05 | T-40-03 | shared auth-core helper | unit | `npx vitest run src/__tests__/api/auth-core.test.ts` | ❌ W0 | ⬜ pending |
+| 40-01-XX | 01 | 1 | MCP-TRANS-06 | — | build fails on missing mcp-handler | smoke | `npx vitest run src/__tests__/mcp/import-gate.test.ts` + `npm run build` | ❌ W0 | ⬜ pending |
 | 40-01-XX | 01 | 1 | MCP-TRANS-07 | — | middleware bypasses /api/mcp | unit | grep `/api/mcp` in src/middleware.ts | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
@@ -66,7 +66,7 @@ created: 2026-04-28
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| MCP Inspector handshake | MCP-TRANS-01 | Full protocol round-trip needs running dev server | `pnpm dev` then `npx @modelcontextprotocol/inspector` → connect to `http://localhost:3000/api/mcp` with header `Authorization: Bearer vsl_<test_key>` → `initialize` succeeds |
+| MCP Inspector handshake | MCP-TRANS-01 | Full protocol round-trip needs running dev server | `npm run dev` then `npx @modelcontextprotocol/inspector` → connect to `http://localhost:3000/api/mcp` with header `Authorization: Bearer vsl_<test_key>` → `initialize` succeeds |
 | Production smoke after deploy | MCP-TRANS-01, MCP-TRANS-06 | Validates the build-gate caught any missing dep on real Vercel build | `curl -X POST https://viralslidemaker.com/api/mcp -H "Authorization: Bearer vsl_..." -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'` → returns server capabilities |
 
 ---

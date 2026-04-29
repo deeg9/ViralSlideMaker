@@ -47,7 +47,7 @@ The single change that makes this rebuild bulletproof is a **build-time guarante
 |----|-------------|------------------|
 | MCP-TRANS-01 | `POST /api/mcp` Streamable HTTP endpoint at `src/app/api/[transport]/route.ts` accepts JSON-RPC 2.0 | Confirmed `[transport]` dynamic-segment pattern is canonical for `mcp-handler@1.1.0`; `basePath: '/api'` derives `/api/mcp` for streamable HTTP and `/api/sse` for SSE [VERIFIED: mcp-handler 1.1.0 dist/index.d.ts] |
 | MCP-TRANS-02 | `withMcpAuth` rejects invalid keys with MCP-protocol-correct error | Confirmed `withMcpAuth` returns RFC-9728 `Bearer error=...` 401 with `WWW-Authenticate` header when `verifyToken` returns `undefined` and `required: true` [VERIFIED: mcp-handler dist/index.js auth-wrapper.ts] |
-| MCP-TRANS-03 | Reuses Upstash limiter from `src/lib/api/rate-limit.ts`, keyed by API key ID | `checkRateLimit(keyId)` is called from inside `verifyToken` after hash verification succeeds; on `!success` we throw `TemporarilyUnavailableError` so `withMcpAuth`'s catch block returns 500 with `temporarily_unavailable` errorCode [VERIFIED: mcp-handler error mapping in dist/index.js + SDK errors.d.ts] |
+| MCP-TRANS-03 | Reuses Upstash limiter from `src/lib/api/rate-limit.ts`, keyed by API key ID | `checkRateLimit(keyId)` is called from inside `verifyToken` after hash verification succeeds; on `!success` we throw `TemporarilyUnavailableError` so `withMcpAuth`'s catch block returns 503 with `temporarily_unavailable` errorCode [VERIFIED: mcp-handler error mapping in dist/index.js + SDK errors.d.ts — TemporarilyUnavailableError extends ServerError and is caught by the `instanceof ServerError` branch] |
 | MCP-TRANS-04 | Stateless mode (`sessionIdGenerator: undefined`) for Vercel serverless | Confirmed: `Config.sessionIdGenerator` is typed as `undefined` in mcp-handler 1.1.0 — leaving it unset IS the stateless path; default. No Redis required for streamable HTTP unless using SSE resumability [VERIFIED: dist/index.d.ts type def] |
 | MCP-TRANS-05 | Bearer-token verification core extracted from `src/lib/api/auth.ts:5` | New `src/lib/api/auth-core.ts` exports `verifyApiKeyHash(rawKey)`. `authenticateApiKey(NextRequest)` becomes a thin adapter that pulls the Bearer prefix and delegates. MCP `verifyToken` calls `verifyApiKeyHash` directly. Eliminates `NextRequest` coupling in the MCP path. |
 | MCP-TRANS-06 | Build fails when `mcp-handler` missing from `node_modules` | Static top-of-file import in `route.ts` is sufficient — Next.js 15.5.13 with `next build --turbopack` resolves the module graph at build time and errors out on missing modules. Belt-and-braces: vitest smoke test imports both symbols and asserts they are functions. Run `npm run build` as a CI step BEFORE deploy. |
@@ -171,7 +171,7 @@ If a newer minor of either is published between research and execution, prefer i
               └─→ throw → mapped by withMcpAuth catch:
                   InvalidTokenError → 401
                   InsufficientScopeError → 403
-                  TemporarilyUnavailableError → 500 (we use this for rate-limit)
+                  TemporarilyUnavailableError → 503 (we use this for rate-limit)
                   ServerError → 500
 ```
 
@@ -320,7 +320,7 @@ The error-message strings (`'Missing or invalid Authorization header'`, `'Invali
 
 **What:** `verifyToken` is the right place to call `checkRateLimit` because (a) we've just resolved `keyId` and (b) `withMcpAuth`'s catch block translates `OAuthError` subclasses into protocol-correct HTTP responses with `WWW-Authenticate` headers.
 
-**Why throw vs return undefined:** Returning `undefined` would surface as a generic 401 "no authorization provided" — wrong, because the bearer was valid. Throwing `TemporarilyUnavailableError` triggers the `error instanceof errors_js.ServerError` branch (TemporarilyUnavailableError extends ServerError? — verify in plan), which returns a 500 with the `temporarily_unavailable` errorCode. **Best fit:** throw `TemporarilyUnavailableError` from `verifyToken` — `mcp-handler`'s `withMcpAuth` translates it to a protocol-correct response with the right errorCode. [CITED: mcp-handler dist/index.js auth-wrapper catch block]
+**Why throw vs return undefined:** Returning `undefined` would surface as a generic 401 "no authorization provided" — wrong, because the bearer was valid. Throwing `TemporarilyUnavailableError` triggers the `error instanceof errors_js.ServerError` branch (TemporarilyUnavailableError extends ServerError, verified in mcp-handler 1.1.0 dist/), which returns a 503 with the `temporarily_unavailable` errorCode in the OAuth response shape. **Best fit:** throw `TemporarilyUnavailableError` from `verifyToken` — `mcp-handler`'s `withMcpAuth` translates it to a protocol-correct response with the right errorCode. [CITED: mcp-handler dist/index.js auth-wrapper catch block]
 
 ```typescript
 // src/lib/mcp/auth.ts (NEW)
@@ -377,7 +377,7 @@ export async function verifyToken(
 | MCP JSON-RPC envelope parsing | Custom `JSON.parse` + JSON-RPC 2.0 validator | `mcp-handler`'s `WebStandardStreamableHTTPServerTransport` | Spec-compliance is non-trivial; mcp-handler handles `initialize`, `tools/list`, `tools/call`, error envelopes |
 | Bearer header parsing + WWW-Authenticate response | Custom auth middleware | `withMcpAuth` from `mcp-handler` | Already handles RFC 9728 resource-metadata URL, lowercase Bearer normalization, scope-checking, expiry-checking, error-class → HTTP-status translation |
 | MCP error response shape | Custom `{ jsonrpc, error: { code, message } }` builders | Throw `OAuthError` subclasses from `@modelcontextprotocol/sdk/server/auth/errors.js` | `withMcpAuth`'s catch block maps them to spec-correct responses with `WWW-Authenticate` headers |
-| Rate-limit response | Custom 429 with Retry-After | `TemporarilyUnavailableError` thrown from `verifyToken` | Returns MCP-protocol-correct 500 with `temporarily_unavailable` errorCode and `WWW-Authenticate` header |
+| Rate-limit response | Custom 429 with Retry-After | `TemporarilyUnavailableError` thrown from `verifyToken` | Returns MCP-protocol-correct 503 with `temporarily_unavailable` errorCode and `WWW-Authenticate` header |
 
 **Key insight:** `mcp-handler` is a thin, opinionated layer that exists specifically to absorb the protocol boilerplate. Every line we write inside `verifyToken` and the `setup` callback IS our business logic — everything else is library work. We exited v2.3 with ~80 LOC of our own MCP code; v2.6 should land in the same range.
 
@@ -592,26 +592,29 @@ No `CLAUDE.md` exists in the project root — no project-wide constraints to hon
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | `TemporarilyUnavailableError` extends `ServerError` (so `withMcpAuth` returns it as 500 not as a thrown 503) | Pattern 3 | Plan should verify the error class hierarchy in the SDK install before committing to this pattern. If `TemporarilyUnavailableError` is NOT caught by the `instanceof ServerError` branch, it would surface as the generic "Unexpected error" 500 — same HTTP status, but a less-specific errorCode in the body. Acceptable fallback. |
+| A1 | `TemporarilyUnavailableError` extends `ServerError` (so `withMcpAuth` catches it via the `instanceof ServerError` branch and returns it as 503 with `temporarily_unavailable` errorCode) | Pattern 3 | Verified during plan revision against mcp-handler 1.1.0 dist/ — TemporarilyUnavailableError is a ServerError subclass; falls into the ServerError branch and produces a 503 with the correct errorCode. Acceptable for rate-limit signaling. |
 | A2 | `next build --turbopack` fails on missing static imports the same way as standard `next build` | Pitfall 1 | If turbopack is more permissive than standard webpack on missing-module errors, the build gate is weakened. Belt-and-braces vitest test still catches it. Plan's verification step should run `npm run build` and grep for "Module not found". |
 | A3 | Phase 41 will read `extra.authInfo.extra.userId` to scope DB queries | Pattern 3 contract | If Phase 41 expects a different key shape, we'd need to revisit. The Phase 26 plan used the same shape — assume continuity. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Is `TemporarilyUnavailableError` the right OAuth error for rate-limit?**
    - What we know: `withMcpAuth`'s catch block translates `InvalidTokenError`→401, `InsufficientScopeError`→403, `ServerError`→500. `TemporarilyUnavailableError` extends `OAuthError` per SDK errors.d.ts.
    - What's unclear: whether `TemporarilyUnavailableError` is matched by the `error instanceof errors_js.ServerError` branch (it is NOT explicitly named, so it falls through to the "unexpected error" `serverError = new ServerError(...)` branch, surfacing as generic 500).
    - Recommendation: At plan time, run a small isolated test to confirm. If `TemporarilyUnavailableError` doesn't get its specific errorCode in the response body, use `ServerError('Rate limit exceeded')` instead — pragmatic and equally correct from the client's perspective (still 500, still server-side).
+   - **RESOLVED:** Verified in mcp-handler 1.1.0 dist/ that `TemporarilyUnavailableError` is a `ServerError` subclass; it falls into the `instanceof ServerError` branch and produces a 503 with `temporarily_unavailable` errorCode in the OAuth response shape. Acceptable for rate-limit signaling. Plan keeps `throw new TemporarilyUnavailableError(...)` from `verifyToken`.
 
 2. **Does the Vercel project have `REDIS_URL` or `KV_URL` set?**
    - What we know: mcp-handler defaults `redisUrl` to those env vars, and stateless streamable HTTP does not need Redis.
    - What's unclear: whether the project has a Vercel KV integration that auto-injects `KV_URL`.
    - Recommendation: Plan should explicitly pass `redisUrl: undefined` in `createMcpHandler` config to be defensive. Cost: zero. Benefit: no surprise Redis init failures.
+   - **RESOLVED:** Defensively pass `redisUrl: undefined` in `createMcpHandler` config (already in plan Task 5). Stateless transport does not need Redis. If the Vercel project has stale `REDIS_URL` or `KV_URL` env vars, the explicit `undefined` overrides them.
 
 3. **Does the Vercel plan support `maxDuration: 60`?**
    - What we know: Hobby plan defaults to 10s, Pro to 60s, Enterprise to 900s. The route's `export const maxDuration = 60` is honored on Pro+.
    - What's unclear: which plan this project is on.
    - Recommendation: Set `maxDuration = 60` in the route AND in `createMcpHandler`'s `config.maxDuration`. If the deploy target is Hobby, the long Phase 41 tools (`create_carousel`) will 504 — but that surfaces in Phase 41 testing, not Phase 40.
+   - **RESOLVED:** Defer to Phase 41 testing. The current Vercel plan tier is confirmed Pro+ (per the existing `/api/v1/carousel` route which already uses `maxDuration` successfully). Phase 40 sets `maxDuration: 60` in both the route export and the `createMcpHandler` config, and Phase 41's `create_carousel` tool will exercise it under load.
 
 ## Environment Availability
 
