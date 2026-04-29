@@ -753,8 +753,13 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
   3. The page-counter overlay renders the correct `{currentSlide}/{totalSlides}` value on every slide of a multi-slide carousel in both Satori PNG export and the live editor preview
   4. A user previews and exports a slide containing a `TextSegment` with `highlightColor` and sees a pill background rendered behind that segment in both the editor preview and the downloaded PNG
   5. The exported PNG and the editor preview render byte-for-byte the same overlay layout, page-counter value, and highlight pill positions for any new-style template (no preview/export drift)
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 45-01-PLAN.md — Shared resolve-overlay foundation (resolveOverlayContent + SLOT_GEOMETRY + renderSegments + bottomCardBackground) with TDD unit coverage; zero callsite churn
+- [ ] 45-02-PLAN.md — Satori renderer extension: buildSlideElement composes overlays + backgroundMode + pills via shared resolver; all 5 server callsites pass ctx; Satori snapshot tests
+- [ ] 45-03-PLAN.md — React preview extension: <SlidePreview> mirrors Satori in BOTH render branches via shared resolver; all 7 client callsites pass slideIndex/totalSlides; DOM-signature parity tests
 
 ### Phase 46: Premium Template Authoring
 **Goal**: The product ships three new premium templates — `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` — selectable in the template picker with populated sample data, and none of the 5 existing templates regress.
