@@ -2,9 +2,24 @@ import { z } from 'zod'
 
 // Per-word color spans. `accent: true` = highlight color, false = base color.
 // The renderer maps `accent` to template.accentColor / textColor.
+//
+// Phase 47 (TPLAI-03): widened with optional `highlightColor` (hex) and
+// `highlightStyle` locked to z.literal('pill'). The renderer-side TextSegment
+// type still permits 'pill' | 'block' for manual editor use; the AI is scoped
+// to pill-only here so `block` cannot be smuggled in via the Gemini response.
 export const TextSegmentSchema = z.object({
   text: z.string().describe('A single run of text (typically one word)'),
   accent: z.boolean().describe('Highlight this run with the template accent color'),
+  highlightColor: z
+    .string()
+    .optional()
+    .describe('Optional accent pill background hex — premium templates only (TPLAI-03)'),
+  highlightStyle: z
+    .literal('pill')
+    .optional()
+    .describe(
+      'Optional pill style for highlightColor segments — only "pill" allowed for AI-emitted segments (TPLAI-03; block reserved for renderer/manual use)',
+    ),
 })
 
 export const SlideContentSchema = z.object({

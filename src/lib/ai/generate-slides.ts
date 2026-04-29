@@ -9,6 +9,20 @@ const segmentSchema: Schema = {
   properties: {
     text: { type: Type.STRING, description: 'A single run of text (typically one word)' },
     accent: { type: Type.BOOLEAN, description: 'Highlight this run with the template accent color' },
+    // Phase 47 (TPLAI-03): optional pill highlight on premium templates.
+    // Both fields are optional — `required` stays at ['text', 'accent'] for
+    // backward compat with pre-Phase-47 responses.
+    highlightColor: {
+      type: Type.STRING,
+      description:
+        "Optional accent pill background hex — premium templates only (e.g. '#A8E0B0' for magazine-bold/tr3nding-news). Leave unset for documentary or legacy templates.",
+    },
+    highlightStyle: {
+      type: Type.STRING,
+      enum: ['pill'],
+      description:
+        "Optional pill style for highlightColor segments. Currently only 'pill' is supported.",
+    },
   },
   required: ['text', 'accent'],
 }
