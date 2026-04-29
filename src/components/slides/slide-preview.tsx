@@ -10,6 +10,18 @@ import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffect
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
 import { isNewsTemplate, getNewsHookFontSize } from '@/lib/render/news-hook-fit'
+// Phase 45 — shared resolver that guarantees the React preview renders overlay
+// content + slot anchors + per-segment highlight pills with the SAME source as
+// the Satori PNG export (TPLREND-05 parity contract). The 5-export surface is
+// defined in src/lib/render/resolve-overlay.ts.
+import {
+  resolveOverlayContent,
+  SLOT_GEOMETRY,
+  renderSegments as renderSegmentsShared,
+  bottomCardBackground,
+  type OverlayResolveCtx,
+} from '@/lib/render/resolve-overlay'
+import type { TemplateOverlay } from '@/lib/render/templates/index'
 
 // Reference canvas dimensions (matches TikTok/Instagram 9:16)
 const REF_WIDTH = 1080
@@ -29,24 +41,145 @@ const NEWS_LAYOUT = {
   body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
 } as const
 
-// Render text-or-segments. When segments present, each run is wrapped in a span with its own color.
+// Phase 45: delegated to shared `renderSegments` from resolve-overlay so the
+// per-segment pill markup (mint-pill aesthetic from the Murphy reference) is
+// byte-identical to the Satori PNG export.
+//
+// PARITY CONTRACT (TPLREND-05): the shared implementation explicitly does
+// NOT set `box-decoration-break: clone` even though browsers support it.
+// Satori does not, so the React preview must match Satori's line-boundary
+// breaking — otherwise multi-line pills look different in preview vs export.
+// Do NOT add box-decoration-break here. See `src/lib/render/resolve-overlay.ts`.
 function renderSegments(
   text: string,
   segments: TextSegment[] | undefined,
   baseColor: string,
   accentColor: string,
 ): React.ReactNode {
-  if (!segments || segments.length === 0) return text
-  return segments.map((seg, i) => {
-    const color = seg.accent ? accentColor : baseColor
-    const sep = i < segments.length - 1 ? ' ' : ''
-    return (
-      <span key={i} style={{ color }}>
-        {seg.text}
-        {sep}
-      </span>
-    )
-  })
+  return renderSegmentsShared(text, segments, baseColor, accentColor)
+}
+
+// Phase 45 — internal layer renderers shared by both branches of <SlidePreview>.
+// Extracted per RESEARCH.md Pitfall 2 / Open Question 2 because the JSX must
+// appear in BOTH the non-editable AND editable render branches; one definition
+// here means the two branches cannot drift on layer order or testid hooks.
+
+interface BackgroundLayersProps {
+  template: SlideTemplate
+  slide: Slide
+  useBgMode: boolean
+  useBottomCard: boolean
+  overlayOpacity: number
+}
+
+function BackgroundLayers({
+  template,
+  slide,
+  useBgMode,
+  useBottomCard,
+  overlayOpacity,
+}: BackgroundLayersProps) {
+  if (!useBgMode) return null
+  return (
+    <>
+      {slide.background_url && (
+        <img
+          data-testid="bg-bleed"
+          src={slide.background_url}
+          draggable={false}
+          alt=""
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+          }}
+        />
+      )}
+      {/* Tint overlay — paints above the photo for tonal control of B&W treatments */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: template.overlayColor,
+          opacity: overlayOpacity,
+          zIndex: 1,
+        }}
+      />
+      {useBottomCard && (
+        <div
+          data-testid="bottom-card"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '38%',
+            padding: 80,
+            backgroundColor: bottomCardBackground(template.backgroundColor),
+            zIndex: 2,
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+interface OverlayLayersProps {
+  template: SlideTemplate
+  ctx: OverlayResolveCtx
+}
+
+function OverlayLayers({ template, ctx }: OverlayLayersProps) {
+  if (!template.overlays || template.overlays.length === 0) return null
+  return (
+    <>
+      {template.overlays.map((overlay: TemplateOverlay, i: number) => {
+        const slot = SLOT_GEOMETRY[overlay.position]
+        const offset = overlay.offset
+        // Permissive index across the SLOT_GEOMETRY union (top-left has `left`,
+        // top-right has `right`, etc.) — runtime guard on `typeof === 'number'`
+        // narrows safely. Mirrors the Satori implementation in render-slide-satori.tsx.
+        const slotAny = slot as Record<string, unknown> | null
+        const slotStyle: React.CSSProperties =
+          slot == null
+            ? {
+                position: 'absolute',
+                left: offset?.x ?? 0,
+                top: offset?.y ?? 0,
+              }
+            : {
+                position: 'absolute',
+                ...(slot as React.CSSProperties),
+                ...(offset && slotAny && typeof slotAny.left === 'number' && offset.x
+                  ? { left: (slotAny.left as number) + offset.x }
+                  : {}),
+                ...(offset && slotAny && typeof slotAny.top === 'number' && offset.y
+                  ? { top: (slotAny.top as number) + offset.y }
+                  : {}),
+              }
+        const text = resolveOverlayContent(overlay.content, ctx)
+        return (
+          <div
+            key={`overlay-${i}-${overlay.position}`}
+            data-testid={`overlay-${overlay.position}`}
+            style={{
+              ...slotStyle,
+              display: 'flex',
+              alignItems: 'center',
+              zIndex: 11,
+              ...(overlay.style ?? {}),
+            }}
+          >
+            {text}
+          </div>
+        )
+      })}
+    </>
+  )
 }
 
 // Resize handle visual affordance
@@ -64,6 +197,14 @@ interface SlidePreviewProps {
   slide: Slide
   template: SlideTemplate
   index: number
+  // Phase 45 — render context for overlays (page-counter, slide-field topic)
+  // and per-segment highlight pills. All optional so legacy callsites keep
+  // working unchanged. Defaults: slideIndex falls back to `index`, totalSlides
+  // falls back to 1, topic falls back to undefined → resolveOverlayContent
+  // returns '1/1' and '' respectively (CONTEXT.md Area 4).
+  slideIndex?: number
+  totalSlides?: number
+  topic?: string
   editable?: boolean
   brandKit?: BrandKit | null
   userTier?: 'free' | 'plus' | 'pro'
@@ -83,7 +224,7 @@ interface SlidePreviewProps {
 }
 
 export function SlidePreview({
-  slide, template, index, editable, brandKit, userTier,
+  slide, template, index, slideIndex, totalSlides, topic, editable, brandKit, userTier,
   onPositionChange, onWidthChange,
   onCustomTextPositionChange, onCustomTextWidthChange,
   onCustomTextUpdate, onCustomTextSelect, onCustomTextRemove,
@@ -139,6 +280,27 @@ export function SlidePreview({
 
   // News-carousel layouts override Y defaults; user-set positions still win.
   const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+
+  // Phase 45 — graceful-fallback render context for the shared overlay resolver.
+  // slideIndex defaults to `index` (the array position prop already in scope);
+  // totalSlides defaults to 1 so the page-counter prints '1/1' in single-tile
+  // contexts (template-picker, brand-kit-form). Mirrors render-slide-satori's
+  // resolveCtx — same source of truth, same TPLREND-05 parity contract.
+  const resolveCtx: OverlayResolveCtx = {
+    slideIndex: slideIndex ?? index ?? 0,
+    totalSlides: totalSlides ?? 1,
+    topic,
+    slide,
+  }
+  // Phase 45 — mutual-exclusion gate per CONTEXT.md Area 3: legacy
+  // NEWS_LAYOUT path wins over template.backgroundMode so the 5 existing
+  // templates (which leave backgroundMode undefined) stay byte-identical.
+  const useBgMode =
+    !newsZone &&
+    template.backgroundMode != null &&
+    template.backgroundMode !== 'color'
+  const useBottomCard =
+    useBgMode && template.backgroundMode === 'image-with-bottom-card'
 
   const positionPreset = overrides.text_position ?? template.textPosition
   const defaults = newsZone ?? SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
@@ -330,13 +492,32 @@ export function SlidePreview({
         className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
       >
         <div style={innerStyle}>
-          {newsBgImageNode}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: template.overlayColor,
-            opacity: overlayOpacity,
-          }} />
+          {/* Phase 45 layers 1-3: backgroundMode photo + tint + optional bottom-card.
+              Mutually exclusive with newsZone (legacy path keeps newsBgImageNode + tint div). */}
+          {useBgMode ? (
+            <BackgroundLayers
+              template={template}
+              slide={slide}
+              useBgMode={useBgMode}
+              useBottomCard={useBottomCard}
+              overlayOpacity={overlayOpacity}
+            />
+          ) : (
+            <>
+              {newsBgImageNode}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: template.overlayColor,
+                opacity: overlayOpacity,
+              }} />
+            </>
+          )}
+
+          {/* Phase 45 layer 4: overlay zones (chip, counter, mid pill).
+              Above tint+card per CONTEXT.md Area 1; below hook so headline
+              pills stay top-most. */}
+          <OverlayLayers template={template} ctx={resolveCtx} />
 
           {/* Hook text */}
           <div style={{
@@ -571,14 +752,32 @@ export function SlidePreview({
           }
         }}
       >
-        {newsBgImageNode}
-        {/* Overlay */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundColor: template.overlayColor,
-          opacity: overlayOpacity,
-        }} />
+        {/* Phase 45 layers 1-3: backgroundMode photo + tint + optional bottom-card.
+            Editable branch mirror of the non-editable branch — both must emit the
+            same layers per RESEARCH.md Pitfall 2 (TPLREND-05 parity contract). */}
+        {useBgMode ? (
+          <BackgroundLayers
+            template={template}
+            slide={slide}
+            useBgMode={useBgMode}
+            useBottomCard={useBottomCard}
+            overlayOpacity={overlayOpacity}
+          />
+        ) : (
+          <>
+            {newsBgImageNode}
+            {/* Overlay */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: template.overlayColor,
+              opacity: overlayOpacity,
+            }} />
+          </>
+        )}
+
+        {/* Phase 45 layer 4: overlay zones — same DOM order as non-editable branch. */}
+        <OverlayLayers template={template} ctx={resolveCtx} />
 
         {/* Resizable + Draggable hook text */}
         <Rnd
