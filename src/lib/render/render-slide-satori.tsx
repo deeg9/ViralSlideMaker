@@ -412,6 +412,8 @@ export function buildSlideElement(
               left: pxX(ct.x),
               top: pxY(ct.y),
               width: pxX(ct.width),
+              display: 'flex',
+              flexWrap: 'wrap',
               textAlign: ct.text_align ?? 'left',
               fontSize: ct.font_size ?? 48,
               fontWeight: ct.font_weight ?? 400,
