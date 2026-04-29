@@ -725,7 +725,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 - [x] **Phase 44: Template Schema Foundation** - Extend `SlideTemplate` type with `overlays`, `backgroundMode`, dynamic content sources, per-segment `highlightColor`, and registry validation (completed 2026-04-29)
 - [x] **Phase 45: Renderer Composition** - Satori + React-preview parity for overlay zones, full-bleed photo backgrounds, dynamic page counter, per-word highlight pills (completed 2026-04-29)
 - [x] **Phase 46: Premium Template Authoring** - Author `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` templates with sample data; verify no regressions on existing 5 templates (completed 2026-04-29)
-- [ ] **Phase 47: AI Prompt Tuning** - Tune `create_carousel` prompts for compact layouts (≤12-word hooks, ≤35-word bodies, no orphans), spelling quality gate, segment highlight suggestions, template-aware tone
+- [x] **Phase 47: AI Prompt Tuning** - Tune `create_carousel` prompts for compact layouts (≤12-word hooks, ≤35-word bodies, no orphans), spelling quality gate, segment highlight suggestions, template-aware tone (completed 2026-04-29)
 - [ ] **Phase 48: Template Thumbnails & Picker** - Render 9:16 thumbnails for new templates from sample data; unify template picker UI to use sample-driven previews for all templates
 
 ### Phase 44: Template Schema Foundation
@@ -787,10 +787,10 @@ Plans:
   2. A user generates a carousel and no slide contains an obvious spelling typo (e.g. "MUSICAN", "CARROUSEL"); the spell-check pass catches and retries on detected errors before persisting
   3. A user generates a carousel with a magazine-style template and the resulting `hook_segments` / `body_segments` already have `highlightColor` set on action verbs and proper nouns matching the template's accent color (no manual editing needed for the Murphy aesthetic)
   4. A user picks `magazine-bold` vs. `documentary` and generates the same topic — the resulting copy tone visibly differs (punchy news-style vs. story-led), driven by the per-template voice-note prompt
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 - [x] 47-01-PLAN.md — Add aiVoiceNote field to SlideTemplate + populate on 3 premium templates; widen Gemini segmentSchema + Zod TextSegmentSchema with optional highlightColor / highlightStyle (TPLAI-03, TPLAI-04 schema surface)
 - [x] 47-02-PLAN.md — Build src/lib/ai/typos.ts (KNOWN_TYPOS curated set) + src/lib/ai/validate-slides.ts (wordCount, isPremiumTemplate, detectOverflows, detectOrphans, detectTypos, validateAndRepair) with full RED→GREEN unit-test coverage (TPLAI-01, TPLAI-02 logic surface)
-- [ ] 47-03-PLAN.md — Wire validateAndRepair into generateSlideContent with retry-once flow + extend buildSystemPrompt with premium-tier addendum (length caps, highlight pill rules) + voice-note injection; legacy NEWS_TEMPLATES newsDropAddendum unchanged (TPLAI-01..04 runtime wiring)
+- [x] 47-03-PLAN.md — Wire validateAndRepair into generateSlideContent with retry-once flow + extend buildSystemPrompt with premium-tier addendum (length caps, highlight pill rules) + voice-note injection; legacy NEWS_TEMPLATES newsDropAddendum unchanged (TPLAI-01..04 runtime wiring)
 
 ### Phase 48: Template Thumbnails & Picker
 **Goal**: The template picker presents all 8 templates (5 legacy + 3 new) with consistent 9:16 sample-driven thumbnails — no mix of swatches and previews — so users can pick by visual identity, not just label.
@@ -854,5 +854,5 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 44. Template Schema Foundation | v2.7 | 2/2 | Complete   | 2026-04-29 |
 | 45. Renderer Composition | v2.7 | 3/3 | Complete   | 2026-04-29 |
 | 46. Premium Template Authoring | v2.7 | 2/2 | Complete   | 2026-04-29 |
-| 47. AI Prompt Tuning | v2.7 | 2/3 | In Progress|  |
+| 47. AI Prompt Tuning | v2.7 | 3/3 | Complete   | 2026-04-29 |
 | 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |

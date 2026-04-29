@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
-status: executing
+status: verifying
 stopped_at: Phase 47 Plan 02 complete (TPLAI-01 + TPLAI-02 sealed). Ready to execute Plan 47-03 (prompt assembly + retry wiring).
-last_updated: "2026-04-29T19:15:25.987Z"
+last_updated: "2026-04-29T19:25:13.230Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-04-29)
 
 Phase: 47 (ai-prompt-tuning) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-29
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [█████████░] 90%
 | Phase 46 P02 | 5min | 2 tasks | 5 files |
 | Phase 47 P01 | 3min | 2 tasks | 7 files |
 | Phase 47 P02 | 3min | 2 tasks | 4 files |
+| Phase 47 P03 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Progress: [█████████░] 90%
 - [Phase ?]: [Phase 47]: TPLAI-04 voice notes shipped verbatim from CONTEXT.md Area 4 (no rewording per D-04). Phase 47-03 prompt-assembly will read template.aiVoiceNote and conditionally append TEMPLATE VOICE NOTE block to the system prompt; NEWS_TEMPLATES newsDropAddendum coexists for news-drop/news-cyan.
 - [Phase 47]: [Phase 47-02]: Pure-logic post-Gemini validation surface — KNOWN_TYPOS Set (30 entries) + 6 helpers (wordCount, isPremiumTemplate, detectOverflows premium-tier-only, detectOrphans Jaccard >=0.80 with exact-equality short-circuit, detectTypos token-based all-templates, validateAndRepair never-throws orchestrator). PREMIUM_TEMPLATE_IDS inlined to avoid circular dep on templates/index.ts. Documentary opt-out: highlightColor/highlightStyle silently stripped on documentary slides (no warning, per D-03).
 - [Phase 47]: [Phase 47-02]: validateAndRepair contract — never throws, never calls Gemini; returns { data, retried: false, warnings: string[] }. Plan 47-03 wraps with retry-once-against-Gemini logic. Warnings are human-readable strings (e.g., 'slide 0 hook_text has 13 words (cap 12)') so 47-03's retry addendum can use them verbatim.
+- [Phase ?]: [Phase 47-03]: buildSystemPrompt composes 3 independently-gated addendum blocks (newsDropAddendum legacy, voiceNoteBlock for aiVoiceNote-bearing templates, premiumAddendum for isPremiumTemplate). NEWS_TEMPLATES newsDropAddendum byte-identical to pre-Phase-47; new blocks empty-string for legacy 5 templates — full backward compat.
+- [Phase ?]: [Phase 47-03]: Documentary opt-out wired in 2 places — buildSystemPrompt emits explicit 'You do NOT populate highlightColor' branch in premiumAddendum when templateId === 'documentary'; validateAndRepair silently strips highlightColor/highlightStyle on documentary slides post-Gemini. The two layers are symmetric: prompt asks AI not to emit; validator strips if AI does anyway.
+- [Phase ?]: [Phase 47-03]: generateSlideContent retry-once flow — gate is hasPremiumWarning (premium-tier templateId with any warning) OR hasTypoWarning (any-template typo per D-02). Diagnostic interpolates validateAndRepair warning strings as a bullet list. Hard cap at 2 Gemini calls; on retry-still-failing: console.warn + result still passes CarouselSchema.parse — never throws, user always gets a Carousel.
 
 ### Pending Todos
 
