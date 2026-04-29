@@ -745,7 +745,10 @@ Plans:
   3. Setting `VIRALSLIDEMAKER_BASE_URL=https://staging.example.com` redirects the bridge to a self-hosted / staging deployment instead of production
   4. Installing `viralslidemaker-mcp@0.1.0` from npm and pasting the documented `claude_desktop_config.json` snippet surfaces all 4 tools in Claude Desktop's tool picker on next restart
   5. The MCP setup guide includes copy-paste config snippets for Claude Desktop, Cursor, Windsurf, and ChatGPT custom-connector — and the `/settings/api-keys` automation guide gets a fourth card linking to it so users discover MCP from their key-management page
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 42-01-PLAN.md -- mcp-cli package finalization (cli.js refinement + package.json bump), README.md, docs/MCP-GUIDE.md (4 client snippets), 4th GuideCard cross-link, dry-run publish
 
 
 
@@ -798,4 +801,4 @@ Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 | 39. Brand Kit & Profile (Tier 3.C) | v2.5 | 2/2 | Complete | 2026-04-28 |
 | 40. MCP Transport & Auth | v2.6 | 0/1 | Planned | - |
 | 41. MCP Tool Surface | v2.6 | 0/0 | Not started | - |
-| 42. Distribution & Documentation | v2.6 | 0/0 | Not started | - |
+| 42. Distribution & Documentation | v2.6 | 0/1 | Planned | - |
