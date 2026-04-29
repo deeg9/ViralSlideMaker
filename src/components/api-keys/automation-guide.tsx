@@ -30,6 +30,9 @@ const CURL_SNIPPET = `curl -X POST https://viralslidemaker.com/api/v1/carousel \
   -H "Content-Type: application/json" \\
   -d '{"topic":"5 productivity tips","templateId":"highlight-bar","slideCount":5}'`
 
+const MCP_INSTALL_SNIPPET = `npx -y viralslidemaker-mcp`
+const MCP_GUIDE_URL = 'https://github.com/deeg9/ViralSlideMaker/blob/main/docs/MCP-GUIDE.md'
+
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false)
 
@@ -57,9 +60,11 @@ interface GuideCardProps {
   snippetLabel: string
   snippet: string
   copyLabel: string
+  linkLabel?: string
+  linkHref?: string
 }
 
-function GuideCard({ icon, title, description, snippetLabel, snippet, copyLabel }: GuideCardProps) {
+function GuideCard({ icon, title, description, snippetLabel, snippet, copyLabel, linkLabel, linkHref }: GuideCardProps) {
   return (
     <div className="bg-white rounded-xl p-6 border border-[#dbc1bc]/10">
       <div className="flex items-center gap-3 mb-2">
@@ -78,6 +83,17 @@ function GuideCard({ icon, title, description, snippetLabel, snippet, copyLabel 
           <CopyButton text={snippet} label={copyLabel} />
         </div>
       </div>
+      {linkHref && linkLabel ? (
+        <a
+          href={linkHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-[#3d0000] hover:underline"
+        >
+          {linkLabel}
+          <Icon name="open_in_new" size="sm" />
+        </a>
+      ) : null}
     </div>
   )
 }
@@ -96,7 +112,7 @@ export function AutomationGuide() {
         <GuideCard
           icon="smart_toy"
           title="Use with Claude or ChatGPT"
-          description="Paste this into a new Claude or ChatGPT conversation (or save it as a Project / Custom GPT instruction). The model will read the OpenAPI spec and call the API for you."
+          description="Paste this into a new Claude or ChatGPT conversation (or save it as a Project / Custom GPT instruction). The model will read the OpenAPI spec and call the API for you. For tighter integration, see the MCP server card below."
           snippetLabel="Paste into Claude / ChatGPT"
           snippet={AGENT_PROMPT}
           copyLabel="Copy Claude/ChatGPT prompt"
@@ -118,6 +134,17 @@ export function AutomationGuide() {
           snippetLabel="curl"
           snippet={CURL_SNIPPET}
           copyLabel="Copy curl example"
+        />
+
+        <GuideCard
+          icon="extension"
+          title="Use as a native MCP server"
+          description="Connect Claude Desktop, Cursor, Windsurf, or ChatGPT directly to your account. The model calls our tools natively — no prompt-engineering needed. Tightest integration of all the options here."
+          snippetLabel="Install"
+          snippet={MCP_INSTALL_SNIPPET}
+          copyLabel="Copy install command"
+          linkLabel="Read the full setup guide"
+          linkHref={MCP_GUIDE_URL}
         />
       </div>
     </div>
