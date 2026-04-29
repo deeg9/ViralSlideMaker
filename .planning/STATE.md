@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.3
+milestone: v2.6
 milestone_name: MCP Server
-status: executing
-stopped_at: Ready for `/gsd-plan-phase 40`.
-last_updated: "2026-04-29T01:24:34.725Z"
-last_activity: 2026-04-29 -- Phase --phase execution started
+status: complete
+stopped_at: v2.6 shipped — 3 phases / 3 plans / 18 of 19 reqs closed (MCP-DIST-06 awaiting user `npm publish`). Code complete; build green; 23/23 MCP tests pass.
+last_updated: "2026-04-28T20:00:00.000Z"
+last_activity: 2026-04-28
 progress:
   total_phases: 3
   completed_phases: 3
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase --phase — 40
+**Current focus:** v2.6 MCP Server SHIPPED. Awaiting user `cd packages/mcp-cli && npm login && npm publish --access public` + Claude Desktop end-to-end smoke test per docs/MCP-GUIDE.md. Next milestone: TBD via /gsd-new-milestone.
 
 ## Current Position
 
-Phase: --phase (40) — EXECUTING
-Plan: 1 of --name
-Status: Executing Phase --phase
-Last activity: 2026-04-29 -- Phase --phase execution started
+Phase: 42 (complete)
+Plan: All complete
+Status: v2.6 milestone complete — code shipped; npm publish user-gated.
+Last activity: 2026-04-28
 
-Progress: [░░░░░░░░░░] 0% (0/3 phases complete)
+Progress: [██████████] 100% (3/3 phases of v2.6 complete)
 
 ## Performance Metrics
 

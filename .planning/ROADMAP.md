@@ -12,7 +12,7 @@
 - v2.3 MCP Server - Phases 26-28 (RETIRED 2026-04-28 in quick-260428-rmm — mcp-handler missing from node_modules; rebuilt as v2.6)
 - v2.4 Explore + Remix - Phases 29-33 (shipped 2026-04-27)
 - v2.5 Public REST API Parity - Phases 34-39 (shipped 2026-04-28) — REST API now has full feature parity with the dashboard. ~21 new endpoints across 3 tiers (spec accuracy, project/slide CRUD, AI/Pexels/Explore/Bookmarks/Brand-Kit/Profile).
-- v2.6 MCP Server - Phases 40-42 (planning 2026-04-28) — Rebuild of retired v2.3. Lean 4-tool scope (list_templates, create_carousel, edit_slide, render_carousel) with build-gate verification to prevent v2.3-style failures. Reuses vsl_ Bearer auth, Upstash rate limiting, and the existing service layer.
+- v2.6 MCP Server - Phases 40-42 (shipped 2026-04-28) — Rebuilt the retired v2.3 with lean 4-tool scope. /api/mcp Streamable HTTP endpoint live with vsl_ Bearer auth + Upstash rate limiting + triple-layer build-gate. 4 tools (list_templates, create_carousel, edit_slide, render_carousel) call services directly. viralslidemaker-mcp@0.1.0 npm bridge ready (publish user-gated). Setup guide at docs/MCP-GUIDE.md covers Claude Desktop / Cursor / Windsurf / ChatGPT. 18/19 reqs satisfied (MCP-DIST-06 deferred for user publish). Archive: .planning/milestones/v2.6-ROADMAP.md
 
 ## Phases
 
@@ -697,61 +697,16 @@ Plans:
 
 ---
 
-## v2.6 MCP Server (Phases 40-42) — PLANNED 2026-04-28
+<details>
+<summary>v2.6 MCP Server (Phases 40-42) - SHIPPED 2026-04-28</summary>
 
-Rebuild of the retired v2.3 MCP Server effort. Zero working code survived the `quick-260428-rmm` retirement (`mcp-handler` was in `package.json` but missing from `node_modules` → `/api/mcp` returned HTTP 500). Lean 4-tool scope per user decision: broader v2.5 REST surface (publish, fork, bookmarks, brand-kit, profile, credits) deferred to v2.7+. The retired v2.3 phase plans (`.planning/phases/26-28/`) are reusable as inputs — most decisions carry forward; library versions need re-pinning at the start of Phase 40.
+Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate regression check prevents the v2.3 failure mode from recurring. Full archive: `.planning/milestones/v2.6-ROADMAP.md`. Audit: `.planning/milestones/v2.6-MILESTONE-AUDIT.md` (status: tech_debt — code complete, npm publish user-gated).
 
-- [ ] **Phase 40: MCP Transport & Auth** - Streamable HTTP `/api/mcp` endpoint with `vsl_` Bearer auth, Upstash rate limiting, stateless transport, shared auth-core helper, and the build-gate regression check that fails the build if `mcp-handler` is missing from node_modules
-- [ ] **Phase 41: MCP Tool Surface** - 4 outcome-oriented tools (`list_templates`, `create_carousel`, `edit_slide`, `render_carousel`) calling `src/lib/services/*` directly with credit enforcement; tool registry pattern designed for v2.7+ extension
-- [ ] **Phase 42: Distribution & Documentation** - `viralslidemaker-mcp` npm package (zero-build stdio bridge wrapping `mcp-remote`), MCP setup guide for Claude Desktop / Cursor / Windsurf / ChatGPT, cross-link from `/settings/api-keys` automation guide, npm publish at v0.1.0
+- [x] **Phase 40: MCP Transport & Auth** - Streamable HTTP `/api/mcp` endpoint with `vsl_` Bearer auth, Upstash rate limiting, stateless transport, shared auth-core helper, build-gate regression check (PASSED — 5/5 must-haves, 20/20 tests)
+- [x] **Phase 41: MCP Tool Surface** - 4 outcome-oriented tools (`list_templates`, `create_carousel`, `edit_slide`, `render_carousel`) calling services directly with credit enforcement (PASSED — 5/5 must-haves, 23/23 tests)
+- [x] **Phase 42: Distribution & Documentation** - `viralslidemaker-mcp@0.1.0` npm package (built + dry-run accepted, awaiting user `npm publish`), MCP setup guide for Claude Desktop / Cursor / Windsurf / ChatGPT, 4th cross-link card on /settings/api-keys (PASSED automated; npm publish + Claude Desktop smoke HUMAN_NEEDED)
 
-### Phase 40: MCP Transport & Auth
-**Goal**: A `vsl_`-authenticated MCP client can complete the JSON-RPC 2.0 protocol handshake against `/api/mcp` on Vercel, with rate limiting and an explicit build-gate regression check that prevents the v2.3 failure mode (missing `mcp-handler` in `node_modules`) from ever recurring.
-**Depends on**: Phase 39 (existing REST infrastructure: `withApiAuth`, `authenticateApiKey`, `checkRateLimit`)
-**Requirements**: MCP-TRANS-01, MCP-TRANS-02, MCP-TRANS-03, MCP-TRANS-04, MCP-TRANS-05, MCP-TRANS-06, MCP-TRANS-07
-**Success Criteria** (what must be TRUE):
-  1. An authenticated `POST /api/mcp` with `Authorization: Bearer vsl_...` returns a valid JSON-RPC 2.0 server-capabilities response (MCP `initialize` handshake succeeds)
-  2. A `POST /api/mcp` with a missing, malformed, or revoked Bearer token returns the MCP-protocol-correct error response (not a redirect to `/login`)
-  3. MCP requests from the same API key that exceed the per-key sliding-window budget receive an MCP-protocol rate-limited response, sharing the same Upstash counter as REST `/api/v1/*`
-  4. `npm run build` fails fast with a clear error message if `mcp-handler` is removed from `node_modules` — the regression gate against the exact v2.3 failure mode
-  5. `src/middleware.ts` bypasses Supabase session auth for `/api/mcp` (matching the existing `/api/v1` and `/api/webhooks` pattern) so the Bearer-token path is the only auth surface
-**Plans**: 1 plan
-
-Plans:
-- [ ] 40-01-PLAN.md -- install mcp-handler+SDK, extract auth-core, MCP route+adapter, middleware bypass, build-gate tests
-
-### Phase 41: MCP Tool Surface
-**Goal**: An AI agent connected over MCP can complete the full create → edit → render carousel loop entirely through 4 tools, calling the existing service layer directly (no re-entry through `/api/v1/*`) and respecting the same credit accounting as the REST API.
-**Depends on**: Phase 40
-**Requirements**: MCP-TOOL-01, MCP-TOOL-02, MCP-TOOL-03, MCP-TOOL-04, MCP-TOOL-05, MCP-TOOL-06
-**Success Criteria** (what must be TRUE):
-  1. An MCP client calling `tools/list` against `/api/mcp` sees exactly 4 tools: `list_templates`, `create_carousel`, `edit_slide`, `render_carousel` — no more, no less
-  2. `create_carousel` deducts exactly 1 credit (identical to `POST /api/v1/carousel`), returns `{ projectId, slideCount, dashboardUrl }`, and the new project is visible in the user's dashboard at `/dashboard`
-  3. `create_carousel` returns the MCP-protocol-correct insufficient-credits error (not a generic 500) when the calling key's user has 0 credits
-  4. `edit_slide` accepts the same 9 patch fields as `PATCH /api/v1/projects/{id}/slides/{index}` (hook_text, body_text, image_query, background_url, style_overrides, custom_texts, custom_images, hook_segments, body_segments) and persists changes visible in the editor on next reload
-  5. `render_carousel` returns `{ slides: [{ index, downloadUrl }], zipUrl }` with HTTPS URLs only — no inlined binary image payloads — and an MCP Inspector run can complete the full create→edit→render loop using only the tool descriptions (no external docs)
-**Plans**: 1 plan
-
-Plans:
-- [ ] 41-01-PLAN.md -- Tool registry + 4 MCP tools (list_templates, create_carousel, edit_slide, render_carousel) wired into the Phase 40 server, with TDD test scaffolding and credit-deduct+refund parity to REST
-
-### Phase 42: Distribution & Documentation
-**Goal**: A user with a `vsl_` key can install `viralslidemaker-mcp` from npm, paste a config snippet into their AI tool of choice (Claude Desktop / Cursor / Windsurf / ChatGPT), and see all 4 ViralSlideMaker tools surface in that tool's MCP picker — verifying the round-trip end-to-end.
-**Depends on**: Phase 41
-**Requirements**: MCP-DIST-01, MCP-DIST-02, MCP-DIST-03, MCP-DIST-04, MCP-DIST-05, MCP-DIST-06
-**Success Criteria** (what must be TRUE):
-  1. Running `npx viralslidemaker-mcp@0.1.0` with `VIRALSLIDEMAKER_API_KEY=vsl_...` set spawns `mcp-remote` against the hosted `/api/mcp` endpoint and proxies the MCP protocol over stdio
-  2. Running the bridge without `VIRALSLIDEMAKER_API_KEY` exits with a copy-paste-able error message that points to `/settings/api-keys` for key creation
-  3. Setting `VIRALSLIDEMAKER_BASE_URL=https://staging.example.com` redirects the bridge to a self-hosted / staging deployment instead of production
-  4. Installing `viralslidemaker-mcp@0.1.0` from npm and pasting the documented `claude_desktop_config.json` snippet surfaces all 4 tools in Claude Desktop's tool picker on next restart
-  5. The MCP setup guide includes copy-paste config snippets for Claude Desktop, Cursor, Windsurf, and ChatGPT custom-connector — and the `/settings/api-keys` automation guide gets a fourth card linking to it so users discover MCP from their key-management page
-**Plans**: 1 plan
-
-Plans:
-- [ ] 42-01-PLAN.md -- mcp-cli package finalization (cli.js refinement + package.json bump), README.md, docs/MCP-GUIDE.md (4 client snippets), 4th GuideCard cross-link, dry-run publish
-
-
-
+</details>
 
 ## Progress
 
@@ -799,6 +754,6 @@ Phases execute in numeric order: 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33
 | 37. AI & Image Sources (Tier 3.A) | v2.5 | 2/2 | Complete | 2026-04-28 |
 | 38. Explore, Bookmarks, Forking (Tier 3.B) | v2.5 | 2/2 | Complete | 2026-04-28 |
 | 39. Brand Kit & Profile (Tier 3.C) | v2.5 | 2/2 | Complete | 2026-04-28 |
-| 40. MCP Transport & Auth | v2.6 | 0/1 | Planned | - |
-| 41. MCP Tool Surface | v2.6 | 0/0 | Not started | - |
-| 42. Distribution & Documentation | v2.6 | 0/1 | Planned | - |
+| 40. MCP Transport & Auth | v2.6 | 1/1 | Complete | 2026-04-28 |
+| 41. MCP Tool Surface | v2.6 | 1/1 | Complete | 2026-04-28 |
+| 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |

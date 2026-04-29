@@ -1,5 +1,30 @@
 # Milestones
 
+## v2.6 MCP Server (Shipped: 2026-04-28)
+
+**Phases completed:** 3 phases (40-42), 3 plans, 18/19 requirements (MCP-DIST-06 deferred — npm publish user-gated)
+
+**Status:** tech_debt — code complete; one user-gated deployment step (`npm publish`) awaiting user.
+
+**Key accomplishments:**
+
+- **Phase 40 — MCP Transport & Auth:** `/api/mcp` Streamable HTTP endpoint with `mcp-handler@1.1.0` + `@modelcontextprotocol/sdk@1.29.0`. `vsl_` Bearer auth via `withMcpAuth`, stateless transport for Vercel, Upstash rate limiting (shared `vsl:rl` counter with REST), middleware bypass for `/api/mcp`. Bearer-token verification core extracted to `src/lib/api/auth-core.ts` and shared between REST `withApiAuth` and MCP `verifyToken`. **AuthInfo cross-phase contract** (`extra: { userId, keyId }`) live for Phase 41.
+- **Phase 41 — MCP Tool Surface:** 4 outcome-oriented tools (`list_templates`, `create_carousel`, `edit_slide`, `render_carousel`) registered via `server.registerTool` with Zod raw-shape input validation. Tools call services directly (NOT `/api/v1/*`). `create_carousel` mirrors REST credit deduct + refund pattern byte-for-byte. `edit_slide` accepts the same 9-field whitelist as `PATCH /api/v1/projects/{id}/slides/{index}`. Insufficient credits returns in-band `{ isError: true }` content (NOT OAuthError).
+- **Phase 42 — Distribution & Documentation:** `viralslidemaker-mcp@0.1.0` npm bridge (zero-build plain JS in `bin/cli.js` wrapping `mcp-remote@0.1.38`). `docs/MCP-GUIDE.md` with copy-paste config snippets for Claude Desktop, Cursor, Windsurf, ChatGPT (with workspace-tier + Developer Mode gate). 4th `GuideCard` added to `/settings/api-keys` automation guide. `npm publish --dry-run --access public` accepted (4 files, 2.0kB tarball, name available on registry).
+- **Build-gate regression check (THE point of v2.6):** the v2.3 retirement cause — `mcp-handler` listed in `package.json` but missing from `node_modules` → `/api/mcp` returned 500 — is now blocked by THREE independent layers: (1) static non-type import in `route.ts`, (2) vitest `import-gate.test.ts`, (3) `npm run build` in CI. Triple coverage; cannot recur silently.
+- **Tests:** 23/23 MCP tests pass across 9 files, 9/9 REST auth regression tests pass, `npm run build` clean.
+- **Code review:** 0 critical findings across all 3 phases. 8 warnings + 14 nits surfaced and addressed (some Phase 41 nits intentionally deferred to v2.7+ as cross-cutting REST refactors).
+
+**Built on:** v2.2 (Bearer auth, rate limiting, service-extraction pattern); v2.5 (carousel/projects/render service signatures stable).
+
+**Closes:** v2.3 MCP Server (retired 2026-04-28 in `quick-260428-rmm`) — root cause now blocked by triple-layer build-gate.
+
+**Out of scope (deferred to v2.7+):** broader MCP tool surface (publish, fork, bookmarks, brand-kit, profile, credits, AI image gen, Pexels search, slide CRUD beyond `edit_slide`), OAuth 2.1, anonymous tools, MCP Resources/Prompts, stateful sessions.
+
+**Awaiting user:** `cd packages/mcp-cli && npm login && npm publish --access public` + Claude Desktop end-to-end smoke test per `docs/MCP-GUIDE.md`.
+
+---
+
 ## v2.5 Public REST API Parity (Shipped: 2026-04-28)
 
 **Phases completed:** 6 phases (34–39), 10 plans, 28 requirements
