@@ -36,3 +36,8 @@ const authHandler = withMcpAuth(handler, verifyToken, { required: true })
 
 export { authHandler as GET, authHandler as POST, authHandler as DELETE }
 export const maxDuration = 60
+// Explicit Node runtime: this route uses Node-only crypto (createHash,
+// timingSafeEqual via verifyApiKeyHash) and the Supabase admin client.
+// App Router defaults to Node, but stating it here keeps the requirement
+// self-documenting and guards against an accidental Edge migration.
+export const runtime = 'nodejs'
