@@ -1,7 +1,8 @@
 // src/lib/mcp/tools.ts
 //
-// Registers the 4 v2.6 MCP tools (list_templates, create_carousel, edit_slide, render_carousel)
-// on the McpServer instance from createMcpHandler's setup callback.
+// Registers the MCP tools on the McpServer instance from createMcpHandler's setup callback.
+// v2.6 shipped 4 tools: list_templates, create_carousel, edit_slide, render_carousel.
+// v2.7 adds upload_image so agents can put user-disk photos into carousels end-to-end.
 //
 // Cross-phase contract (Phase 40 → Phase 41):
 //   - Tool handlers read userId via `extra.authInfo?.extra?.userId` (set by withMcpAuth → verifyToken).
@@ -35,6 +36,13 @@ import {
   FREE_TIER_PROJECT_LIMIT,
 } from '@/lib/credits/check-credits'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  validateImageBuffer,
+  isValidationError,
+  UPLOAD_BASE64_MAX_LENGTH,
+} from '@/lib/upload-validation'
+import { incrementUploadCount } from '@/lib/api/images-quota'
+import { uploadImage } from '@/lib/storage/upload-image'
 
 // Mirrors src/lib/services/publish.ts:70-75 (appOrigin) and
 // src/app/(dashboard)/project/[id]/publish-actions.ts:120 — single env precedence rule.
@@ -62,6 +70,12 @@ function getAppUrl(): string {
 function getUserId(extra: unknown): string | undefined {
   const e = extra as { authInfo?: { extra?: Record<string, unknown> } } | undefined
   const v = e?.authInfo?.extra?.userId
+  return typeof v === 'string' && v.length > 0 ? v : undefined
+}
+
+function getKeyId(extra: unknown): string | undefined {
+  const e = extra as { authInfo?: { extra?: Record<string, unknown> } } | undefined
+  const v = e?.authInfo?.extra?.keyId
   return typeof v === 'string' && v.length > 0 ? v : undefined
 }
 
@@ -377,6 +391,81 @@ export function registerTools(server: McpServer): void {
         slides: slideUrls,
         zipUrl: `${baseUrl}/api/v1/projects/${projectId}/download`,
       })
+    }
+  )
+
+  // ─── Tool 5: upload_image (free, v2.7) ─────────────────────────────────────
+  server.registerTool(
+    'upload_image',
+    {
+      description: [
+        'Upload an image from a base64 string and receive a public HTTPS URL you can pass to edit_slide as background_url.',
+        'Use this when the user has a photo on disk that should be a slide background — pair with a filesystem MCP that reads the file and base64-encodes it.',
+        'Free (no credit cost). Daily quota: 200 uploads per API key. Mirrors POST /api/v1/images.',
+        'Accepts static PNG, JPEG, or WebP only — animated formats, HEIC, and GIF are rejected. Max ~5MB binary (~6.7MB base64). Server validates magic bytes against claimed mimeType — spoofed types are rejected.',
+        'Returns { url, mimeType, sizeBytes, width, height }. Pass url to edit_slide({ projectId, slideIndex, patch: { background_url: url } }).',
+      ].join(' '),
+      inputSchema: {
+        imageBase64: z
+          .string()
+          .min(1)
+          .describe('Base64-encoded image data. NO data: URI prefix. Max length ~6.7M chars (~5MB binary).'),
+        mimeType: z
+          .enum(['image/png', 'image/jpeg', 'image/webp'])
+          .describe('Claimed MIME type. Verified server-side via magic bytes; mismatches are rejected.'),
+      },
+    },
+    async (args, extra) => {
+      const userId = getUserId(extra)
+      if (!userId) return errorContent('UNAUTHORIZED', 'Missing auth context')
+      const keyId = getKeyId(extra)
+      if (!keyId) return errorContent('UNAUTHORIZED', 'Missing auth context')
+
+      const { imageBase64, mimeType } = args as {
+        imageBase64: string
+        mimeType: 'image/png' | 'image/jpeg' | 'image/webp'
+      }
+
+      // Pre-decode size cap — reject before allocating a large Buffer
+      if (imageBase64.length > UPLOAD_BASE64_MAX_LENGTH) {
+        return errorContent('VALIDATION_ERROR', 'Image payload too large (max ~5MB binary)')
+      }
+
+      let buffer: Buffer
+      try {
+        buffer = Buffer.from(imageBase64, 'base64')
+      } catch {
+        return errorContent('VALIDATION_ERROR', 'imageBase64 is not valid base64')
+      }
+
+      const validation = validateImageBuffer(buffer, mimeType)
+      if (isValidationError(validation)) {
+        return errorContent('VALIDATION_ERROR', validation.message)
+      }
+
+      // Daily quota — atomic increment via Redis
+      const quota = await incrementUploadCount(keyId)
+      if (!quota.allowed) {
+        return errorContent('RATE_LIMITED', `Daily upload quota of ${quota.limit} exceeded.`, {
+          resetAt: new Date(quota.resetAt).toISOString(),
+        })
+      }
+
+      const supabase = createAdminClient()
+      try {
+        const result = await uploadImage({
+          buffer,
+          mimeType: validation.mimeType,
+          width: validation.width,
+          height: validation.height,
+          userId,
+          supabase,
+        })
+        return successContent(result)
+      } catch (err) {
+        console.error('[mcp:upload_image] storage upload failed', err)
+        return errorContent('UPLOAD_FAILED', 'Image upload failed')
+      }
     }
   )
 }

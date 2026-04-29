@@ -21,12 +21,12 @@ vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn(() => ({})) })
 import { registerTools } from '@/lib/mcp/tools'
 
 describe('MCP tools/list contract (MCP-TOOL-06)', () => {
-  it('registers exactly 4 tools with the documented names', () => {
+  it('registers exactly 5 tools with the documented names (4 v2.6 + upload_image v2.7)', () => {
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerTools(server)
     const registered = ((server as unknown) as { _registeredTools: Record<string, unknown> })._registeredTools
     const names = Object.keys(registered).sort()
-    expect(names).toEqual(['create_carousel', 'edit_slide', 'list_templates', 'render_carousel'])
+    expect(names).toEqual(['create_carousel', 'edit_slide', 'list_templates', 'render_carousel', 'upload_image'])
   })
 
   it('every tool description is at least 200 characters and mentions credit cost (MCP-TOOL-05)', () => {
