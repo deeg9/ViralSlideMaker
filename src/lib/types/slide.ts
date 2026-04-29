@@ -5,9 +5,13 @@ export interface TextPosition {
 
 // Per-word/per-run color spans for two-color news headlines.
 // `accent: true` → renderer paints the run with template.accentColor; false → template.textColor.
+// Phase 44: optional per-word highlight pill background (mint-pill aesthetic from Murphy reference).
+// Distinct from TextHighlightEffect (per-text-effect) — these are per-segment background pills.
 export interface TextSegment {
   text: string
   accent?: boolean
+  highlightColor?: string
+  highlightStyle?: 'pill' | 'block'
 }
 
 export interface CustomText {
