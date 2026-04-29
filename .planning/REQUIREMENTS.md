@@ -1,93 +1,81 @@
-# Requirements: ViralSlideMaker v2.5 Public REST API Parity
+# Requirements: ViralSlideMaker v2.6 MCP Server
 
 **Defined:** 2026-04-28
-**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable. v2.5 closes the gap between the dashboard and the public REST API: a customer with an API key can do everything they can do in the UI.
+**Core Value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable. v2.6 makes the product a first-class verb inside Claude Desktop, Cursor, ChatGPT, and other MCP-aware AI agents — closing the failure that retired v2.3.
 
-## v2.5 Requirements
+## v2.6 Requirements
 
-Requirements for the Public REST API Parity milestone. Each maps to roadmap phases (34–39). Audit captured 2026-04-28 — current API at `/api/v1/*` covers ~30% of dashboard capabilities.
+Requirements for the MCP Server milestone. Rebuilds the retired v2.3 effort end-to-end (zero working code survived the `quick-260428-rmm` retirement). Lean 4-tool scope per user decision; broader surface deferred to v2.7+.
 
 ### Locked Decisions
 
-- **Auth:** all new endpoints use the existing Bearer token + rate-limit pattern via `withApiAuth` (`src/lib/api/with-api-auth.ts`). No new auth surface.
-- **Versioning:** stay on v1 path prefix. New endpoints are additive; no breaking changes to existing 7 routes.
-- **Spec parity:** every new endpoint adds a matching OpenAPI path entry in the **same commit**. Spec and impl never diverge.
-- **Credit accounting:** credit-deducting endpoints (`carousel`, AI image generation) deduct via `deductCreditAdmin` and surface `x-credits-remaining` / `x-credits-used` headers per existing convention.
-- **Idempotency:** mutation endpoints accept an optional `Idempotency-Key` header (best-effort; full impl deferred).
-- **Excluded surfaces (deferred to v2.6+):** Stripe checkout/portal/subscription sync (web-only), API key CRUD via API (chicken-and-egg), webhooks for project/fork events, OAuth 2.1.
-- **Tier ordering:** Tier 1 ships first as a single spec-only PR (zero behavior change → low risk → immediate /docs improvement). Tiers 2 and 3 build on top.
+- **Tool inventory:** lean — exactly 4 tools (`list_templates`, `create_carousel`, `edit_slide`, `render_carousel`). Broader v2.5 REST surface (publish, fork, bookmarks, brand-kit, profile, credits) deferred to v2.7+.
+- **Auth:** reuse existing `vsl_` API keys. MCP endpoint authenticates via `Authorization: Bearer vsl_...` — same scheme as `/api/v1/*`. No new auth surface.
+- **Stack:** `mcp-handler` (Vercel's Next.js adapter) + `@modelcontextprotocol/sdk` v1.x. Versions to be re-pinned at the start of Phase A (the v2.3 plans cite an April 2026 snapshot).
+- **Transport mode:** stateless (`sessionIdGenerator: undefined`) for Vercel serverless compatibility. No session persistence between requests.
+- **Tool implementation:** tools call service-layer functions in `src/lib/services/` directly. They do NOT re-enter `/api/v1/*` HTTP routes (avoids double-auth, double-rate-limit).
+- **Auth core extraction:** the bearer-token verification logic in `src/lib/api/auth.ts:5` (SHA-256 hash → DB lookup → timing-safe compare → `last_used_at` update) gets pulled into a shared helper that both `withApiAuth` (REST) and the new MCP `verifyToken` adapter call. Avoids `NextRequest` coupling in the MCP path.
+- **Rate limiting:** reuse existing Upstash sliding-window limiter from `src/lib/api/rate-limit.ts`, keyed by API key ID — same as REST.
+- **Build-gate regression:** v2.6 must include a CI/build step that explicitly imports from `mcp-handler` so a missing dep fails the build. This is the exact failure mode that retired v2.3.
+- **Distribution:** `viralslidemaker-mcp` npm package wraps `mcp-remote` (no business logic duplicated in the bridge). Zero-build plain JS in `bin/cli.js` for fast install.
+- **Excluded surfaces (deferred to v2.7+):** publishing tools, fork/bookmark/explore tools, brand-kit/profile management, AI image generation, Pexels search, slide CRUD beyond `edit_slide`, OAuth 2.1, anonymous tools.
 
-### Tier 1 — Spec Accuracy (Phase 34)
+### Phase A — MCP Transport & Auth
 
-Update `src/lib/api/openapi.ts` to fully document everything the existing 7 routes already accept and return. Surfaced via Scalar at `/docs`. No new endpoints.
+Stand up the `/api/mcp` Streamable HTTP endpoint with bearer-token auth, rate limiting, and the build-gate regression check.
 
-- [ ] **SPEC-01**: `Slide` schema documents `hook_segments` and `body_segments` (`TextSegment[]`) used by news-headline two-color rendering
-- [ ] **SPEC-02**: `StyleOverrides` schema documents `hook_text_effects`, `body_text_effects` (`TextEffects` with shadow / outline / highlight sub-types), `layout` ('cover' | 'body'), and `hide_watermark` boolean
-- [ ] **SPEC-03**: `CustomText` schema documents `text_effects` and `segments` fields
-- [ ] **SPEC-04**: New `TextSegment` schema (text + accent boolean) added to `components/schemas`
-- [ ] **SPEC-05**: New `TextEffects` schema with `TextShadowEffect` / `TextOutlineEffect` / `TextHighlightEffect` sub-schemas matching `src/lib/types/slide.ts`
-- [ ] **SPEC-06**: `Project` schema documents `description` and `generation_status` fields (current type from `src/lib/types/project.ts`)
-- [ ] **SPEC-07**: `/carousel` POST 200 response schema documents the actual `{ success: true, projectId: string, slideCount: number }` shape
+- [ ] **MCP-TRANS-01**: `POST /api/mcp` Streamable HTTP endpoint exists at `src/app/api/[transport]/route.ts` (per `mcp-handler`'s dynamic-segment pattern) and accepts JSON-RPC 2.0 requests
+- [ ] **MCP-TRANS-02**: Endpoint authenticates `Authorization: Bearer vsl_...` headers via `withMcpAuth` and rejects invalid keys with the MCP-protocol-correct error response
+- [ ] **MCP-TRANS-03**: Endpoint reuses the existing Upstash rate limiter (`src/lib/api/rate-limit.ts`), keyed by API key ID — same per-key budget as REST
+- [ ] **MCP-TRANS-04**: Endpoint runs in stateless mode (`sessionIdGenerator: undefined`) for Vercel serverless compatibility
+- [ ] **MCP-TRANS-05**: Bearer-token verification core extracted from `src/lib/api/auth.ts:5` into a shared helper that both `withApiAuth` (REST) and the MCP adapter call
+- [ ] **MCP-TRANS-06**: Build fails when `mcp-handler` is missing from `node_modules` — regression gate against the exact failure mode that retired v2.3 (a static import from `mcp-handler` in the route handler is sufficient)
+- [ ] **MCP-TRANS-07**: `/api/mcp` added to the auth-bypass list in `src/middleware.ts` (same pattern as `/api/v1` and `/api/webhooks`)
 
-### Tier 2.A — Project & Slide CRUD (Phase 35)
+### Phase B — MCP Tool Surface
 
-Close the project-rename and slide-shape gaps. Each item is a real new endpoint or expanded handler.
+Register exactly 4 outcome-oriented tools that let an agent complete the full create→edit→render loop.
 
-- [ ] **API-01**: `PATCH /projects/{id}` — update `title`, `description`, `template_id`. Validates ownership via existing service layer.
-- [ ] **API-02**: `PATCH /projects/{id}/slides/{index}` accepts new fields beyond the existing 5: `custom_texts`, `custom_images`, `hook_segments`, `body_segments`, `hide_watermark` (style_overrides field). Backwards-compatible — existing 5 fields continue to work.
-- [ ] **API-03**: `POST /projects/{id}/slides` — append a new slide; optional `position` body param to insert at index.
-- [ ] **API-04**: `DELETE /projects/{id}/slides/{index}` — remove a slide. Adjusts indices on remaining slides.
-- [ ] **API-05**: `POST /projects/{id}/slides/reorder` — body `{ order: number[] }` (array of indices). Validates length matches and is a permutation.
+- [ ] **MCP-TOOL-01**: `list_templates` tool returns the same template list shape as `GET /api/v1/templates`. Free; no credit deduction.
+- [ ] **MCP-TOOL-02**: `create_carousel` tool accepts `{ topic, templateId, slideCount?, imageSource? }`, calls `src/lib/services/carousel.ts:generateCarousel`, deducts 1 credit via `deductCreditAdmin`, returns `{ projectId, slideCount, dashboardUrl }`. Returns 402-equivalent MCP error on insufficient credits.
+- [ ] **MCP-TOOL-03**: `edit_slide` tool accepts `{ projectId, slideIndex, patch }` where `patch` supports the same 9 fields as `PATCH /api/v1/projects/{id}/slides/{index}` (hook_text, body_text, image_query, background_url, style_overrides, custom_texts, custom_images, hook_segments, body_segments). Free.
+- [ ] **MCP-TOOL-04**: `render_carousel` tool accepts `{ projectId }`, returns `{ slides: [{ index, downloadUrl }], zipUrl }`. Returns URLs only — never inlined binary image data. Free.
+- [ ] **MCP-TOOL-05**: Tool descriptions are self-contained — an agent can complete the full create→edit→render loop without reading external docs. Validated by exercising each tool via MCP Inspector with no extra context.
+- [ ] **MCP-TOOL-06**: Tool registry pattern in `src/lib/mcp/tools.ts` accepts new tool definitions cleanly so v2.7+ broader surface can be added without architectural rework.
 
-### Tier 2.B — Publish & Credits Read (Phase 36)
+### Phase C — Distribution & Documentation
 
-Programmatic publishing and a read-only credits surface.
+Ship the npm bridge and the setup docs that get users from "I have a `vsl_` key" to "Claude Desktop is calling my tools".
 
-- [ ] **API-06**: `POST /projects/{id}/publish` — calls `publishProjectToExplore` server-action equivalent. Body: `{ title, description?, tags? }`. Returns `{ publishedId, slug, url }`. Reuses existing hero-render + `publish_carousel` RPC.
-- [ ] **API-07**: `DELETE /projects/{id}/publish` — calls `unpublish_carousel` RPC. Returns `{ unpublished_at }`.
-- [ ] **API-08**: `GET /me/credits` — returns `{ tier, balance, monthly_grant, period_end }`. Reuses `getCreditBalance` + `getUserTier`.
+- [ ] **MCP-DIST-01**: `viralslidemaker-mcp` npm package has a working `bin/cli.js` that spawns `npx -y mcp-remote https://viralslidemaker.com/api/mcp --header "Authorization:Bearer ${VIRALSLIDEMAKER_API_KEY}"`. Plain JS, zero-build.
+- [ ] **MCP-DIST-02**: Package reads `VIRALSLIDEMAKER_API_KEY` from env and exits with a clear, copy-paste-able error message if missing (pointing to `/settings/api-keys`)
+- [ ] **MCP-DIST-03**: Package supports `VIRALSLIDEMAKER_BASE_URL` env override for self-hosted / staging deployments
+- [ ] **MCP-DIST-04**: MCP setup guide exists (under `/docs` Scalar page or `docs/MCP-GUIDE.md`) with copy-paste config snippets for: Claude Desktop (`claude_desktop_config.json`), Cursor, Windsurf, ChatGPT custom-connector
+- [ ] **MCP-DIST-05**: `/settings/api-keys` automation guide section (added earlier this session at `src/components/api-keys/automation-guide.tsx`) gets a fourth card linking to the MCP setup guide
+- [ ] **MCP-DIST-06**: `viralslidemaker-mcp` published to npm at version 0.1.0 with a working install command in the setup guide
 
-### Tier 3.A — AI & Image Sources (Phase 37)
+## Future Requirements (v2.7+)
 
-- [ ] **API-09**: `POST /pexels/search` — body `{ query, orientation?, perPage? }`. Proxies `searchPhotos`. Free.
-- [ ] **API-10**: `POST /projects/{id}/slides/{index}/generate-image` — body `{ prompt? }` (defaults to slide's `image_query`). Calls Imagen, writes resulting URL to `slide.background_url`, deducts 1 credit.
-- [ ] **API-11**: `POST /projects/{id}/slides/{index}/regenerate-text` — body `{ field: 'hook' | 'body' }`. Calls existing AI text-regen path. Free per current dashboard pricing.
+Broader MCP tool surface that exposes the rest of the v2.5 REST endpoints as native MCP verbs. Deferred per lean-scope decision:
 
-### Tier 3.B — Explore Feed, Bookmarks, Forking (Phase 38)
+- Project management: `list_projects`, `get_project`, `update_project`, `delete_project`
+- Slide-level CRUD beyond patch: `add_slide`, `delete_slide`, `reorder_slides`
+- AI generation: `generate_slide_image` (Imagen, 1 credit), `regenerate_slide_text` (Gemini, free)
+- Image sources: `search_pexels`
+- Publishing: `publish_carousel`, `unpublish_carousel`
+- Discovery: `list_explore`, `get_published_carousel`, `fork_published_carousel`
+- Account: `list_bookmarks`, `bookmark`, `unbookmark`, `get_brand_kit`, `update_brand_kit`, `get_profile`, `update_profile`, `get_credits`
 
-- [ ] **API-12**: `GET /explore` — query params `?sort=trending|new|featured&tag=&q=&cursor=`. Mirrors current `/explore` page query (popularity_score for trending, published_at for new, is_featured filter). Returns `{ items: PublishedCarousel[], next_cursor }`.
-- [ ] **API-13**: `GET /explore/{slug}` — single published carousel detail (slide_data, owner profile snippet, counts). Mirrors current `/explore/[slug]` server fetch.
-- [ ] **API-14**: `POST /explore/{slug}/fork` — calls `fork_published_carousel` RPC. Returns `{ projectId }`.
-- [ ] **API-15**: `POST /me/bookmarks` — body `{ publishedId }`. Inserts into `public.bookmarks`.
-- [ ] **API-16**: `DELETE /me/bookmarks/{publishedId}` — deletes the bookmark row.
-- [ ] **API-17**: `GET /me/bookmarks` — list current user's bookmarks (most-recent first), each item shaped like `PublishedCarousel`.
+## Out of Scope (v2.6)
 
-### Tier 3.C — Brand Kit & Profile (Phase 39)
+- **OAuth 2.1 / dynamic client registration** — `vsl_` static bearer tokens cover the use case. MCP spec allows static tokens.
+- **Anonymous MCP tools** (e.g. exposing `/explore` reads without auth) — every MCP request requires a `vsl_` key. Mirrors REST policy.
+- **Per-tool credit pricing different from REST** — `create_carousel` deducts 1 credit, identical to `POST /api/v1/carousel`. No MCP-specific tariff.
+- **MCP Resources or Prompts** (per MCP spec terminology) — Tools only for v2.6. Resources/Prompts are differentiation surface, not table stakes.
+- **Stateful sessions / sampling / agent-callback patterns** — stateless transport only. Stateful flows are v2.7+ if user demand emerges.
+- **Broadcast notifications** (e.g. server-pushed events when a carousel completes async generation) — `create_carousel` is synchronous in v2.6, same as REST.
+- **Tools that re-enter `/api/v1/*`** — tools call services directly. Avoids double-auth, double-rate-limit, double-credit accounting.
 
-- [ ] **API-18**: `GET /me/brand-kit` — returns the current user's brand kit row (or `null`).
-- [ ] **API-19**: `PUT /me/brand-kit` — upsert brand kit. Body matches the `BrandKit` schema (logo_url, accent_color, font pairings, text-position defaults). Logo upload flow uses an upload-URL pattern: server returns a signed PUT URL on `POST /me/brand-kit/logo-upload-url` (sub-endpoint), client uploads, then `PUT /me/brand-kit` with the resulting public URL.
-- [ ] **API-20**: `GET /me/profile` — returns `public.profiles` row (display_name, bio, avatar_url, website_url, social_links).
-- [ ] **API-21**: `PATCH /me/profile` — update profile fields (excluding username; that has its own claim flow).
+## Traceability
 
-### Documentation
-
-- [ ] **DOC-01**: Update PROJECT.md with v2.5 milestone goal and shipped summary upon completion
-- [ ] **DOC-02**: README quickstart reflects new credits + publish endpoints
-
-## Out of Scope (deferred to v2.6+)
-
-| Feature | Reason |
-|---|---|
-| Stripe checkout / portal / subscription sync | Session-auth surface, not API-key surface |
-| Create / list / revoke API keys via API | Chicken-and-egg; stays in `/settings/api-keys` |
-| Webhooks ("project published", "carousel forked") | Need infra for at-least-once delivery; defer |
-| OAuth 2.1 / per-scope tokens | Static Bearer tokens cover v1 |
-| Pagination cursor encryption | Plain offset/timestamp cursors fine for v1 |
-| GraphQL surface | REST is sufficient for v1 |
-
-## Audit Reference
-
-Live audit captured 2026-04-28 in conversation transcript:
-- All 7 existing routes' HTTP methods match the spec (no method mismatches).
-- Schema staleness identified per Tier 1 above.
-- Capability gap inventory crossed dashboard features against `/api/v1/*` route handlers.
+(Populated by the roadmapper in Step 10. Each REQ-ID maps to exactly one phase.)
