@@ -2,7 +2,12 @@
 // Case-insensitive callers MUST normalize via .toUpperCase() before lookup.
 // Curated from common AI mis-spellings — extend opportunistically.
 //
-// Source: 47-CONTEXT.md Area 2.
+// Note: NEEDLES and CALENDER removed — both are real English words (sewing
+// needles, acupuncture; cloth/paper pressing machine) that produce false
+// positives on legitimate topics. The token-based scanner has no semantic
+// context to distinguish them from their correct-spelling counterparts.
+//
+// Source: 47-CONTEXT.md Area 2 (28 entries).
 export const KNOWN_TYPOS: Set<string> = new Set<string>([
   'MUSICAN',
   'CARROUSEL',
@@ -10,10 +15,8 @@ export const KNOWN_TYPOS: Set<string> = new Set<string>([
   'RECIEVE',
   'SEPERATE',
   'OCCURENCE',
-  'NEEDLES',
   'BUSSINESS',
   'ACCOMODATE',
-  'CALENDER',
   'DEFINATELY',
   'EXISTANCE',
   'MAINTENENCE',
