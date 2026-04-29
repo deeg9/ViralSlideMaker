@@ -9,12 +9,13 @@
 // (the route returned HTTP 500 at request time instead of failing at build time).
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 import { verifyToken } from '@/lib/mcp/auth'
+import { registerTools } from '@/lib/mcp/tools'
 
 const handler = createMcpHandler(
-  (_server) => {
-    // Phase 41 will register tools here:
-    //   list_templates, create_carousel, edit_slide, render_carousel
-    // Phase 40 ships an empty server — `tools/list` returns [].
+  (server) => {
+    // Phase 41: registers list_templates, create_carousel, edit_slide, render_carousel.
+    // See src/lib/mcp/tools.ts for the registry.
+    registerTools(server)
   },
   {
     serverInfo: {
