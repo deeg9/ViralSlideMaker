@@ -13,7 +13,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Skip session auth for MCP routes (uses Bearer token auth via mcp-handler)
-  if (request.nextUrl.pathname.startsWith('/api/mcp')) {
+  // Strict match: /api/mcp itself, or any subpath under /api/mcp/.
+  // Avoids accidentally bypassing siblings like /api/mcps or /api/mcp-admin.
+  if (
+    request.nextUrl.pathname === '/api/mcp' ||
+    request.nextUrl.pathname.startsWith('/api/mcp/')
+  ) {
     return
   }
 
