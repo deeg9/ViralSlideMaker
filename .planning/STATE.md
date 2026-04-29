@@ -4,13 +4,13 @@ milestone: v2.7
 milestone_name: Premium Templates
 status: verifying
 stopped_at: Phase 47 Plan 02 complete (TPLAI-01 + TPLAI-02 sealed). Ready to execute Plan 47-03 (prompt assembly + retry wiring).
-last_updated: "2026-04-29T19:25:13.230Z"
+last_updated: "2026-04-29T20:12:30.496Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
+  completed_phases: 5
+  total_plans: 11
+  completed_plans: 11
   percent: 100
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 47 — ai-prompt-tuning
+**Current focus:** Phase 48 — template-thumbnails-picker
 
 ## Current Position
 
-Phase: 47 (ai-prompt-tuning) — EXECUTING
-Plan: 3 of 3
+Phase: 48 (template-thumbnails-picker) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-29
 
@@ -59,6 +59,7 @@ Progress: [██████████] 100%
 | Phase 47 P01 | 3min | 2 tasks | 7 files |
 | Phase 47 P02 | 3min | 2 tasks | 4 files |
 | Phase 47 P03 | 5min | 2 tasks | 4 files |
+| Phase 48 P01 | 6min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ Progress: [██████████] 100%
 - [Phase ?]: [Phase 47-03]: buildSystemPrompt composes 3 independently-gated addendum blocks (newsDropAddendum legacy, voiceNoteBlock for aiVoiceNote-bearing templates, premiumAddendum for isPremiumTemplate). NEWS_TEMPLATES newsDropAddendum byte-identical to pre-Phase-47; new blocks empty-string for legacy 5 templates — full backward compat.
 - [Phase ?]: [Phase 47-03]: Documentary opt-out wired in 2 places — buildSystemPrompt emits explicit 'You do NOT populate highlightColor' branch in premiumAddendum when templateId === 'documentary'; validateAndRepair silently strips highlightColor/highlightStyle on documentary slides post-Gemini. The two layers are symmetric: prompt asks AI not to emit; validator strips if AI does anyway.
 - [Phase ?]: [Phase 47-03]: generateSlideContent retry-once flow — gate is hasPremiumWarning (premium-tier templateId with any warning) OR hasTypoWarning (any-template typo per D-02). Diagnostic interpolates validateAndRepair warning strings as a bullet list. Hard cap at 2 Gemini calls; on retry-still-failing: console.warn + result still passes CarouselSchema.parse — never throws, user always gets a Carousel.
+- [Phase ?]: [Phase 48-01]: 8 template thumbnail PNGs (1080x1920) generated via npm run thumbs (next/og::ImageResponse + buildSlideElement); makeSampleSlide extracted to src/lib/render/sample-slide.ts; picker DOM-signature test pins TPLTHUMB-02
+- [Phase ?]: [Phase 48-01]: Latent /api/render bug — Satori multi-child constraint vs multi-segment hooks. Script-side mitigation (Rule 1): strip segments before buildSlideElement. Renderer fix logged in deferred-items.md for follow-up
 
 ### Pending Todos
 

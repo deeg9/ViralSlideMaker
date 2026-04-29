@@ -726,7 +726,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 - [x] **Phase 45: Renderer Composition** - Satori + React-preview parity for overlay zones, full-bleed photo backgrounds, dynamic page counter, per-word highlight pills (completed 2026-04-29)
 - [x] **Phase 46: Premium Template Authoring** - Author `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` templates with sample data; verify no regressions on existing 5 templates (completed 2026-04-29)
 - [x] **Phase 47: AI Prompt Tuning** - Tune `create_carousel` prompts for compact layouts (≤12-word hooks, ≤35-word bodies, no orphans), spelling quality gate, segment highlight suggestions, template-aware tone (completed 2026-04-29)
-- [ ] **Phase 48: Template Thumbnails & Picker** - Render 9:16 thumbnails for new templates from sample data; unify template picker UI to use sample-driven previews for all templates
+- [x] **Phase 48: Template Thumbnails & Picker** - Render 9:16 thumbnails for new templates from sample data; unify template picker UI to use sample-driven previews for all templates (completed 2026-04-29)
 
 ### Phase 44: Template Schema Foundation
 **Goal**: The `SlideTemplate` type expresses every visual concept needed by the new premium templates (overlay zones, background modes, per-word highlight backgrounds), and a startup registry check prevents misconfigured templates from silently shipping.
@@ -800,7 +800,8 @@ Plans:
   1. A user opens the template picker and sees a 9:16 PNG thumbnail at `public/templates/<id>.png` for each of the 3 new premium templates, rendered from that template's `sample` data
   2. A user scrolls the template picker and every template (legacy + new) displays in the same `sample`-driven mini-preview format (no template falls back to a synthetic swatch or text-only label)
 **UI hint**: yes
-**Plans**: TBD
+**Plans**: 1 plan
+- [x] 48-01-PLAN.md — Generate 8 template thumbnail PNGs via npm run thumbs (Satori + next/og pipeline) + extract makeSampleSlide helper + lock TPLTHUMB-02 with picker DOM-signature regression test
 
 ## Progress
 
@@ -855,4 +856,4 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 45. Renderer Composition | v2.7 | 3/3 | Complete   | 2026-04-29 |
 | 46. Premium Template Authoring | v2.7 | 2/2 | Complete   | 2026-04-29 |
 | 47. AI Prompt Tuning | v2.7 | 3/3 | Complete   | 2026-04-29 |
-| 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |
+| 48. Template Thumbnails & Picker | v2.7 | 1/1 | Complete   | 2026-04-29 |

@@ -41,8 +41,8 @@
 
 ### Template Thumbnails (TPLTHUMB)
 
-- [ ] **TPLTHUMB-01**: Each new premium template ships with a 9:16 PNG thumbnail at `public/templates/<id>.png` (consistent with existing template thumbnails) rendered from the template's `sample` data, so the template picker shows actual visual identity, not just a text label.
-- [ ] **TPLTHUMB-02**: Template picker UI consistently uses the `sample`-driven mini-preview for all templates (no mix of swatches and previews).
+- [x] **TPLTHUMB-01**: Each new premium template ships with a 9:16 PNG thumbnail at `public/templates/<id>.png` (consistent with existing template thumbnails) rendered from the template's `sample` data, so the template picker shows actual visual identity, not just a text label.
+- [x] **TPLTHUMB-02**: Template picker UI consistently uses the `sample`-driven mini-preview for all templates (no mix of swatches and previews).
 
 ## Future Requirements (deferred)
 
