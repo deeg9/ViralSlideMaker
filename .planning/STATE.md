@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.6
-milestone_name: MCP Server
-status: complete
-stopped_at: v2.6 shipped — 3 phases / 3 plans / 18 of 19 reqs closed (MCP-DIST-06 awaiting user `npm publish`). Code complete; build green; 23/23 MCP tests pass.
-last_updated: "2026-04-28T20:00:00.000Z"
-last_activity: 2026-04-28
+milestone: v2.7
+milestone_name: Premium Templates
+status: planning
+stopped_at: v2.7 milestone initialized — REQUIREMENTS.md written, ROADMAP.md being authored by gsd-roadmapper.
+last_updated: "2026-04-29T05:00:00.000Z"
+last_activity: 2026-04-29
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-28)
+See: .planning/PROJECT.md (updated 2026-04-29)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** v2.6 MCP Server SHIPPED. Awaiting user `cd packages/mcp-cli && npm login && npm publish --access public` + Claude Desktop end-to-end smoke test per docs/MCP-GUIDE.md. Next milestone: TBD via /gsd-new-milestone.
+**Current focus:** v2.7 Premium Templates — extending SlideTemplate schema to support overlay zones (chip/counter/pill/card), updating Satori renderer for layout composition, authoring 3-4 magazine-style templates including the Murphy Campbell folk-singer reference design, tuning create_carousel AI prompts to fit tighter layouts, and shipping fresh template thumbnails.
 
 ## Current Position
 
-Phase: 42 (complete)
-Plan: All complete
-Status: v2.6 milestone complete — code shipped; npm publish user-gated.
-Last activity: 2026-04-28
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-29 — Milestone v2.7 started
 
-Progress: [██████████] 100% (3/3 phases of v2.6 complete)
+Progress: [          ] 0% (defining phases)
 
 ## Performance Metrics
 
