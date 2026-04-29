@@ -16,6 +16,16 @@ vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
 }))
 
+// Phase 41 regression guard: importing the route now transitively pulls in registerTools →
+// src/lib/services/carousel.ts → src/lib/pexels/search-photos.ts which evaluates createClient()
+// at module load and throws "An ApiKey must be provided" without PEXELS_API_KEY. Mock the
+// heavy service modules so route module evaluation succeeds in the test env.
+vi.mock('@/lib/services/carousel', () => ({ generateCarousel: vi.fn() }))
+vi.mock('@/lib/services/projects', () => ({
+  getProject: vi.fn(),
+  updateProjectService: vi.fn(),
+}))
+
 // rate-limit env vars unset → checkRateLimit returns success:true (no Upstash calls in test)
 
 describe('POST /api/mcp route handler', () => {
