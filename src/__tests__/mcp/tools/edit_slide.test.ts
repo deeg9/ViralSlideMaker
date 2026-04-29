@@ -2,12 +2,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
-const getProjectMock = vi.fn()
-const updateProjectServiceMock = vi.fn()
+const mocks = vi.hoisted(() => ({
+  getProjectMock: vi.fn(),
+  updateProjectServiceMock: vi.fn(),
+}))
 
+// Mock all heavy modules — carousel service must be mocked even if unused, otherwise its
+// top-level Pexels client init blows up without PEXELS_API_KEY.
+vi.mock('@/lib/services/carousel', () => ({ generateCarousel: vi.fn() }))
 vi.mock('@/lib/services/projects', () => ({
-  getProject: getProjectMock,
-  updateProjectService: updateProjectServiceMock,
+  getProject: mocks.getProjectMock,
+  updateProjectService: mocks.updateProjectServiceMock,
+}))
+vi.mock('@/lib/credits/check-credits', () => ({
+  deductCreditAdmin: vi.fn(),
+  getCreditBalanceAdmin: vi.fn(),
+  getUserTier: vi.fn(),
+  checkProjectLimit: vi.fn(),
+  FREE_TIER_PROJECT_LIMIT: 3,
 }))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({}) }))
 
@@ -16,7 +28,8 @@ import { registerTools } from '@/lib/mcp/tools'
 function getEditSlide() {
   const server = new McpServer({ name: 'test', version: '0.0.0' })
   registerTools(server)
-  return ((server as unknown) as { _registeredTools: Record<string, { callback: (args: unknown, extra: unknown) => Promise<{ isError?: boolean; content: { text: string }[] }> }> })._registeredTools.edit_slide
+  // SDK stores tool callback under `handler` (see node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.d.ts:274)
+  return ((server as unknown) as { _registeredTools: Record<string, { handler: (args: unknown, extra: unknown) => Promise<{ isError?: boolean; content: { text: string }[] }> }> })._registeredTools.edit_slide
 }
 
 const VALID_AUTH = { authInfo: { extra: { userId: 'u', keyId: 'k' } } }
@@ -25,16 +38,16 @@ const PROJECT_ID = '00000000-0000-0000-0000-000000000001'
 describe('edit_slide tool (MCP-TOOL-03)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    getProjectMock.mockResolvedValue({
+    mocks.getProjectMock.mockResolvedValue({
       id: PROJECT_ID,
       slide_data: [{ hook_text: 'old', body_text: 'old', style_overrides: { hook_font_size: 90 } }],
     })
-    updateProjectServiceMock.mockResolvedValue(undefined)
+    mocks.updateProjectServiceMock.mockResolvedValue(undefined)
   })
 
   it('filters patch to the 9 whitelisted fields and deep-merges style_overrides', async () => {
     const tool = getEditSlide()
-    const res = await tool.callback(
+    const res = await tool.handler(
       {
         projectId: PROJECT_ID,
         slideIndex: 0,
@@ -48,8 +61,8 @@ describe('edit_slide tool (MCP-TOOL-03)', () => {
       VALID_AUTH
     )
     expect(res.isError).toBeFalsy()
-    expect(updateProjectServiceMock).toHaveBeenCalledTimes(1)
-    const updateCall = updateProjectServiceMock.mock.calls[0]
+    expect(mocks.updateProjectServiceMock).toHaveBeenCalledTimes(1)
+    const updateCall = mocks.updateProjectServiceMock.mock.calls[0]
     const slideData = (updateCall[3] as { slide_data: Array<Record<string, unknown>> }).slide_data
     expect(slideData[0].hook_text).toBe('new')
     expect(slideData[0].body_text).toBe('new')
@@ -61,18 +74,18 @@ describe('edit_slide tool (MCP-TOOL-03)', () => {
 
   it('rejects non-https background_url', async () => {
     const tool = getEditSlide()
-    const res = await tool.callback(
+    const res = await tool.handler(
       { projectId: PROJECT_ID, slideIndex: 0, patch: { background_url: 'http://insecure.example.com/img.jpg' } },
       VALID_AUTH
     )
     expect(res.isError).toBe(true)
     expect(JSON.parse(res.content[0].text).error).toBe('VALIDATION_ERROR')
-    expect(updateProjectServiceMock).not.toHaveBeenCalled()
+    expect(mocks.updateProjectServiceMock).not.toHaveBeenCalled()
   })
 
   it('returns NOT_FOUND when slideIndex is out of bounds', async () => {
     const tool = getEditSlide()
-    const res = await tool.callback(
+    const res = await tool.handler(
       { projectId: PROJECT_ID, slideIndex: 99, patch: { hook_text: 'x' } },
       VALID_AUTH
     )

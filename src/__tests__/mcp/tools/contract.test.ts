@@ -1,9 +1,24 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { registerTools } from '@/lib/mcp/tools'
 
+// Mock heavy service modules to avoid evaluating Pexels client init at module load
+// (src/lib/services/carousel.ts -> src/lib/pexels/search-photos.ts requires PEXELS_API_KEY).
+vi.mock('@/lib/services/carousel', () => ({ generateCarousel: vi.fn() }))
+vi.mock('@/lib/services/projects', () => ({
+  getProject: vi.fn(),
+  updateProjectService: vi.fn(),
+}))
+vi.mock('@/lib/credits/check-credits', () => ({
+  deductCreditAdmin: vi.fn(),
+  getCreditBalanceAdmin: vi.fn(),
+  getUserTier: vi.fn(),
+  checkProjectLimit: vi.fn(),
+  FREE_TIER_PROJECT_LIMIT: 3,
+}))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn(() => ({})) }))
+
+import { registerTools } from '@/lib/mcp/tools'
 
 describe('MCP tools/list contract (MCP-TOOL-06)', () => {
   it('registers exactly 4 tools with the documented names', () => {
@@ -27,10 +42,11 @@ describe('MCP tools/list contract (MCP-TOOL-06)', () => {
   it('tool handlers read userId from extra.authInfo.extra.userId (Phase 40 cross-phase contract)', async () => {
     const server = new McpServer({ name: 'test', version: '0.0.0' })
     registerTools(server)
-    const registered = ((server as unknown) as { _registeredTools: Record<string, { callback: (args: unknown, extra: unknown) => Promise<{ isError?: boolean; content: { text: string }[] }> }> })._registeredTools
+    // SDK stores tool callback under `handler` (see node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.d.ts:274)
+    const registered = ((server as unknown) as { _registeredTools: Record<string, { handler: (args: unknown, extra: unknown) => Promise<{ isError?: boolean; content: { text: string }[] }> }> })._registeredTools
     const editSlide = registered.edit_slide
     // Calling without authInfo should return UNAUTHORIZED
-    const noAuth = await editSlide.callback(
+    const noAuth = await editSlide.handler(
       { projectId: '00000000-0000-0000-0000-000000000000', slideIndex: 0, patch: { hook_text: 'x' } },
       { authInfo: undefined }
     )
