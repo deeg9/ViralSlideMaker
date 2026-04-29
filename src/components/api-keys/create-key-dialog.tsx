@@ -5,9 +5,11 @@ import { Dialog } from '@base-ui/react/dialog'
 import { Icon } from '@/components/ui/icon'
 import { createApiKey } from '@/app/(dashboard)/settings/api-keys/actions'
 
-const SNIPPET_TABS = ['curl', 'JavaScript', 'Python'] as const
+const REST_TABS = ['curl', 'JavaScript', 'Python'] as const
+const MCP_TABS = ['Claude Desktop', 'Claude Code'] as const
+type SnippetTab = (typeof REST_TABS)[number] | (typeof MCP_TABS)[number]
 
-function getSnippet(tab: (typeof SNIPPET_TABS)[number], key: string): string {
+function getSnippet(tab: SnippetTab, key: string): string {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://viralslidemaker.com'
   switch (tab) {
     case 'curl':
@@ -26,6 +28,20 @@ res = requests.get(
     headers={'Authorization': 'Bearer ${key}'}
 )
 data = res.json()`
+    case 'Claude Desktop':
+      return `{
+  "mcpServers": {
+    "viralslidemaker": {
+      "command": "npx",
+      "args": ["-y", "viralslidemaker-mcp"],
+      "env": {
+        "VIRALSLIDEMAKER_API_KEY": "${key}"
+      }
+    }
+  }
+}`
+    case 'Claude Code':
+      return `claude mcp add --transport stdio --env VIRALSLIDEMAKER_API_KEY=${key} --scope local viralslidemaker -- npx -y viralslidemaker-mcp`
   }
 }
 
@@ -62,7 +78,7 @@ export function CreateKeyDialog({ onKeyCreated, disabled, triggerClassName }: Cr
   const [rawKey, setRawKey] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<(typeof SNIPPET_TABS)[number]>('curl')
+  const [activeTab, setActiveTab] = useState<SnippetTab>('curl')
 
   function handleClose() {
     if (step === 'reveal') {
@@ -118,7 +134,7 @@ export function CreateKeyDialog({ onKeyCreated, disabled, triggerClassName }: Cr
       />
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/40 z-40" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-8 shadow-[0px_40px_80px_rgba(61,0,0,0.15)]">
+        <Dialog.Popup className={`fixed left-1/2 top-1/2 z-50 w-full ${step === 'reveal' ? 'max-w-lg' : 'max-w-md'} -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-8 shadow-[0px_40px_80px_rgba(61,0,0,0.15)]`}>
           {step === 'name' ? (
             <>
               <Dialog.Title className="mb-1 text-lg font-bold text-[#3d0000]">
@@ -177,12 +193,17 @@ export function CreateKeyDialog({ onKeyCreated, disabled, triggerClassName }: Cr
               </Dialog.Description>
 
               {/* Warning banner */}
-              <div className="bg-[#fff0f0] border border-[#dbc1bc]/30 rounded-xl p-4 mb-4 flex items-start gap-3">
+              <div className="bg-[#fff0f0] border border-[#dbc1bc]/30 rounded-xl p-4 mb-3 flex items-start gap-3">
                 <Icon name="warning" size="sm" className="text-[#3d0000] flex-shrink-0 mt-0.5" />
                 <p className="text-[#3d0000] font-semibold text-sm">
                   Copy your API key now. It will not be shown again.
                 </p>
               </div>
+
+              {/* Security tip */}
+              <p className="text-xs text-[#7d6161] mb-4 px-1">
+                Don&apos;t paste this key into chat windows (ChatGPT, Claude.ai, etc.). Use the MCP Server tabs below to configure AI agents properly.
+              </p>
 
               {/* Key display */}
               <div className="relative mb-6">
@@ -194,22 +215,49 @@ export function CreateKeyDialog({ onKeyCreated, disabled, triggerClassName }: Cr
                 </div>
               </div>
 
-              {/* Quick-start tabs */}
+              {/* Quick-start tabs — split into REST API and MCP Server rows */}
               <div className="mb-6">
-                <div className="flex gap-1 mb-3">
-                  {SNIPPET_TABS.map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={
-                        activeTab === tab
-                          ? 'bg-[#fadbdb] text-[#3d0000] font-bold px-3 py-2 rounded-lg text-sm'
-                          : 'text-[#7d6161] px-3 py-2 rounded-lg text-sm hover:bg-[#fff0f0]'
-                      }
-                    >
-                      {tab}
-                    </button>
-                  ))}
+                <div className="mb-3 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-1.5">
+                      REST API
+                    </p>
+                    <div className="flex gap-1 flex-wrap">
+                      {REST_TABS.map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={
+                            activeTab === tab
+                              ? 'bg-[#fadbdb] text-[#3d0000] font-bold px-3 py-2 rounded-lg text-sm'
+                              : 'text-[#7d6161] px-3 py-2 rounded-lg text-sm hover:bg-[#fff0f0]'
+                          }
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-1.5">
+                      MCP Server
+                    </p>
+                    <div className="flex gap-1 flex-wrap">
+                      {MCP_TABS.map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={
+                            activeTab === tab
+                              ? 'bg-[#fadbdb] text-[#3d0000] font-bold px-3 py-2 rounded-lg text-sm'
+                              : 'text-[#7d6161] px-3 py-2 rounded-lg text-sm hover:bg-[#fff0f0]'
+                          }
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div className="relative">
                   <pre className="bg-[#fff0f0] rounded-xl p-4 pr-12 font-mono text-[13px] text-[#281718] border border-[#dbc1bc]/30 overflow-x-auto whitespace-pre-wrap">
