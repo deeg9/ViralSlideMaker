@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Premium Templates
 status: planning
-stopped_at: v2.7 ROADMAP.md authored — 5 phases (44-48), 19/19 requirements mapped. Awaiting /gsd-plan-phase 44.
+stopped_at: Phase 44 plans authored (44-01 type extensions, 44-02 validator). Awaiting /gsd-execute-phase 44.
 last_updated: "2026-04-29T05:30:00.000Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 2
   completed_plans: 0
   percent: 0
 ---
@@ -44,7 +44,7 @@ Progress: [          ] 0/5 phases (0%)
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 44. Template Schema Foundation | 0 | - | - |
+| 44. Template Schema Foundation | 0/2 | - | - |
 | 45. Renderer Composition | 0 | - | - |
 | 46. Premium Template Authoring | 0 | - | - |
 | 47. AI Prompt Tuning | 0 | - | - |
