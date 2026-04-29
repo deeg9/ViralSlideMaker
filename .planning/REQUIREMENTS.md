@@ -22,7 +22,7 @@
 - [x] **TPLREND-02**: When `backgroundMode === 'image-bleed'` or `'image-with-bottom-card'`, photo background renders full-bleed beneath all overlays (currently flat color shows through any photo).
 - [x] **TPLREND-03**: Page-counter overlay component (`{currentSlide}/{totalSlides}`) renders dynamically from slide index in both Satori and React preview paths; styles come from the template overlay declaration, not hardcoded.
 - [x] **TPLREND-04**: Per-word highlight backgrounds render as pill backgrounds (rounded rect, color from `TextSegment.highlightColor`) behind the text, in both Satori PNG export and the live React preview.
-- [ ] **TPLREND-05**: Live React preview component (`src/components/slide/slide-preview.tsx`) matches Satori output for overlay zones, page counter, and highlight pills (no preview/export drift).
+- [x] **TPLREND-05**: Live React preview component (`src/components/slide/slide-preview.tsx`) matches Satori output for overlay zones, page counter, and highlight pills (no preview/export drift).
 
 ### Premium Template Authoring (TPLNEW)
 

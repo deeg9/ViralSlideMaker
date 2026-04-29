@@ -723,7 +723,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 **Strict dependency order:** TPLSCHEMA (Phase 44) is foundational — TPLREND, TPLNEW, and TPLAI all depend on the schema landing first. TPLTHUMB depends on TPLNEW.
 
 - [x] **Phase 44: Template Schema Foundation** - Extend `SlideTemplate` type with `overlays`, `backgroundMode`, dynamic content sources, per-segment `highlightColor`, and registry validation (completed 2026-04-29)
-- [ ] **Phase 45: Renderer Composition** - Satori + React-preview parity for overlay zones, full-bleed photo backgrounds, dynamic page counter, per-word highlight pills
+- [x] **Phase 45: Renderer Composition** - Satori + React-preview parity for overlay zones, full-bleed photo backgrounds, dynamic page counter, per-word highlight pills (completed 2026-04-29)
 - [ ] **Phase 46: Premium Template Authoring** - Author `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` templates with sample data; verify no regressions on existing 5 templates
 - [ ] **Phase 47: AI Prompt Tuning** - Tune `create_carousel` prompts for compact layouts (≤12-word hooks, ≤35-word bodies, no orphans), spelling quality gate, segment highlight suggestions, template-aware tone
 - [ ] **Phase 48: Template Thumbnails & Picker** - Render 9:16 thumbnails for new templates from sample data; unify template picker UI to use sample-driven previews for all templates
@@ -759,7 +759,7 @@ Rebuild of the retired v2.3 MCP Server effort. Lean 4-tool scope; build-gate reg
 Plans:
 - [x] 45-01-PLAN.md — Shared resolve-overlay foundation (resolveOverlayContent + SLOT_GEOMETRY + renderSegments + bottomCardBackground) with TDD unit coverage; zero callsite churn
 - [x] 45-02-PLAN.md — Satori renderer extension: buildSlideElement composes overlays + backgroundMode + pills via shared resolver; all 5 server callsites pass ctx; Satori snapshot tests
-- [ ] 45-03-PLAN.md — React preview extension: <SlidePreview> mirrors Satori in BOTH render branches via shared resolver; all 7 client callsites pass slideIndex/totalSlides; DOM-signature parity tests
+- [x] 45-03-PLAN.md — React preview extension: <SlidePreview> mirrors Satori in BOTH render branches via shared resolver; all 7 client callsites pass slideIndex/totalSlides; DOM-signature parity tests
 
 ### Phase 46: Premium Template Authoring
 **Goal**: The product ships three new premium templates — `magazine-bold` (Murphy reference), `tr3nding-news`, and `documentary` — selectable in the template picker with populated sample data, and none of the 5 existing templates regress.
@@ -845,7 +845,7 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 41. MCP Tool Surface | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 42. Distribution & Documentation | v2.6 | 1/1 | Complete | 2026-04-28 |
 | 44. Template Schema Foundation | v2.7 | 2/2 | Complete   | 2026-04-29 |
-| 45. Renderer Composition | v2.7 | 2/3 | In Progress|  |
+| 45. Renderer Composition | v2.7 | 3/3 | Complete   | 2026-04-29 |
 | 46. Premium Template Authoring | v2.7 | 0/0 | Not started | - |
 | 47. AI Prompt Tuning | v2.7 | 0/0 | Not started | - |
 | 48. Template Thumbnails & Picker | v2.7 | 0/0 | Not started | - |
