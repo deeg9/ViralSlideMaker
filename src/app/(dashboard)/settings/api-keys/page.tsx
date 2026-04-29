@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { listApiKeys } from './actions'
 import { Icon } from '@/components/ui/icon'
 import { ApiKeyTable } from '@/components/api-keys/api-key-table'
+import { AutomationGuide } from '@/components/api-keys/automation-guide'
 
 export default async function ApiKeysPage() {
   const keys = await listApiKeys()
@@ -20,6 +21,8 @@ export default async function ApiKeysPage() {
       <div className="bg-white rounded-xl p-8 border border-[#dbc1bc]/10">
         <ApiKeyTable keys={keys} />
       </div>
+
+      {keys.length > 0 && <AutomationGuide />}
 
       <div className="mt-6 bg-[#fff0f0] rounded-xl p-4 border border-[#dbc1bc]/20">
         <p className="text-sm text-[#7d6161]">
