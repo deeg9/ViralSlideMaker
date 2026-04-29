@@ -49,5 +49,5 @@ function cleanup(signal) {
   child.kill(signal);
 }
 
-process.on('SIGINT', () => cleanup('SIGINT'));
-process.on('SIGTERM', () => cleanup('SIGTERM'));
+process.once('SIGINT', () => cleanup('SIGINT'));
+process.once('SIGTERM', () => cleanup('SIGTERM'));
