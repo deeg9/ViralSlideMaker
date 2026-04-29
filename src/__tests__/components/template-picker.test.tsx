@@ -28,7 +28,7 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     // brandKit=null -> empty-state link in slot 0 (NOT a SlidePreview).
     // Templates iteration -> exactly 8 SlidePreview instances.
     const previews = screen.getAllByTestId('slide-preview')
-    expect(previews.length).toBe(8)
+    expect(previews.length).toBe(templates.length)
     expect(templates.length).toBe(8) // schema invariant - guards against future drift
   })
 
@@ -55,8 +55,8 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
       />,
     )
     const previews = screen.getAllByTestId('slide-preview')
-    // 8 templates + 1 brand-kit tile = 9 SlidePreview instances.
-    expect(previews.length).toBe(9)
+    // templates.length + 1 brand-kit tile = total SlidePreview instances.
+    expect(previews.length).toBe(templates.length + 1)
   })
 
   it('shows brand-kit empty-state link (not a SlidePreview) when brandKit is null', () => {
