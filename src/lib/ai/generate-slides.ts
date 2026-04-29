@@ -114,6 +114,16 @@ export async function generateSlideContent(
     }
   }
 
+  // Emit a trace for warnings that were not acted upon (no retry fired).
+  // Covers legacy templates with orphan/length warnings that are out of
+  // retry scope — gives production debugging a visible signal.
+  if (warnings.length > 0 && !hasPremiumWarning && !hasTypoWarning) {
+    console.warn(
+      `[generate-slides] ${warnings.length} validation warning(s) (no retry) for templateId=${templateId ?? '<none>'}:`,
+      warnings,
+    )
+  }
+
   // Validate final shape with Zod (schema gate — separate from validateAndRepair).
   return CarouselSchema.parse(data)
 }
