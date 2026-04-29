@@ -333,6 +333,9 @@ export function buildSlideElement(
               ...slotStyle,
               display: 'flex',
               alignItems: 'center',
+              fontSize: 28,
+              fontWeight: 700,
+              lineHeight: 1,
               ...(overlay.style ?? {}),
             }}
           >

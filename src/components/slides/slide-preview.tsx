@@ -169,6 +169,9 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
               display: 'flex',
               alignItems: 'center',
               zIndex: 11,
+              fontSize: 28,
+              fontWeight: 700,
+              lineHeight: 1,
               ...(overlay.style ?? {}),
             }}
           >

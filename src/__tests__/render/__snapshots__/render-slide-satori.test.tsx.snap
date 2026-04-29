@@ -46,6 +46,9 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
       {
         "alignItems": "center",
         "display": "flex",
+        "fontSize": 28,
+        "fontWeight": 700,
+        "lineHeight": 1,
         "position": "absolute",
         "right": 60,
         "top": 60,
@@ -176,7 +179,10 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
       {
         "alignItems": "center",
         "display": "flex",
+        "fontSize": 28,
+        "fontWeight": 700,
         "left": 60,
+        "lineHeight": 1,
         "position": "absolute",
         "top": 60,
       }
@@ -1070,7 +1076,10 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders overlays a
       {
         "alignItems": "center",
         "display": "flex",
+        "fontSize": 28,
+        "fontWeight": 700,
         "left": 60,
+        "lineHeight": 1,
         "position": "absolute",
         "top": 60,
       }
@@ -1083,6 +1092,9 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders overlays a
       {
         "alignItems": "center",
         "display": "flex",
+        "fontSize": 28,
+        "fontWeight": 700,
+        "lineHeight": 1,
         "position": "absolute",
         "right": 60,
         "top": 60,
@@ -1228,7 +1240,10 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders slide-fiel
       {
         "alignItems": "center",
         "display": "flex",
+        "fontSize": 28,
+        "fontWeight": 700,
         "left": 60,
+        "lineHeight": 1,
         "position": "absolute",
         "top": 60,
       }
