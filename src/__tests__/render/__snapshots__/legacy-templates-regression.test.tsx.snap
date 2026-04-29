@@ -44,6 +44,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > bold-yellow:
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Bebas Neue', sans-serif",
         "fontSize": 120,
         "fontWeight": 900,
@@ -62,6 +64,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > bold-yellow:
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 38,
         "fontWeight": 400,
         "left": 119,
@@ -161,6 +165,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > highlight-ba
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 96,
         "fontWeight": 900,
@@ -179,6 +185,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > highlight-ba
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 36,
         "fontWeight": 400,
         "left": 119,
@@ -278,6 +286,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-cyan: r
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
         "fontSize": 88,
         "fontWeight": 900,
@@ -296,6 +306,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-cyan: r
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 38,
         "fontWeight": 400,
         "left": 119,
@@ -395,6 +407,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-drop: r
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
         "fontSize": 88,
         "fontWeight": 900,
@@ -413,6 +427,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-drop: r
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 38,
         "fontWeight": 400,
         "left": 119,
@@ -512,6 +528,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > y2k-pop: ren
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Righteous', sans-serif",
         "fontSize": 104,
         "fontWeight": 900,
@@ -530,6 +548,8 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > y2k-pop: ren
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 36,
         "fontWeight": 400,
         "left": 119,

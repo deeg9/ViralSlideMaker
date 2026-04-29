@@ -185,11 +185,15 @@ export function buildSlideElement(
   }
 
   // Hook text style — heading font falls back to body font
+  // Satori (next/og) requires display:flex on divs with multiple children;
+  // multi-segment hooks emit several <span> siblings so flex+wrap is mandatory.
   const hookStyle: React.CSSProperties = {
     position: 'absolute',
     left: pxX(hookX),
     top: pxY(hookY),
     width: hookTextWidth,
+    display: 'flex',
+    flexWrap: 'wrap',
     textAlign,
     fontSize: hookFontSize,
     fontWeight: 900,
@@ -210,12 +214,14 @@ export function buildSlideElement(
   const hookHighlight = satoriHighlightStyle(resolved.hookEffects)
   if (hookHighlight) Object.assign(hookStyle, hookHighlight)
 
-  // Body text style
+  // Body text style — same Satori multi-child constraint as hookStyle.
   const bodyStyle: React.CSSProperties = {
     position: 'absolute',
     left: pxX(bodyX),
     top: pxY(bodyY),
     width: bodyTextWidth,
+    display: 'flex',
+    flexWrap: 'wrap',
     textAlign,
     fontSize: bodyFontSize,
     fontWeight: 400,

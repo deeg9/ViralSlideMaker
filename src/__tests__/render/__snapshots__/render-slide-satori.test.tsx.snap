@@ -60,6 +60,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -78,6 +80,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -191,6 +195,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -209,6 +215,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -309,6 +317,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -327,6 +337,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -426,6 +438,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -444,6 +458,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -555,6 +571,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-blee
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -573,6 +591,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-blee
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -687,6 +707,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-with
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -705,6 +727,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-with
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -804,6 +828,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders legacy tem
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -822,6 +848,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders legacy tem
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -921,6 +949,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -960,6 +990,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -1106,6 +1138,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders overlays a
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -1124,6 +1158,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders overlays a
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -1254,6 +1290,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders slide-fiel
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 110,
         "fontWeight": 900,
@@ -1272,6 +1310,8 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders slide-fiel
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,

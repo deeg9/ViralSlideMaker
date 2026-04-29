@@ -78,6 +78,8 @@ exports[`Phase 46 premium templates — Satori snapshots > documentary: renders 
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
         "fontSize": 56,
         "fontWeight": 900,
@@ -95,6 +97,8 @@ exports[`Phase 46 premium templates — Satori snapshots > documentary: renders 
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -212,6 +216,8 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
         "fontSize": 72,
         "fontWeight": 900,
@@ -273,6 +279,8 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
@@ -391,6 +399,8 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
         "fontSize": 72,
         "fontWeight": 900,
@@ -452,6 +462,8 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
   <div
     style={
       {
+        "display": "flex",
+        "flexWrap": "wrap",
         "fontSize": 32,
         "fontWeight": 400,
         "left": 119,
