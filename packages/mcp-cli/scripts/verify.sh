@@ -10,6 +10,7 @@
 # Wave 0 contract: this script is the contract; later tasks ratchet checks green
 # one by one. Several checks WILL fail until tasks 2–5 land.
 
+set -eo pipefail
 set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
