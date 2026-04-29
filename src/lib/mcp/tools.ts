@@ -216,10 +216,10 @@ export function registerTools(server: McpServer): void {
           amount: 1,
           description: 'Carousel generation failed (MCP)',
         })
-        return errorContent(
-          'GENERATION_FAILED',
-          err instanceof Error ? err.message : 'Unknown error'
-        )
+        // Match REST: generic message to client, log raw error server-side.
+        // Avoids leaking Supabase column names, Pexels request IDs, etc. to a hostile agent.
+        console.error('[mcp:create_carousel] generateCarousel failed', err)
+        return errorContent('GENERATION_FAILED', 'Carousel generation failed')
       }
     }
   )
