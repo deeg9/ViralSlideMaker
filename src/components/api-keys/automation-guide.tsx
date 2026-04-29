@@ -3,20 +3,6 @@
 import { useState } from 'react'
 import { Icon } from '@/components/ui/icon'
 
-const AGENT_PROMPT = `You can use the ViralSlideMaker API to generate TikTok and Instagram carousel slides on my behalf.
-
-Base URL: https://viralslidemaker.com/api/v1
-OpenAPI spec: https://viralslidemaker.com/docs
-Auth header: Authorization: Bearer vsl_YOUR_KEY
-
-Read the OpenAPI spec for exact request and response shapes. Common operations:
-- POST /carousel — create a carousel from a topic (1 credit)
-- GET  /projects — list my projects
-- POST /projects/{id}/render — get download URLs for slides
-- GET  /projects/{id}/download — download all slides as a ZIP
-
-When I ask you to make a carousel, call the API and report back the project ID and a link to https://viralslidemaker.com/project/<id>.`
-
 const CURSOR_PROMPT = `In this project, when you need to create or edit TikTok carousel slides, use the ViralSlideMaker REST API.
 
 - Base URL: https://viralslidemaker.com/api/v1
@@ -30,7 +16,17 @@ const CURL_SNIPPET = `curl -X POST https://viralslidemaker.com/api/v1/carousel \
   -H "Content-Type: application/json" \\
   -d '{"topic":"5 productivity tips","templateId":"highlight-bar","slideCount":5}'`
 
-const MCP_INSTALL_SNIPPET = `npx -y viralslidemaker-mcp`
+const MCP_CONFIG_SNIPPET = `{
+  "mcpServers": {
+    "viralslidemaker": {
+      "command": "npx",
+      "args": ["-y", "viralslidemaker-mcp"],
+      "env": {
+        "VIRALSLIDEMAKER_API_KEY": "vsl_YOUR_KEY"
+      }
+    }
+  }
+}`
 const MCP_GUIDE_URL = 'https://github.com/deeg9/ViralSlideMaker/blob/main/docs/MCP-GUIDE.md'
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -110,18 +106,20 @@ export function AutomationGuide() {
 
       <div className="flex flex-col gap-4">
         <GuideCard
-          icon="smart_toy"
-          title="Use with Claude or ChatGPT"
-          description="Paste this into a new Claude or ChatGPT conversation (or save it as a Project / Custom GPT instruction). The model will read the OpenAPI spec and call the API for you. For tighter integration, see the MCP server card below."
-          snippetLabel="Paste into Claude / ChatGPT"
-          snippet={AGENT_PROMPT}
-          copyLabel="Copy Claude/ChatGPT prompt"
+          icon="extension"
+          title="Use with Claude Desktop or Claude Code (MCP)"
+          description="Connect your AI agent natively via MCP. Tools appear in the model's tool picker — no prompt engineering, no copy-pasting credentials into chat. Recommended path for non-developers."
+          snippetLabel="Paste into claude_desktop_config.json"
+          snippet={MCP_CONFIG_SNIPPET}
+          copyLabel="Copy Claude Desktop config"
+          linkLabel="Read the full setup guide (Claude Desktop, Claude Code, Cursor, ChatGPT)"
+          linkHref={MCP_GUIDE_URL}
         />
 
         <GuideCard
           icon="terminal"
-          title="Use in Cursor or other IDE agents"
-          description="Drop this into your project's AGENTS.md, .cursorrules, or .github/copilot-instructions.md. Set VIRALSLIDEMAKER_API_KEY in your shell so the key never lands in source."
+          title="Use in Cursor or other IDE coding agents"
+          description="Drop this into your project's AGENTS.md, .cursorrules, or .github/copilot-instructions.md. The agent reads the rules and calls the REST API via its built-in terminal/fetch tools. Set VIRALSLIDEMAKER_API_KEY in your shell so the key never lands in source."
           snippetLabel="Add to your repo's agent rules"
           snippet={CURSOR_PROMPT}
           copyLabel="Copy Cursor / IDE prompt"
@@ -134,17 +132,6 @@ export function AutomationGuide() {
           snippetLabel="curl"
           snippet={CURL_SNIPPET}
           copyLabel="Copy curl example"
-        />
-
-        <GuideCard
-          icon="extension"
-          title="Use as a native MCP server"
-          description="Connect Claude Desktop, Cursor, Windsurf, or ChatGPT directly to your account. The model calls our tools natively — no prompt-engineering needed. Tightest integration of all the options here."
-          snippetLabel="Install"
-          snippet={MCP_INSTALL_SNIPPET}
-          copyLabel="Copy install command"
-          linkLabel="Read the full setup guide"
-          linkHref={MCP_GUIDE_URL}
         />
       </div>
     </div>
