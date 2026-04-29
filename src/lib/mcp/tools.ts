@@ -38,11 +38,25 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 // Mirrors src/lib/services/publish.ts:70-75 (appOrigin) and
 // src/app/(dashboard)/project/[id]/publish-actions.ts:120 — single env precedence rule.
+let warnedLocalhostInProd = false
 function getAppUrl(): string {
-  return (
+  const url =
     process.env.NEXT_PUBLIC_APP_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  )
+  // Production misconfig warning: if neither env var is set in prod, returned URLs
+  // (dashboardUrl, downloadUrl) will be useless localhost links. Warn once.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    url.includes('localhost') &&
+    !warnedLocalhostInProd
+  ) {
+    warnedLocalhostInProd = true
+    console.warn(
+      '[mcp:getAppUrl] NEXT_PUBLIC_APP_URL or VERCEL_URL is unset in production; ' +
+        'falling back to http://localhost:3000. Generated dashboard/download URLs will be unusable.'
+    )
+  }
+  return url
 }
 
 function getUserId(extra: unknown): string | undefined {
