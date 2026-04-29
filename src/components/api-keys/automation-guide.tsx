@@ -3,14 +3,6 @@
 import { useState } from 'react'
 import { Icon } from '@/components/ui/icon'
 
-const CURSOR_PROMPT = `In this project, when you need to create or edit TikTok carousel slides, use the ViralSlideMaker REST API.
-
-- Base URL: https://viralslidemaker.com/api/v1
-- OpenAPI 3.1 spec: https://viralslidemaker.com/docs
-- Auth: Authorization: Bearer \${process.env.VIRALSLIDEMAKER_API_KEY}
-
-Read the OpenAPI spec when you need exact endpoint shapes. Don't hard-code the key — read it from the environment.`
-
 const CURL_SNIPPET = `curl -X POST https://viralslidemaker.com/api/v1/carousel \\
   -H "Authorization: Bearer vsl_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
@@ -114,15 +106,6 @@ export function AutomationGuide() {
           copyLabel="Copy Claude Desktop config"
           linkLabel="Read the full setup guide (Claude Desktop, Claude Code, Cursor, ChatGPT)"
           linkHref={MCP_GUIDE_URL}
-        />
-
-        <GuideCard
-          icon="terminal"
-          title="Use in Cursor or other IDE coding agents"
-          description="Drop this into your project's AGENTS.md, .cursorrules, or .github/copilot-instructions.md. The agent reads the rules and calls the REST API via its built-in terminal/fetch tools. Set VIRALSLIDEMAKER_API_KEY in your shell so the key never lands in source."
-          snippetLabel="Add to your repo's agent rules"
-          snippet={CURSOR_PROMPT}
-          copyLabel="Copy Cursor / IDE prompt"
         />
 
         <GuideCard
