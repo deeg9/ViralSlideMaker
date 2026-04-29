@@ -248,11 +248,9 @@ export function registerTools(server: McpServer): void {
     {
       description: [
         'Edit a single slide in an existing carousel project. No credit cost.',
-        'Provide projectId from create_carousel, the zero-based slideIndex, and a patch object containing the fields to change.',
-        'Patch supports any of: hook_text, body_text, hook_segments, body_segments, image_query, background_url (must be https://),',
-        'style_overrides (deep-merged with existing values), custom_texts, custom_images. All other keys are silently dropped.',
-        'IMPORTANT: setting image_query updates the metadata field only — it does NOT auto-fetch a new image.',
-        'To swap an image, set background_url directly to an https:// URL.',
+        'Provide projectId from create_carousel, the zero-based slideIndex, and a patch object listing the fields to change (see the patch field for the 9 allowed keys; other keys are silently dropped).',
+        'background_url must be an https:// URL. style_overrides is deep-merged with existing values.',
+        'IMPORTANT: setting image_query updates the metadata field only — it does NOT auto-fetch a new image. To swap an image, set background_url directly to an https:// URL.',
         'After editing, call render_carousel to get fresh download URLs reflecting the changes.',
       ].join(' '),
       inputSchema: {
@@ -261,7 +259,7 @@ export function registerTools(server: McpServer): void {
         patch: z
           .record(z.string(), z.unknown())
           .describe(
-            'Object containing one or more of the 9 allowed fields (hook_text, body_text, hook_segments, body_segments, image_query, background_url, style_overrides, custom_texts, custom_images). Other keys are ignored.'
+            'Object containing one or more of the 9 allowed fields: hook_text, body_text, hook_segments, body_segments, image_query, background_url, style_overrides, custom_texts, custom_images. Other keys are ignored.'
           ),
       },
     },
