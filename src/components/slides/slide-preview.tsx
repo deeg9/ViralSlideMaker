@@ -721,6 +721,19 @@ export function SlidePreview({
   }
 
   // Editable mode with react-rnd drag+resize text boxes
+
+  // Phase 52 (T-02): resolve hook/body TextBox.id once for the dashed selection
+  // ring. Custom boxes match selectedTextBoxId directly via ct.id below. The ring
+  // is intentionally `outline` (not `border`) because outline doesn't affect
+  // layout AND Satori ignores the property — but we ALSO gate every use site to
+  // editable={true} (the entire editable branch), so even if a future Satori
+  // upgrade started honoring outline, the export path still wouldn't see it.
+  const hookBoxId = slide.text_boxes?.find((tb) => tb.role === 'hook')?.id ?? null
+  const bodyBoxId = slide.text_boxes?.find((tb) => tb.role === 'body')?.id ?? null
+  const selectionRingClass = 'outline outline-2 outline-dashed outline-[#3d0000] outline-offset-2 rounded-sm'
+  const hookSelected = !!selectedTextBoxId && hookBoxId === selectedTextBoxId
+  const bodySelected = !!selectedTextBoxId && bodyBoxId === selectedTextBoxId
+
   const hookPixels = {
     x: (resolvedHookX / 100) * REF_WIDTH,
     y: (resolvedHookY / 100) * REF_HEIGHT,
@@ -841,18 +854,22 @@ export function SlidePreview({
             if (hookBox && onTextBoxSelect) onTextBoxSelect(hookBox.id)
           }}
           style={{ zIndex: 10 }}
-          className="hover:outline hover:outline-2 hover:outline-white/50"
+          className={`hover:outline hover:outline-2 hover:outline-white/50 ${hookSelected ? selectionRingClass : ''}`}
         >
-          <div ref={hookRef} style={{
-            width: '100%',
-            cursor: 'grab',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            textAlign,
-            ...(resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'full'
-              ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
-              : {}),
-          }}>
+          <div
+            ref={hookRef}
+            data-testid="hook-text-wrapper"
+            style={{
+              width: '100%',
+              cursor: 'grab',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              textAlign,
+              ...(resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'full'
+                ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
+                : {}),
+            }}
+          >
             <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
                 ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}</span>
@@ -911,18 +928,22 @@ export function SlidePreview({
               if (bodyBox && onTextBoxSelect) onTextBoxSelect(bodyBox.id)
             }}
             style={{ zIndex: 10 }}
-            className="hover:outline hover:outline-2 hover:outline-white/50"
+            className={`hover:outline hover:outline-2 hover:outline-white/50 ${bodySelected ? selectionRingClass : ''}`}
           >
-            <div ref={bodyRef} style={{
-              width: '100%',
-              cursor: 'grab',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              textAlign,
-              ...(resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'full'
-                ? { backgroundColor: resolved.bodyEffects.highlight.color, padding: `${resolved.bodyEffects.highlight.padding}px` }
-                : {}),
-            }}>
+            <div
+              ref={bodyRef}
+              data-testid="body-text-wrapper"
+              style={{
+                width: '100%',
+                cursor: 'grab',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                textAlign,
+                ...(resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'full'
+                  ? { backgroundColor: resolved.bodyEffects.highlight.color, padding: `${resolved.bodyEffects.highlight.padding}px` }
+                  : {}),
+              }}
+            >
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
                   ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}</span>
@@ -1004,7 +1025,15 @@ export function SlidePreview({
               }}
               style={{ zIndex: 15 }}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
-                isSelected ? 'outline outline-2 outline-blue-400' : ''
+                // Phase 52 (T-02): unified dashed selection ring driven by
+                // selectedTextBoxId. Legacy blue ring (isSelected via
+                // selectedCustomTextId) preserved as fallback for callers that
+                // still wire only the legacy state (e.g. tests/storybook).
+                selectedTextBoxId === ct.id
+                  ? selectionRingClass
+                  : isSelected
+                    ? 'outline outline-2 outline-blue-400'
+                    : ''
               }`}
             >
               <div
