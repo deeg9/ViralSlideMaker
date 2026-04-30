@@ -50,7 +50,7 @@ export function SlideEditor({
   brandKit,
   initialPublishedState,
 }: SlideEditorProps) {
-  const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty } =
+  const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty, setSelectedTextBoxId } =
     useSlideEditor(initialSlides)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
   // Brand-kit template synthesizes from the user's brand_kit row at render time.
@@ -76,10 +76,14 @@ export function SlideEditor({
   }, [slides.length, selectedIndex])
 
   // Clear selections when switching slides
+  // Phase 49 (MR-02): also clear selectedTextBoxId — without this, a stale text-box
+  // ID survives the slide switch and either silently lapses on the new slide or
+  // (post-MR-01) accidentally re-selects an unrelated box.
   useEffect(() => {
     setSelectedCustomTextId(null)
     setSelectedCustomImageId(null)
-  }, [selectedIndex])
+    setSelectedTextBoxId(null)
+  }, [selectedIndex, setSelectedTextBoxId])
 
   const doSave = useCallback(async () => {
     setSaveStatus('saving')

@@ -31,6 +31,19 @@ export function useSlideEditor(initialSlides: Slide[]) {
   const undo = useCallback(() => dispatch({ type: 'UNDO' }), [])
   const redo = useCallback(() => dispatch({ type: 'REDO' }), [])
 
+  /**
+   * Remove a text box. Also clears `selectedTextBoxId` if it matched —
+   * the caller does not need to clear selection separately.
+   *
+   * Phase 49 (MR-03): provides a single entry point so the asymmetry with
+   * `handleRemoveCustomText` (which clears `selectedCustomTextId`) doesn't
+   * become a foot-gun for the first Phase 50 consumer of REMOVE_TEXT_BOX.
+   */
+  const removeTextBox = useCallback((slideIndex: number, textBoxId: string) => {
+    dispatch({ type: 'REMOVE_TEXT_BOX', slideIndex, textBoxId })
+    setSelectedTextBoxId((current) => (current === textBoxId ? null : current))
+  }, [])
+
   const canUndo = state.past.length > 0
   const canRedo = state.future.length > 0
   const isDirty = state.past.length > 0
@@ -46,7 +59,8 @@ export function useSlideEditor(initialSlides: Slide[]) {
       isDirty,
       selectedTextBoxId,
       setSelectedTextBoxId,
+      removeTextBox,
     }),
-    [state.present, canUndo, canRedo, undo, redo, isDirty, selectedTextBoxId]
+    [state.present, canUndo, canRedo, undo, redo, isDirty, selectedTextBoxId, removeTextBox]
   )
 }
