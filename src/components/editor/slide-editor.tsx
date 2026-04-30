@@ -141,10 +141,27 @@ export function SlideEditor({
     if (!currentSlide) return
     const overrides = currentSlide.style_overrides ?? {}
     const key = field === 'hook' ? 'hook_position' : 'body_position'
+    // Phase 49 (HR-02): keep text_boxes in sync so the dual-write on save doesn't
+    // overwrite this position with the stale value derived from the matching TextBox.
+    const updatedTextBoxes = currentSlide.text_boxes?.map((tb) => {
+      if (tb.role !== field) return tb
+      return {
+        ...tb,
+        position: {
+          ...tb.position,
+          anchor: 'custom' as const,
+          x: position.x,
+          y: position.y,
+        },
+      }
+    })
     dispatch({
       type: 'UPDATE_SLIDE',
       index: selectedIndex,
-      updates: { style_overrides: { ...overrides, [key]: position } },
+      updates: {
+        style_overrides: { ...overrides, [key]: position },
+        ...(updatedTextBoxes ? { text_boxes: updatedTextBoxes } : {}),
+      },
     })
   }
 
@@ -152,16 +169,31 @@ export function SlideEditor({
     if (!currentSlide) return
     const overrides = currentSlide.style_overrides ?? {}
     const key = field === 'hook' ? 'hook_width' : 'body_width'
+    // Phase 49 (HR-02): keep text_boxes in sync — dual-write derives hook_width/body_width
+    // from text_boxes[].position.width, so a write to legacy alone would be overwritten on save.
+    const updatedTextBoxes = currentSlide.text_boxes?.map((tb) => {
+      if (tb.role !== field) return tb
+      return {
+        ...tb,
+        position: { ...tb.position, width },
+      }
+    })
     dispatch({
       type: 'UPDATE_SLIDE',
       index: selectedIndex,
-      updates: { style_overrides: { ...overrides, [key]: width } },
+      updates: {
+        style_overrides: { ...overrides, [key]: width },
+        ...(updatedTextBoxes ? { text_boxes: updatedTextBoxes } : {}),
+      },
     })
   }
 
   // Custom text handlers
   function handleAddCustomText() {
-    dispatch({ type: 'ADD_CUSTOM_TEXT', slideIndex: selectedIndex })
+    // Phase 49 (HR-03): dispatch the unified ADD_TEXT_BOX so the new box lands in
+    // text_boxes (the canonical store at save time). The dual-write in doSave will
+    // regenerate slide.custom_texts from text_boxes so legacy clients keep working.
+    dispatch({ type: 'ADD_TEXT_BOX', slideIndex: selectedIndex, role: 'custom' })
   }
 
   function handleCustomTextPositionChange(id: string, position: TextPosition) {
@@ -228,10 +260,22 @@ export function SlideEditor({
     if (!currentSlide) return
     try {
       const result = await regenerateSlideText(projectId, selectedIndex, topic, currentSlide)
+      // Phase 49 (HR-01): also update the matching hook/body entries in text_boxes.
+      // Without this, the next dual-write save derives hook_text/body_text from the
+      // stale text_boxes and silently overwrites the just-regenerated text.
+      const updatedTextBoxes = currentSlide.text_boxes?.map((tb) => {
+        if (tb.role === 'hook') return { ...tb, text: result.hook_text }
+        if (tb.role === 'body') return { ...tb, text: result.body_text }
+        return tb
+      })
       dispatch({
         type: 'UPDATE_SLIDE',
         index: selectedIndex,
-        updates: { hook_text: result.hook_text, body_text: result.body_text },
+        updates: {
+          hook_text: result.hook_text,
+          body_text: result.body_text,
+          ...(updatedTextBoxes ? { text_boxes: updatedTextBoxes } : {}),
+        },
       })
     } catch { /* silently handle */ }
   }
