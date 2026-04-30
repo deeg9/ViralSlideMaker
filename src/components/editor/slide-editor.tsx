@@ -166,6 +166,71 @@ export function SlideEditor({
 
   const currentSlide = slides[selectedIndex]
 
+  // Phase 52 (T-03): keyboard shortcuts on the editor.
+  //   Cmd/Ctrl+1, +2, +3 → select Nth text box on current slide
+  //   Cmd/Ctrl+D         → add a new custom text box and auto-select it
+  //   Delete / Backspace → remove the selected CUSTOM text box (hook/body are
+  //                        structural and silently ignored)
+  //
+  // Skip-when-typing: ignored when an input/textarea/contentEditable element
+  // has focus, so users editing text never trigger an accidental shortcut.
+  // Listener is attached to `window` and torn down on unmount/dep change to
+  // prevent double-fire in dev (StrictMode remounts).
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      const target = document.activeElement as HTMLElement | null
+      const tag = (target?.tagName ?? '').toLowerCase()
+      const isEditing =
+        tag === 'input' ||
+        tag === 'textarea' ||
+        target?.isContentEditable === true
+      if (isEditing) return
+
+      const cmd = e.metaKey || e.ctrlKey
+      const textBoxes = currentSlide?.text_boxes ?? []
+
+      if (cmd && (e.key === '1' || e.key === '2' || e.key === '3')) {
+        const idx = parseInt(e.key, 10) - 1
+        const targetBox = textBoxes[idx]
+        if (targetBox) {
+          e.preventDefault()
+          setSelectedTextBoxId(targetBox.id)
+        }
+      } else if (cmd && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault()
+        // Pre-generate the id (same pattern as TextEditorPanel.onTextBoxAction
+        // ADD_TEXT_BOX from Phase 50 MR-01) so we can immediately auto-select
+        // the new custom box. Reducer reads `defaults.id` if present.
+        const newId = crypto.randomUUID()
+        dispatch({
+          type: 'ADD_TEXT_BOX',
+          slideIndex: selectedIndex,
+          role: 'custom',
+          defaults: { id: newId },
+        })
+        setSelectedTextBoxId(newId)
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTextBoxId) {
+        const targetBox = textBoxes.find((tb) => tb.id === selectedTextBoxId)
+        if (targetBox?.role === 'custom') {
+          e.preventDefault()
+          // Route through removeTextBox so selectedTextBoxId is cleared if it
+          // matched. Hook/body deletion is intentionally not supported — they
+          // are structural to legacy compat (hook_text/body_text fields).
+          removeTextBox(selectedIndex, selectedTextBoxId)
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [
+    currentSlide,
+    selectedTextBoxId,
+    selectedIndex,
+    setSelectedTextBoxId,
+    removeTextBox,
+    dispatch,
+  ])
+
   async function handleTemplateChange(newId: string) {
     setCurrentTemplateId(newId)
     await saveTemplateId(projectId, newId)

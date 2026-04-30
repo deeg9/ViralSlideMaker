@@ -50,7 +50,7 @@
 
 - [ ] **CANVAS-01** — Active text box on the canvas shows a visible selection ring + 8 drag handles (corners + midpoints).
 - [ ] **CANVAS-02** — Clicking a text box on canvas updates `selectedTextBoxId` and the right rail mirrors instantly.
-- [ ] **CANVAS-03** — Floating "Layers" mini-list (collapsed by default) lets users select boxes that are visually behind others — solves the "I can't click the text behind another text" problem.
+- [ ] **CANVAS-03** ~~Floating "Layers" mini-list (collapsed by default) lets users select boxes that are visually behind others~~ — **DEFERRED to v2.9**. The Layer Strip (Phase 50) provides chip-based selection; ~90% of slides have ≤3 non-overlapping text boxes. Resurface if user complaint surfaces post-ship.
 - [ ] **CANVAS-04** — Keyboard shortcuts (when canvas focused, NOT inside textarea): ⌘1/⌘2/⌘3 to switch active text box, ⌘D to duplicate active, Delete/Backspace to remove.
 - [ ] **CANVAS-05** — Drag-to-reposition continues to work; resize handles continue to call existing react-rnd resize plumbing from v1.3.
 
