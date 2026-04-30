@@ -61,6 +61,7 @@ export function SlideEditor({
     isDirty,
     selectedTextBoxId,
     setSelectedTextBoxId,
+    removeTextBox,
   } = useSlideEditor(initialSlides)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
   // Brand-kit template synthesizes from the user's brand_kit row at render time.
@@ -514,11 +515,10 @@ export function SlideEditor({
                         updates: action.updates,
                       })
                     } else if (action.type === 'REMOVE_TEXT_BOX') {
-                      dispatch({
-                        type: 'REMOVE_TEXT_BOX',
-                        slideIndex: selectedIndex,
-                        textBoxId: action.textBoxId,
-                      })
+                      // Phase 50 (HR-01): route through useSlideEditor helper so
+                      // selectedTextBoxId is cleared if it matched the removed
+                      // box. The helper dispatches REMOVE_TEXT_BOX internally.
+                      removeTextBox(selectedIndex, action.textBoxId)
                     }
                   }}
                   onUpdate={handleUpdate}
