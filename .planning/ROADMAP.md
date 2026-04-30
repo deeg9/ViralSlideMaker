@@ -729,15 +729,21 @@ Replace 5 visually weak templates with overlay-zone schema + 3 magazine-style pr
 </details>
 
 
-## v2.8 Text Editor Right-Rail Redesign (Phases 49-53) - PLANNING
+<details>
+<summary>v2.8 Text Editor Right-Rail Redesign (Phases 49-53) - SHIPPED 2026-04-30</summary>
 
-**Milestone Goal:** Replace the cluttered, dual-slot ("Hook" + "Body") text editing panel with a selection-driven, single-element right rail that supports an arbitrary number of text boxes per slide and stacks Shadow / Outline / Highlight as independent toggleable effects. Pattern grounded in 2026 industry research (Figma, Canva post-Glow Up, CapCut, VEED, Adobe Express).
+Selection-driven right-rail panel (Figma/Canva model) replacing dual-slot Hook+Body. Independent Shadow/Outline/Highlight toggle rows (CapCut/VEED model). Unified `text_boxes: TextBox[]` schema with dual-write to legacy fields (sunset target v2.9). 30/32 reqs closed; 2 deferred to v2.9 (CANVAS-03 Layers mini-list, AIGEN-01 native Gemini prompt). 542 tests (+119 net). Full archive: `.planning/milestones/v2.8-ROADMAP.md`. Audit: `.planning/milestones/v2.8-MILESTONE-AUDIT.md` (status: passed).
 
-- [ ] **Phase 49: Schema Unification & Migration** — Add `TextBox` interface and `text_boxes: TextBox[]` field on `Slide`. Virtual adapter derives `text_boxes` from legacy `hook_text` / `body_text` / `custom_texts`. Dual-write on save. Editor reducer handles new actions (ADD_TEXT_BOX / REMOVE_TEXT_BOX / UPDATE_TEXT_BOX / SET_ACTIVE_TEXT_BOX_ID). Supabase types regenerated.
-- [ ] **Phase 50: Right-Rail Redesign (Selection-Driven Panel)** — Layer strip + active-box card + independent effect rows. Active textarea gets darker framing. Accent Words moves into a "Highlight words" disclosure inside the card. Slide-level controls (Overlay, News Layout) move to a "Slide settings" section.
-- [ ] **Phase 51: AI Prompt Rewrite** — Gemini prompts emit `text_boxes[]` shape with per-box `role`. Server-side validator auto-corrects malformed output to a 2-box default. Premium-tier guardrails (length caps, typo gate, voice notes) preserved.
-- [ ] **Phase 52: Canvas Selection Improvements** — Selection ring + 8 drag handles on the active text box. Click-to-select on canvas. Floating "Layers" mini-list for overlapping boxes. Keyboard shortcuts (⌘1/⌘2/⌘3, ⌘D, Delete).
-- [ ] **Phase 53: Migration & QA Polish** — Backfill script for existing rows. Feature flag `text_boxes_v2_read` gates the read path. E2E smoke test on 5 representative legacy projects + 8 templates. Sunset plan documented for v2.9.
+- [x] **Phase 49: Schema Unification & Migration** — TextBox interface + adapter + reducer actions + dual-write
+- [x] **Phase 50: Right-Rail Redesign** — LayerStrip / ActiveTextBoxCard / EffectRow / AccentWordsDisclosure / SlideSettings; legacy panel preserved behind `NEXT_PUBLIC_NEW_TEXT_RAIL` flag
+- [x] **Phase 51: AI Prompt Rewrite (light-touch)** — Post-AI conversion at ingest boundary; Gemini schema rewrite deferred to v2.9
+- [x] **Phase 52: Canvas Selection Improvements** — Click-to-select, dashed selection ring, Cmd+1/2/3 + Cmd+D + Delete shortcuts
+- [x] **Phase 53: Migration & QA Polish** — Schema-boundary tests + v2.9 sunset checklist in `.planning/MIGRATION-NOTES.md`
+
+</details>
+
+<details>
+<summary>v2.8 phase details (archived)</summary>
 
 ### Phase 49: Schema Unification & Migration
 **Goal**: Slides expose a unified `text_boxes: TextBox[]` array; legacy `hook_text` / `body_text` continue to read and write so older clients/exports/cron jobs keep functioning during transition
@@ -804,6 +810,8 @@ Replace 5 visually weak templates with overlay-zone schema + 3 magazine-style pr
   5. `downloadSlidesAsZip` produces correct PNGs across all 8 templates (5 legacy + 3 premium)
   6. Sunset plan documented with concrete v2.9 removal checklist (codebase grep, type cleanup, OpenAPI spec update, AI prompt update, test removal)
 **Plans**: 1-2 plans (TBD via /gsd-plan-phase)
+
+</details>
 
 ## Progress
 

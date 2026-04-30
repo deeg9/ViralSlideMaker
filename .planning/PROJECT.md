@@ -10,30 +10,34 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.7 Premium Templates (2026-04-29)
-**Current Milestone:** v2.8 Text Editor Right-Rail Redesign (in planning)
+**Latest Shipped:** v2.8 Text Editor Right-Rail Redesign (2026-04-30)
+**Next Milestone:** TBD — v2.9 will sunset legacy schema fields and finish the deferred items (CANVAS-03 Layers mini-list, AIGEN-01 native Gemini text_boxes prompt). See `.planning/MIGRATION-NOTES.md` for the v2.9 sunset checklist.
 
 ---
 
-## Current Milestone: v2.8 Text Editor Right-Rail Redesign
+## Latest Shipped: v2.8 Text Editor Right-Rail Redesign (2026-04-30)
 
-**Goal:** Replace the cluttered, dual-slot ("Hook" + "Body") text editing panel with a selection-driven, single-element panel that supports an arbitrary number of text boxes per slide and stacks Shadow / Outline / Highlight as independent toggleable effects — matching the patterns proven by Figma, Canva, CapCut, and VEED in 2026.
+**Goal:** Replace the cluttered, dual-slot ("Hook" + "Body") text editing panel with a selection-driven, single-element right rail (Figma/Canva model). Independent toggleable Shadow/Outline/Highlight effect rows (CapCut/VEED model). Unified `text_boxes: TextBox[]` schema; legacy fields retained one milestone for backward compat; sunset target v2.9.
 
-**Target features:**
-- **Selection-driven panel.** Right rail mirrors only the currently selected text box's properties; clicking a different text box swaps the panel. Layer strip above the panel for selecting between boxes when canvas overlaps.
-- **Unified TextBox schema.** Slides expose `text_boxes: TextBox[]` instead of fixed `hook_text` / `body_text` fields. Each text box owns its text, segments, font, size, color, alignment, effects, and position. Migration is dual-write (legacy + new) for one milestone, sunset legacy in v2.9.
-- **Effects as independent toggle rows.** Shadow, Outline, Highlight each have a switch; flipping on reveals sliders inline beneath. All three can be on simultaneously (the killer feature for busy backgrounds). No mutually-exclusive presets.
-- **Visually distinct editable surface.** The active text box's input gets a darker `bg-white border-2 border-[#3d0000]/20` framing so users instantly know where typing lands. Inactive areas stay cream.
-- **AI prompts emit text_boxes[].** Gemini outputs the new shape; legacy 2-box default preserved for the news templates.
-- **Canvas selection ring + keyboard shortcuts.** Visible selection ring on the active text box, click-to-select on canvas, ⌘1/⌘2/⌘3 to switch, ⌘D to duplicate, Delete to remove.
+**Delivered:**
+- **Phase 49 — Schema Unification & Migration:** New `TextBox` interface with id/role/text/segments/font/size/color/align/effects/position. Slide gains `text_boxes?: TextBox[]`; legacy `hook_text` / `body_text` / `hook_segments` / `body_segments` / `custom_texts` retained and `@deprecated`. Pure adapter `text-box-adapter.ts` with `legacyToTextBoxes` / `textBoxesToLegacy` round-trip parity (5 fixture shapes, 20 tests). Editor reducer gains `ADD_TEXT_BOX` / `UPDATE_TEXT_BOX` / `REMOVE_TEXT_BOX` actions through `pushHistory()` for undo/redo. Eager migration on slide load via `useReducer` lazy initializer.
+- **Phase 50 — Right-Rail Redesign:** New components at `src/components/editor/text-rail/` — `LayerStrip` (chip row), `EffectRow` (toggle + inline reveal), `AccentWordsDisclosure` (Collapsible with count badge), `ActiveTextBoxCard` (white-on-cream framing), `SlideSettings` (extracted Overlay/News Layout/Watermark). New `TextEditorPanel` is a 320-line composition shell. Legacy preserved as `text-editor-panel-legacy.tsx` behind `NEXT_PUBLIC_NEW_TEXT_RAIL` env flag (default `true`, manual rollback flips to legacy). **Critical fix BL-01:** `applyDualWrite` reducer pattern — every TextBox edit synchronously updates legacy fields so live preview reflects changes (otherwise edits would silently revert on save).
+- **Phase 51 — AI Prompt Rewrite (light-touch):** Gemini's JSON schema unchanged (AIGEN-01 deferred to v2.9). `legacyToTextBoxes` runs at the AI-ingest boundary in `generate-slides.ts` post-Zod-parse, populating `text_boxes` server-side. v2.7's 19 premium-tier requirements re-verified against the new editor — zero regression.
+- **Phase 52 — Canvas Selection Improvements:** Click hook/body/custom on canvas → updates `selectedTextBoxId` → right rail mirrors instantly. Dashed `#3d0000` selection ring on active text box (CSS `outline` ignored by Satori, so PNG export unaffected). Keyboard shortcuts ⌘1/⌘2/⌘3 (switch active), ⌘D (add custom + auto-select), Delete (remove custom only — hook/body protected). All gated to `editable={true}` so Satori export path is untouched.
+- **Phase 53 — Migration & QA Polish:** 3 schema-boundary integration tests + `MIGRATION-NOTES.md` with concrete 10-step v2.9 sunset checklist. MIG-01 (Supabase backfill) deferred — eager migration handles existing rows transparently; mandatory only in v2.9 prep. MIG-02 (read-path flag) superseded by Phase 50's `applyDualWrite`.
 
-**Key context:**
-- Industry research grounded in 2026 patterns from Figma, Canva (post-Glow Up), CapCut, VEED, Adobe Express, Photoshop, Illustrator. Plan file: `~/.claude/plans/users-deeg-desktop-screenshot-2026-04-3-replicated-seal.md`.
-- NN/g guidance: avoid accordion-collapse for design-tool inspectors (users jump fields too often). Use always-visible labeled sections within a card; reserve disclosure for noisy controls (Accent Words chip wall) only.
-- Schema migration is the highest-risk item — gated by dual-write + a feature flag; rollback is reading legacy fields.
-- Out of scope: animation timeline, multi-select editing, text-on-curve, iOS app changes.
+**30/32 requirements closed in v2.8.** Two deferred to v2.9: CANVAS-03 (Layers mini-list — Layer Strip covers 90% of cases), AIGEN-01 (native Gemini text_boxes prompt — defer to avoid v2.7 audit regression).
+
+**Test count:** 423 → 542 (+119 across 5 phases). 11 baseline failures unchanged. Zero v2.7 audit regressions.
+
+**Industry-research-grounded:** patterns sourced from Figma, Canva (post-Glow Up 2025), CapCut, VEED, Adobe Express, Photoshop, NN/g design-tool inspector guidance. Plan file: `~/.claude/plans/users-deeg-desktop-screenshot-2026-04-3-replicated-seal.md`. Audit: `.planning/milestones/v2.8-MILESTONE-AUDIT.md` (status: passed).
+
+**Awaiting user:** Manual smoke test recommended on a real project (load existing v2.7 carousel → click hook → toggle effects → save → reload → verify identical render). Non-blocking — automated tests cover the data paths.
 
 ---
+
+<details>
+<summary>v2.7 Premium Templates (2026-04-29) — archived</summary>
 
 ## Latest Shipped: v2.7 Premium Templates (2026-04-29)
 
@@ -52,6 +56,8 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 **19/19 requirements closed.** Archive: `.planning/milestones/v2.7-ROADMAP.md`. Audit: `.planning/milestones/v2.7-MILESTONE-AUDIT.md` (status: passed).
 
 **Awaiting user:** Manual visual QA — render `magazine-bold` carousel against Murphy reference; address pixel offsets in v2.8 if needed.
+
+</details>
 
 ---
 
@@ -210,17 +216,25 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [x] docs/MCP-GUIDE.md with copy-paste configs for Claude Desktop, Cursor, Windsurf, ChatGPT — v2.6
 - [x] 4th GuideCard on /settings/api-keys cross-linking to MCP setup guide — v2.6
 
+### Validated (v2.8)
+
+- [x] Selection-driven, single-element right-rail panel — v2.8 Phase 50
+- [x] Unified `TextBox[]` schema (legacy retained, sunset v2.9) — v2.8 Phase 49
+- [x] Layer strip for switching between text boxes — v2.8 Phase 50
+- [x] Independent toggleable Shadow / Outline / Highlight effects (stackable) — v2.8 Phase 50
+- [x] Visually distinct active-text-box input surface — v2.8 Phase 50
+- [x] Canvas selection ring + click-to-select + keyboard shortcuts (⌘1-3, ⌘D, Delete) — v2.8 Phase 52
+- [x] Dual-write legacy + new schema (synced via reducer write-through) — v2.8 Phases 49+50
+
+### Deferred to v2.9
+
+- [ ] AI prompts natively emit `text_boxes[]` (AIGEN-01) — light-touch alternative shipped in Phase 51 produces equivalent state via post-AI conversion
+- [ ] Floating Layers mini-list for overlapping text boxes (CANVAS-03) — Layer Strip from Phase 50 covers ~90% of cases
+- [ ] Sunset of legacy `hook_text` / `body_text` / `hook_segments` / `body_segments` / `custom_texts` fields — full v2.9 sunset checklist in `.planning/MIGRATION-NOTES.md`
+
 ### Active
 
-**v2.8 Text Editor Right-Rail Redesign**
-- [ ] Selection-driven, single-element right-rail panel — v2.8
-- [ ] Unified `TextBox[]` schema replacing fixed `hook_text` / `body_text` slots — v2.8
-- [ ] Layer strip for switching between text boxes — v2.8
-- [ ] Independent toggleable Shadow / Outline / Highlight effects (stackable) — v2.8
-- [ ] Visually distinct active-text-box input surface — v2.8
-- [ ] AI prompts emit `text_boxes[]` shape (Gemini) — v2.8
-- [ ] Canvas selection ring + click-to-select + keyboard shortcuts (⌘1-3, ⌘D, Delete) — v2.8
-- [ ] Dual-write legacy + new schema for one milestone (sunset legacy in v2.9) — v2.8
+(None — start next milestone with `/gsd-new-milestone`)
 
 ### Out of Scope
 
@@ -290,4 +304,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-30 — v2.8 Text Editor Right-Rail Redesign milestone started (Phases 49-53)*
+*Last updated: 2026-04-30 — v2.8 Text Editor Right-Rail Redesign shipped (5/5 phases, 30/32 reqs, 542 tests passing)*

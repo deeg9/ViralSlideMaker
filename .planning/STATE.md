@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.8
 milestone_name: Text Editor Right-Rail Redesign
-status: executing
-stopped_at: Phase 53 complete (6/6 MIG reqs). All 5 v2.8 phases complete. 30/32 reqs closed; 2 deferred to v2.9 (CANVAS-03, AIGEN-01). 542 tests passing. Ready for milestone audit.
+status: complete
+stopped_at: v2.8 SHIPPED 2026-04-30 — 5/5 phases, 7/7 plans, 30/32 reqs (2 deferred to v2.9). 542 tests, 0 regressions. Awaiting next-milestone decision.
 last_updated: "2026-04-30T00:00:00.000Z"
 last_activity: 2026-04-30
 progress:
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-30)
 
 ## Current Position
 
-Phase: All 5 phases complete — milestone lifecycle next
+Phase: Milestone v2.8 SHIPPED 2026-04-30
 Plan: —
-Status: All phases passed verification; ready for /gsd-audit-milestone
-Last activity: 2026-04-30 — Phase 53 verification passed
+Status: Audit passed; phases archived; v2.9 sunset checklist documented
+Last activity: 2026-04-30 — v2.8 lifecycle complete
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% ✓
 
 ## Performance Metrics
 

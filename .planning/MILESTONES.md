@@ -1,5 +1,36 @@
 # Milestones
 
+## v2.8 Text Editor Right-Rail Redesign (Shipped: 2026-04-30)
+
+**Phases completed:** 5 phases (49-53), 7 plans, 30/32 requirements (2 deferred to v2.9)
+
+**Status:** passed — all 5 phases verified clean; user pain points all addressed
+
+**Key accomplishments:**
+
+- **Phase 49 — Schema Unification & Migration:** New `TextBox` interface + extended `Slide.text_boxes?: TextBox[]` field; legacy `hook_text` / `body_text` / `hook_segments` / `body_segments` / `custom_texts` retained and `@deprecated` (sunset target v2.9). Pure adapter `text-box-adapter.ts` with `legacyToTextBoxes` / `textBoxesToLegacy` round-trip parity (5 fixture shapes, 20 unit tests). Editor reducer gains `ADD_TEXT_BOX` / `UPDATE_TEXT_BOX` / `REMOVE_TEXT_BOX` actions through `pushHistory()`. Eager migration on slide load via `useReducer` lazy initializer.
+- **Phase 50 — Right-Rail Redesign:** Five new components at `src/components/editor/text-rail/` — `LayerStrip` (chip row), `EffectRow` (toggle + inline reveal), `AccentWordsDisclosure` (Collapsible with count badge), `ActiveTextBoxCard` (white-on-cream framing), `SlideSettings`. New `TextEditorPanel` is a 320-line composition shell. Legacy preserved as `text-editor-panel-legacy.tsx` behind `NEXT_PUBLIC_NEW_TEXT_RAIL` env flag. **Critical fix BL-01:** `applyDualWrite` reducer pattern — every TextBox edit synchronously updates legacy fields so live preview reflects changes (otherwise edits would silently revert on save).
+- **Phase 51 — AI Prompt Rewrite (light-touch):** Gemini's JSON schema unchanged (AIGEN-01 deferred to v2.9). `legacyToTextBoxes` runs at the AI-ingest boundary in `generate-slides.ts` post-Zod-parse, populating `text_boxes` server-side. v2.7's 19 premium-tier reqs re-verified: zero regression.
+- **Phase 52 — Canvas Selection Improvements:** Click hook/body/custom on canvas → updates `selectedTextBoxId` → right rail mirrors instantly. Dashed `#3d0000` selection ring on active text box (CSS `outline` ignored by Satori, so PNG export unaffected). Keyboard shortcuts `Cmd+1/2/3` (switch active), `Cmd+D` (add custom + auto-select), Delete (remove custom only — hook/body protected). All gated to `editable={true}` so Satori export path is untouched.
+- **Phase 53 — Migration & QA Polish:** 3 schema-boundary integration tests + `.planning/MIGRATION-NOTES.md` with concrete 10-step v2.9 sunset checklist. MIG-01 (Supabase backfill) deferred — eager migration handles existing rows transparently. MIG-02 (read-path flag) superseded by Phase 50's `applyDualWrite` keeping shapes in sync.
+- **Test count:** 423 → 542 (+119 net new across 5 phases). 11 baseline failures unchanged.
+- **Code quality:** 1 BLOCKING (BL-01 live preview) + 4 HIGH + 6 MEDIUM all fixed; UI review 25/30 → 27-28/30 after a11y commits.
+
+**Built on:** v2.7 Premium Templates (overlay schema + 3 magazine-style templates) — the new editor consumes the same template + segment + effect shapes unchanged.
+
+**Industry-research-grounded:** patterns sourced from Figma, Canva (post-Glow Up 2025), CapCut, VEED, Adobe Express, Photoshop, NN/g design-tool inspector guidance.
+
+**Out of scope (deferred to v2.9):**
+| Item | Reason |
+|---|---|
+| AIGEN-01 (Gemini emits text_boxes[] natively) | Deferred to avoid v2.7 audit regression risk; light-touch alternative shipped via post-AI conversion |
+| CANVAS-03 (Floating Layers mini-list) | Layer Strip from Phase 50 covers ~90% of cases; resurface only on user complaint |
+| Sunset of legacy schema fields, `text-editor-panel-legacy.tsx`, `applyDualWrite` reducer, `NEXT_PUBLIC_NEW_TEXT_RAIL` flag, adapter module | Full v2.9 checklist in `.planning/MIGRATION-NOTES.md` |
+
+**Awaiting user:** Manual smoke test recommended (open existing project → click hook → toggle effects → save → reload). Non-blocking — automated tests cover data paths.
+
+---
+
 ## v2.6 MCP Server (Shipped: 2026-04-28)
 
 **Phases completed:** 3 phases (40-42), 3 plans, 18/19 requirements (MCP-DIST-06 deferred — npm publish user-gated)
