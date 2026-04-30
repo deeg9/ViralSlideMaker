@@ -11,7 +11,27 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.7 Premium Templates (2026-04-29)
-**Next Milestone:** TBD — visual fidelity QA against Murphy reference, potential v2.8 polish pass, then a feature direction conversation.
+**Current Milestone:** v2.8 Text Editor Right-Rail Redesign (in planning)
+
+---
+
+## Current Milestone: v2.8 Text Editor Right-Rail Redesign
+
+**Goal:** Replace the cluttered, dual-slot ("Hook" + "Body") text editing panel with a selection-driven, single-element panel that supports an arbitrary number of text boxes per slide and stacks Shadow / Outline / Highlight as independent toggleable effects — matching the patterns proven by Figma, Canva, CapCut, and VEED in 2026.
+
+**Target features:**
+- **Selection-driven panel.** Right rail mirrors only the currently selected text box's properties; clicking a different text box swaps the panel. Layer strip above the panel for selecting between boxes when canvas overlaps.
+- **Unified TextBox schema.** Slides expose `text_boxes: TextBox[]` instead of fixed `hook_text` / `body_text` fields. Each text box owns its text, segments, font, size, color, alignment, effects, and position. Migration is dual-write (legacy + new) for one milestone, sunset legacy in v2.9.
+- **Effects as independent toggle rows.** Shadow, Outline, Highlight each have a switch; flipping on reveals sliders inline beneath. All three can be on simultaneously (the killer feature for busy backgrounds). No mutually-exclusive presets.
+- **Visually distinct editable surface.** The active text box's input gets a darker `bg-white border-2 border-[#3d0000]/20` framing so users instantly know where typing lands. Inactive areas stay cream.
+- **AI prompts emit text_boxes[].** Gemini outputs the new shape; legacy 2-box default preserved for the news templates.
+- **Canvas selection ring + keyboard shortcuts.** Visible selection ring on the active text box, click-to-select on canvas, ⌘1/⌘2/⌘3 to switch, ⌘D to duplicate, Delete to remove.
+
+**Key context:**
+- Industry research grounded in 2026 patterns from Figma, Canva (post-Glow Up), CapCut, VEED, Adobe Express, Photoshop, Illustrator. Plan file: `~/.claude/plans/users-deeg-desktop-screenshot-2026-04-3-replicated-seal.md`.
+- NN/g guidance: avoid accordion-collapse for design-tool inspectors (users jump fields too often). Use always-visible labeled sections within a card; reserve disclosure for noisy controls (Accent Words chip wall) only.
+- Schema migration is the highest-risk item — gated by dual-write + a feature flag; rollback is reading legacy fields.
+- Out of scope: animation timeline, multi-select editing, text-on-curve, iOS app changes.
 
 ---
 
@@ -192,7 +212,15 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ### Active
 
-(None — start next milestone with `/gsd-new-milestone`)
+**v2.8 Text Editor Right-Rail Redesign**
+- [ ] Selection-driven, single-element right-rail panel — v2.8
+- [ ] Unified `TextBox[]` schema replacing fixed `hook_text` / `body_text` slots — v2.8
+- [ ] Layer strip for switching between text boxes — v2.8
+- [ ] Independent toggleable Shadow / Outline / Highlight effects (stackable) — v2.8
+- [ ] Visually distinct active-text-box input surface — v2.8
+- [ ] AI prompts emit `text_boxes[]` shape (Gemini) — v2.8
+- [ ] Canvas selection ring + click-to-select + keyboard shortcuts (⌘1-3, ⌘D, Delete) — v2.8
+- [ ] Dual-write legacy + new schema for one milestone (sunset legacy in v2.9) — v2.8
 
 ### Out of Scope
 
@@ -262,4 +290,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-28 — v2.6 MCP Server shipped (npm publish user-gated)*
+*Last updated: 2026-04-30 — v2.8 Text Editor Right-Rail Redesign milestone started (Phases 49-53)*

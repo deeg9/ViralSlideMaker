@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.7
-milestone_name: Premium Templates
-status: complete
-stopped_at: v2.7 Premium Templates SHIPPED 2026-04-29 — 5/5 phases, 11/11 plans, 19/19 requirements. Awaiting next-milestone decision.
-last_updated: "2026-04-29T20:35:00.000Z"
-last_activity: 2026-04-29
+milestone: v2.8
+milestone_name: Text Editor Right-Rail Redesign
+status: planning
+stopped_at: v2.8 milestone started 2026-04-30 — 5 phases (49-53) defined; 22 requirements across SCHEMA/TEDIT/AIGEN/CANVAS/MIG. Ready for /gsd-plan-phase 49.
+last_updated: "2026-04-30T00:00:00.000Z"
+last_activity: 2026-04-30
 progress:
   total_phases: 5
-  completed_phases: 5
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-29)
+See: .planning/PROJECT.md (updated 2026-04-30)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 48 — template-thumbnails-picker
+**Current focus:** v2.8 — Text Editor Right-Rail Redesign (selection-driven panel + unified text_boxes schema)
 
 ## Current Position
 
-Phase: 48 (template-thumbnails-picker) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-04-29
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-30 — Milestone v2.8 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -144,9 +144,9 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-28 - v2.6 roadmap written. 3 phases (40, 41, 42) defined with 100% requirement coverage (19/19 REQ-IDs mapped). Phase 40 is next-ready. Roadmap appended to ROADMAP.md (v1.0–v2.5 history preserved). Traceability section in REQUIREMENTS.md filled in.
-Stopped at: Phase 47 Plan 02 complete (TPLAI-01 + TPLAI-02 sealed). Ready to execute Plan 47-03 (prompt assembly + retry wiring).
+Last activity: 2026-04-30 — v2.8 milestone started. 5 phases (49-53) defined. REQUIREMENTS.md created with 22 REQ-IDs across SCHEMA/TEDIT/AIGEN/CANVAS/MIG. PROJECT.md updated with Current Milestone section + 8 Active requirements. Roadmap appended (v1.0 through v2.7 history preserved). Plan file: `~/.claude/plans/users-deeg-desktop-screenshot-2026-04-3-replicated-seal.md`.
+Stopped at: Milestone planning complete. Ready to start Phase 49 planning.
 Resume file: None
-Next: `/gsd-plan-phase 40` — start planning MCP Transport & Auth.
+Next: `/gsd-plan-phase 49` — start planning Schema Unification & Migration.
 
-**Planned Phase:** 40 (MCP Transport & Auth) — 1 plans — 2026-04-29T01:23:55.217Z
+**Planned Phase:** 49 (Schema Unification & Migration) — TBD plans — 2026-04-30T00:00:00.000Z
