@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Collapsible } from '@base-ui/react'
 import { ChevronDown } from 'lucide-react'
 import type { TextSegment } from '@/lib/types/slide'
+import { readableTextColor } from '@/lib/color/readable-text-color'
 
 interface AccentWordsDisclosureProps {
   segments: TextSegment[]
@@ -41,7 +42,7 @@ export function AccentWordsDisclosure({
     >
       <Collapsible.Trigger
         data-testid="accent-words-trigger"
-        className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#7d6161] hover:text-[#3d0000] transition-colors"
+        className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#7d6161] hover:text-[#3d0000] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1 rounded-sm"
       >
         <ChevronDown
           className={`w-3 h-3 transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
@@ -73,10 +74,15 @@ export function AccentWordsDisclosure({
                 onClick={() => onToggle(i)}
                 data-testid={`accent-word-chip-${i}`}
                 data-active={seg.accent ? 'true' : 'false'}
-                className="px-2 py-1 rounded text-xs font-bold uppercase border transition-all"
+                aria-label={seg.accent ? `Remove accent from "${seg.text}"` : `Add accent to "${seg.text}"`}
+                aria-pressed={!!seg.accent}
+                className="px-2 py-1 rounded text-xs font-bold uppercase border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
                 style={{
                   backgroundColor: seg.accent ? accentColor : '#fff0f0',
-                  color: seg.accent ? '#000' : '#7d6161',
+                  // Phase 50 (UI-REVIEW WARNING): hardcoded #000 fails contrast
+                  // on dark accent fills (e.g. #3d0000). Compute readable text
+                  // color from the accent's relative luminance instead.
+                  color: seg.accent ? readableTextColor(accentColor) : '#7d6161',
                   borderColor: seg.accent ? accentColor : '#dbc1bc',
                 }}
               >

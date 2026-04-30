@@ -6,6 +6,13 @@ import { EffectRow } from './EffectRow'
 import { AccentWordsDisclosure } from './AccentWordsDisclosure'
 import { COLOR_SWATCHES } from './color-swatches'
 import { splitToSegments } from '@/lib/editor/text-segments'
+
+// Phase 50 (UI-REVIEW BLOCKER + WARNINGs): keyboard focus ring + general a11y
+// classes shared by every interactive control inside the card. Browser default
+// outlines are clipped by rounded-full / rounded-lg shapes; an explicit
+// focus-visible ring matching the brand primary fixes both contrast and shape.
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1'
 import type {
   TextBox,
   TextEffects,
@@ -171,7 +178,8 @@ export function ActiveTextBoxCard({
           value={textBox.text}
           onChange={(e) => onUpdate({ text: e.target.value, segments: undefined })}
           rows={textBox.role === 'body' ? 4 : 3}
-          className="w-full bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
+          aria-label={roleLabel(textBox.role)}
+          className={`w-full bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none ${FOCUS_RING}`}
           placeholder={textBox.role === 'hook' ? 'Enter headline...' : 'Enter text...'}
         />
       </div>
@@ -193,11 +201,13 @@ export function ActiveTextBoxCard({
           data-testid="active-text-box-bold"
           data-active={isBold ? 'true' : 'false'}
           onClick={() => onUpdate({ font_weight: isBold ? 400 : 700 })}
-          className={`p-2 rounded-lg transition-all ${
+          className={`p-2 rounded-lg transition-all ${FOCUS_RING} ${
             isBold
               ? 'bg-[#3d0000] text-white'
               : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
           }`}
+          aria-label="Bold"
+          aria-pressed={isBold}
           title="Bold"
         >
           <Icon name="format_bold" size="sm" />
@@ -207,11 +217,13 @@ export function ActiveTextBoxCard({
           data-testid="active-text-box-italic"
           data-active={isItalic ? 'true' : 'false'}
           onClick={() => onUpdate({ font_style: isItalic ? 'normal' : 'italic' })}
-          className={`p-2 rounded-lg transition-all ${
+          className={`p-2 rounded-lg transition-all ${FOCUS_RING} ${
             isItalic
               ? 'bg-[#3d0000] text-white'
               : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
           }`}
+          aria-label="Italic"
+          aria-pressed={isItalic}
           title="Italic"
         >
           <Icon name="format_italic" size="sm" />
@@ -246,7 +258,8 @@ export function ActiveTextBoxCard({
           step={2}
           value={textBox.font_size ?? defaultSizeForRole(textBox.role, template)}
           onChange={(e) => onUpdate({ font_size: Number(e.target.value) })}
-          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
+          aria-label={sizeLabel(textBox.role)}
+          className={`w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] ${FOCUS_RING}`}
         />
       </div>
 
@@ -262,22 +275,25 @@ export function ActiveTextBoxCard({
               type="button"
               data-testid={`active-text-box-swatch-${color}`}
               onClick={() => onUpdate({ color })}
-              className={`w-6 h-6 rounded-full ${
+              className={`w-6 h-6 rounded-full ${FOCUS_RING} ${
                 currentColor === color ? 'ring-2 ring-[#3d0000] ring-offset-1' : ''
               }`}
               style={{
                 backgroundColor: color,
                 border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
               }}
+              aria-label={`Set text color to ${color}`}
+              aria-pressed={currentColor === color}
               title={color}
             />
           ))}
-          <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
-            <Icon name="palette" size="sm" className="text-[#7d6161]" />
+          <label className={`w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1`}>
+            <Icon name="palette" size="sm" className="text-[#7d6161]" aria-hidden />
             <input
               type="color"
               value={currentColor}
               onChange={(e) => onUpdate({ color: e.target.value })}
+              aria-label="Set custom text color"
               className="sr-only"
             />
           </label>
@@ -303,11 +319,13 @@ export function ActiveTextBoxCard({
                 data-testid={`active-text-box-align-${value}`}
                 data-active={active ? 'true' : 'false'}
                 onClick={() => onUpdate({ text_align: value })}
-                className={`p-2 rounded-lg transition-all ${
+                className={`p-2 rounded-lg transition-all ${FOCUS_RING} ${
                   active
                     ? 'bg-[#3d0000] text-white'
                     : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
                 }`}
+                aria-label={`Align ${value}`}
+                aria-pressed={active}
                 title={value}
               >
                 <Icon name={icon} size="sm" />
@@ -394,7 +412,7 @@ function ShadowControls({
             key={color}
             type="button"
             onClick={() => onChange({ color: color + '99' })}
-            className={`w-6 h-6 rounded-full ${
+            className={`w-6 h-6 rounded-full ${FOCUS_RING} ${
               shadow.color === color + '99'
                 ? 'ring-2 ring-[#3d0000] ring-offset-1'
                 : ''
@@ -403,15 +421,18 @@ function ShadowControls({
               backgroundColor: color,
               border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
             }}
+            aria-label={`Set shadow color to ${color}`}
+            aria-pressed={shadow.color === color + '99'}
             title={color}
           />
         ))}
-        <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
-          <Icon name="palette" size="sm" className="text-[#7d6161]" />
+        <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1">
+          <Icon name="palette" size="sm" className="text-[#7d6161]" aria-hidden />
           <input
             type="color"
             value={shadow.color.slice(0, 7)}
             onChange={(e) => onChange({ color: e.target.value + '99' })}
+            aria-label="Set custom shadow color"
             className="sr-only"
           />
         </label>
@@ -423,11 +444,13 @@ function ShadowControls({
             type="button"
             data-testid={`shadow-size-${size}`}
             onClick={() => onChange({ size })}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${FOCUS_RING} ${
               shadow.size === size
                 ? 'bg-[#3d0000] text-white'
                 : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
             }`}
+            aria-label={`Shadow size ${size === 'sm' ? 'small' : size === 'md' ? 'medium' : 'large'}`}
+            aria-pressed={shadow.size === size}
           >
             {size === 'sm' ? 'S' : size === 'md' ? 'M' : 'L'}
           </button>
@@ -452,22 +475,25 @@ function OutlineControls({
             key={color}
             type="button"
             onClick={() => onChange({ color })}
-            className={`w-6 h-6 rounded-full ${
+            className={`w-6 h-6 rounded-full ${FOCUS_RING} ${
               outline.color === color ? 'ring-2 ring-[#3d0000] ring-offset-1' : ''
             }`}
             style={{
               backgroundColor: color,
               border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
             }}
+            aria-label={`Set outline color to ${color}`}
+            aria-pressed={outline.color === color}
             title={color}
           />
         ))}
-        <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
-          <Icon name="palette" size="sm" className="text-[#7d6161]" />
+        <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1">
+          <Icon name="palette" size="sm" className="text-[#7d6161]" aria-hidden />
           <input
             type="color"
             value={outline.color}
             onChange={(e) => onChange({ color: e.target.value })}
+            aria-label="Set custom outline color"
             className="sr-only"
           />
         </label>
@@ -487,7 +513,8 @@ function OutlineControls({
           step={1}
           value={outline.width}
           onChange={(e) => onChange({ width: Number(e.target.value) })}
-          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
+          aria-label="Outline thickness"
+          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
         />
       </div>
     </>
@@ -509,7 +536,7 @@ function HighlightControls({
             key={color}
             type="button"
             onClick={() => onChange({ color: color + '88' })}
-            className={`w-6 h-6 rounded-full ${
+            className={`w-6 h-6 rounded-full ${FOCUS_RING} ${
               highlight.color === color + '88'
                 ? 'ring-2 ring-[#3d0000] ring-offset-1'
                 : ''
@@ -518,15 +545,18 @@ function HighlightControls({
               backgroundColor: color,
               border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
             }}
+            aria-label={`Set highlight color to ${color}`}
+            aria-pressed={highlight.color === color + '88'}
             title={color}
           />
         ))}
-        <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
-          <Icon name="palette" size="sm" className="text-[#7d6161]" />
+        <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1">
+          <Icon name="palette" size="sm" className="text-[#7d6161]" aria-hidden />
           <input
             type="color"
             value={highlight.color.slice(0, 7)}
             onChange={(e) => onChange({ color: e.target.value + '88' })}
+            aria-label="Set custom highlight color"
             className="sr-only"
           />
         </label>
@@ -538,11 +568,13 @@ function HighlightControls({
             type="button"
             data-testid={`highlight-style-${style}`}
             onClick={() => onChange({ style })}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${FOCUS_RING} ${
               highlight.style === style
                 ? 'bg-[#3d0000] text-white'
                 : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
             }`}
+            aria-label={`Highlight style ${style}`}
+            aria-pressed={highlight.style === style}
           >
             {style === 'tight' ? 'Tight' : 'Full'}
           </button>
@@ -563,7 +595,8 @@ function HighlightControls({
           step={2}
           value={highlight.padding}
           onChange={(e) => onChange({ padding: Number(e.target.value) })}
-          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
+          aria-label="Highlight padding"
+          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
         />
       </div>
     </>

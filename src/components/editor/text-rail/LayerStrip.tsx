@@ -67,8 +67,11 @@ export function LayerStrip({
             onClick={() => onSelect(tb.id)}
             data-testid={`layer-chip-${tb.id}`}
             data-active={active ? 'true' : 'false'}
+            // Phase 50 (UI-REVIEW BLOCKER): focus-visible ring so keyboard
+            // users can see which chip is focused (browser default outline is
+            // clipped by rounded-full).
             className={[
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors',
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1',
               active
                 ? 'bg-[#3d0000] text-white'
                 : 'bg-[#fadbdb] text-[#3d0000] hover:bg-[#fff0f0]',
@@ -84,7 +87,8 @@ export function LayerStrip({
         type="button"
         onClick={onAdd}
         data-testid="layer-strip-add"
-        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-white border-2 border-dashed border-[#3d0000]/30 text-[#3d0000] hover:bg-[#fff0f0] transition-colors"
+        aria-label="Add text box"
+        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-white border-2 border-dashed border-[#3d0000]/30 text-[#3d0000] hover:bg-[#fff0f0] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
       >
         <Plus className="w-3.5 h-3.5" aria-hidden />
         <span>Add Text Box</span>
