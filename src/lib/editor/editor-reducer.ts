@@ -1,4 +1,4 @@
-import type { Slide } from '@/lib/types/slide'
+import type { Slide, TextBox, TextBoxPosition, TextBoxRole } from '@/lib/types/slide'
 import type { EditorAction } from '@/lib/editor/editor-actions'
 
 const MAX_HISTORY = 50
@@ -22,6 +22,19 @@ function blankSlide(): Slide {
 
 function deepCloneSlide(slide: Slide): Slide {
   return JSON.parse(JSON.stringify(slide))
+}
+
+function defaultPositionForRole(role: TextBoxRole): TextBoxPosition {
+  switch (role) {
+    case 'hook':
+      return { anchor: 'top' }
+    case 'body':
+      return { anchor: 'bottom' }
+    case 'custom':
+    default:
+      // Mirrors existing custom_text defaults at editor-reducer.ts ADD_CUSTOM_TEXT case.
+      return { anchor: 'custom', x: 20, y: 50, width: 60 }
+  }
 }
 
 function pushHistory(state: EditorHistory, newPresent: Slide[]): EditorHistory {
@@ -161,6 +174,54 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           (ci) => ci.id !== action.imageId
         )
         return { ...slide, custom_images }
+      })
+      return pushHistory(state, slides)
+    }
+
+    case 'ADD_TEXT_BOX': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const { defaults } = action
+        const newBox: TextBox = {
+          id: crypto.randomUUID(),
+          role: action.role,
+          text: defaults?.text ?? 'New Text',
+          position: defaults?.position ?? defaultPositionForRole(action.role),
+          ...(defaults?.segments !== undefined ? { segments: defaults.segments } : {}),
+          ...(defaults?.font_family !== undefined ? { font_family: defaults.font_family } : {}),
+          ...(defaults?.font_size !== undefined ? { font_size: defaults.font_size } : {}),
+          ...(defaults?.font_weight !== undefined ? { font_weight: defaults.font_weight } : {}),
+          ...(defaults?.font_style !== undefined ? { font_style: defaults.font_style } : {}),
+          ...(defaults?.color !== undefined ? { color: defaults.color } : {}),
+          ...(defaults?.text_align !== undefined ? { text_align: defaults.text_align } : {}),
+          ...(defaults?.effects !== undefined ? { effects: defaults.effects } : {}),
+        }
+        return {
+          ...slide,
+          text_boxes: [...(slide.text_boxes ?? []), newBox],
+        }
+      })
+      return pushHistory(state, slides)
+    }
+
+    case 'UPDATE_TEXT_BOX': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const text_boxes = (slide.text_boxes ?? []).map((tb) =>
+          tb.id === action.textBoxId ? { ...tb, ...action.updates } : tb
+        )
+        return { ...slide, text_boxes }
+      })
+      return pushHistory(state, slides)
+    }
+
+    case 'REMOVE_TEXT_BOX': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const text_boxes = (slide.text_boxes ?? []).filter(
+          (tb) => tb.id !== action.textBoxId
+        )
+        return { ...slide, text_boxes }
       })
       return pushHistory(state, slides)
     }

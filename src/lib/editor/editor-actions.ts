@@ -1,4 +1,4 @@
-import type { Slide, CustomText, CustomImage } from '@/lib/types/slide'
+import type { Slide, CustomText, CustomImage, TextBox, TextBoxRole } from '@/lib/types/slide'
 
 export type EditorAction =
   | { type: 'ADD_SLIDE'; index: number }
@@ -13,5 +13,14 @@ export type EditorAction =
   | { type: 'ADD_CUSTOM_IMAGE'; slideIndex: number; url: string }
   | { type: 'UPDATE_CUSTOM_IMAGE'; slideIndex: number; imageId: string; updates: Partial<CustomImage> }
   | { type: 'REMOVE_CUSTOM_IMAGE'; slideIndex: number; imageId: string }
+  // Phase 49: text-box actions (route through pushHistory; selectedTextBoxId lives outside reducer)
+  | {
+      type: 'ADD_TEXT_BOX'
+      slideIndex: number
+      role: TextBoxRole
+      defaults?: Partial<Omit<TextBox, 'id' | 'role'>>
+    }
+  | { type: 'UPDATE_TEXT_BOX'; slideIndex: number; textBoxId: string; updates: Partial<TextBox> }
+  | { type: 'REMOVE_TEXT_BOX'; slideIndex: number; textBoxId: string }
   | { type: 'UNDO' }
   | { type: 'REDO' }

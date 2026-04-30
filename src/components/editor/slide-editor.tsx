@@ -19,6 +19,7 @@ import {
   regenerateSlideText,
   regenerateSlideImageQuery,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
+import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
@@ -83,7 +84,32 @@ export function SlideEditor({
   const doSave = useCallback(async () => {
     setSaveStatus('saving')
     try {
-      await saveSlideData(projectId, slides)
+      // Phase 49: Dual-write — when text_boxes is the canonical source, regenerate the legacy
+      // hook_text/body_text/segments/custom_texts fields so older clients/exports/cron jobs keep
+      // working. Sunset target: v2.9.
+      const slidesForSave: Slide[] = slides.map((slide) => {
+        if (!slide.text_boxes) return slide
+        const slice = textBoxesToLegacy(slide.text_boxes)
+        const out: Slide = {
+          ...slide,
+          hook_text: slice.hook_text,
+          body_text: slice.body_text,
+        }
+        if (slice.hook_segments !== undefined) out.hook_segments = slice.hook_segments
+        else delete out.hook_segments
+        if (slice.body_segments !== undefined) out.body_segments = slice.body_segments
+        else delete out.body_segments
+        if (slice.custom_texts !== undefined) out.custom_texts = slice.custom_texts
+        else delete out.custom_texts
+        if (Object.keys(slice.style_overrides_patch).length > 0 || slide.style_overrides) {
+          out.style_overrides = {
+            ...(slide.style_overrides ?? {}),
+            ...slice.style_overrides_patch,
+          }
+        }
+        return out
+      })
+      await saveSlideData(projectId, slidesForSave)
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 2000)
     } catch {
