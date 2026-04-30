@@ -248,7 +248,7 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         if (i !== action.slideIndex) return slide
         const { defaults } = action
         const newBox: TextBox = {
-          id: crypto.randomUUID(),
+          id: defaults?.id ?? crypto.randomUUID(),
           role: action.role,
           text: defaults?.text ?? 'New Text',
           position: defaults?.position ?? defaultPositionForRole(action.role),

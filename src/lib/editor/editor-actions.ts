@@ -18,7 +18,10 @@ export type EditorAction =
       type: 'ADD_TEXT_BOX'
       slideIndex: number
       role: TextBoxRole
-      defaults?: Partial<Omit<TextBox, 'id' | 'role'>>
+      // Phase 50 (MR-01): callers may pre-generate `id` so they can call
+      // setSelectedTextBoxId(newId) immediately after dispatch (the reducer
+      // doesn't return the new id). Omitted `id` falls back to crypto.randomUUID().
+      defaults?: Partial<Omit<TextBox, 'role'>>
     }
   | { type: 'UPDATE_TEXT_BOX'; slideIndex: number; textBoxId: string; updates: Partial<TextBox> }
   | { type: 'REMOVE_TEXT_BOX'; slideIndex: number; textBoxId: string }

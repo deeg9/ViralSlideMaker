@@ -502,11 +502,18 @@ export function SlideEditor({
                     // stays decoupled from selectedIndex (Phase 49 D-16: the
                     // reducer expects slideIndex on every text-box action).
                     if (action.type === 'ADD_TEXT_BOX') {
+                      // Phase 50 (MR-01): pre-generate the id so we can
+                      // auto-select the newly added box in the same render
+                      // cycle. The reducer reads `defaults.id` if present and
+                      // falls back to crypto.randomUUID() otherwise.
+                      const newId = crypto.randomUUID()
                       dispatch({
                         type: 'ADD_TEXT_BOX',
                         slideIndex: selectedIndex,
                         role: action.role,
+                        defaults: { id: newId },
                       })
+                      setSelectedTextBoxId(newId)
                     } else if (action.type === 'UPDATE_TEXT_BOX') {
                       dispatch({
                         type: 'UPDATE_TEXT_BOX',

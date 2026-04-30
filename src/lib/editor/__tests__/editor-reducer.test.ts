@@ -102,6 +102,19 @@ describe('editorReducer — text-box actions', () => {
     expect(ids.every((id) => typeof id === 'string' && id.length > 0)).toBe(true)
   })
 
+  test('ADD_TEXT_BOX honors defaults.id when caller pre-generates it (Phase 50 MR-01)', () => {
+    const initial = makeState([makeSlide({ text_boxes: [] })])
+    const presetId = '11111111-2222-3333-4444-555555555555'
+    const next = editorReducer(initial, {
+      type: 'ADD_TEXT_BOX',
+      slideIndex: 0,
+      role: 'custom',
+      defaults: { id: presetId, text: 'Selected on add' },
+    })
+    expect(next.present[0].text_boxes![0].id).toBe(presetId)
+    expect(next.present[0].text_boxes![0].text).toBe('Selected on add')
+  })
+
   test('ADD_TEXT_BOX pushes history (undoable)', () => {
     const initial = makeState([makeSlide({ text_boxes: [] })])
     const next = editorReducer(initial, {
