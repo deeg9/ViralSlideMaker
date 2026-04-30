@@ -29,6 +29,10 @@ interface SlideCanvasProps {
   onCustomImageSelect?: (id: string | null) => void
   onCustomImageRemove?: (id: string) => void
   selectedCustomImageId?: string | null
+  // Phase 52 (T-01): canvas → right-rail selection wiring. Click on hook/body/custom
+  // wrappers in editable mode dispatches the matching TextBox.id; right rail mirrors.
+  onTextBoxSelect?: (id: string | null) => void
+  selectedTextBoxId?: string | null
 }
 
 export function SlideCanvas({
@@ -52,6 +56,8 @@ export function SlideCanvas({
   onCustomImageSelect,
   onCustomImageRemove,
   selectedCustomImageId,
+  onTextBoxSelect,
+  selectedTextBoxId,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   if (!currentSlide) return null
@@ -89,6 +95,8 @@ export function SlideCanvas({
             onCustomImageSelect={onCustomImageSelect}
             onCustomImageRemove={onCustomImageRemove}
             selectedCustomImageId={selectedCustomImageId}
+            onTextBoxSelect={onTextBoxSelect}
+            selectedTextBoxId={selectedTextBoxId}
           />
         </div>
 

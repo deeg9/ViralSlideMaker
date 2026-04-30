@@ -460,6 +460,8 @@ export function SlideEditor({
           onCustomImageSelect={setSelectedCustomImageId}
           onCustomImageRemove={handleRemoveCustomImage}
           selectedCustomImageId={selectedCustomImageId}
+          onTextBoxSelect={setSelectedTextBoxId}
+          selectedTextBoxId={selectedTextBoxId}
         />
 
         {/* Right panel: Editor controls */}

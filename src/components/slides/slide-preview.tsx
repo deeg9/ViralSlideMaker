@@ -222,6 +222,12 @@ interface SlidePreviewProps {
   onCustomImageSelect?: (id: string | null) => void
   onCustomImageRemove?: (id: string) => void
   selectedCustomImageId?: string | null
+  // Phase 52 (T-01/T-02): canvas → right-rail selection wiring. Click on a text-box
+  // wrapper in editable mode resolves the matching TextBox by role/id and calls
+  // onTextBoxSelect. selectedTextBoxId drives the dashed selection ring (T-02).
+  // Both gated to editable={true} — Satori export path (editable=false) is unchanged.
+  onTextBoxSelect?: (id: string | null) => void
+  selectedTextBoxId?: string | null
 }
 
 export function SlidePreview({
@@ -233,6 +239,8 @@ export function SlidePreview({
   onCustomImagePositionChange, onCustomImageSizeChange,
   onCustomImageSelect, onCustomImageRemove,
   selectedCustomImageId,
+  onTextBoxSelect,
+  selectedTextBoxId,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -822,7 +830,16 @@ export function SlidePreview({
               onPositionChange('hook', { x: percentX, y: percentY })
             }
           }}
-          onMouseDown={() => { onCustomTextSelect?.(null); onCustomImageSelect?.(null) }}
+          onMouseDown={(e) => {
+            // Phase 52 (T-01): click on hook wrapper → resolve hook TextBox.id and
+            // promote it as the active selection. stopPropagation() prevents the
+            // canvas-background onClick from immediately clearing the selection.
+            e.stopPropagation()
+            onCustomTextSelect?.(null)
+            onCustomImageSelect?.(null)
+            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+            if (hookBox && onTextBoxSelect) onTextBoxSelect(hookBox.id)
+          }}
           style={{ zIndex: 10 }}
           className="hover:outline hover:outline-2 hover:outline-white/50"
         >
@@ -884,7 +901,15 @@ export function SlidePreview({
                 onPositionChange('body', { x: percentX, y: percentY })
               }
             }}
-            onMouseDown={() => { onCustomTextSelect?.(null); onCustomImageSelect?.(null) }}
+            onMouseDown={(e) => {
+              // Phase 52 (T-01): click on body wrapper → resolve body TextBox.id.
+              // Same pattern as hook above.
+              e.stopPropagation()
+              onCustomTextSelect?.(null)
+              onCustomImageSelect?.(null)
+              const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+              if (bodyBox && onTextBoxSelect) onTextBoxSelect(bodyBox.id)
+            }}
             style={{ zIndex: 10 }}
             className="hover:outline hover:outline-2 hover:outline-white/50"
           >
@@ -969,9 +994,13 @@ export function SlidePreview({
                 onCustomTextPositionChange?.(ct.id, { x: percentX, y: percentY })
               }}
               onMouseDown={(e) => {
+                // Phase 52 (T-01): also dispatch unified TextBox selection so
+                // the right-rail mirrors. Custom-text TextBox.id == CustomText.id
+                // by Phase 49 adapter contract (text-box-adapter.ts customTextToBox).
                 e.stopPropagation()
                 onCustomTextSelect?.(ct.id)
                 onCustomImageSelect?.(null)
+                onTextBoxSelect?.(ct.id)
               }}
               style={{ zIndex: 15 }}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
