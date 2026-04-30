@@ -8,6 +8,7 @@ import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-k
 import { SlideList } from '@/components/editor/slide-list'
 import { SlideCanvas } from '@/components/editor/slide-canvas'
 import { TextEditorPanel } from '@/components/editor/text-editor-panel'
+import { LegacyTextEditorPanel } from '@/components/editor/text-editor-panel-legacy'
 import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import { CaptionPanel } from '@/components/captions/caption-panel'
 import { Icon } from '@/components/ui/icon'
@@ -50,8 +51,17 @@ export function SlideEditor({
   brandKit,
   initialPublishedState,
 }: SlideEditorProps) {
-  const { slides, dispatch, canUndo, canRedo, undo, redo, isDirty, setSelectedTextBoxId } =
-    useSlideEditor(initialSlides)
+  const {
+    slides,
+    dispatch,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    isDirty,
+    selectedTextBoxId,
+    setSelectedTextBoxId,
+  } = useSlideEditor(initialSlides)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
   // Brand-kit template synthesizes from the user's brand_kit row at render time.
   // Other template ids hit the static templates registry. Falls back to the first
@@ -69,6 +79,13 @@ export function SlideEditor({
   const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Phase 50 (D-19): feature flag to route between the new selection-driven
+  // TextEditorPanel and the preserved LegacyTextEditorPanel. Default is the
+  // new rail; setting NEXT_PUBLIC_NEW_TEXT_RAIL=false rolls back without
+  // a rebuild (Next inlines NEXT_PUBLIC_* at build, so a rebuild is still
+  // needed for prod — but local dev picks it up on restart). Sunset target: v2.9.
+  const useNewRail = process.env.NEXT_PUBLIC_NEW_TEXT_RAIL !== 'false'
+
   useEffect(() => {
     if (selectedIndex >= slides.length) {
       setSelectedIndex(Math.max(0, slides.length - 1))
@@ -79,11 +96,22 @@ export function SlideEditor({
   // Phase 49 (MR-02): also clear selectedTextBoxId — without this, a stale text-box
   // ID survives the slide switch and either silently lapses on the new slide or
   // (post-MR-01) accidentally re-selects an unrelated box.
+  // Phase 50 (T-04): seed selectedTextBoxId to the new slide's first text box
+  // (typically the hook). The new right rail always has SOMETHING to show. If
+  // text_boxes is empty (legacy untouched slide pre-eager-migration), drop to
+  // null and ActiveTextBoxCard renders the empty state.
   useEffect(() => {
     setSelectedCustomTextId(null)
     setSelectedCustomImageId(null)
-    setSelectedTextBoxId(null)
-  }, [selectedIndex, setSelectedTextBoxId])
+    const firstId = slides[selectedIndex]?.text_boxes?.[0]?.id ?? null
+    setSelectedTextBoxId(firstId)
+    // We intentionally depend on selectedIndex + the slides reference; pulling
+    // text_boxes through a stable identity (slide id) would be cleaner, but
+    // without slide ids we settle for selectedIndex (covers the "user moved
+    // to a new slide" case) and let stale-text-box-id resolve to first-box
+    // via ActiveTextBoxCard's resolver.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndex])
 
   const doSave = useCallback(async () => {
     setSaveStatus('saving')
@@ -457,16 +485,56 @@ export function SlideEditor({
           {/* Panel content + footer all scrollable together */}
           <div className="flex-1 overflow-auto">
             {currentSlide && activeTab === 'text' && (
-              <TextEditorPanel
-                slide={currentSlide}
-                template={template}
-                onUpdate={handleUpdate}
-                selectedCustomTextId={selectedCustomTextId}
-                customTexts={currentSlide.custom_texts}
-                onCustomTextUpdate={handleCustomTextUpdate}
-                onCustomTextRemove={handleRemoveCustomText}
-                brandKit={brandKit}
-              />
+              useNewRail ? (
+                <TextEditorPanel
+                  slide={currentSlide}
+                  template={template}
+                  selectedTextBoxId={selectedTextBoxId}
+                  onSelectTextBox={setSelectedTextBoxId}
+                  onTextBoxAction={(action) => {
+                    // Resolve slideIndex from current selection so the panel
+                    // stays decoupled from selectedIndex (Phase 49 D-16: the
+                    // reducer expects slideIndex on every text-box action).
+                    if (action.type === 'ADD_TEXT_BOX') {
+                      dispatch({
+                        type: 'ADD_TEXT_BOX',
+                        slideIndex: selectedIndex,
+                        role: action.role,
+                      })
+                    } else if (action.type === 'UPDATE_TEXT_BOX') {
+                      dispatch({
+                        type: 'UPDATE_TEXT_BOX',
+                        slideIndex: selectedIndex,
+                        textBoxId: action.textBoxId,
+                        updates: action.updates,
+                      })
+                    } else if (action.type === 'REMOVE_TEXT_BOX') {
+                      dispatch({
+                        type: 'REMOVE_TEXT_BOX',
+                        slideIndex: selectedIndex,
+                        textBoxId: action.textBoxId,
+                      })
+                    }
+                  }}
+                  onUpdate={handleUpdate}
+                  selectedCustomTextId={selectedCustomTextId}
+                  customTexts={currentSlide.custom_texts}
+                  onCustomTextUpdate={handleCustomTextUpdate}
+                  onCustomTextRemove={handleRemoveCustomText}
+                  brandKit={brandKit}
+                />
+              ) : (
+                <LegacyTextEditorPanel
+                  slide={currentSlide}
+                  template={template}
+                  onUpdate={handleUpdate}
+                  selectedCustomTextId={selectedCustomTextId}
+                  customTexts={currentSlide.custom_texts}
+                  onCustomTextUpdate={handleCustomTextUpdate}
+                  onCustomTextRemove={handleRemoveCustomText}
+                  brandKit={brandKit}
+                />
+              )
             )}
             {currentSlide && activeTab === 'images' && (
               <ImagePickerPanel

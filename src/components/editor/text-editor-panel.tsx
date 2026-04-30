@@ -3,14 +3,47 @@
 import { Icon } from '@/components/ui/icon'
 import { FontPicker } from './font-picker'
 import { TextEffectsControls } from './text-effects-controls'
-import type { Slide, CustomText, TextSegment } from '@/lib/types/slide'
+import { LayerStrip } from './text-rail/LayerStrip'
+import { ActiveTextBoxCard } from './text-rail/ActiveTextBoxCard'
+import { SlideSettings } from './text-rail/SlideSettings'
+import { COLOR_SWATCHES } from './text-rail/color-swatches'
+import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
-interface TextEditorPanelProps {
+/**
+ * Phase 50 (D-10): TextEditorPanel is now a composition shell that mounts
+ * LayerStrip → ActiveTextBoxCard → SlideSettings → CustomTextEditor (when
+ * a free-positioned custom text is selected on the canvas).
+ *
+ * Selection lives OUTSIDE the reducer in React state (Phase 49 D-16) and
+ * arrives via `selectedTextBoxId`. To swap selection, parent passes
+ * `onSelectTextBox`. To dispatch ADD/UPDATE/REMOVE_TEXT_BOX into the
+ * reducer, parent passes `onTextBoxAction` — the parent resolves
+ * `slideIndex` from its own `selectedIndex`.
+ *
+ * Slide-level edits (overlay, news layout, watermark) still flow through
+ * the existing `onUpdate` prop unchanged.
+ */
+export type TextBoxAction =
+  | { type: 'ADD_TEXT_BOX'; role: TextBox['role'] }
+  | { type: 'UPDATE_TEXT_BOX'; textBoxId: string; updates: Partial<TextBox> }
+  | { type: 'REMOVE_TEXT_BOX'; textBoxId: string }
+
+export interface TextEditorPanelProps {
   slide: Slide
   template: SlideTemplate
+  /** Phase 50 — current selection from useSlideEditor React state. */
+  selectedTextBoxId: string | null
+  /** Phase 50 — swap selection (calls setSelectedTextBoxId at parent). */
+  onSelectTextBox: (textBoxId: string | null) => void
+  /** Phase 50 — dispatches ADD/UPDATE/REMOVE_TEXT_BOX. Parent injects slideIndex. */
+  onTextBoxAction: (action: TextBoxAction) => void
+  /** Existing — slide-level updates (overlay, news layout, watermark). */
   onUpdate: (updates: Partial<Slide>) => void
+  // Existing custom-text editor surface (free-positioned text box selected on canvas).
+  // Preserved for Phase 50 — Phase 52 will reduce this surface as canvas selection
+  // unifies with the LayerStrip flow.
   selectedCustomTextId?: string | null
   customTexts?: CustomText[]
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
@@ -18,319 +51,147 @@ interface TextEditorPanelProps {
   brandKit?: BrandKit | null
 }
 
-const colorSwatches = ['#ffffff', '#3d0000', '#7d6161', '#fadbdb']
-
-// Split a hook into per-word segments. Used as the initial seed when the user
-// opens the accent toggler on a slide that doesn't have segments yet.
-function splitToSegments(text: string): TextSegment[] {
-  const trimmed = text.trim()
-  if (!trimmed) return []
-  return trimmed.split(/\s+/).map((word) => ({ text: word, accent: false }))
-}
-
 export function TextEditorPanel({
-  slide, template, onUpdate,
-  selectedCustomTextId, customTexts,
-  onCustomTextUpdate, onCustomTextRemove,
+  slide,
+  template,
+  selectedTextBoxId,
+  onSelectTextBox,
+  onTextBoxAction,
+  onUpdate,
+  selectedCustomTextId,
+  customTexts,
+  onCustomTextUpdate,
+  onCustomTextRemove,
   brandKit,
 }: TextEditorPanelProps) {
-  const overrides = slide.style_overrides ?? {}
+  const textBoxes = slide.text_boxes ?? []
 
-  // Watermark hide toggle (260427-hut): only meaningful when brand kit has an
-  // active watermark configuration.
-  const watermarkActive = !!brandKit?.logo_url && !!brandKit?.logo_position
-  const watermarkHidden = overrides.hide_watermark === true
+  // Resolve the active TextBox: prefer the explicitly selected one, fall
+  // back to the first box if selection is stale, else null (empty state).
+  const activeTextBox =
+    textBoxes.find((tb) => tb.id === selectedTextBoxId) ?? textBoxes[0] ?? null
 
+  function updateActiveTextBox(updates: Partial<TextBox>) {
+    if (!activeTextBox) return
+    onTextBoxAction({
+      type: 'UPDATE_TEXT_BOX',
+      textBoxId: activeTextBox.id,
+      updates,
+    })
+  }
+
+  // Custom-text editor surface (free-positioned text box selected on canvas).
+  // Resolved here so the section only renders when there's something to edit.
   const selectedCustomText = selectedCustomTextId
     ? (customTexts ?? []).find((ct) => ct.id === selectedCustomTextId)
     : null
 
-  // News-style template: surface the layout toggle and accent-word UI.
-  const isNewsTemplate = !!template.accentColor
-  const accentColor = template.accentColor ?? '#C8FF00'
-
-  // Resolve segments — fall back to splitting the current text so the chips always render.
-  const hookSegments: TextSegment[] = slide.hook_segments ?? splitToSegments(slide.hook_text)
-  const bodySegments: TextSegment[] = slide.body_segments ?? splitToSegments(slide.body_text)
-
-  function toggleHookAccent(index: number) {
-    const next = hookSegments.map((s, i) => i === index ? { ...s, accent: !s.accent } : s)
-    onUpdate({ hook_segments: next })
-  }
-  function toggleBodyAccent(index: number) {
-    const next = bodySegments.map((s, i) => i === index ? { ...s, accent: !s.accent } : s)
-    onUpdate({ body_segments: next })
-  }
-
   return (
-    <div className="flex flex-col gap-6 p-6" data-testid="text-editor-panel">
-      {/* News-carousel layout selector — only shown for news templates */}
-      {isNewsTemplate && (
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">News Layout</label>
-          <div className="flex gap-2">
-            {(['cover', 'body'] as const).map((opt) => {
-              const active = overrides.layout === opt
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => onUpdate({ style_overrides: { ...overrides, layout: active ? undefined : opt } })}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-                    active
-                      ? 'bg-[#3d0000] text-white'
-                      : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-                  }`}
-                >
-                  {opt === 'cover' ? 'Cover (image top)' : 'Body (image bottom)'}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+    <div className="flex flex-col gap-4 p-6 bg-[#fff0f0]" data-testid="text-editor-panel">
+      <LayerStrip
+        textBoxes={textBoxes}
+        selectedTextBoxId={selectedTextBoxId}
+        onSelect={onSelectTextBox}
+        onAdd={() => onTextBoxAction({ type: 'ADD_TEXT_BOX', role: 'custom' })}
+      />
+
+      <ActiveTextBoxCard
+        textBox={activeTextBox}
+        onUpdate={updateActiveTextBox}
+        template={template}
+        brandKit={brandKit}
+      />
+
+      <SlideSettings
+        slide={slide}
+        template={template}
+        onUpdate={onUpdate}
+        brandKit={brandKit}
+      />
+
+      {selectedCustomText && onCustomTextUpdate && onCustomTextRemove && (
+        <CustomTextEditor
+          customText={selectedCustomText}
+          template={template}
+          onUpdate={(updates) => onCustomTextUpdate(selectedCustomText.id, updates)}
+          onRemove={() => onCustomTextRemove(selectedCustomText.id)}
+        />
       )}
+    </div>
+  )
+}
 
-      {/* Hook Text */}
-      <div className="space-y-2">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Hook Text</label>
-        <div className="relative">
-          <textarea
-            value={slide.hook_text}
-            onChange={(e) => onUpdate({ hook_text: e.target.value, hook_segments: undefined })}
-            rows={3}
-            className="w-full bg-white border-none border-b border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
-            placeholder="Enter headline..."
-          />
-          <button className="absolute bottom-3 right-3 p-1 text-[#dbc1bc] hover:text-[#3d0000] transition-colors" title="AI rewrite">
-            <Icon name="auto_awesome" size="sm" />
-          </button>
-        </div>
-        <FontPicker
-          value={overrides.hook_font_family}
-          onChange={(family) => onUpdate({
-            style_overrides: { ...overrides, hook_font_family: family || undefined }
-          })}
-          templateFont={template.fontFamily}
-        />
-        {/* Hook Style: Bold / Italic */}
-        <div className="flex gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
-          <button
-            onClick={() => {
-              // Hook default is 900 (extra-bold). Bold toggle: 900 <-> 400
-              const currentWeight = overrides.hook_font_weight ?? 900
-              const isBold = currentWeight >= 700
-              onUpdate({
-                style_overrides: {
-                  ...overrides,
-                  hook_font_weight: isBold ? 400 : 900,
-                },
-              })
-            }}
-            className={`p-2 rounded-lg transition-all ${
-              (overrides.hook_font_weight ?? 900) >= 700
-                ? 'bg-[#3d0000] text-white'
-                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-            }`}
-            title="Bold"
-          >
-            <Icon name="format_bold" size="sm" />
-          </button>
-          <button
-            onClick={() =>
-              onUpdate({
-                style_overrides: {
-                  ...overrides,
-                  hook_font_style: overrides.hook_font_style === 'italic' ? undefined : 'italic',
-                },
-              })
-            }
-            className={`p-2 rounded-lg transition-all ${
-              overrides.hook_font_style === 'italic'
-                ? 'bg-[#3d0000] text-white'
-                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-            }`}
-            title="Italic"
-          >
-            <Icon name="format_italic" size="sm" />
-          </button>
-        </div>
-        {/* Accent words — only for news templates */}
-        {isNewsTemplate && hookSegments.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Accent Words</span>
-              <span className="flex items-center gap-1 text-[10px] text-[#7d6161]">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: accentColor }} />
-                Tap a word
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {hookSegments.map((seg, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => toggleHookAccent(i)}
-                  className="px-2 py-1 rounded text-xs font-bold uppercase border transition-all"
-                  style={{
-                    backgroundColor: seg.accent ? accentColor : '#fff0f0',
-                    color: seg.accent ? '#000' : '#7d6161',
-                    borderColor: seg.accent ? accentColor : '#dbc1bc',
-                  }}
-                >
-                  {seg.text}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <TextEffectsControls
-          effects={overrides.hook_text_effects}
-          onChange={(hookFx) =>
-            onUpdate({
-              style_overrides: { ...overrides, hook_text_effects: hookFx },
-            })
-          }
-        />
-      </div>
-
-      {/* Body Text */}
-      <div className="space-y-2">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Body Text</label>
-        <textarea
-          value={slide.body_text}
-          onChange={(e) => onUpdate({ body_text: e.target.value, body_segments: undefined })}
-          rows={4}
-          className="w-full bg-white border-none border-b border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none"
-          placeholder="Enter details..."
-        />
-        <FontPicker
-          value={overrides.body_font_family}
-          onChange={(family) => onUpdate({
-            style_overrides: { ...overrides, body_font_family: family || undefined }
-          })}
-          templateFont={template.fontFamily}
-        />
-        {/* Body Style: Bold / Italic */}
-        <div className="flex gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
-          <button
-            onClick={() => {
-              // Body default is 400 (normal). Bold toggle: 400 <-> 700
-              const currentWeight = overrides.body_font_weight ?? 400
-              const isBold = currentWeight >= 700
-              onUpdate({
-                style_overrides: {
-                  ...overrides,
-                  body_font_weight: isBold ? 400 : 700,
-                },
-              })
-            }}
-            className={`p-2 rounded-lg transition-all ${
-              (overrides.body_font_weight ?? 400) >= 700
-                ? 'bg-[#3d0000] text-white'
-                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-            }`}
-            title="Bold"
-          >
-            <Icon name="format_bold" size="sm" />
-          </button>
-          <button
-            onClick={() =>
-              onUpdate({
-                style_overrides: {
-                  ...overrides,
-                  body_font_style: overrides.body_font_style === 'italic' ? undefined : 'italic',
-                },
-              })
-            }
-            className={`p-2 rounded-lg transition-all ${
-              overrides.body_font_style === 'italic'
-                ? 'bg-[#3d0000] text-white'
-                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-            }`}
-            title="Italic"
-          >
-            <Icon name="format_italic" size="sm" />
-          </button>
-        </div>
-        {/* Accent words (body) — only for news templates */}
-        {isNewsTemplate && bodySegments.length > 0 && (
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Accent Words (Body)</span>
-            <div className="flex flex-wrap gap-1.5">
-              {bodySegments.map((seg, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => toggleBodyAccent(i)}
-                  className="px-2 py-0.5 rounded text-[11px] font-semibold border transition-all"
-                  style={{
-                    backgroundColor: seg.accent ? accentColor : '#fff0f0',
-                    color: seg.accent ? '#000' : '#7d6161',
-                    borderColor: seg.accent ? accentColor : '#dbc1bc',
-                  }}
-                >
-                  {seg.text}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <TextEffectsControls
-          effects={overrides.body_text_effects}
-          onChange={(bodyFx) =>
-            onUpdate({
-              style_overrides: { ...overrides, body_text_effects: bodyFx },
-            })
-          }
-        />
+/**
+ * Phase 50 (D-18): the existing custom-text editor block from the legacy
+ * panel preserved verbatim — handles selection of free-positioned text boxes
+ * from the canvas. Phase 52 will reduce this surface (canvas click-to-select
+ * will go through the LayerStrip flow), but for v2.8 the canvas still talks
+ * to this section directly via `selectedCustomTextId`.
+ *
+ * Salvaged from text-editor-panel-legacy.tsx lines 508-666.
+ */
+function CustomTextEditor({
+  customText,
+  template,
+  onUpdate,
+  onRemove,
+}: {
+  customText: CustomText
+  template: SlideTemplate
+  onUpdate: (updates: Partial<CustomText>) => void
+  onRemove: () => void
+}) {
+  return (
+    <div
+      className="space-y-4 border-t border-[#dbc1bc]/20 pt-6"
+      data-testid="custom-text-editor"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+          Custom Text
+        </span>
       </div>
 
       {/* Font Size */}
-      <div className="space-y-4">
+      <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Hook Size</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+            Size
+          </span>
           <span className="text-[10px] font-bold text-[#3d0000]">
-            {overrides.hook_font_size ?? template.hookFontSize}
+            {customText.font_size ?? 48}
           </span>
         </div>
         <input
           type="range"
           min={16}
-          max={72}
+          max={120}
           step={2}
-          value={overrides.hook_font_size ?? parseInt(template.hookFontSize)}
-          onChange={(e) =>
-            onUpdate({
-              style_overrides: {
-                ...overrides,
-                hook_font_size: Number(e.target.value),
-              },
-            })
-          }
+          value={customText.font_size ?? 48}
+          onChange={(e) => onUpdate({ font_size: Number(e.target.value) })}
           className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
         />
       </div>
 
-      {/* Hook Text Color */}
-      <div className="space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Hook Color</span>
+      {/* Color */}
+      <div className="space-y-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+          Color
+        </span>
         <div className="flex gap-3">
-          {colorSwatches.map((color) => (
+          {COLOR_SWATCHES.map((color) => (
             <button
               key={color}
-              onClick={() =>
-                onUpdate({
-                  style_overrides: { ...overrides, hook_text_color: color },
-                })
-              }
+              onClick={() => onUpdate({ color })}
               className={`w-6 h-6 rounded-full ${
-                (overrides.hook_text_color ?? overrides.text_color ?? template.textColor) === color
+                (customText.color ?? '#ffffff') === color
                   ? 'ring-2 ring-[#3d0000] ring-offset-1'
                   : ''
               }`}
-              style={{ backgroundColor: color, border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined }}
+              style={{
+                backgroundColor: color,
+                border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
+              }}
               title={color}
             />
           ))}
@@ -338,134 +199,69 @@ export function TextEditorPanel({
             <Icon name="palette" size="sm" className="text-[#7d6161]" />
             <input
               type="color"
-              value={overrides.hook_text_color ?? overrides.text_color ?? template.textColor}
-              onChange={(e) =>
-                onUpdate({
-                  style_overrides: { ...overrides, hook_text_color: e.target.value },
-                })
-              }
+              value={customText.color ?? '#ffffff'}
+              onChange={(e) => onUpdate({ color: e.target.value })}
               className="sr-only"
             />
           </label>
         </div>
       </div>
 
-      {/* Body Text Color */}
-      <div className="space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Body Color</span>
-        <div className="flex gap-3">
-          {colorSwatches.map((color) => (
-            <button
-              key={color}
-              onClick={() =>
-                onUpdate({
-                  style_overrides: { ...overrides, body_text_color: color },
-                })
-              }
-              className={`w-6 h-6 rounded-full ${
-                (overrides.body_text_color ?? overrides.text_color ?? template.textColor) === color
-                  ? 'ring-2 ring-[#3d0000] ring-offset-1'
-                  : ''
-              }`}
-              style={{ backgroundColor: color, border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined }}
-              title={color}
-            />
-          ))}
-          <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
-            <Icon name="palette" size="sm" className="text-[#7d6161]" />
-            <input
-              type="color"
-              value={overrides.body_text_color ?? overrides.text_color ?? template.textColor}
-              onChange={(e) =>
-                onUpdate({
-                  style_overrides: { ...overrides, body_text_color: e.target.value },
-                })
-              }
-              className="sr-only"
-            />
-          </label>
-        </div>
-      </div>
-
-      {/* Text Position Presets */}
-      <div className="space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Text Position</span>
-        <div className="flex gap-2">
-          {([
-            { label: 'top', hookY: 12, bodyY: 30 },
-            { label: 'center', hookY: 30, bodyY: 48 },
-            { label: 'bottom', hookY: 48, bodyY: 62 },
-          ] as const).map(({ label, hookY, bodyY }) => (
-            <button
-              key={label}
-              onClick={() =>
-                onUpdate({
-                  style_overrides: {
-                    ...overrides,
-                    text_position: label,
-                    hook_position: { x: 11, y: hookY },
-                    body_position: { x: 11, y: bodyY },
-                  },
-                })
-              }
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
-                (overrides.text_position ?? template.textPosition) === label
-                  ? 'bg-[#3d0000] text-white'
-                  : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <p className="text-[9px] text-[#7d6161]">Drag text on the canvas for custom positioning</p>
-      </div>
-
-      {/* Overlay Opacity */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Overlay</span>
-          <span className="text-[10px] font-bold text-[#3d0000]">
-            {overrides.overlay_opacity ?? Math.round(template.overlayOpacity * 100)}%
-          </span>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={overrides.overlay_opacity ?? Math.round(template.overlayOpacity * 100)}
-          onChange={(e) =>
+      {/* Bold / Italic */}
+      <div className="flex gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">
+          Style
+        </span>
+        <button
+          onClick={() =>
             onUpdate({
-              style_overrides: {
-                ...overrides,
-                overlay_opacity: Number(e.target.value),
-              },
+              font_weight: (customText.font_weight ?? 400) >= 700 ? 400 : 700,
             })
           }
-          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
-        />
-        <p className="text-[9px] text-[#7d6161]">Lower for vivid backgrounds, higher for readable text</p>
+          className={`p-2 rounded-lg transition-all ${
+            (customText.font_weight ?? 400) >= 700
+              ? 'bg-[#3d0000] text-white'
+              : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+          }`}
+          title="Bold"
+        >
+          <Icon name="format_bold" size="sm" />
+        </button>
+        <button
+          onClick={() =>
+            onUpdate({
+              font_style: customText.font_style === 'italic' ? 'normal' : 'italic',
+            })
+          }
+          className={`p-2 rounded-lg transition-all ${
+            customText.font_style === 'italic'
+              ? 'bg-[#3d0000] text-white'
+              : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+          }`}
+          title="Italic"
+        >
+          <Icon name="format_italic" size="sm" />
+        </button>
       </div>
 
-      {/* Text Alignment */}
-      <div className="space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Text Align</span>
+      {/* Text Align */}
+      <div className="space-y-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+          Align
+        </span>
         <div className="flex gap-2">
-          {([
-            { value: 'left', icon: 'format_align_left' },
-            { value: 'center', icon: 'format_align_center' },
-            { value: 'right', icon: 'format_align_right' },
-          ] as const).map(({ value, icon }) => (
+          {(
+            [
+              { value: 'left', icon: 'format_align_left' },
+              { value: 'center', icon: 'format_align_center' },
+              { value: 'right', icon: 'format_align_right' },
+            ] as const
+          ).map(({ value, icon }) => (
             <button
               key={value}
-              onClick={() =>
-                onUpdate({
-                  style_overrides: { ...overrides, text_align: value },
-                })
-              }
+              onClick={() => onUpdate({ text_align: value })}
               className={`p-2 rounded-lg transition-all ${
-                (overrides.text_align ?? template.textAlign) === value
+                (customText.text_align ?? 'left') === value
                   ? 'bg-[#3d0000] text-white'
                   : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
               }`}
@@ -477,193 +273,26 @@ export function TextEditorPanel({
         </div>
       </div>
 
-      {/* Watermark hide toggle — only when brand kit has an active watermark */}
-      {watermarkActive && (
-        <div className="border-t border-[#dbc1bc]/20 pt-6">
-          <button
-            type="button"
-            onClick={() => {
-              const next = { ...overrides }
-              if (watermarkHidden) {
-                // Remove the override entirely to keep the object minimal
-                delete next.hide_watermark
-              } else {
-                next.hide_watermark = true
-              }
-              onUpdate({ style_overrides: next })
-            }}
-            className={`w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-all ${
-              watermarkHidden
-                ? 'bg-[#3d0000] text-white hover:opacity-90'
-                : 'bg-[#fff0f0] text-[#3d0000] border border-[#dbc1bc]/30 hover:bg-[#fadbdb]'
-            }`}
-          >
-            <Icon name={watermarkHidden ? 'visibility' : 'visibility_off'} size="sm" />
-            {watermarkHidden ? 'Show brand logo on this slide' : 'Hide brand logo on this slide'}
-          </button>
-        </div>
-      )}
+      {/* Font Picker */}
+      <FontPicker
+        value={customText.font_family}
+        onChange={(family) => onUpdate({ font_family: family || undefined })}
+        templateFont={template.fontFamily}
+      />
 
-      {/* Custom Texts Section */}
-      {(customTexts ?? []).length > 0 && (
-        <div className="space-y-4 border-t border-[#dbc1bc]/20 pt-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Custom Texts</span>
-            <span className="text-[9px] bg-[#fadbdb] text-[#3d0000] px-1.5 py-0.5 rounded-full font-bold">
-              {(customTexts ?? []).length}
-            </span>
-          </div>
+      <TextEffectsControls
+        effects={customText.text_effects}
+        onChange={(ctFx) => onUpdate({ text_effects: ctFx })}
+      />
 
-          {selectedCustomText ? (
-            <div className="space-y-4">
-              {/* Font Size */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Size</span>
-                  <span className="text-[10px] font-bold text-[#3d0000]">
-                    {selectedCustomText.font_size ?? 48}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={16}
-                  max={120}
-                  step={2}
-                  value={selectedCustomText.font_size ?? 48}
-                  onChange={(e) =>
-                    onCustomTextUpdate?.(selectedCustomText.id, {
-                      font_size: Number(e.target.value),
-                    })
-                  }
-                  className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000]"
-                />
-              </div>
-
-              {/* Color */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Color</span>
-                <div className="flex gap-3">
-                  {colorSwatches.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => onCustomTextUpdate?.(selectedCustomText.id, { color })}
-                      className={`w-6 h-6 rounded-full ${
-                        (selectedCustomText.color ?? '#ffffff') === color
-                          ? 'ring-2 ring-[#3d0000] ring-offset-1'
-                          : ''
-                      }`}
-                      style={{ backgroundColor: color, border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined }}
-                      title={color}
-                    />
-                  ))}
-                  <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer">
-                    <Icon name="palette" size="sm" className="text-[#7d6161]" />
-                    <input
-                      type="color"
-                      value={selectedCustomText.color ?? '#ffffff'}
-                      onChange={(e) =>
-                        onCustomTextUpdate?.(selectedCustomText.id, { color: e.target.value })
-                      }
-                      className="sr-only"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Bold / Italic */}
-              <div className="flex gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] self-center mr-1">Style</span>
-                <button
-                  onClick={() =>
-                    onCustomTextUpdate?.(selectedCustomText.id, {
-                      font_weight: (selectedCustomText.font_weight ?? 400) >= 700 ? 400 : 700,
-                    })
-                  }
-                  className={`p-2 rounded-lg transition-all ${
-                    (selectedCustomText.font_weight ?? 400) >= 700
-                      ? 'bg-[#3d0000] text-white'
-                      : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-                  }`}
-                  title="Bold"
-                >
-                  <Icon name="format_bold" size="sm" />
-                </button>
-                <button
-                  onClick={() =>
-                    onCustomTextUpdate?.(selectedCustomText.id, {
-                      font_style: selectedCustomText.font_style === 'italic' ? 'normal' : 'italic',
-                    })
-                  }
-                  className={`p-2 rounded-lg transition-all ${
-                    selectedCustomText.font_style === 'italic'
-                      ? 'bg-[#3d0000] text-white'
-                      : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-                  }`}
-                  title="Italic"
-                >
-                  <Icon name="format_italic" size="sm" />
-                </button>
-              </div>
-
-              {/* Text Align */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">Align</span>
-                <div className="flex gap-2">
-                  {([
-                    { value: 'left', icon: 'format_align_left' },
-                    { value: 'center', icon: 'format_align_center' },
-                    { value: 'right', icon: 'format_align_right' },
-                  ] as const).map(({ value, icon }) => (
-                    <button
-                      key={value}
-                      onClick={() => onCustomTextUpdate?.(selectedCustomText.id, { text_align: value })}
-                      className={`p-2 rounded-lg transition-all ${
-                        (selectedCustomText.text_align ?? 'left') === value
-                          ? 'bg-[#3d0000] text-white'
-                          : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-                      }`}
-                      title={value}
-                    >
-                      <Icon name={icon} size="sm" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Font Picker */}
-              <FontPicker
-                value={selectedCustomText.font_family}
-                onChange={(family) =>
-                  onCustomTextUpdate?.(selectedCustomText.id, {
-                    font_family: family || undefined,
-                  })
-                }
-                templateFont={template.fontFamily}
-              />
-
-              <TextEffectsControls
-                effects={selectedCustomText.text_effects}
-                onChange={(ctFx) =>
-                  onCustomTextUpdate?.(selectedCustomText.id, { text_effects: ctFx })
-                }
-              />
-
-              {/* Delete */}
-              <button
-                onClick={() => onCustomTextRemove?.(selectedCustomText.id)}
-                className="w-full py-2 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <Icon name="delete" size="sm" />
-                Delete Text Box
-              </button>
-            </div>
-          ) : (
-            <p className="text-[10px] text-[#7d6161]">
-              Tap a custom text box on the canvas to edit its style
-            </p>
-          )}
-        </div>
-      )}
+      {/* Delete */}
+      <button
+        onClick={onRemove}
+        className="w-full py-2 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+      >
+        <Icon name="delete" size="sm" />
+        Delete Text Box
+      </button>
     </div>
   )
 }
