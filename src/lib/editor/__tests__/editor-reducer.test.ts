@@ -237,6 +237,171 @@ describe('editorReducer — text-box actions', () => {
   })
 })
 
+describe('editorReducer — text-box write-through (Phase 50 BL-01)', () => {
+  // SlidePreview reads from slide.hook_text / body_text / hook_segments /
+  // body_segments / style_overrides.{hook,body}_*; the new ActiveTextBoxCard
+  // writes to slide.text_boxes[*]. The reducer must keep BOTH shapes in sync
+  // synchronously so the live canvas reflects every edit before save runs.
+
+  test('UPDATE_TEXT_BOX: hook text edit propagates to slide.hook_text', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Old',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'h', role: 'hook', text: 'Old', position: { anchor: 'top' } },
+          { id: 'b', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'h',
+      updates: { text: 'Brand new headline' },
+    })
+    expect(next.present[0].text_boxes![0].text).toBe('Brand new headline')
+    expect(next.present[0].hook_text).toBe('Brand new headline')
+    // body untouched
+    expect(next.present[0].body_text).toBe('Body')
+  })
+
+  test('UPDATE_TEXT_BOX: hook color edit propagates to slide.style_overrides.hook_text_color', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'h', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'b', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'h',
+      updates: { color: '#ff00aa' },
+    })
+    expect(next.present[0].text_boxes![0].color).toBe('#ff00aa')
+    expect(next.present[0].style_overrides?.hook_text_color).toBe('#ff00aa')
+  })
+
+  test('UPDATE_TEXT_BOX: body effect toggle propagates to slide.style_overrides.body_text_effects', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'h', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'b', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'b',
+      updates: {
+        effects: { shadow: { enabled: true, color: '#000000', size: 'md' } },
+      },
+    })
+    expect(next.present[0].text_boxes![1].effects?.shadow?.enabled).toBe(true)
+    expect(next.present[0].style_overrides?.body_text_effects?.shadow?.enabled).toBe(true)
+  })
+
+  test('UPDATE_TEXT_BOX: hook segments edit propagates to slide.hook_segments', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'h', role: 'hook', text: 'one two three', position: { anchor: 'top' } },
+          { id: 'b', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const segments = [
+      { text: 'one', accent: false },
+      { text: ' ', accent: false },
+      { text: 'two', accent: true },
+      { text: ' ', accent: false },
+      { text: 'three', accent: false },
+    ]
+    const next = editorReducer(initial, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'h',
+      updates: { segments },
+    })
+    expect(next.present[0].text_boxes![0].segments).toEqual(segments)
+    expect(next.present[0].hook_segments).toEqual(segments)
+  })
+
+  test('ADD_TEXT_BOX: role=custom propagates to slide.custom_texts', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'h', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'b', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ADD_TEXT_BOX',
+      slideIndex: 0,
+      role: 'custom',
+      defaults: { text: 'Custom one' },
+    })
+    expect(next.present[0].text_boxes!.length).toBe(3)
+    expect(next.present[0].custom_texts?.length).toBe(1)
+    expect(next.present[0].custom_texts?.[0].text).toBe('Custom one')
+  })
+
+  test('REMOVE_TEXT_BOX: removing role=custom box removes from slide.custom_texts', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'h', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'b', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+          {
+            id: 'c1',
+            role: 'custom',
+            text: 'Keep me',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'c2',
+            role: 'custom',
+            text: 'Delete me',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'REMOVE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'c2',
+    })
+    expect(next.present[0].text_boxes!.length).toBe(3)
+    expect(next.present[0].custom_texts?.length).toBe(1)
+    expect(next.present[0].custom_texts?.[0].text).toBe('Keep me')
+  })
+
+  test('UPDATE_TEXT_BOX: hook font_weight edit propagates to slide.style_overrides.hook_font_weight', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'h', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'b', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'h',
+      updates: { font_weight: 700 },
+    })
+    expect(next.present[0].style_overrides?.hook_font_weight).toBe(700)
+  })
+})
+
 describe('editorReducer — DUPLICATE_SLIDE', () => {
   test('regenerates text_boxes / custom_texts / custom_images IDs on the clone', () => {
     const initial = makeState([

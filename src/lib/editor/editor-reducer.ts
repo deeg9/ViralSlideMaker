@@ -1,7 +1,58 @@
 import type { Slide, TextBox, TextBoxPosition, TextBoxRole } from '@/lib/types/slide'
 import type { EditorAction } from '@/lib/editor/editor-actions'
+import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 
 const MAX_HISTORY = 50
+
+/**
+ * Phase 50 (BL-01): write-through helper. After any reducer mutation to
+ * `slide.text_boxes`, derive a fresh legacy slice via `textBoxesToLegacy`
+ * and merge it back into the slide's legacy fields + style_overrides in
+ * the SAME reducer step.
+ *
+ * Why: `slide-preview.tsx` (and Satori PNG export, HTML export) read from
+ * `slide.hook_text` / `slide.body_text` / `slide.hook_segments` /
+ * `slide.body_segments` / `slide.style_overrides.{hook,body}_*`. Dual-write
+ * at save time is too late — the live preview renders before save, so the
+ * canvas would show stale content for every per-text-box edit.
+ *
+ * Phase 53 may flip slide-preview to read from `text_boxes` natively; until
+ * then this guarantees both shapes stay in lock-step.
+ */
+function applyDualWrite(slide: Slide, nextTextBoxes: TextBox[]): Slide {
+  const slice = textBoxesToLegacy(nextTextBoxes)
+  const out: Slide = {
+    ...slide,
+    text_boxes: nextTextBoxes,
+    hook_text: slice.hook_text,
+    body_text: slice.body_text,
+  }
+  if (slice.hook_segments !== undefined) {
+    out.hook_segments = slice.hook_segments
+  } else {
+    delete out.hook_segments
+  }
+  if (slice.body_segments !== undefined) {
+    out.body_segments = slice.body_segments
+  } else {
+    delete out.body_segments
+  }
+  if (slice.custom_texts !== undefined) {
+    out.custom_texts = slice.custom_texts
+  } else {
+    delete out.custom_texts
+  }
+  if (
+    Object.keys(slice.style_overrides_patch).length > 0 ||
+    slide.style_overrides
+  ) {
+    out.style_overrides = {
+      ...(slide.style_overrides ?? {}),
+      ...slice.style_overrides_patch,
+    }
+  }
+  return out
+}
 
 export interface EditorHistory {
   past: Slide[][]
@@ -210,10 +261,8 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           ...(defaults?.text_align !== undefined ? { text_align: defaults.text_align } : {}),
           ...(defaults?.effects !== undefined ? { effects: defaults.effects } : {}),
         }
-        return {
-          ...slide,
-          text_boxes: [...(slide.text_boxes ?? []), newBox],
-        }
+        const nextTextBoxes = [...(slide.text_boxes ?? []), newBox]
+        return applyDualWrite(slide, nextTextBoxes)
       })
       return pushHistory(state, slides)
     }
@@ -221,10 +270,10 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     case 'UPDATE_TEXT_BOX': {
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
-        const text_boxes = (slide.text_boxes ?? []).map((tb) =>
+        const nextTextBoxes = (slide.text_boxes ?? []).map((tb) =>
           tb.id === action.textBoxId ? { ...tb, ...action.updates } : tb
         )
-        return { ...slide, text_boxes }
+        return applyDualWrite(slide, nextTextBoxes)
       })
       return pushHistory(state, slides)
     }
@@ -232,10 +281,10 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     case 'REMOVE_TEXT_BOX': {
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
-        const text_boxes = (slide.text_boxes ?? []).filter(
+        const nextTextBoxes = (slide.text_boxes ?? []).filter(
           (tb) => tb.id !== action.textBoxId
         )
-        return { ...slide, text_boxes }
+        return applyDualWrite(slide, nextTextBoxes)
       })
       return pushHistory(state, slides)
     }

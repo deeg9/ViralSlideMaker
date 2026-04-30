@@ -119,6 +119,11 @@ export function SlideEditor({
       // Phase 49: Dual-write — when text_boxes is the canonical source, regenerate the legacy
       // hook_text/body_text/segments/custom_texts fields so older clients/exports/cron jobs keep
       // working. Sunset target: v2.9.
+      //
+      // Phase 50 (BL-01) note: the editor reducer now applies the same write-through on
+      // every ADD_TEXT_BOX / UPDATE_TEXT_BOX / REMOVE_TEXT_BOX action, so `slides` already
+      // has both shapes synced. This block is now belt-and-suspenders — kept for defense-
+      // in-depth in case a future call site mutates text_boxes outside the reducer.
       const slidesForSave: Slide[] = slides.map((slide) => {
         if (!slide.text_boxes) return slide
         const slice = textBoxesToLegacy(slide.text_boxes)
