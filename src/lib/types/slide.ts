@@ -67,6 +67,35 @@ export interface TextEffects {
   highlight?: TextHighlightEffect
 }
 
+// Phase 49: Unified text-box model. Replaces the rigid hook_text + body_text + custom_texts
+// trio with a single TextBox[] array. Legacy fields on Slide are retained for one milestone
+// (sunset target: v2.9) so older clients/exports continue to function.
+export type TextBoxRole = 'hook' | 'body' | 'custom'
+
+export type TextBoxAnchor = 'top' | 'center' | 'bottom' | 'custom'
+
+export interface TextBoxPosition {
+  anchor: TextBoxAnchor
+  x?: number       // percentage 0-100 (only when anchor='custom')
+  y?: number       // percentage 0-100 (only when anchor='custom')
+  width?: number   // percentage 0-100 (overrides symmetric calc)
+}
+
+export interface TextBox {
+  id: string                    // crypto.randomUUID()
+  role: TextBoxRole
+  text: string
+  segments?: TextSegment[]
+  font_family?: string
+  font_size?: number            // px in 1080x1920 reference
+  font_weight?: number
+  font_style?: 'normal' | 'italic'
+  color?: string
+  text_align?: 'left' | 'center' | 'right'
+  effects?: TextEffects
+  position: TextBoxPosition
+}
+
 export interface SlideStyleOverrides {
   hook_font_size?: number
   body_font_size?: number
@@ -99,17 +128,24 @@ export interface SlideStyleOverrides {
 }
 
 export interface Slide {
+  /** @deprecated v2.8 — use text_boxes. Retained for backward compat through v2.9. */
   hook_text: string
+  /** @deprecated v2.8 — use text_boxes. Retained for backward compat through v2.9. */
   body_text: string
+  /** @deprecated v2.8 — use text_boxes. */
   hook_segments?: TextSegment[]
+  /** @deprecated v2.8 — use text_boxes. */
   body_segments?: TextSegment[]
   image_query: string
   is_cta: boolean
   background_url: string | null
   pexels_photo_id: number | null
   style_overrides?: SlideStyleOverrides
+  /** @deprecated v2.8 — use text_boxes (role='custom' entries). */
   custom_texts?: CustomText[]
   custom_images?: CustomImage[]
+  /** Phase 49: Unified text-box array. When absent, derived from legacy fields on load. */
+  text_boxes?: TextBox[]
 }
 
 export type SlideData = Slide[]
