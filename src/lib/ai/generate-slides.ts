@@ -1,7 +1,9 @@
 import { GoogleGenAI, Type, type Schema } from '@google/genai'
-import { CarouselSchema, type Carousel } from './schemas'
+import { CarouselSchema, type Carousel, type SlideContent } from './schemas'
 import { buildSystemPrompt } from './prompts'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
+import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import type { Slide, TextBox } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -64,12 +66,25 @@ const responseSchema: Schema = {
   required: ['title', 'slides'],
 }
 
+/**
+ * Phase 51: Carousel returned to callers includes `text_boxes[]` populated server-side
+ * via `legacyToTextBoxes` so the AI-ingest boundary produces the same observable shape
+ * as the eager-migration path on slide load (Phase 49). AIGEN-01 (rewriting Gemini's
+ * JSON schema to natively emit `text_boxes`) is deferred to v2.9 — this light-touch
+ * adapter delivers identical state with zero regression risk to v2.7's audit-passed
+ * premium tier.
+ */
+export type SlideContentWithTextBoxes = SlideContent & { text_boxes: TextBox[] }
+export type CarouselWithTextBoxes = Omit<Carousel, 'slides'> & {
+  slides: SlideContentWithTextBoxes[]
+}
+
 export async function generateSlideContent(
   topic: string,
   slideCount: number = 7,
   imageStyleHint?: string,
   templateId?: string,
-): Promise<Carousel> {
+): Promise<CarouselWithTextBoxes> {
   const imageHintText = imageStyleHint
     ? `\n\nWhen generating image_query values, incorporate this visual preference: "${imageStyleHint}"`
     : ''
@@ -130,5 +145,19 @@ export async function generateSlideContent(
   }
 
   // Validate final shape with Zod (schema gate — separate from validateAndRepair).
-  return CarouselSchema.parse(data)
+  const parsedCarousel = CarouselSchema.parse(data)
+
+  // Phase 51: populate `text_boxes[]` server-side at the AI-ingest boundary so every
+  // path that hits Supabase carries the unified shape. `legacyToTextBoxes` only reads
+  // hook_text/body_text/hook_segments/body_segments/style_overrides/custom_texts —
+  // all of which are present (or safely undefined) on `SlideContent`. We cast to the
+  // structural minimum the adapter requires; the adapter is defensive on missing fields.
+  const slidesWithTextBoxes: SlideContentWithTextBoxes[] = parsedCarousel.slides.map(
+    (slide) => ({
+      ...slide,
+      text_boxes: legacyToTextBoxes(slide as unknown as Slide),
+    }),
+  )
+
+  return { ...parsedCarousel, slides: slidesWithTextBoxes }
 }

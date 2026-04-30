@@ -40,7 +40,7 @@
 
 ## AIGEN — AI prompt rewrite
 
-- [ ] **AIGEN-01** — Gemini slide-text generation prompt emits `text_boxes: [{ role: 'hook', text: '...' }, { role: 'body', text: '...' }]` instead of `{ hook_text, body_text }`. Schema validation + repair pipeline updated.
+- [ ] **AIGEN-01** ~~Gemini slide-text generation prompt emits `text_boxes: [{ role: 'hook', text: '...' }, { role: 'body', text: '...' }]` instead of `{ hook_text, body_text }`. Schema validation + repair pipeline updated.~~ — **DEFERRED to v2.9** (sunset milestone). Phase 51 ships a light-touch alternative: `legacyToTextBoxes()` runs at the AI-ingest boundary in `generate-slides.ts` (post-Zod-parse) and at slide-load (Phase 49 eager migration), producing identical `text_boxes[]` state without rewriting the Gemini schema. Rationale: v2.7's premium-tier audit (19/19) just shipped; rewriting the prompt schema risks regression for zero observable user gain. Re-verify in v2.9 alongside the legacy-fields sunset.
 - [ ] **AIGEN-02** — `regenerateSlideText` (referenced in `src/components/editor/slide-editor.tsx:19`) round-trips the new shape; existing per-field regeneration UX preserved.
 - [ ] **AIGEN-03** — Template seeding logic produces `text_boxes[]` with template-appropriate defaults instead of two strings. News templates default to two boxes (hook + body); future templates may emit 3+.
 - [ ] **AIGEN-04** — Server-side validator auto-corrects malformed `text_boxes[]` to a 2-box default if Gemini output drifts. Never throws — the user always gets a usable carousel.
