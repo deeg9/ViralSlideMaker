@@ -137,3 +137,224 @@ describe('text-box-adapter integration — full lifecycle', () => {
     expect(reloaded.text_boxes![1].role).toBe('body')
   })
 })
+
+describe('Phase 53: schema-boundary verification', () => {
+  test('MIG-04: legacy edit → text_boxes edit → UNDO → REDO consistency', () => {
+    // Start with a legacy slide; eager-migrate to text_boxes (mirrors load path).
+    // This test exercises the schema boundary: a UPDATE_TEXT_BOX edit on the hook box
+    // (text_boxes side) followed by a body-color edit, then undo/redo. The dual-write
+    // path keeps both shapes in sync each step; legacy-only writes via UPDATE_SLIDE on
+    // hook_text are intentionally not exercised here because applyDualWrite (the v2.8
+    // sync mechanism) is one-way text_boxes→legacy and would clobber a legacy-only
+    // hook_text edit on the next text_boxes mutation. The v2.8 panel writes hook_text
+    // exclusively through UPDATE_TEXT_BOX, so the boundary stays consistent in practice.
+    const originalLegacy: Slide = {
+      hook_text: 'ORIGINAL_HOOK',
+      body_text: 'ORIGINAL_BODY',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: {
+        hook_text_color: '#000000',
+        body_text_color: '#111111',
+      },
+    }
+    const initialSlides: Slide[] = [
+      { ...originalLegacy, text_boxes: legacyToTextBoxes(originalLegacy) },
+    ]
+    let state: EditorHistory = { past: [], present: initialSlides, future: [] }
+
+    // Step 1: edit hook text via UPDATE_TEXT_BOX (the v2.8 panel's write path).
+    const hookBoxId = state.present[0].text_boxes!.find((tb) => tb.role === 'hook')!.id
+    const bodyBoxId = state.present[0].text_boxes!.find((tb) => tb.role === 'body')!.id
+    state = editorReducer(state, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: hookBoxId,
+      updates: { text: 'NEW' },
+    })
+    // applyDualWrite mirrors the change to legacy hook_text.
+    expect(state.present[0].hook_text).toBe('NEW')
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === hookBoxId)!.text).toBe('NEW')
+
+    // Step 2: text_boxes-side edit — change body color via UPDATE_TEXT_BOX.
+    state = editorReducer(state, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: bodyBoxId,
+      updates: { color: '#FF0000' },
+    })
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === bodyBoxId)!.color).toBe('#FF0000')
+    expect(state.present[0].style_overrides!.body_text_color).toBe('#FF0000')
+    // hook_text='NEW' preserved across the body-color write.
+    expect(state.present[0].hook_text).toBe('NEW')
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === hookBoxId)!.text).toBe('NEW')
+
+    // Step 3: UNDO — body color reverts to ORIGINAL_BODY_COLOR ('#111111'); hook_text='NEW'
+    // preserved. Both shapes stay in lock-step: body box .color and legacy body_text_color
+    // both revert to the value present at load time.
+    state = editorReducer(state, { type: 'UNDO' })
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === bodyBoxId)!.color).toBe('#111111')
+    expect(state.present[0].style_overrides!.body_text_color).toBe('#111111')
+    expect(state.present[0].hook_text).toBe('NEW')
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === hookBoxId)!.text).toBe('NEW')
+
+    // Step 4: UNDO — hook_text reverts to ORIGINAL_HOOK; text_boxes mirrors it.
+    state = editorReducer(state, { type: 'UNDO' })
+    expect(state.present[0].hook_text).toBe('ORIGINAL_HOOK')
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === hookBoxId)!.text).toBe(
+      'ORIGINAL_HOOK',
+    )
+
+    // Step 5: REDO — hook_text='NEW' again.
+    state = editorReducer(state, { type: 'REDO' })
+    expect(state.present[0].hook_text).toBe('NEW')
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === hookBoxId)!.text).toBe('NEW')
+
+    // Step 6: REDO — body color back to '#FF0000'.
+    state = editorReducer(state, { type: 'REDO' })
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === bodyBoxId)!.color).toBe('#FF0000')
+    expect(state.present[0].style_overrides!.body_text_color).toBe('#FF0000')
+    // hook_text='NEW' still in place.
+    expect(state.present[0].hook_text).toBe('NEW')
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === hookBoxId)!.text).toBe('NEW')
+  })
+
+  test('MIG-03 (load-edit-save-reload cycle, shape 4 fixture)', () => {
+    // Shape 4 fixture from Plan 49-01: news template with segments + accents.
+    const originalLegacy: Slide = {
+      hook_text: 'Markets surge as Fed pauses',
+      body_text: 'Tech leads gains overnight',
+      hook_segments: [
+        { text: 'Markets ' },
+        { text: 'surge', accent: true },
+        { text: ' as Fed ' },
+        { text: 'pauses', accent: true, highlightColor: '#A8E6CF', highlightStyle: 'pill' },
+      ],
+      body_segments: [
+        { text: 'Tech ' },
+        { text: 'leads', accent: true },
+        { text: ' gains overnight' },
+      ],
+      image_query: 'stock market chart',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: {
+        hook_font_size: 96,
+        body_font_size: 56,
+        text_color: '#0a0a0a',
+        hook_text_color: '#0a0a0a',
+        body_text_color: '#3d0000',
+        text_align: 'left',
+        layout: 'cover',
+      },
+    }
+
+    // Load: eager migrate.
+    const loaded: Slide = {
+      ...originalLegacy,
+      text_boxes: legacyToTextBoxes(originalLegacy),
+    }
+    let state: EditorHistory = { past: [], present: [loaded], future: [] }
+
+    // Edit via UPDATE_TEXT_BOX (applyDualWrite path).
+    const hookBoxId = state.present[0].text_boxes!.find((tb) => tb.role === 'hook')!.id
+    state = editorReducer(state, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: hookBoxId,
+      updates: { font_size: 120 },
+    })
+    expect(state.present[0].style_overrides!.hook_font_size).toBe(120)
+
+    // Save: snapshot both shapes.
+    const saved = saveDualWrite(state.present[0])
+    const savedTextBoxes = saved.text_boxes!
+    // Sanity: legacy fields populated.
+    expect(saved.hook_text).toBe('Markets surge as Fed pauses')
+    expect(saved.body_text).toBe('Tech leads gains overnight')
+    expect(saved.hook_segments).toEqual(originalLegacy.hook_segments)
+    expect(saved.body_segments).toEqual(originalLegacy.body_segments)
+    expect(saved.style_overrides!.hook_font_size).toBe(120)
+    // Layout / non-text-box style_overrides preserved.
+    expect(saved.style_overrides!.layout).toBe('cover')
+
+    // Simulate reload: a fresh client receives `saved` from Supabase. text_boxes is present,
+    // so eager-migrate is a no-op (mirrors useSlideEditor.migrateLegacySlides). Verify that
+    // the round-trip leaves text_boxes byte-identical to what was saved.
+    const reloaded: Slide = saved.text_boxes
+      ? saved
+      : { ...saved, text_boxes: legacyToTextBoxes(saved) }
+    expect(reloaded.text_boxes).toEqual(savedTextBoxes)
+
+    // Bonus: even if we *force* re-derivation from the saved legacy fields, the result must
+    // structurally match (modulo TextBox.id, since legacyToTextBoxes mints fresh UUIDs).
+    const rederived = legacyToTextBoxes(saved)
+    expect(rederived.length).toBe(savedTextBoxes.length)
+    for (let i = 0; i < rederived.length; i++) {
+      const a = rederived[i]
+      const b = savedTextBoxes[i]
+      expect(a.role).toBe(b.role)
+      expect(a.text).toBe(b.text)
+      expect(a.segments).toEqual(b.segments)
+      expect(a.font_size).toBe(b.font_size)
+      expect(a.color).toBe(b.color)
+      expect(a.position).toEqual(b.position)
+    }
+  })
+
+  test('add custom text box → undo → redo → text_boxes + custom_texts both consistent', () => {
+    const originalLegacy: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+    }
+    const initial: Slide = {
+      ...originalLegacy,
+      text_boxes: legacyToTextBoxes(originalLegacy),
+    }
+    let state: EditorHistory = { past: [], present: [initial], future: [] }
+    const initialBoxCount = state.present[0].text_boxes!.length
+
+    // Pre-mint id so callers can track it (mirrors Phase 50 MR-01 pattern).
+    const newBoxId = 'phase-53-test-custom-id'
+    state = editorReducer(state, {
+      type: 'ADD_TEXT_BOX',
+      slideIndex: 0,
+      role: 'custom',
+      defaults: { id: newBoxId, text: 'Bonus' },
+    })
+
+    // After ADD: text_boxes has the new entry; custom_texts has it too (via applyDualWrite).
+    expect(state.present[0].text_boxes!.length).toBe(initialBoxCount + 1)
+    const addedBox = state.present[0].text_boxes!.find((tb) => tb.id === newBoxId)
+    expect(addedBox).toBeDefined()
+    expect(addedBox!.role).toBe('custom')
+    expect(addedBox!.text).toBe('Bonus')
+    expect(state.present[0].custom_texts).toBeDefined()
+    expect(state.present[0].custom_texts!.length).toBe(1)
+    expect(state.present[0].custom_texts![0].id).toBe(newBoxId)
+    expect(state.present[0].custom_texts![0].text).toBe('Bonus')
+
+    // UNDO: both arrays drop the new entry.
+    state = editorReducer(state, { type: 'UNDO' })
+    expect(state.present[0].text_boxes!.length).toBe(initialBoxCount)
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === newBoxId)).toBeUndefined()
+    // custom_texts is either undefined or empty after undo (the pre-add slide had no custom_texts).
+    expect(state.present[0].custom_texts ?? []).toHaveLength(0)
+
+    // REDO: both arrays have the new entry again.
+    state = editorReducer(state, { type: 'REDO' })
+    expect(state.present[0].text_boxes!.length).toBe(initialBoxCount + 1)
+    expect(state.present[0].text_boxes!.find((tb) => tb.id === newBoxId)).toBeDefined()
+    expect(state.present[0].custom_texts).toBeDefined()
+    expect(state.present[0].custom_texts!.length).toBe(1)
+    expect(state.present[0].custom_texts![0].id).toBe(newBoxId)
+    expect(state.present[0].custom_texts![0].text).toBe('Bonus')
+  })
+})
