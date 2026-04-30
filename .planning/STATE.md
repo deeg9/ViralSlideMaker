@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.8
 milestone_name: Text Editor Right-Rail Redesign
 status: executing
-stopped_at: Phase 50 complete (2/2 plans, 10/10 TEDIT reqs). 525 tests pass, build clean, 14 commits across phases 49+50. Live preview write-through verified. Ready for Phase 51.
+stopped_at: Phase 51 complete (1/1 plan, AIGEN-01 deferred to v2.9 with light-touch alternative shipped). 531 tests pass, v2.7 19/19 audit re-verified. Ready for Phase 52.
 last_updated: "2026-04-30T00:00:00.000Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 40
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
+  percent: 60
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-30)
 
 ## Current Position
 
-Phase: 51 (AI Prompt Rewrite) — STARTING
+Phase: 52 (Canvas Selection Improvements) — STARTING
 Plan: —
-Status: Phase 50 complete; Phase 51 next
-Last activity: 2026-04-30 — Phase 50 verification passed (BL-01 write-through fixed)
+Status: Phase 51 complete; Phase 52 next
+Last activity: 2026-04-30 — Phase 51 verification passed (AIGEN-01 deferred, v2.7 audit reverified)
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
