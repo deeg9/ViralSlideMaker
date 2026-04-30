@@ -863,5 +863,5 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 49. Schema Unification & Migration | v2.8 | 2/2 | Complete | 2026-04-30 |
 | 50. Right-Rail Redesign (Selection-Driven Panel) | v2.8 | 2/2 | Complete | 2026-04-30 |
 | 51. AI Prompt Rewrite | v2.8 | 1/1 | Complete | 2026-04-30 |
-| 52. Canvas Selection Improvements | v2.8 | 0/0 | Not started | - |
+| 52. Canvas Selection Improvements | v2.8 | 1/1 | Complete | 2026-04-30 |
 | 53. Migration & QA Polish | v2.8 | 0/0 | Not started | - |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.8
 milestone_name: Text Editor Right-Rail Redesign
 status: executing
-stopped_at: Phase 51 complete (1/1 plan, AIGEN-01 deferred to v2.9 with light-touch alternative shipped). 531 tests pass, v2.7 19/19 audit re-verified. Ready for Phase 52.
+stopped_at: Phase 52 complete (4/5 CANVAS reqs; CANVAS-03 deferred to v2.9). 539 tests pass, Satori export-path safety verified. Ready for Phase 53.
 last_updated: "2026-04-30T00:00:00.000Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 60
+  completed_phases: 4
+  total_plans: 6
+  completed_plans: 6
+  percent: 80
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-30)
 
 ## Current Position
 
-Phase: 52 (Canvas Selection Improvements) — STARTING
+Phase: 53 (Migration & QA Polish) — STARTING
 Plan: —
-Status: Phase 51 complete; Phase 52 next
-Last activity: 2026-04-30 — Phase 51 verification passed (AIGEN-01 deferred, v2.7 audit reverified)
+Status: Phase 52 complete; Phase 53 next (final phase)
+Last activity: 2026-04-30 — Phase 52 verification passed (CANVAS-03 deferred)
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
