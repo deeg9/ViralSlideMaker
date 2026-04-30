@@ -236,3 +236,65 @@ describe('editorReducer — text-box actions', () => {
     expect(afterRedo.present[0].text_boxes![0].text).toBe('Bonus')
   })
 })
+
+describe('editorReducer — DUPLICATE_SLIDE', () => {
+  test('regenerates text_boxes / custom_texts / custom_images IDs on the clone', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-custom',
+            role: 'custom',
+            text: 'C',
+            position: { anchor: 'custom', x: 10, y: 20, width: 50 },
+          },
+        ],
+        custom_texts: [
+          { id: 'ct-1', text: 'Existing', x: 0, y: 0, width: 60 },
+        ],
+        custom_images: [
+          { id: 'ci-1', url: 'https://example/img.png', x: 0, y: 0, width: 30, height: 30 },
+        ],
+      }),
+    ])
+
+    const next = editorReducer(initial, { type: 'DUPLICATE_SLIDE', index: 0 })
+    expect(next.present.length).toBe(2)
+
+    const original = next.present[0]
+    const clone = next.present[1]
+
+    // text_boxes: every clone id is a new UUID, none match the originals
+    const originalTbIds = original.text_boxes!.map((tb) => tb.id)
+    const cloneTbIds = clone.text_boxes!.map((tb) => tb.id)
+    expect(cloneTbIds.length).toBe(originalTbIds.length)
+    for (const id of cloneTbIds) {
+      expect(typeof id).toBe('string')
+      expect(id.length).toBeGreaterThan(0)
+      expect(originalTbIds).not.toContain(id)
+    }
+    // text_boxes: non-id fields preserved (text, role, position)
+    expect(clone.text_boxes![0].text).toBe('H')
+    expect(clone.text_boxes![1].text).toBe('B')
+    expect(clone.text_boxes![2].position.x).toBe(10)
+
+    // custom_texts: id regenerated, content preserved
+    expect(clone.custom_texts![0].id).not.toBe('ct-1')
+    expect(clone.custom_texts![0].text).toBe('Existing')
+
+    // custom_images: id regenerated, url preserved
+    expect(clone.custom_images![0].id).not.toBe('ci-1')
+    expect(clone.custom_images![0].url).toBe('https://example/img.png')
+  })
+
+  test('clones a slide without text_boxes/custom_texts/custom_images without throwing', () => {
+    const initial = makeState([makeSlide()])
+    const next = editorReducer(initial, { type: 'DUPLICATE_SLIDE', index: 0 })
+    expect(next.present.length).toBe(2)
+    expect(next.present[1].text_boxes).toBeUndefined()
+    expect(next.present[1].custom_texts).toBeUndefined()
+    expect(next.present[1].custom_images).toBeUndefined()
+  })
+})

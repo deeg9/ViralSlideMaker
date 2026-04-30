@@ -62,6 +62,20 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     case 'DUPLICATE_SLIDE': {
       const slides = [...state.present]
       const clone = deepCloneSlide(slides[action.index])
+      // Phase 49 (MR-01): regenerate IDs on the cloned slide so text_boxes /
+      // custom_texts / custom_images don't collide across slides. Per-slide
+      // reducer scoping protects current call sites, but flat ID lookups in
+      // future code (drag between slides, analytics, selection) would be
+      // broken by duplicate IDs.
+      if (clone.text_boxes) {
+        clone.text_boxes = clone.text_boxes.map((tb) => ({ ...tb, id: crypto.randomUUID() }))
+      }
+      if (clone.custom_texts) {
+        clone.custom_texts = clone.custom_texts.map((ct) => ({ ...ct, id: crypto.randomUUID() }))
+      }
+      if (clone.custom_images) {
+        clone.custom_images = clone.custom_images.map((ci) => ({ ...ci, id: crypto.randomUUID() }))
+      }
       slides.splice(action.index + 1, 0, clone)
       return pushHistory(state, slides)
     }
