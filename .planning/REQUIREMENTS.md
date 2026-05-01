@@ -1,91 +1,142 @@
-# Requirements: v2.8 Text Editor Right-Rail Redesign
+# Requirements: v2.9 Viral Visual Quality
 
-**Milestone goal:** Replace the cluttered, dual-slot ("Hook" + "Body") text editing panel with a selection-driven, single-element right rail that supports an arbitrary number of text boxes per slide and stacks Shadow / Outline / Highlight as independent toggleable effects.
+**Milestone goal:** Upgrade the visual output of AI-generated carousel slides so they look like what's actually winning on TikTok and Instagram in early-to-mid 2026 — replicating proven patterns from successful creators rather than guessing.
 
-**Research grounding:** Industry-standard pattern from Figma, Canva (post-Glow Up 2025), CapCut, VEED, Adobe Express, Photoshop, Illustrator. NN/g guidance on accordion vs. always-visible sections in design-tool inspectors. Plan file: `~/.claude/plans/users-deeg-desktop-screenshot-2026-04-3-replicated-seal.md`.
+**Research grounding:** Aesthetics of Photography "Viral Visual Grammar of US Instagram in 2026"; Canva "Imperfect by Design 2026"; It's Nice That graphic trends 2026; Mosseri Jan 2026 "rawness is proof"; verified Satori constraints (issues #573, #162, #712); Imagen 4 Fast pricing (Google AI docs); right-of-publicity precedent (Reface/Kyland Young, 9th Cir.). See `.planning/research/SUMMARY.md`.
+
+**Success metric:** ZIP download rate per created carousel — proxy for "good enough to ship." Tracked in Phase 54 onward.
+
+**Out-of-scope by user decision:** legacy schema sunset (deferred until post-PMF), `stylize-image.ts` (architectural conflict + Vercel timeout breach + face-stylization legal risk — defer to v3.0+), Pangram Pangram fonts ($120 deferred until paying users exist).
 
 ---
 
 ## Categories
 
-- **SCHEMA** — Data model unification (`hook_text` + `body_text` → `text_boxes: TextBox[]`)
-- **TEDIT** — Text editor right-rail UX (selection-driven panel, layer strip, effect rows)
-- **AIGEN** — AI generation prompt rewrite to emit `text_boxes[]`
-- **CANVAS** — Canvas-side selection ring, click-to-select, keyboard shortcuts
-- **MIG** — Migration / backfill / rollback safety
+- **TREAT** — Server-side photo treatment pipeline (sharp): B&W, duotone, grain, contrast-bump
+- **SLOP** — AI-slop guardrails: prompt addenda, default-font lockdown, Pexels query exclusions
+- **AIROLE** — Slide-role-aware AI generation (cover / reframe / support / pivot / close)
+- **TPL** — New template families (Editorial-Serif, Notes-App-Chic, Brutalist-Grid)
+- **TYPO** — Display-font catalog expansion + premium hook size
+- **EDITOR** — Editor controls (treatment toggle, IG grid safe-zone overlay)
+- **PALETTE** — Dominant-color palette extraction (`@vibrant/node`)
+- **MATCH** — Premium photo→slide content-aware matching (`match-photos-to-slides.ts`)
+- **PARITY** — Satori/React render parity verification + ship gate
+- **METRIC** — ZIP download rate tracking
 
 ---
 
-## SCHEMA — Schema unification
+## TREAT — Photo treatment pipeline
 
-- [ ] **SCHEMA-01** — `TextBox` interface in `src/lib/types/slide.ts` with fields: `id`, `text`, `segments?: TextSegment[]`, `font`, `size`, `color`, `align`, `effects: TextEffects`, `position: { anchor: 'top'|'center'|'bottom'|'custom', x?, y?, width? }`, `role: 'hook' | 'body' | 'custom'`.
-- [ ] **SCHEMA-02** — `Slide.text_boxes: TextBox[]` field added; legacy `hook_text` / `body_text` / `hook_segments` / `body_segments` / `custom_texts` retained and marked `@deprecated` (sunset target: v2.9).
-- [ ] **SCHEMA-03** — Virtual adapter: when loading a slide that lacks `text_boxes`, derive it from legacy fields. Unit-tested round-trip parity for at least 5 representative legacy slide shapes (hook+body only, hook+body+1 custom, hook+body+effects, news-template with segments, magazine-bold with overlays).
-- [ ] **SCHEMA-04** — Dual-write: when saving, populate both `text_boxes` AND legacy fields. Legacy readers (older clients, exports, cron jobs) must continue to function unchanged.
-- [ ] **SCHEMA-05** — Editor reducer (`src/lib/editor/editor-reducer.ts`) handles new actions: `ADD_TEXT_BOX`, `REMOVE_TEXT_BOX`, `UPDATE_TEXT_BOX`, `SET_ACTIVE_TEXT_BOX_ID`. Each action funnels through `pushHistory()` so undo/redo Just Works.
-- [ ] **SCHEMA-06** — TypeScript types regenerated from Supabase via `mcp__supabase__generate_typescript_types`; `npx tsc --noEmit` clean.
+- [ ] **TREAT-01** — `src/lib/photo-treatment/treat.ts` exposes `treatPhoto(sourceUrl, spec)` returning `{ url, palette }`. Uses sharp for transforms; idempotent via SHA-256 cache key of `(sourceUrl + spec)`. Supports presets: `bw`, `duotone-cream`, `duotone-cobalt`, `contrast-bump`.
+- [ ] **TREAT-02** — Treated assets stored in new public Supabase Storage bucket `slide-backgrounds-treated`. Cache hit returns existing URL without re-processing.
+- [ ] **TREAT-03** — Sharp module config locked: `sharp.cache(false)` and `sharp.concurrency(1)` set at module load to prevent serverless memory fragmentation.
+- [ ] **TREAT-04** — Generation pipeline writes `treatedUrl` to `slide.background_url` and the original Pexels/Imagen URL to new field `slide.original_source_url`. Re-treating starts from `original_source_url`, never compounds.
+- [ ] **TREAT-05** — Pure unit tests for treatment functions (no DB) verify byte-identical output for the same `(sourceUrl, spec)` pair across two invocations.
+- [ ] **TREAT-06** — `slide-backgrounds-treated` bucket has 7-day retention policy on assets without an associated project (intermediate cache cleanup).
 
-## TEDIT — Right-rail panel UX
+## SLOP — AI-slop guardrails
 
-- [ ] **TEDIT-01** — Top of right rail renders a horizontal **layer strip**: one chip per text box (preview snippet ≤24 chars + role icon), trailing "+ Add Text Box" chip. Active chip visually highlighted (`bg-[#3d0000] text-white`).
-- [ ] **TEDIT-02** — Clicking a chip updates `selectedTextBoxId` in editor state and the panel below swaps to that text box's properties.
-- [ ] **TEDIT-03** — Below the layer strip: a single **active-box card** with darker `bg-white border-2 border-[#3d0000]/20 focus-within:border-[#3d0000]` framing so the editable surface visually pops from the cream panel background.
-- [ ] **TEDIT-04** — Active-box card content (top-to-bottom): textarea for the box's text, then flat always-visible labeled sections — Font / Size / Color / Align — followed by an "Effects" subhead.
-- [ ] **TEDIT-05** — Effects section renders three independent toggle rows: Shadow, Outline, Highlight. Each row = label + Switch (`@radix-ui/react-switch` already a dep). Switch on → sliders + color swatches reveal inline beneath. Switch off → controls collapse.
-- [ ] **TEDIT-06** — All three effect toggles can be on simultaneously (Shadow + Outline + Highlight stack). Rendering parity verified across React preview, Satori PNG export, and HTML export.
-- [ ] **TEDIT-07** — Accent Words moves inside the active-box card, collapsed under a "Highlight words" disclosure (caret + "N highlighted" badge). Chip wall only renders when expanded.
-- [ ] **TEDIT-08** — Slide-level controls (Overlay opacity, News Layout cover/body) move out of the per-text-box card into a small "Slide settings" section below. They are not per-text-box.
-- [ ] **TEDIT-09** — Bottom toolbar preserved: undo/redo, Privacy dropdown, Export, Generate Captions, Save Changes — wired to existing entry points (`doSave`, `downloadSlidesAsZip`, undo/redo dispatch).
-- [ ] **TEDIT-10** — Visual regression: render the same slide before/after redesign with identical `text_boxes` data → exported PNG byte-identical (legacy slides forced through the new render path).
+- [ ] **SLOP-01** — Imagen prompt mandatory addendum: "Do not generate gradient backgrounds. Do not generate glossy 3D objects or abstract color blobs. Generate documentary-style photographs with naturalistic lighting." Applied at every Imagen call site.
+- [ ] **SLOP-02** — Pexels query addendum: append "natural lighting, candid, editorial, portrait" and exclude terms `meeting, office, team, smiling, diverse group` from the search query string before hitting Pexels API.
+- [ ] **SLOP-03** — Template validator requires `bodyFontFamily: string` as non-nullable on every premium-tier template. Inter-as-default falls through is impossible by construction; templates must declare a body font explicitly.
+- [ ] **SLOP-04** — AI hook generation system-prompt addendum: "Do not start hooks with 'In a world where', 'Did you know', 'Imagine if'. Vary hook openings across slides in the same carousel."
+- [ ] **SLOP-05** — Existing 8 templates audited: any template defaulting to Inter as `bodyFontFamily` updated to declare a non-Inter font (Plus Jakarta Sans, Manrope, or Geist as alternates).
 
-## AIGEN — AI prompt rewrite
+## AIROLE — Slide-role-aware AI generation
 
-- [ ] **AIGEN-01** ~~Gemini slide-text generation prompt emits `text_boxes: [{ role: 'hook', text: '...' }, { role: 'body', text: '...' }]` instead of `{ hook_text, body_text }`. Schema validation + repair pipeline updated.~~ — **DEFERRED to v2.9** (sunset milestone). Phase 51 ships a light-touch alternative: `legacyToTextBoxes()` runs at the AI-ingest boundary in `generate-slides.ts` (post-Zod-parse) and at slide-load (Phase 49 eager migration), producing identical `text_boxes[]` state without rewriting the Gemini schema. Rationale: v2.7's premium-tier audit (19/19) just shipped; rewriting the prompt schema risks regression for zero observable user gain. Re-verify in v2.9 alongside the legacy-fields sunset.
-- [ ] **AIGEN-02** — `regenerateSlideText` (referenced in `src/components/editor/slide-editor.tsx:19`) round-trips the new shape; existing per-field regeneration UX preserved.
-- [ ] **AIGEN-03** — Template seeding logic produces `text_boxes[]` with template-appropriate defaults instead of two strings. News templates default to two boxes (hook + body); future templates may emit 3+.
-- [ ] **AIGEN-04** — Server-side validator auto-corrects malformed `text_boxes[]` to a 2-box default if Gemini output drifts. Never throws — the user always gets a usable carousel.
-- [ ] **AIGEN-05** — Existing premium-tier guardrails (length caps, typo gate, voice notes) preserved through the rewrite. v2.7 audit baseline (19/19 reqs) re-verified after prompt change.
+- [ ] **AIROLE-01** — Gemini slide-generation response schema extends each slide with `role: 'cover' | 'reframe' | 'support' | 'pivot' | 'close'`. First slide is always `cover`; last slide is `close`; middle slides distributed across `reframe`/`support`/`pivot` based on carousel length.
+- [ ] **AIROLE-02** — System prompt includes per-role copy guidance (cover = pattern-interrupt hook ≤8 words; reframe = "wait, but" tension; support = concrete evidence/example; pivot = unexpected angle; close = action / CTA / bookmark prompt).
+- [ ] **AIROLE-03** — Gemini response schema gains `template_id_override?: string` (closed enum, registry-validated). AI may pick a different template per slide for visual rhythm; null = use project template.
+- [ ] **AIROLE-04** — Existing premium-tier guardrails (length caps, typo gate) preserved; v2.7 audit baseline (19/19 reqs) re-verified after prompt change.
+- [ ] **AIROLE-05** — Server-side validator: if `role` field missing or invalid, default to legacy flat distribution. Never throws — user always gets a usable carousel.
 
-## CANVAS — Canvas selection improvements
+## TPL — New template families
 
-- [ ] **CANVAS-01** — Active text box on the canvas shows a visible selection ring + 8 drag handles (corners + midpoints).
-- [ ] **CANVAS-02** — Clicking a text box on canvas updates `selectedTextBoxId` and the right rail mirrors instantly.
-- [ ] **CANVAS-03** ~~Floating "Layers" mini-list (collapsed by default) lets users select boxes that are visually behind others~~ — **DEFERRED to v2.9**. The Layer Strip (Phase 50) provides chip-based selection; ~90% of slides have ≤3 non-overlapping text boxes. Resurface if user complaint surfaces post-ship.
-- [ ] **CANVAS-04** — Keyboard shortcuts (when canvas focused, NOT inside textarea): ⌘1/⌘2/⌘3 to switch active text box, ⌘D to duplicate active, Delete/Backspace to remove.
-- [ ] **CANVAS-05** — Drag-to-reposition continues to work; resize handles continue to call existing react-rnd resize plumbing from v1.3.
+- [ ] **TPL-01** — `editorial-serif` template registered: B&W bleed photo (auto-treated via TREAT preset `bw`), Playfair Display 130px hook, cream `#F5EFE6` accent, page counter top-right, medium grain overlay (`grainMode: 'medium'`), Recoleta-equivalent body font (free).
+- [ ] **TPL-02** — `notes-app-chic` template registered: paper-texture background (committed PNG asset), ransom-note hook (mixed fonts via per-segment `fontFamily`), tape-strip overlay, sticky-note overlay, halftone-dot accent, photocopier-grain overlay.
+- [ ] **TPL-03** — `brutalist-grid` template registered: hard 8-column grid, type-as-image hero (oversized hook fills frame), high-contrast B&W with single accent color (per-template config), no decorative overlays — minimalist by construction.
+- [ ] **TPL-04** — Decorative-overlay asset library: 12-16 SVG/PNG assets in `public/overlays/` — tape strips (3 variants), sticky notes (3 colors), halftone dot patterns (2 densities), hand-drawn arrows (4 directions), polaroid frame, paper torn-edge.
+- [ ] **TPL-05** — Grain PNG asset set generated via `scripts/build-textures.ts` (committed): `grain-subtle.png`, `grain-medium.png`, `grain-heavy.png`, `paper-texture.png`, `xerox-grain.png` — all 1080×1920 tileable.
+- [ ] **TPL-06** — Per-template `coverLayout` distinct from `innerLayout`: first slide may use upper-third hook + bleed photo; inner slides may use middle-third hook + tighter crop. Specified per new template.
+- [ ] **TPL-07** — Per-`TextSegment` `fontFamily?: string` field added (required for `notes-app-chic` ransom-note hooks). Font loader walks segment-level fontFamily to register fonts with Satori.
+- [ ] **TPL-08** — Thumbnail generation (`npm run thumbs`) extended for the 3 new templates; `/templates` picker DOM regression test updated to assert thumbnails resolve (no swatch fallback).
+- [ ] **TPL-09** — All 3 new templates available to free-tier users (no paywall on differentiation features pre-PMF).
+- [ ] **TPL-10** — All 3 new templates pass parity audit: same `(slide_data, template_id)` produces byte-identical output between React `<SlidePreview>` and Satori PNG export.
 
-## MIG — Migration & rollback
+## TYPO — Typography expansion
 
-- [ ] **MIG-01** ~~Idempotent backfill script populates `text_boxes` for existing rows in `public.projects.slide_data` from legacy fields. Run via `mcp__supabase__apply_migration`. Re-runnable with no double-effect.~~ — **DEFERRED to v2.9 (optional in v2.8)**. Eager migration on load (`useSlideEditor` lazy initializer, Phase 49) handles existing rows transparently with no DB write. Backfill becomes mandatory in v2.9 prep alongside the renderer rewrite. Trigger condition: monitor p95 slide load post-ship; run backfill only if load time regresses >50ms vs v2.7 baseline. See `.planning/MIGRATION-NOTES.md`.
-- [ ] **MIG-02** ~~Feature flag `text_boxes_v2_read` gates the read path. Flag off → legacy fields drive rendering. Flag on → `text_boxes[]` drives rendering with legacy as fallback.~~ — **SUPERSEDED by Phase 50 `applyDualWrite`**. Both shapes are kept in sync on every reducer mutation, so a read-path flag is unnecessary. The Phase 50 panel-level flag `NEXT_PUBLIC_NEW_TEXT_RAIL` provides the only fallback users need (write-path toggle). See `.planning/MIGRATION-NOTES.md`.
-- [x] **MIG-03** ✅ — E2E smoke verified via integration tests in `src/lib/editor/__tests__/text-box-adapter.integration.test.ts`: load → edit → save → reload cycle on the news-template (shape 4) fixture with hook/body segments + accents proves text_boxes round-trips byte-identical to derived state. Phase 53.
-- [x] **MIG-04** ✅ — Undo/redo verified across the schema boundary in `text-box-adapter.integration.test.ts`. Sequence: hook edit → body color edit → UNDO → UNDO → REDO → REDO leaves both `text_boxes[]` and legacy fields in lock-step at every step. Phase 53.
-- [x] **MIG-05** ✅ — Verified via code-inspection: `downloadSlidesAsZip` calls `slide-preview.tsx`, which reads `hook_text`, `body_text`, `hook_segments`, `body_segments`, `custom_texts`, and `style_overrides` (all legacy fields). `applyDualWrite` (Phase 50) keeps these populated on every reducer mutation, so the export path is unchanged from v2.7. The 3 new premium templates were tested in Phase 47 export smoke; the 5 legacy templates were tested in v1.6's export plan. No PNG-renderer changes shipped between then and v2.8, so byte-identical export is preserved by construction. Re-verify in v2.9 after the renderer rewrite.
-- [x] **MIG-06** ✅ — Sunset plan documented in `.planning/MIGRATION-NOTES.md`: 10-step v2.9 checklist (migration → renderer → reducer → adapter → types → AI → OpenAPI → panel → tests → docs), verification commands (`rg`, `vitest run`, `tsc --noEmit`, byte-diff), and estimated lift (3-5 phases). Phase 53.
+- [ ] **TYPO-01** — Font catalog expands by 4-6 new display sans (free Google Fonts only): Bebas Neue, Archivo Black, Plus Jakarta Sans Display, Plus Jakarta Sans, Space Grotesk, Manrope. Registered as static TTF via Fontsource.
+- [ ] **TYPO-02** — Font catalog expands by 2 sharp-modern serifs (free): Playfair Display, DM Serif Display.
+- [ ] **TYPO-03** — Premium template hook default `fontSize` raised from current 88px to 110-130px range (per-template config).
+- [ ] **TYPO-04** — Variable fonts NOT used (Satori issues #162/#712 unresolved). All fonts ship as static-weight TTF.
+- [ ] **TYPO-05** — No paid font licenses in v2.9 (Pangram deferred until paying users exist).
+
+## EDITOR — Editor controls
+
+- [ ] **EDITOR-01** — `src/components/editor/photo-treatment-controls.tsx`: per-slide controls in right rail — B&W toggle, duotone preset picker (cream / cobalt), grain intensity (off / subtle / medium / heavy). Wired to `editor-actions.ts: updateSlideTreatment(slideIndex, spec)` server action.
+- [ ] **EDITOR-02** — Treatment toggle always re-treats from `slide.original_source_url` (never compounds on already-treated output).
+- [ ] **EDITOR-03** — Instagram grid safe-zone overlay rendered in canvas editor: 4:5 (1080×1350) crop bounds shown as dashed outline when "IG grid preview" toggle is on. CSS-only — no rendering changes.
+- [ ] **EDITOR-04** — Treatment controls placement does not regress the v2.8 right-rail layout (no horizontal overflow, fits below `SlideSettings` section).
+
+## PALETTE — Color palette extraction
+
+- [ ] **PALETTE-01** — `@vibrant/node@^4.0.3` installed. `extractPalette(treatedUrl)` returns named roles `{ Vibrant, DarkVibrant, LightVibrant, Muted, DarkMuted, LightMuted }` as hex strings.
+- [ ] **PALETTE-02** — `slide.style_overrides.derived_palette: string[]` populated at generation time (and on treatment override) via PALETTE-01.
+- [ ] **PALETTE-03** — `editorial-serif` and `notes-app-chic` templates with `paletteMode: 'palette-dominant'` consume `derived_palette` for accent color selection (Vibrant for chip backgrounds; DarkMuted for text on light backgrounds).
+- [ ] **PALETTE-04** — Palette extraction runs on the treated thumbnail (resized to ≤256×256 server-side) — not full-resolution — to keep Vercel function memory under budget.
+
+## MATCH — Photo→slide content matching
+
+- [ ] **MATCH-01** — `src/lib/ai/match-photos-to-slides.ts` (currently parked) wired into the upload flow. Premium-tier only.
+- [ ] **MATCH-02** — `MAX_PHOTOS = 8` constant enforced. If user uploads >8, only first 8 sent to Gemini; rest fall through to index-order.
+- [ ] **MATCH-03** — Result cached by `(photoSetSHA256, slideManifestSHA256)` key. Cache hit returns mapping without re-calling Gemini.
+- [ ] **MATCH-04** — 10-second timeout on Gemini call. Timeout or API error falls through to existing index-order behavior — never blocks generation.
+- [ ] **MATCH-05** — Gemini Vision usage tracked as `gemini_vision_match` credit-ledger line per call. Credit cost: 1 credit per match (covers 8 photos).
+
+## PARITY — Render parity verification
+
+- [ ] **PARITY-01** — `src/lib/render/__tests__/parity.test.tsx`: for each new template (editorial-serif, notes-app-chic, brutalist-grid), assert React preview HTML output and Satori SVG output reference identical resolver helpers from `src/lib/render/resolve-overlay.ts`.
+- [ ] **PARITY-02** — `renderGrain(intensity)` and `renderVignette(strength)` exported from `src/lib/render/resolve-overlay.ts`. Both `render-slide-satori.tsx` and `slide-preview.tsx` consume from the same module — no duplicated layout JSX.
+- [ ] **PARITY-03** — `scripts/render-parity-grid.ts` (manual / opt-in): renders every template × 3 sample slides through both renderers, outputs side-by-side PNG comparison grid for visual audit.
+- [ ] **PARITY-04** — CSS filter properties (`filter: grayscale(...)`, `filter: blur(...)`, etc.) NOT used in any new render layer — server-side sharp pre-bake is the only path for photo treatment.
+- [ ] **PARITY-05** — PNG export metadata strip verified: `downloadSlidesAsZip` output PNGs contain no EXIF / XMP / C2PA metadata (assert via `image-size` or equivalent in test).
+- [ ] **PARITY-06** — Cascade-delete audit: deleting a project cleans hero thumbnail, treated background assets, and original-source uploads. Existing project-deletion code path extended.
+
+## METRIC — Success metric tracking
+
+- [ ] **METRIC-01** — `download_zip` event tracked per project (one event per ZIP download). Event payload includes `project_id`, `slide_count`, `template_id`, `user_tier`.
+- [ ] **METRIC-02** — Dashboard query returns `zip_download_rate = downloads / created` for any time window. Surfaced in admin/analytics view (not user-facing).
+- [ ] **METRIC-03** — Baseline captured at v2.9 milestone start (last 30 days pre-Phase-54 = baseline). Phase 58 ship gate references this baseline; success = post-launch rate ≥ baseline.
 
 ---
 
-## Out of Scope
+## Out of Scope (v2.9)
 
 | Feature | Reason |
 |---|---|
-| Animation timeline / motion | Static carousels only; CapCut has it, we don't need it |
-| Multi-select editing (edit shared properties of 2+ boxes) | Defer to future milestone if user demand emerges |
-| Text-on-curve / text-on-path | Canva-only feature, not in user's stated needs |
-| iOS / React Native port of the new panel | Web-first remains priority; iOS phase deferred |
-| Right-rail tabs (Style / Animate / Effects) | Premature — only Style + Effects content exists today |
-| Drag-and-drop reorder of layer strip chips | Nice-to-have, defer until user asks |
+| Legacy schema sunset (`hook_text` / `body_text` etc.) | Pre-PMF — tech debt waits until users love the product. Deferred. |
+| `stylize-image.ts` (AI photo restyling) | Architectural conflict with deterministic treatment cache; 80s wall-clock breaches Vercel 60s `maxDuration`; right-of-publicity legal risk on faces. Defer to v3.0+. |
+| CANVAS-03 (Layers mini-list) | v2.8 Layer Strip covers ~90% of cases; resurface only if user complaint emerges. |
+| AIGEN-01 (native Gemini `text_boxes[]` prompt) | v2.8 Phase 51 light-touch alternative produces equivalent state; no observable user gain from rewriting. |
+| Pangram Pangram fonts | $120 at production launch — defer until paying users exist. Free Google Fonts cover Editorial-Serif (Playfair Display) and display sans needs. |
+| Variable fonts | Satori issues #162/#712 unresolved as of 2026-05. Static TTF only. |
+| iOS / React Native port | Web-first remains priority. |
+| Real-time collaboration | Solo creator tool; out of scope across all milestones. |
+| Auto-posting to TikTok/IG | Complex OAuth; defer indefinitely. |
 
 ---
 
-## Locked Decisions
+## Locked Decisions (from research synthesis + user input 2026-05-01)
 
-- **Selection-only panel model** chosen over stack-of-accordion-cards. Matches Figma, Canva, CapCut, VEED. (User decision during planning, 2026-04-30.)
-- **Independent effect toggles** chosen over mutually-exclusive preset radios. Matches CapCut/VEED; lets Shadow + Outline + Highlight stack — the killer feature for busy backgrounds. (User decision during planning.)
-- **Always-visible labeled sections** inside the active-box card (no nested accordions for Font / Size / Color / Align). NN/g guidance for design tools where users jump between fields constantly.
-- **Dual-write schema migration** (write both legacy + new fields one milestone) chosen over hard cutover. Lets older clients/exports/cron jobs keep functioning during transition; sunset target v2.9.
-- **Layer strip above the panel** (horizontal chip row), not a left rail or floating list. Matches the existing right-rail-dominant editor layout.
-- **Active-box visual signal lives on canvas** (selection ring) AND in the right rail (darker editable surface framing). Two-layer affordance.
+- **Photo treatment baked server-side via sharp** — CSS filters silently break Satori PNG export (vercel/satori#573). Pre-render is both correct and the only path.
+- **Imagen 4 Fast** (`imagen-4.0-fast-generate-001`) replaces current Imagen 3. Cheaper ($0.02 vs $0.04/image), 10× faster, better text rendering. One-line config change.
+- **5 phases (54-58)** chosen over 7 (Architecture proposed) or 5 with different boundaries (Stack proposed). Phases group by build-order dependency.
+- **All 3 new templates free** for all users — pre-PMF, top-of-funnel sharing > premium gating.
+- **`match-photos-to-slides.ts` ships** premium-gated in Phase 58 (last). Architecturally clean; cost concerns mitigated by `MAX_PHOTOS=8` + cache + timeout.
+- **`stylize-image.ts` deferred** to post-v2.9. File stays in repo; not wired into pipeline. Re-evaluate post-PMF as one-shot user action with face-detection refusal.
+- **Brutalist-Grid added to scope** beyond Top-5 features (user expansion 2026-05-01) — third differentiation template family.
+- **Success metric = ZIP download rate.** Baseline measured at Phase 54 start; ship gate at Phase 58 verifies non-regression.
+- **No Pangram fonts.** Free Google Fonts only — Playfair Display, DM Serif Display, Bebas Neue, Archivo Black, Plus Jakarta Sans, Space Grotesk, Manrope.
 
 ---
 
@@ -93,10 +144,15 @@
 
 | Requirement | Phase |
 |---|---|
-| SCHEMA-01..06 | Phase 49 |
-| TEDIT-01..10 | Phase 50 |
-| AIGEN-01..05 | Phase 51 |
-| CANVAS-01..05 | Phase 52 |
-| MIG-01..06 | Phase 53 |
+| TREAT-01..06 | Phase 54 |
+| SLOP-01..05 | Phase 54 + 58 (template audit + AI prompt) |
+| TYPO-01..05 | Phase 55 |
+| AIROLE-01..05 | Phase 58 |
+| TPL-01..10 | Phase 56 |
+| EDITOR-01..04 | Phase 57 |
+| PALETTE-01..04 | Phase 57 |
+| MATCH-01..05 | Phase 58 |
+| PARITY-01..06 | Phase 58 |
+| METRIC-01..03 | Phase 54 (track) + Phase 58 (verify) |
 
-Phase plans live under `.planning/phases/49/` … `.planning/phases/53/`. Run `/gsd-plan-phase 49` to start.
+Phase plans will live under `.planning/phases/54/` … `.planning/phases/58/`. After roadmap approval, run `/gsd-discuss-phase 54` (or `/gsd-plan-phase 54` to skip discussion).
