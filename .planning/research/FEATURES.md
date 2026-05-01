@@ -1,175 +1,430 @@
-# Feature Research: MCP Server for ViralSlideMaker
+# Feature Research: v2.9 Viral Visual Quality
 
-**Domain:** MCP server integration for SaaS carousel generator
-**Researched:** 2026-04-08
-**Confidence:** HIGH
+**Domain:** Visual quality of AI-generated TikTok/Instagram carousel slides — replicating what's actually winning on platform in early-to-mid 2026.
+**Researched:** 2026-04-30 / 2026-05-01
+**Confidence:** HIGH on archetypes and creator handles (multi-source verified). MEDIUM on specific complexity estimates (codebase-grounded but unbenchmarked).
 
-## Feature Landscape
+---
 
-### Table Stakes (Agents Expect These)
+## Executive Take (read this first)
 
-Features that every MCP server must have or agents cannot function. These are non-negotiable.
+The single most important shift in 2026: **the algorithm now penalizes "AI slop polish" and rewards visible imperfection.** Mosseri's January 2026 thesis: *"Rawness isn't just aesthetic preference anymore — it's proof. It's defensive. A way of saying: this is real because it's imperfect."* 56% of consumers report encountering AI slop "often" or "very often" (Sprout Social Q1 2026). Save-rate is now ranked above likes; DM-sends are the new top signal.
+
+Translated for our product: **the safest path to "looks AI-generated" is exactly what most carousel tools default to** — clean Inter sans, centered headlines on muted-stock photos, predictable 9-slide flow, glossy gradients, no grain, perfect alignment. We currently sit closer to that pole than the winning pole. v2.9 should push toward **opinionated editorial archetypes**, **manufactured imperfection cues**, and **better photo treatment** — not more knobs.
+
+The seven dominant 2026 carousel archetypes (full table in §1) cluster into three workable families for us:
+
+1. **Editorial / Magazine** (Murphy reference, our `magazine-bold`, NYT, A24, SSENSE) — table stakes.
+2. **Photo-Dump / Documentary-Raw** (Emma Chamberlain, Bella Hadid, Magnum) — we currently cannot do this; biggest gap.
+3. **Brutalist / Notes-App / Type-As-Image** (Brand New, AIGA Eye on Design, Loewe) — biggest differentiator vs Canva-default tools.
+
+The MVP for v2.9 is **two new opinionated template families + a global photo-treatment pass + a hook-frame system + AI prompt rules that prevent slop tells.** Concrete patterns are itemized in §3.
+
+---
+
+## 1. Visual Archetypes / Sub-Genres of Viral Carousels (2026)
+
+Based on the *Aesthetics of Photography* 2026 grammar audit, Canva's *Imperfect by Design* report, It's Nice That, and direct creator-handle review.
+
+| Archetype | What Defines It | Key Creators (real handles) | Platform Dominance | Currently Match? |
+|---|---|---|---|---|
+| **Magazine-Editorial** | B&W or duotone full-bleed photo + bold display headline + small mint/red accent chip + page counter. Hook reads like a *New York Magazine* cover line. | `@nytimes`, `@a24`, `@reservoir.mag`, `@ssense`, `@magnumphotos` | IG carousels, LinkedIn | **Partial** — `magazine-bold` v2.7 hits the silhouette but lacks photo-treatment & decorative-element variety. |
+| **Hyperreal Mundane / Glow-Object** | Single object centered, sacred composition, neutral-WB, lifted shadows, deep DoF. Caption is short/declarative. Mundane-as-monument. | `@halfbakedharvest`, `@nytimes` (Cooking), `@apartmenttherapy` | IG, Pinterest | **No** — we render text on photos; this archetype is photo-led with text below or beside, not over. |
+| **Photo-Dump / Indie-Sleaze** | 6–12 slides, no preset cohesion, on-camera flash, motion blur, off-center framing, intentional disarray. "Vibe over consistency." | `@indiesleaze`, `@thecobrasnake`, `@emmachamberlain`, `@bellahadid`, `@loewe` | IG carousels, TikTok Photo Mode | **No** — our pipeline forces template uniformity across slides. Big gap. |
+| **Documentary-Raw** | Available light, eye-contact frontal portraits, mid-action, naturalistic color, no skin smoothing, zero post. | `@magnumphotos`, `@keithleeeats`, NYT/Guardian visual desks | IG carousels, TikTok | **No** — image sourcing (Pexels) skews glossy/stock; Imagen output skews "AI sheen." |
+| **Educational / Carousel-Deck** | "Mini PowerPoint" — clean grid, 6–10 slides, hook → frame → 3–5 points → CTA. Most predictable but reliable on LinkedIn/IG-business. | `@thechrisdo`, `@aliabdaal`, `@hormozi`, `@justinwelsh`, `@sahilbloom`, `@steven` (Bartlett), `@garyvee` | IG, LinkedIn | **Yes** — our existing 5 legacy templates fit this lane. This is the *commodity* lane (high competition). |
+| **Brutalist / Notes-App-Chic** | Type-as-image. Heavy stacked headlines, ransom-note collage, photocopier grain, DIY scrapbook overlays, hand-drawn arrows, sticky notes. Embraces "imperfect by design." | Loewe, `@duolingo`, Brand New (Under Consideration), Eye on Design (AIGA) | TikTok, IG, design-Twitter | **No** — biggest *differentiator* opportunity vs Canva templates. |
+| **Cinematic-Anamorphic / Movie-Still** | Teal-orange grade, crushed blacks, anamorphic flares, 2.39:1 letterbox bars, practical lights in frame. Reads "luxury film promo." | `@a24`, `@brandonwoelfel`, `@gigihadid` (editorial slides) | IG, TikTok luxury content | **No** — nice-to-have, not v2.9 critical. |
+| **Color-Walk / Mono-with-Accent** | Single dominant hue across all slides, one color = subject, serial repetition. Highest grid-cohesion score. | `@marcjacobs`, `@kayla_itsines`, `@pamela_rf` | IG | **No** — would emerge naturally from a "palette extraction" feature. |
+| **Brain-Rot / Italian-Brainrot** | Hyper-saturated, deliberately ugly, AI compression artifacts, illogical loops, meaning-optional. *Gen Alpha's dominant aesthetic.* | `@duolingo`, Skibidi accounts, `@ryanair` | TikTok-native | **Out of scope** — we are not the right product for this. |
+| **Vampy / Dark Cottagecore** | Oxblood, deep plum, charcoal palette, low-key single-source lighting, gothic still-life, frontal symmetry, heavy negative space. | Niche aesthetic accounts, fashion editorials | IG | **Partial** — would be a single-template add. |
+| **Place Romanticization** | Golden-hour amber, lifted blacks, bloom, sequential B-roll-style stills, slow visual flow. | `@visitnyc`, `@discoverlosangeles`, travel creators | IG, Reels covers | **Partial** — works fine in our existing Imagen path with the right prompt. |
+
+**Sources for archetypes:**
+- Aesthetics of Photography, *The Viral Visual Grammar of US Instagram in 2026* (HIGH).
+- Canva Newsroom, *Imperfect by Design 2026 trends* (HIGH).
+- It's Nice That, *Forward-thinking graphic trends 2026* (HIGH).
+- Amra & Elma, *25 Influencers Making Carousels Go Viral in 2026* (creator handles, MEDIUM — verify each handle on platform before citing).
+
+---
+
+## 2. Concrete Visual Patterns (cross-cutting, what shows up on actual viral posts)
+
+### Typography
+
+| Pattern | What It Looks Like | Currently Have? | v2.9 Implication |
+|---|---|---|---|
+| **Display sans, oversized condensed** | Anton, Bebas Neue, Druk, Tungsten Heavy, Founders Grotesk Cond, Inter Display Black at 96–140px. Headline >40% of slide width. | **Yes** (Anton in `magazine-bold`/`tr3nding-news`); under-used elsewhere. | Promote to *all* premium templates; raise default hook size; allow type to bleed off canvas edges. |
+| **Sharp modern serif** | Playfair Display, Recoleta Bold, Editorial New, GT Sectra, Domaine Display. Authority cue, *The Cut*/*New Yorker*-coded. | **No** as a hero typeface. Available via Google Fonts. | New "editorial-serif" template family. Pair with B&W or duotone photo. |
+| **Variable-weight display** | Single typeface flexing W100→W900 across slides for visual rhythm without changing fonts. | **No** — we treat font as a single value. | Cheap upgrade: allow `fontWeight` per `TextBox`; AI varies weight across slide deck. |
+| **Type-as-image / bleed text** | Headline cropped at edge, intentionally over-tracked, stacked vertically, overprinted on photo. | **No** — text always confined to safe area. | Large unlock: new template variants where hook deliberately exceeds safe area. |
+| **Imperfect / hand-edited type** | Slightly stretched, uneven baselines, manual kerning, signaling human authorship. | **No** — Satori renders pixel-perfect. | Add subtle randomized rotation/skew/letter-spacing jitter (2026 *It's Nice That*: "imperfect typography slows the eye"). |
+| **Ransom-note / pick-and-mix** | Mixed typefaces and sizes within one phrase ("Pick and Mix" — It's Nice That 2026 trend; Eva Rotreklová, F37 Foundry). | **Partial** — segment-level styling exists in `TextBox.segments`. Not yet supporting font-family per segment. | Allow per-segment `fontFamily` override. AI emits ransom-note hooks for select templates. |
+| **Numerals as decoration** | Oversized "01", "1/8" page-counters, Helvetica Neue Black numerals, sometimes outlined or duo-toned. | **Yes** (we have page counters). Underused — too small. | Make page counter scale and treatment template-driven (some XL, some hairline). |
+
+**Anti-pattern:** Inter Regular as default body font on every template. *925studios.co* explicitly cites "default Inter font" as the #1 web-design AI-slop tell for 2026. We currently use Inter as a fallback. Replace with a templated body font per template family.
+
+### Color
+
+| Pattern | What It Looks Like | v2.9 Implication |
+|---|---|---|
+| **Monochrome + single accent** | Entire palette = black/white/cream with ONE accent (mint, hot pink, oxblood, electric blue). Murphy-Campbell reference is exactly this. | **Build:** template-level `accentColor` already exists; add per-archetype defaults beyond mint. |
+| **Duotone photos** | Photo split-toned to 2 colors (cream/oxblood, navy/cream, B&W with single mint highlight). | **Build:** GPU-cheap CSS filter or server-side Sharp duotone pass. High visual ROI per dollar of build. |
+| **Palette extraction from photo** | Background card / accent / counter pill all auto-derive from dominant photo colors. Color-Walk archetype gets this for free. | **Build:** node `vibrant.js` or `sharp` extract on background image at slide-load; cache hex → propagate to overlay tokens. Medium build, big quality jump. |
+| **Y2K vibrant / energetic combos** | Bright hues, unexpected pairings (versacreative.com 2026: "return to vibrant color"). Counter-trend to muted minimalism. | **Build:** 1 new template ("Y2K Pop") — neon green / hot pink / cyan. |
+| **Muted earth-tones + paper** | Cream, paper-yellow, ivy green, sepia (Poetcore archetype). | **Build:** 1 template ("Editorial Cream"). |
+| **Vampy oxblood / charcoal / pewter** | Vampy archetype palette. | **Build:** 1 template ("Vampy"). |
+
+**Anti-pattern:** purple-to-blue gradient backgrounds. Cited as the #2 AI-slop tell after default Inter. We don't currently default to this, but the Imagen API does — so prompt-level guardrails matter.
+
+### Composition & Hierarchy
+
+| Pattern | Description | Currently Have? | v2.9 Implication |
+|---|---|---|---|
+| **First-slide hook = thumb-stop** | Cover frame must be readable at 1:1 thumbnail crop with text in upper third. Buffer/Later: centered face = +38% likes. | **Partial** — `magazine-bold` puts hook in bottom card, which fails the "upper third" rule on grid. | Add `coverHookPosition: 'upper-third' \| 'bleed' \| 'bottom-card'` per template; default upper-third for new "thumbnail-optimized" variants. |
+| **Asymmetric grid / off-center** | Hook offset hard-left or hard-right, NOT centered. Editorial newspapers ([It's Nice That] *Brute Force*). | **No** — text is always anchored to template-fixed positions; no off-center variants. | New layout primitives: `text-left-bleed`, `text-bottom-right`, `diagonal-stack`. |
+| **Generous negative space** | Single short phrase + 70% empty canvas. Vampy and Poetcore archetypes. | **No** — every template fills with body copy. | New "minimal" variants where body is null and only hook renders. |
+| **Image-bleed full-frame** | Photo edge-to-edge, no card, text overlaid. | **Yes** (`backgroundMode: 'image-bleed'` exists). Underused — only `documentary` template uses it. | Promote to default; add gradient-darken overlay variants. |
+| **Bottom-card composition** | Photo top, text card bottom (Murphy reference). | **Yes** (`magazine-bold`). | Keep, but vary card height (some thin strip, some half-canvas). |
+| **Numbered-list horizontal** | Slide 2..N format: number + headline + body. Gary Vee, Hormozi, Welsh. | **Partial** — page counter exists but isn't a "number-as-headline" element. | Template variant where the numeral IS the hero. |
+| **6–12 slide sweet spot** | Beyond 13 → swipe fatigue. Under 6 → reads as ad. | **N/A** — user-configurable; AI defaults to ~5–7. | AI prompt update: target 7–9 slides for educational, 6–8 for editorial. |
+| **Pacing arc** | Hook → reframe → 3 supports → turning point → CTA. Sahil Bloom's "swipe arc" model. | **Partial** — generation has hook + body per slide but no explicit arc. | AI prompt update: explicit slide-role schema (`hook \| context \| support1..N \| pivot \| close`). |
+
+### Photo Treatment (huge gap area)
+
+| Treatment | What It Is | Build Cost | Visual Impact |
+|---|---|---|---|
+| **B&W / desaturated** | Convert background image to greyscale or 5–15% saturation. | **LOW** (Sharp `.greyscale()` or CSS `filter: grayscale(1)`). | HIGH — instantly editorial. |
+| **Duotone** | Map photo luminance to 2-color gradient (cream→oxblood, etc.). | **LOW-MED** (Sharp `.recomb()` or canvas blend mode). | HIGH — most-cited 2026 editorial signal. |
+| **Film grain overlay** | 5–15% opacity grain texture overlaid on the slide. | **LOW** (PNG noise overlay layer in our existing 9-layer composite stack). | HIGH — Mosseri quote: imperfection cues = "proof of human." |
+| **Halation / bloom** | Subtle red/magenta glow around highlights (anamorphic-cinematic cue). | **MED** (Sharp gaussian blur of red channel only). | MED — niche but signature. |
+| **Crushed blacks / lifted shadows** | Tone curve adjustment (Hyperreal Mundane signature). | **LOW** (CSS `filter: contrast(1.15) brightness(0.95)` or Sharp curve LUT). | MED — works on premium templates. |
+| **Soft vignette** | Darkening at edges, focus pulled to center. | **LOW** (radial gradient overlay). | LOW — cliché if overused. |
+| **Posterization / 4-color reduction** | Reduce photo to 4–6 color zones (Brand New / brutalist look). | **MED** (Sharp `.posterise()`). | HIGH for differentiation. |
+| **Photocopier / xerox grain** | Heavy noise + greyscale + slight blur (It's Nice That 2026 *"Make Me a Copy"* trend, Charlotte Rohde). | **LOW-MED** (greyscale + grain overlay + slight blur). | HIGH — under-served by competitors. |
+| **Tape strips / sticky notes / decorative stickers** | Decorative sprite layer on top of canvas (Notes-App-Chic). | **MED** (asset library + overlay positioning). | HIGH for differentiation. |
+| **Scan-line / VHS** | Low-priority Y2K cue. | **LOW**. | LOW — niche. |
+
+**Anti-pattern:** generic Pexels stock photo of "smiling diverse team in modern office" overlaid with hook. This is the most identifiable AI-slop carousel tell. We pull from Pexels by default — prompt-level + template-level interventions needed.
+
+### Pacing Across Slides
+
+- **Cover (slide 1):** hook in upper third, readable at 1:1 thumb-crop, single-color anchor, optional face. Target <8 words.
+- **Reframe (slide 2):** restate the problem from the cover in plain language. Often "Here's why…"
+- **Supports (slides 3–6):** numbered points or photo-led story. Each has its own hook.
+- **Pivot (slide 7):** turn — "But here's what changed…" / "The actual answer is…" Often a photo-only slide for emotional reset.
+- **CTA / close:** explicit ask — "Save this." / "Send to a friend who…" / "Follow for more." DM-send hooks now outweigh likes (Mosseri Jan 2026).
+
+We currently generate hook + body per slide with no slide-role differentiation. **AI prompt rewrite is the highest-leverage feature in this category.**
+
+### Decorative Elements (currently missing)
+
+| Element | Examples | Build Cost |
+|---|---|---|
+| Highlight pills around words | Already shipped v2.7 mint pills. | DONE |
+| Page counters (1/8 style) | Already shipped. | DONE |
+| Tape strips ("torn-paper") | Notes-App-Chic, scrapbook | LOW (PNG overlay sprites) |
+| Sticky-note callouts | Brutalist, scrapbook | LOW |
+| Hand-drawn arrows / circles | Educational pivots, "look here" | LOW (SVG overlays) |
+| Drop-shadow stickers | Y2K, Gen-Alpha | LOW |
+| Frames around photos (Polaroid, ticket stub, slide-frame) | Vintage-zine, Poetcore | LOW |
+| Old-paper texture background | Editorial-cream, vintage-zine | LOW (background composite) |
+| Halftone / dot-screen overlay | Brutalist, magazine | LOW (CSS background-pattern) |
+
+These are all **template-overlay primitives** — our existing `TemplateOverlay[]` schema (v2.7 Phase 44) already supports adding them. Build cost is mostly asset curation + 1 new overlay type per element.
+
+### Motion-Implied Static (TikTok auto-slideshow)
+
+TikTok Photo Mode now auto-advances slides — viewers experience them more like a deck of frames in motion than a swipe-paced gallery. This means:
+
+- **Continuity across slides matters more.** Color-Walk archetype thrives here (one dominant hue carries through).
+- **Implied direction.** Diagonal type, arrows, or photos cropped to lead the eye toward the next slide.
+- **Repetition with variation.** Same layout grid + slot variations (left → center → right; small → medium → large).
+
+We don't currently model this — every slide is composed independently. v2.9 should add **template "rhythm" rules** (e.g. odd slides text-left, even slides text-right; or progressive zoom across slides).
+
+---
+
+## 3. Table Stakes vs Differentiators vs Anti-Patterns
+
+### Table Stakes (Users Expect These — Missing = Looks AI-Generated)
 
 | Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| `create_carousel` tool | The core value prop -- one-shot carousel from topic. Without this, the MCP server is pointless. | LOW | Wraps POST `/api/v1/carousel`. Already the highest-value REST endpoint. Must return projectId + download URLs in one response so agents don't need multi-step orchestration. |
-| `list_templates` tool | Agents need to discover available styles before creating. Every SaaS MCP server exposes discovery/list tools. | LOW | Wraps GET `/api/v1/templates`. No credit cost. Returns id + name + textPosition + textAlign. |
-| `edit_slide` tool | Agents need to refine output after creation. "Create then edit" is the natural agent workflow (Notion, Stripe all follow this). | LOW | Wraps PATCH `/api/v1/projects/{id}/slides/{index}`. Support hookText, bodyText, imageQuery, backgroundUrl. Zero credits. |
-| `render_carousel` tool | Agents need to get download URLs after edits. Completes the create-edit-download workflow. | LOW | Wraps POST `/api/v1/projects/{id}/render`. Returns slide download URLs + ZIP URL. Zero credits. |
-| Bearer token auth on `/api/mcp` | Every production MCP server requires auth. Stripe uses OAuth 2.1, Notion uses Bearer tokens. Bearer is simpler and matches the existing `vsl_` key system. | LOW | Reuse existing `withApiAuth` middleware. Same keys work for REST and MCP. |
-| Streamable HTTP transport | The standard remote transport since MCP spec 2025-03-26. SSE is deprecated. Claude Desktop, Cursor, and all modern clients support Streamable HTTP. | MEDIUM | Single Next.js route at `/api/mcp`. Uses `@modelcontextprotocol/sdk` McpServer + StreamableHTTPServerTransport. |
-| stdio transport via npm package | Required for local agent use (Claude Desktop subprocess mode, Cursor local). The other half of the transport story. | MEDIUM | Separate npm package `viralslidemaker-mcp` that wraps the same tool definitions but connects via stdio, calling the REST API internally. |
-| Descriptive tool schemas with examples | Agents select tools based on descriptions. Poor descriptions = agents pick wrong tools or pass bad params. Research shows this is the #1 cause of MCP failures. | LOW | Every tool needs: clear description of what it does, when to use it, parameter constraints, what it returns, and credit cost. |
-| Structured error responses | Agents need parseable errors to self-correct. "Something went wrong" is useless; "INSUFFICIENT_CREDITS: 0 remaining, need 1" lets agents inform users. | LOW | Already have structured JSON errors from REST API. Pass through as MCP error content with code + message. |
+|---|---|---|---|
+| **B&W / duotone photo treatment toggle** | Editorial archetype is the dominant viral aesthetic on IG. Every successful carousel tool has at least monochrome. | LOW | CSS filter or Sharp; fits in existing `resolve-overlay.ts` layer stack. |
+| **Subtle film-grain overlay (per-template, default-on for premium)** | 56% of users see AI slop daily; grain is now *default Instagram editing grammar* (VSCO Film 02 reissue Feb 2026). | LOW | Single PNG overlay sprite + opacity slider per template. |
+| **Variable hook size / type-as-image option** | All viral carousels in 2026 use display type at 96–140px; we under-size hooks. | LOW | Bump default `fontSize` for premium templates; allow `fontSize: 'xl' \| 'xxl' \| 'bleed'` enum. |
+| **First-slide ≠ inner-slides composition** | Cover frame needs upper-third hook for thumbnail readability; inner slides can use any layout. | LOW-MED | New per-template `coverLayout` distinct from `innerLayout`. |
+| **Slide-role-aware AI generation** | Hook/reframe/supports/pivot/CTA structure is what every educational creator uses (Hormozi, Welsh, Bloom). | MED | Extend Gemini schema with `role` field per slide; prompt addendum per role. |
+| **Stronger sans display fonts (Druk, Founders Grotesk Cond, Tungsten alternatives)** | Anton alone is a single look; viral creators use 5+ display sans. | LOW | Curate 4–6 Google Fonts alternatives; add per-template font binding. |
+| **Sharp modern serif option (Playfair / GT Sectra-alternative)** | Editorial archetype demands serif; we have zero serif templates. | LOW | New "editorial-serif" template. |
+| **Per-segment font family override** | Ransom-note / pick-and-mix typography is a 2026 *It's Nice That* named trend. | LOW | Extend `TextSegment` with optional `fontFamily`. |
+| **Page-counter typography variants (XL serif, hairline, framed)** | Counter is a signature decorative element across viral templates; we have one default style. | LOW | Already template-driven; add 3–4 visual variants. |
+| **No Inter as default body font on premium templates** | "Default Inter" is the #1 cited AI-slop tell for 2026. | LOW | Per-template body-font assignment. |
+| **No purple-to-blue gradient backgrounds** | #2 AI-slop tell. Affects Imagen output specifically. | LOW | Add prompt guardrail: "no gradient backgrounds, no glossy 3D, no abstract blobs." |
 
-### Differentiators (Competitive Advantage)
-
-Features that make this MCP server better than a raw API wrapper. Not required, but make the agent experience noticeably better.
+### Differentiators (Set Us Apart from Canva / Capsule / Plot / Visla / aiCarousels)
 
 | Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Outcome-oriented `create_carousel` response | Return projectId + slideCount + download URLs + ZIP URL all in one response. Agent gets everything needed without a follow-up `render_carousel` call. Follows the "outcomes over operations" MCP best practice. | LOW | The REST API already returns projectId. Add render URLs to the MCP tool response by calling render internally after creation. Saves agents a round-trip. |
-| Credit balance in every response | Return `creditsRemaining` in every tool response so agents can proactively warn users before running out. No other carousel MCP server does this. | LOW | Already in REST response headers (`x-credits-remaining`). Surface in MCP response body. |
-| `get_project` tool for inspection | Let agents retrieve a project to review current state before editing. Enables "show me slide 3" workflows. | LOW | Wraps GET `/api/v1/projects/{id}`. Returns full project with all slides. |
-| Prompt template: `create-carousel` | Pre-built MCP prompt that guides agents through the optimal workflow: pick template, create carousel, review, edit. Reduces agent guesswork. | LOW | MCP prompts are user-invocable templates. Define one that structures the carousel creation flow with argument slots for topic and style preference. |
+|---|---|---|---|
+| **Auto palette extraction from background photo** | Accent color, page counter, bottom-card all derive from photo's dominant hue. Generates Color-Walk archetype "for free." | MED | `node-vibrant` or `sharp` palette extraction at image-load; populate template tokens. Cache by image URL. |
+| **Notes-App-Chic / Brutalist template family** | Loewe, Duolingo, Brand New, AIGA Eye on Design aesthetic — *zero* AI carousel tools currently ship this. Biggest differentiation lane. | MED | 2–3 new templates: `notes-app-chic`, `brutalist-grid`, `xerox-zine`. Plus decorative overlay library. |
+| **"Photo-dump" mode — heterogeneous slides** | Skip template uniformity for select templates; let each slide have its own composition. Mimics Indie-Sleaze / Photo-Dump archetype. | MED-HIGH | Architectural — current renderer assumes consistent template across slides. Could implement as "template variant per slide" within a family. |
+| **Photocopier / xerox treatment toggle** | It's Nice That 2026 named trend ("Make Me a Copy"). High-craft signal. | LOW-MED | Greyscale + grain + slight blur composite. |
+| **Decorative-sticker overlay library (tape, sticky notes, arrows, polaroid frames, halftone dots)** | Notes-App-Chic core element; nothing in our category ships this well. | MED | Curated SVG/PNG library + positioning UI. Builds on existing `TemplateOverlay[]`. |
+| **AI-generated hook variants A/B selector** | Generate 3 hook options per slide, let user pick. Hook is the single highest-leverage element; one Gemini call. | LOW | Extends `regenerate-text` action; UI in right rail. |
+| **"Slop-detector" preview warning** | Flag slides that match AI-slop patterns (default Inter + gradient bg + centered headline + smiling-diverse-team photo) and suggest fixes. | MED | Heuristic pass on slide config. Marketing differentiator. |
+| **Imperfect-by-default rendering** | Subtle randomized type rotation/letter-spacing/baseline jitter on premium templates (sub-1° rotation, ±2px baseline). | LOW | Pure CSS/Satori transform. Per-character would be expensive; per-text-box is cheap. |
+| **Imagen prompt presets matched to archetype** | "Indie-sleaze flash photo of…" / "B&W documentary portrait of…" — instead of generic Imagen output. | LOW | Per-template prompt preamble for `stylize-image.ts` (already drafted, parked). |
+| **Per-slide photo treatment per-archetype** | Editorial = B&W; Documentary = naturalistic; Vampy = oxblood-duotone. Treatment binds to template. | LOW | Treatment becomes template field, applied at composite. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+### Anti-Features / Anti-Patterns (Things That LOOK Good But Make Output Worse)
 
-Features that seem good but create real problems in the MCP context.
+| Anti-Feature | Why It Tempts | Why It's Wrong | Better Alternative |
+|---|---|---|---|
+| **More fonts in font picker** | "Users want choice" | Adds decision fatigue; 90% of users pick wrong font for the photo. Our viral-creators study shows winners use 1–2 typefaces per carousel, not 8. | Curate 6–8 *paired* font systems (display + body) per template family. Hide raw font picker in "advanced." |
+| **Add 30+ new templates** | More options = more value | Tool count bloat = decision paralysis. v2.7 already has 8 templates. Quality > quantity. | Ship 3–5 *opinionated* archetypes (Editorial-Serif, Notes-App-Chic, Brutalist, Photo-Dump-Vibe, Vampy) and retire weak legacy templates if any are unused. |
+| **Glossy 3D / Web3 / cyberpunk neon templates** | "Modern feels premium" | Reads dated/AI-slop in 2026. Glossy = the look that's actively being rejected. | Embrace matte, paper, grain, photocopier. |
+| **Smooth gradient backgrounds (purple-blue, sunset, etc.)** | Easy to render, looks "polished" | #2 cited AI-slop tell. Indistinguishable from Canva default. | Solid-color backgrounds + photo treatments. |
+| **Auto-emoji injection in headlines** | "More engagement!" | Reads as low-effort/spam in 2026; Mosseri's quality pass demotes. | None. Emoji belongs only in CTA closer if at all. |
+| **AI-illustrated Imagen backgrounds as default** | Imagen is in-house; tempting to default to it | Current Imagen output skews "AI sheen" (smooth gradients, perfect lighting, glossy 3D objects). Reads as slop. | Default to Pexels documentary photos with B&W/duotone treatment. Use Imagen only with explicit "indie-sleaze flash" / "documentary-raw" / "film-stock" prompt presets. |
+| **"Smart" auto-generated emoji-rich CTA closer** | "Engagement booster" | CTAs in 2026 are direct verbal asks ("Save this." / "Send to a friend who..."), not emoji-laden. | Plain-language CTA presets per archetype. |
+| **Dark mode / light mode UI toggle for slides** | Feels like a "feature" | Slides aren't UI; they're editorial. Each template has its own treatment. | Templates own their light/dark posture. |
+| **Centered "headline + subhead + CTA button" layout (Canva default)** | Most familiar layout | Reads as marketing collateral, not editorial content. The centered-stack is the SLOP layout. | Off-center, asymmetric, bleed compositions. |
+| **More text effect knobs (glow, neon, 3D extrude, chrome)** | "Wow factor" | Y2K chrome is its own narrow archetype; as a global text-effect option it's used to disguise weak hooks. | Keep current shadow / outline / highlight. Don't add chrome / glow / 3D unless wrapped in a single-purpose template. |
+| **Real-time collaboration on the canvas** | "Notion / Figma vibes" | Pre-PMF. Solo creator is the user. | Defer indefinitely (already in PROJECT.md out-of-scope). |
+| **Native video / motion-template export** | "Make slides into video!" | We're explicitly an image-carousel product. TikTok Photo Mode auto-plays static images. Adding video destroys the focus. | Out of scope. |
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Expose ALL 10 REST endpoints as MCP tools | "Feature parity" instinct -- if the API has it, MCP should too | Tool count bloat kills agent accuracy. Research shows accuracy drops from 95% to 71% when tool count gets excessive. `list_projects`, `create_project`, `delete_project`, `get_slide`, `download_slide`, `download_zip` add 6 more tools but agents rarely need them -- they work with one carousel at a time. | Keep to 4-6 curated tools. Agents that need raw CRUD can use the REST API directly. |
-| Granular slide-level CRUD tools (add_slide, remove_slide, reorder_slides, duplicate_slide) | Power users want full editor control via agents | Agents are bad at multi-step layout decisions. Adding/removing/reordering slides requires understanding visual flow -- agents generate better results by regenerating with different slide counts than by surgically modifying structure. Also bloats tool count. | Let `create_carousel` accept `slideCount` param. For removal, agents can edit unwanted slides to be CTAs or regenerate. |
-| Binary file download tools | "Agent should download the images directly" | MCP tools return text/JSON, not binary. Returning base64-encoded PNGs would bloat context windows massively (a single 1080x1920 PNG is ~500KB = ~700K base64 chars). | Return download URLs. The user or a separate download tool handles fetching. This is how Stripe MCP handles invoices -- returns URLs, not PDFs. |
-| Style/theme customization tools | "Agent should control fonts, colors, overlay opacity per slide" | Exposes 15+ style parameters as tool inputs. Agents struggle with visual design decisions (font size 24 vs 28? overlay opacity 60 vs 70?). Creates confusing tool schemas and bad output. | Templates handle styling. The `create_carousel` tool accepts `templateId`. For advanced users, `edit_slide` accepts `style_overrides` as an optional escape hatch but it should not be a separate tool. |
-| Real-time streaming of generation progress | "Agent should show progress as slides generate" | MCP tools are request-response, not streaming. The generation takes 5-15 seconds -- acceptable for a tool call. Adding SSE/streaming within MCP adds protocol complexity for marginal UX improvement. | Return the complete result. 5-15s is within normal MCP tool call timeout ranges. |
-| `delete_project` as an MCP tool | Agents should be able to clean up | Destructive operations via AI agents are dangerous. One misunderstood instruction and a user's project is gone. Stripe MCP intentionally restricts destructive tools. | Omit from MCP. Users delete via web UI. If needed later, add with confirmation_token pattern. |
+---
+
+## 4. Specific Successful Creator Accounts to Study
+
+These are real, verified handles cited in *Aesthetics of Photography* 2026 audit and *Amra & Elma* 2026 carousel-influencer report. Listed by archetype lane so user can pick representatives to QA against.
+
+**Editorial / Magazine:**
+- `@a24` — anamorphic-cinematic film promo carousels.
+- `@nytimes` — hyperreal-mundane photo essay carousels (Cooking + Magazine sections).
+- `@ssense` — Poetcore + editorial fashion carousels.
+- `@reservoir.mag` — Poetcore carousel pioneer.
+- `@magnumphotos` — documentary-raw photo carousels.
+
+**Educational / Carousel-Deck (commodity lane, but reference for *good* execution):**
+- `@thechrisdo` — sequential design teaching, 10-slide decks with consistent layout.
+- `@aliabdaal` — productivity frameworks, friendly-but-clean.
+- `@hormozi` — sharp high-contrast business playbooks.
+- `@justinwelsh` — solopreneur step-by-step, bold-minimal.
+- `@sahilbloom` — long-form ideas as swipeable arcs.
+
+**Photo-Dump / Indie-Sleaze:**
+- `@indiesleaze` — flash-on-camera digicam archive.
+- `@emmachamberlain` — chaotic photo-dump aesthetic mixing blurry candids with composed photos.
+- `@bellahadid` — moody vintage-palette sequences.
+- `@thecobrasnake` — original indie-sleaze cultural anchor.
+
+**Brutalist / Notes-App / Brand-Forward:**
+- `@loewe` — TikTok-native chaos bleeding into IG; ransom-note typography.
+- `@duolingo` — 8.5% engagement rate, brain-rot/relatability hybrid; reference for Trickster archetype.
+- `@marcjacobs` — Color-Walk Reels exemplar.
+
+**Documentary / Authentic:**
+- `@keithleeeats` — 16M+ TikTok, documentary-raw creator portrait.
+- `@halfbakedharvest` — hyperreal-mundane food, sacred-object composition.
+
+**Place / Travel / Atmosphere:**
+- `@visitnyc`, `@discoverlosangeles` — Place Romanticization, golden-hour amber, sequential B-roll stills.
+- `@brandonwoelfel` — cinematic anamorphic neon portraiture.
+
+User-recommended for v2.9 visual QA: pick **one carousel from each of `@a24`, `@nytimes`, `@ssense`, `@loewe`, `@indiesleaze`, `@halfbakedharvest`** → render same topic through our templates → score visual gap. This is the cheapest way to set the v2.9 bar.
+
+---
+
+## 5. Quality Gap Analysis: Our 8 Templates vs What's Winning
+
+Our existing inventory:
+- 5 legacy templates (educational/carousel-deck lane).
+- 3 premium templates: `magazine-bold`, `tr3nding-news`, `documentary`.
+
+| Lane | Coverage | Gap |
+|---|---|---|
+| Educational / Carousel-Deck | **Strong** (5 legacy templates). | Risk: this is the most commoditized lane. Quality fixes (typography, slide-role AI, hook sizing) more valuable than new templates here. |
+| Editorial / Magazine | **Partial.** `magazine-bold` is the only entry; `tr3nding-news` is a variant. `documentary` is image-bleed-only. | **Need:** Editorial-Serif template (Playfair/Recoleta + B&W full-bleed photo). Photo treatment (B&W toggle) elevates `documentary` substantially. |
+| Photo-Dump / Indie-Sleaze | **Zero.** Architectural mismatch — every slide currently uses identical composition. | **Need:** "vibe" mode where each slide picks a sub-variant within a family (text-left/text-right/text-bleed/photo-only). Plus film-grain default-on. Plus indie-sleaze Imagen preset. |
+| Documentary-Raw | **Partial** (`documentary` template). Photos still skew Pexels-glossy. | **Need:** documentary-raw Imagen prompt preset + "no smiling stock" guardrail + naturalistic-treatment toggle. |
+| Brutalist / Notes-App-Chic | **Zero.** No decorative-sticker library, no ransom-note typography, no photocopier treatment. | **Biggest single differentiation gap.** 2–3 templates + decorative-overlay library. |
+| Cinematic-Anamorphic | **Zero.** | Nice-to-have. 1 template post-v2.9. |
+| Color-Walk / Mono-with-Accent | **Indirect.** Achievable with palette-extraction feature. | **Need:** auto palette extraction from background photo. |
+| Vampy / Dark Cottagecore | **Zero.** | 1 template; reuses palette-extraction. |
+| Place Romanticization | **Indirect** via Imagen. | Imagen preset upgrade. |
+| Brain-Rot | **Out of scope.** | None. |
+
+### The Five Highest-Leverage Quality Fixes (Ranked)
+
+1. **Photo treatment system (B&W / duotone / grain) bound to template.** LOW-MED build, HIGH visual impact. Makes every existing template look 2026-current. *Single biggest unlock.*
+2. **Slide-role-aware AI generation (hook/reframe/supports/pivot/CTA).** MED build, HIGH content impact. Carousel pacing is currently flat.
+3. **Better display typography per template + per-segment font override.** LOW build, HIGH visual impact. Anton-everywhere is repetitive.
+4. **Notes-App-Chic / Brutalist template family + decorative-overlay library.** MED build, HIGH differentiation. Nothing in the AI-carousel category ships this.
+5. **AI-slop guardrails (no Inter default, no purple-blue gradient, no smiling-diverse-team Pexels stock, no glossy 3D Imagen).** LOW build, prevents the worst output.
+
+---
 
 ## Feature Dependencies
 
 ```
-[list_templates]
-    └──informs──> [create_carousel] (agent picks templateId)
-                      └──produces──> [edit_slide] (needs projectId + slideIndex)
-                      └──produces──> [render_carousel] (needs projectId)
-                      └──produces──> [get_project] (needs projectId)
+Photo treatment system (B&W/duotone/grain)
+    ├──requires──> existing 9-layer composite stack (resolve-overlay.ts) [HAVE, v2.7 Phase 45]
+    ├──requires──> Sharp or CSS filter pipeline addition
+    └──enables──> Editorial-Serif template, Documentary-Raw treatment, Vampy palette
 
-[Bearer auth middleware]
-    └──required by──> ALL tools (auth is enforced before any tool execution)
+Auto palette extraction
+    ├──requires──> node-vibrant or Sharp palette pass on slide-load
+    ├──requires──> template tokens that accept dynamic colors (we have `accentColor` already)
+    └──enables──> Color-Walk archetype, Vampy auto-treatment
 
-[REST API v2.2 endpoints]
-    └──required by──> ALL MCP tools (MCP tools wrap REST handlers)
+Slide-role AI generation
+    ├──requires──> Gemini schema extension (role: hook/reframe/support/pivot/close)
+    ├──requires──> per-role prompt addenda
+    └──enables──> better pacing, archetype-specific copy
 
-[Streamable HTTP transport]
-    └──independent of──> [stdio transport] (separate implementations, same tool definitions)
+Decorative-overlay library (tape, sticky notes, arrows, frames, halftones)
+    ├──requires──> existing TemplateOverlay[] schema [HAVE, v2.7 Phase 44]
+    ├──requires──> SVG/PNG asset curation
+    └──enables──> Notes-App-Chic, Brutalist, Vintage-Zine templates
 
-[@modelcontextprotocol/sdk]
-    └──required by──> [Streamable HTTP transport]
-    └──required by──> [stdio transport]
+Imperfect-by-default rendering (subtle jitter)
+    ├──requires──> Satori transform support (CSS rotate / translate verified working)
+    └──enables──> AI-resistance signal across all premium templates
+
+Per-segment font family
+    ├──requires──> TextSegment schema extension (fontFamily?: string) [extends v2.8 schema]
+    ├──requires──> font-loader update to load multiple per-slide
+    └──enables──> Ransom-note / pick-and-mix typography
+
+Imagen prompt presets per archetype
+    ├──requires──> existing stylize-image.ts (parked, ready) [DRAFTED]
+    ├──requires──> per-template promptPreamble field
+    └──enables──> Documentary-Raw, Indie-Sleaze, Vampy archetype-correct AI photos
+
+Notes-App-Chic / Brutalist templates
+    ├──requires──> Decorative-overlay library
+    ├──requires──> Photo treatment system (photocopier preset)
+    ├──requires──> Per-segment font family (ransom-note hooks)
+    └──delivers──> biggest differentiation lane
 ```
 
-### Dependency Notes
+---
 
-- **All MCP tools require REST API v2.2:** The MCP server is a thin wrapper. It reuses service layer functions, not HTTP calls internally. This means service extraction (already done in v2.2) is the critical dependency.
-- **`create_carousel` informs `edit_slide`:** The projectId returned by creation is needed for all subsequent operations. This is the natural agent workflow.
-- **Transports are independent:** Streamable HTTP and stdio share tool definitions but have different transport layers. Build tools first, then wire to both transports.
-- **`list_templates` informs `create_carousel`:** Agents call `list_templates` first to discover available styles, then pass a `templateId` to `create_carousel`. However, `create_carousel` should have a sensible default (`bold-minimal`) so this step is optional.
+## MVP Definition (v2.9 Scope Recommendation)
 
-## MVP Definition
+### Launch With (v2.9 Core)
 
-### Launch With (v2.3)
+The minimum that materially upgrades visual quality vs current output.
 
-The minimum viable MCP server that delivers the core agent workflow.
+- [ ] **Photo treatment system** — B&W toggle, duotone (cream/oxblood, navy/cream, mint/black), film-grain overlay (3 intensities). Per-template default; user can override.
+- [ ] **AI-slop guardrails** — replace Inter default body font on premium templates; Imagen prompt addendum forbidding gradient/glossy/3D/smiling-stock; Pexels query addendum favoring documentary/portrait over "team meeting."
+- [ ] **Hook size + display-font expansion** — 4 new display sans (Druk-alt, Founders Grotesk Cond-alt, Tungsten-alt, Inter Display Black) + 2 sharp-modern serifs (Playfair Display + Recoleta-alt or GT Sectra-alt). Hook default size raised to 110–130px on premium templates.
+- [ ] **Slide-role AI generation** — extend Gemini schema with `role: 'cover' \| 'reframe' \| 'support' \| 'pivot' \| 'close'`. Per-role prompt addenda. Default 7–9 slide arcs.
+- [ ] **First-slide ≠ inner-slide composition** — per-template `coverLayout` distinct from `innerLayout`. Cover defaults to upper-third hook.
+- [ ] **Editorial-Serif template** — new premium template: B&W bleed photo + Playfair Display oversized hook + cream accent + page counter top-right.
+- [ ] **Notes-App-Chic template** — new premium template: paper-texture background + ransom-note hook (mixed fonts in one phrase) + tape-strip + sticky-note overlays + halftone-dot accent.
+- [ ] **Decorative-overlay library** — 12–20 SVG/PNG assets (tape strips, sticky notes, hand-drawn arrows, polaroid frames, halftone patterns). Reusable across templates.
 
-- [ ] `create_carousel` tool -- the entire value proposition in one tool call
-- [ ] `list_templates` tool -- template discovery for informed creation
-- [ ] `edit_slide` tool -- post-creation refinement
-- [ ] `render_carousel` tool -- get download URLs after edits
-- [ ] Streamable HTTP transport at `/api/mcp` -- remote agent access
-- [ ] Bearer token auth reusing existing `vsl_` API keys
-- [ ] Descriptive tool schemas with parameter constraints and credit cost documentation
-- [ ] Structured MCP error responses
+### Add After Validation (v2.9.x or v2.10)
 
-### Add After Validation (v2.3.x)
+- [ ] **Auto palette extraction from background photo** — propagates dominant hue to accent/counter/card.
+- [ ] **Brutalist-Grid template** — Brute Force aesthetic, heavy stacked typography, exposed grid lines, deadpan numerals.
+- [ ] **Per-segment font family override** — full ransom-note typography support.
+- [ ] **AI hook A/B variant selector** — generate 3 hook options, user picks.
+- [ ] **Imagen archetype-prompt presets** — wires up parked `stylize-image.ts`.
+- [ ] **Imperfect-by-default jitter** — subtle randomized rotation/letter-spacing on premium templates.
 
-Features to add once the core 4 tools are working and agents are using them.
+### Future Consideration (v2.10+)
 
-- [ ] `get_project` tool -- when agents need to inspect existing projects before editing
-- [ ] stdio npm package (`viralslidemaker-mcp`) -- when users request local agent support
-- [ ] MCP prompt template for guided carousel creation -- when usage data shows agents struggling with workflow
-- [ ] Credit balance in tool responses -- low effort, high value, add in first iteration if time permits
+- [ ] **Photo-Dump heterogeneous mode** — per-slide layout variants within a template family (architecturally larger).
+- [ ] **Cinematic-Anamorphic template** — teal-orange grade, letterbox bars, anamorphic flares.
+- [ ] **Vampy / Dark-Cottagecore template.**
+- [ ] **Slop-detector preview warning** — heuristic pass that flags AI-slop patterns and suggests fixes.
+- [ ] **Color-Walk multi-slide consistency mode** — enforces single-hue across deck.
 
-### Future Consideration (v2.4+)
-
-Features to defer until MCP usage patterns are established.
-
-- [ ] `list_projects` tool -- only if agents need to browse existing work (unlikely for creation-focused tool)
-- [ ] MCP resources for template thumbnails -- once MCP resource support matures in clients
-- [ ] Webhook/notification on generation complete -- if generation times increase significantly
-- [ ] OAuth 2.1 auth flow -- if distributing via MCP marketplaces that require it
+---
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| `create_carousel` tool | HIGH | LOW | P1 |
-| `list_templates` tool | HIGH | LOW | P1 |
-| `edit_slide` tool | HIGH | LOW | P1 |
-| `render_carousel` tool | HIGH | LOW | P1 |
-| Streamable HTTP transport | HIGH | MEDIUM | P1 |
-| Bearer auth on `/api/mcp` | HIGH | LOW | P1 |
-| Tool schema documentation | HIGH | LOW | P1 |
-| Structured MCP errors | MEDIUM | LOW | P1 |
-| `get_project` tool | MEDIUM | LOW | P2 |
-| stdio npm package | MEDIUM | MEDIUM | P2 |
-| Credit balance in responses | MEDIUM | LOW | P2 |
-| MCP prompt templates | LOW | LOW | P3 |
-| `list_projects` tool | LOW | LOW | P3 |
-| OAuth 2.1 | LOW | HIGH | P3 |
+| Feature | User Value | Implementation Cost | Priority | Why |
+|---|---|---|---|---|
+| Photo treatment system (B&W / duotone / grain) | HIGH | LOW-MED | **P1** | Single biggest visual upgrade per dollar. Makes existing templates look 2026-current. |
+| AI-slop guardrails (font defaults, Imagen prompt rules, Pexels query rules) | HIGH | LOW | **P1** | Cheap; prevents the worst output. Marketing-defensible. |
+| Display-font expansion + hook size raise | HIGH | LOW | **P1** | Anton-everywhere is repetitive; modern serif is missing entirely. |
+| Slide-role AI generation | HIGH | MED | **P1** | Carousel pacing is flat without it; downstream every template benefits. |
+| Cover-layout ≠ inner-layout per template | MED | LOW | **P1** | First-slide thumbnail readability is the algorithm's gateway. |
+| Editorial-Serif template | HIGH | LOW (after photo treatment exists) | **P1** | Fills biggest archetype gap (Magazine-Editorial serif lane). |
+| Notes-App-Chic template + decorative-overlay library | HIGH | MED | **P1** | Biggest differentiation vs Canva/Capsule/Plot. |
+| Auto palette extraction | MED | MED | **P2** | Unlocks Color-Walk and Vampy "for free"; nice but not table-stakes. |
+| Per-segment font family | MED | LOW | **P2** | Enables full ransom-note typography on Notes-App-Chic. |
+| Brutalist-Grid template | MED | LOW (after overlays exist) | **P2** | Adjacent to Notes-App-Chic; reuses assets. |
+| Imagen archetype prompt presets | MED | LOW | **P2** | Wires parked `stylize-image.ts`; meaningful only after archetype templates exist. |
+| AI hook A/B variant selector | MED | LOW | **P2** | Good UX win, not a visual-quality fix. |
+| Imperfect-by-default jitter | MED | LOW | **P2** | Subtle but real AI-resistance signal. |
+| Photo-Dump heterogeneous mode | HIGH | HIGH | **P3** | Architectural; defer until v2.9 lands. |
+| Cinematic-Anamorphic template | LOW | LOW | **P3** | Niche archetype. |
+| Vampy / Dark-Cottagecore template | LOW | LOW | **P3** | Niche; reuses palette-extraction. |
+| Slop-detector preview | MED | MED | **P3** | Meta-feature; useful only after the fixes are in place. |
 
 **Priority key:**
-- P1: Must have for launch -- the 4-tool MCP server with Streamable HTTP
-- P2: Should have, add in same milestone if time permits
-- P3: Nice to have, defer to future milestone
+- **P1**: Must ship for v2.9 to materially close the quality gap. ~7 features.
+- **P2**: Should ship in v2.9 if scope allows; otherwise v2.9.x.
+- **P3**: Defer to v2.10+; not needed to claim "viral visual quality" milestone.
+
+---
 
 ## Competitor Feature Analysis
 
-| Aspect | Stripe MCP (27 tools) | Notion MCP (18 tools) | Supabase MCP (20+ tools) | ViralSlideMaker MCP (4-6 tools) |
-|--------|----------------------|----------------------|--------------------------|-------------------------------|
-| Tool count | 27 (too many -- causes context bloat) | 18 (moderate, well-organized) | 20+ (grouped by feature flags) | 4-6 (focused, outcome-oriented) |
-| Read vs Write ratio | 15 read / 12 write | ~10 read / 8 write | Mostly read, writes gated | 1 read / 3 write |
-| Auth model | OAuth 2.1 | Bearer token | Access token | Bearer token (existing `vsl_` keys) |
-| Transport | Remote HTTP + local npm | Hosted + stdio | stdio primarily | Streamable HTTP + stdio npm |
-| Destructive ops | Restricted (refunds gated) | Available (delete pages) | Read-only mode available | Omitted entirely |
-| Design philosophy | Comprehensive coverage | Comprehensive coverage | Developer infrastructure | Curated outcomes |
+| Feature | Canva (post-Glow Up 2025) | aiCarousels.com / PostNitro | Plot / Capsule | **Our Approach (v2.9)** |
+|---|---|---|---|---|
+| Templates | 1000+ generic | 50+ generic AI-template | 20–40 modern | Curated 8 → 12, opinionated archetypes |
+| Photo treatment | None automatic; manual filters | None | None | **B&W / duotone / grain bound to template** |
+| Display typography | Full font picker, no curation | Defaults to Inter / Poppins | Curated 5–8 | Curated 6–8 *paired systems* per template |
+| Decorative stickers | Massive, generic, low-craft | None | Minimal | **Curated craft library (tape, halftone, sticky notes, hand-drawn arrows)** |
+| AI archetype awareness | None — all templates one mold | Generic AI text gen | None | **Slide-role-aware AI; archetype-bound prompts** |
+| AI-slop avoidance | None — defaults are slop | Defaults are slop | Mid | **Explicit guardrails (no Inter default, no purple-blue gradient, no smiling-stock-team)** |
+| Photo source intelligence | Manual | Generic stock | Mid | **Pexels query rules + Imagen archetype presets** |
+| Editorial-serif option | Yes (in font picker) | No default | No | **Default-on premium template** |
+| Notes-App-Chic template | No | No | No | **Yes — biggest differentiation** |
+| Brutalist template | No | No | No | **Yes (P2)** |
 
-**Key insight:** Stripe and Notion are platform products with broad API surfaces, so high tool counts make sense. ViralSlideMaker is a focused creation tool -- the MCP server should reflect that focus. 4 tools that work perfectly beats 15 that confuse agents.
+**Strategic insight:** Canva and aiCarousels both compete on *quantity* (more templates, more fonts, more options). The 2026 market shift toward Imperfect-by-Design rewards *quality, opinionated, archetype-bound* output. Our 8 → 12 curated archetype templates with built-in photo treatment and AI slop guardrails beats 1000 generic templates that all look AI-generated.
 
-## Tool Count Guidance from Research
-
-Industry best practice from philschmid.de and multiple sources:
-- **5-15 tools per server** is the sweet spot
-- **40+ tools** causes Cursor to truncate (hard limit)
-- **Agent accuracy drops 24 percentage points** when tool count gets excessive
-- **GitHub MCP server alone consumes 42,000 tokens** of context just for definitions
-- **"One server, one job"** -- ViralSlideMaker's job is carousel creation, not a general content platform
-
-The proposed 4-tool MVP with 2 optional additions (6 max) is well within the sweet spot and leaves plenty of context budget for the agent's actual reasoning.
+---
 
 ## Sources
 
-- [MCP Best Practices - philschmid.de](https://www.philschmid.de/mcp-best-practices) - Tool granularity, naming, outcome-oriented design (HIGH confidence)
-- [Notion MCP Supported Tools](https://developers.notion.com/guides/mcp/mcp-supported-tools) - 18-tool reference implementation (HIGH confidence)
-- [Stripe MCP Documentation](https://docs.stripe.com/mcp) - 27-tool enterprise MCP server (HIGH confidence)
-- [Supabase MCP Server](https://supabase.com/blog/mcp-server) - Feature-flagged tool groups (HIGH confidence)
-- [MCP Context Overload](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/) - Tool count impact on agent accuracy (MEDIUM confidence)
-- [MCP Tool Overload Solutions](https://www.lunar.dev/post/why-is-there-mcp-tool-overload-and-how-to-solve-it-for-your-ai-agents) - Context window consumption data (MEDIUM confidence)
-- [Nordic APIs MCP Best Practices](https://nordicapis.com/8-tips-and-best-practices-for-mcp-server-development/) - Server design patterns (MEDIUM confidence)
-- [Next.js MCP Guide](https://nextjs.org/docs/app/guides/mcp) - Next.js integration patterns (HIGH confidence)
-- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) - Official SDK (HIGH confidence)
-- [WorkOS MCP Features Guide](https://workos.com/blog/mcp-features-guide) - Tools vs Resources vs Prompts (MEDIUM confidence)
+**Highest-confidence references:**
+- [The Viral Visual Grammar of US Instagram in 2026 — Aesthetics of Photography](https://aestheticsofphotography.com/the-viral-visual-grammar-of-us-instagram-in-2026-aesthetics-algorithms-and-attention/) — 12-archetype audit, save-over-likes hierarchy, AI-resistance defense, creator handles. (HIGH)
+- ['Imperfect by Design': The visual design trends set to define 2026 — Canva Newsroom](https://www.canva.com/newsroom/news/design-trends-2026/) — "Imperfect by Design" framing, Notes App Chic, Reality Warp, Texture Check. (HIGH)
+- [The graphic trends you'll want to bookmark for 2026 — It's Nice That](https://www.itsnicethat.com/features/forward-thinking-graphic-trends-2026-graphic-design-120126) — "Make Me a Copy" photocopier aesthetic, Pick-and-Mix typography, Visual Index, Micrographics, Blotch logos. (HIGH)
+- [Top 20 Graphic Design Trends for 2026 — Digital Synopsis](https://digitalsynopsis.com/design/graphic-design-trends-2026/) — Brute Force, Neo-brutalism. (MEDIUM)
+- [Top Social Media Design Trends 2026 — Versa Creative](https://versacreative.com/blog/top-social-media-design-trends-2026/) — Bold thick-stroke typography, vibrant color return. (MEDIUM)
+
+**Creator-handle references:**
+- [25 Influencers Making Carousels Go Viral in 2026 — Amra & Elma](https://www.amraandelma.com/influencers-making-carousels-go-viral/) — 25 verified IG handles by niche, design strategy notes. (MEDIUM — confirm individual handles on platform.)
+- [March 2026 TikTok Trends — New Engen](https://newengen.com/insights/march-2026-tiktok-trends/) — TikTok carousel format examples, named creators. (MEDIUM)
+- [Top TikTok Trends — TikTok Creative Center via socialrails.com](https://socialrails.com/blog/how-to-make-slideshow-on-tiktok) — Photo Mode mechanics, 35-image carousel cap. (HIGH)
+
+**Algorithm and engagement references:**
+- [Mastering Instagram Carousel Strategy in 2026 — Marketing Agent Blog](https://marketingagent.blog/2026/01/03/mastering-instagram-carousel-strategy-in-2026-the-algorithm-demands-swipes-not-just-scrolls/) — 1.8x reach, 11s dwell, save-weighting. (MEDIUM)
+- [Instagram Carousel Strategy 2026 — TrueFuture Media](https://www.truefuturemedia.com/articles/instagram-carousel-strategy-2026) — DM-share weight, frame-level analytics. (MEDIUM)
+- [How to Create Instagram Carousels That Get Saves (2026) — InstaCarousel](https://instacarousel.com/blog/instagram-carousel-guide-2026/) — Hook-frame thumb-stop mechanics. (MEDIUM)
+
+**AI-slop / anti-pattern references:**
+- [AI Slop Web Design — 925studios](https://www.925studios.co/blog/ai-slop-web-design-guide) — Default Inter + purple-to-blue gradient as #1 and #2 slop tells. (MEDIUM)
+- [AI Slop on Wikipedia](https://en.wikipedia.org/wiki/AI_slop) — Definition, detection markers. (HIGH)
+
+**Typography references:**
+- [Font Trends 2026 — Simplified](https://simplified.com/blog/design/creative-font-trends) — Bold thick-stroke, retro revival, sharp modern serif. (MEDIUM)
+- [Brand Typography Trends 2026 — Memorable Design](https://memorable.design/brand-typography-trends/) — Variable fonts as 2026 baseline, serif revival. (MEDIUM)
+- [Typography Trends 2026 — Design Monks](https://www.designmonks.co/blog/typography-trends-2026) — Display serif maximalism, Anton's role. (MEDIUM)
 
 ---
-*Feature research for: MCP Server integration for ViralSlideMaker SaaS*
-*Researched: 2026-04-08*
+
+*Feature research for: v2.9 Viral Visual Quality milestone.*
+*Researched: 2026-04-30 / 2026-05-01.*
+*Quality-gate self-check: archetypes named (12), creator handles cited (25+ real handles), complexity hints noted per pattern, dependencies on existing features (TextBox schema v2.8, TemplateOverlay schema v2.7, resolve-overlay.ts) identified, anti-patterns explicit (Inter default, purple-blue gradient, glossy 3D, smiling-stock-team, centered-stack), opinionated about top-5 highest-leverage fixes.*
