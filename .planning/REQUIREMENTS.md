@@ -142,17 +142,79 @@
 
 ## Traceability
 
-| Requirement | Phase |
+Roadmap approved 2026-05-01. Each requirement maps to exactly one phase.
+
+| Requirement | Phase | Status |
+|---|---|---|
+| TREAT-01 | Phase 54 | Pending |
+| TREAT-02 | Phase 54 | Pending |
+| TREAT-03 | Phase 54 | Pending |
+| TREAT-04 | Phase 54 | Pending |
+| TREAT-05 | Phase 54 | Pending |
+| TREAT-06 | Phase 54 | Pending |
+| SLOP-01 | Phase 54 | Pending |
+| SLOP-02 | Phase 54 | Pending |
+| SLOP-03 | Phase 55 | Pending |
+| SLOP-04 | Phase 54 | Pending |
+| SLOP-05 | Phase 54 | Pending |
+| AIROLE-01 | Phase 58 | Pending |
+| AIROLE-02 | Phase 58 | Pending |
+| AIROLE-03 | Phase 58 | Pending |
+| AIROLE-04 | Phase 58 | Pending |
+| AIROLE-05 | Phase 58 | Pending |
+| TPL-01 | Phase 56 | Pending |
+| TPL-02 | Phase 56 | Pending |
+| TPL-03 | Phase 56 | Pending |
+| TPL-04 | Phase 56 | Pending |
+| TPL-05 | Phase 56 | Pending |
+| TPL-06 | Phase 56 | Pending |
+| TPL-07 | Phase 56 | Pending |
+| TPL-08 | Phase 56 | Pending |
+| TPL-09 | Phase 56 | Pending |
+| TPL-10 | Phase 56 | Pending |
+| TYPO-01 | Phase 55 | Pending |
+| TYPO-02 | Phase 55 | Pending |
+| TYPO-03 | Phase 55 | Pending |
+| TYPO-04 | Phase 55 | Pending |
+| TYPO-05 | Phase 55 | Pending |
+| EDITOR-01 | Phase 57 | Pending |
+| EDITOR-02 | Phase 57 | Pending |
+| EDITOR-03 | Phase 57 | Pending |
+| EDITOR-04 | Phase 57 | Pending |
+| PALETTE-01 | Phase 57 | Pending |
+| PALETTE-02 | Phase 57 | Pending |
+| PALETTE-03 | Phase 57 | Pending |
+| PALETTE-04 | Phase 57 | Pending |
+| MATCH-01 | Phase 58 | Pending |
+| MATCH-02 | Phase 58 | Pending |
+| MATCH-03 | Phase 58 | Pending |
+| MATCH-04 | Phase 58 | Pending |
+| MATCH-05 | Phase 58 | Pending |
+| PARITY-01 | Phase 58 | Pending |
+| PARITY-02 | Phase 58 | Pending |
+| PARITY-03 | Phase 58 | Pending |
+| PARITY-04 | Phase 58 | Pending |
+| PARITY-05 | Phase 58 | Pending |
+| PARITY-06 | Phase 58 | Pending |
+| METRIC-01 | Phase 54 | Pending |
+| METRIC-02 | Phase 54 | Pending |
+| METRIC-03 | Phase 54 | Pending |
+
+**Coverage:** 53 / 53 requirements mapped (100%). No orphans, no duplicates.
+
+### Per-phase summary
+
+| Phase | Requirements |
 |---|---|
-| TREAT-01..06 | Phase 54 |
-| SLOP-01..05 | Phase 54 + 58 (template audit + AI prompt) |
-| TYPO-01..05 | Phase 55 |
-| AIROLE-01..05 | Phase 58 |
-| TPL-01..10 | Phase 56 |
-| EDITOR-01..04 | Phase 57 |
-| PALETTE-01..04 | Phase 57 |
-| MATCH-01..05 | Phase 58 |
-| PARITY-01..06 | Phase 58 |
-| METRIC-01..03 | Phase 54 (track) + Phase 58 (verify) |
+| Phase 54 — Infrastructure Foundation | TREAT-01..06, SLOP-01, SLOP-02, SLOP-04, SLOP-05, METRIC-01..03 (13) |
+| Phase 55 — Schema + Renderer Extensions | TYPO-01..05, SLOP-03 (6) |
+| Phase 56 — New Templates + Decorative Library | TPL-01..10 (10) |
+| Phase 57 — Editor Controls + Palette Extraction | EDITOR-01..04, PALETTE-01..04 (8) |
+| Phase 58 — AI Tightening + Parity QA + match-photos | AIROLE-01..05, MATCH-01..05, PARITY-01..06 (16) |
+
+**Refinements from the original proposed mapping:**
+- SLOP-03 (template validator requires non-nullable `bodyFontFamily` on premium templates) moved from "Phase 54 + 58" bucket to **Phase 55**: the validator extension is a natural fit for Phase 55's `validateTemplateRegistry` extension scope, and Phase 55 must enforce `bodyFontFamily` on premium templates anyway (success criterion #5).
+- METRIC-01..03 land entirely in **Phase 54** (event tracking, dashboard query, baseline capture). Phase 58's success criterion verifies the post-launch rate against the baseline but does not introduce new METRIC requirements.
+- SLOP-01, 02, 04, 05 (Imagen / Pexels / hook-prompt addenda + existing-template audit) all land in **Phase 54** alongside the rest of the infrastructure foundation.
 
 Phase plans will live under `.planning/phases/54/` … `.planning/phases/58/`. After roadmap approval, run `/gsd-discuss-phase 54` (or `/gsd-plan-phase 54` to skip discussion).

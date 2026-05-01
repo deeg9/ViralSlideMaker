@@ -15,6 +15,7 @@
 - v2.6 MCP Server - Phases 40-42 (shipped 2026-04-28) — Rebuilt the retired v2.3 with lean 4-tool scope. /api/mcp Streamable HTTP endpoint live with vsl_ Bearer auth + Upstash rate limiting + triple-layer build-gate. 4 tools (list_templates, create_carousel, edit_slide, render_carousel) call services directly. viralslidemaker-mcp@0.1.0 npm bridge ready (publish user-gated). Setup guide at docs/MCP-GUIDE.md covers Claude Desktop / Cursor / Windsurf / ChatGPT. 18/19 reqs satisfied (MCP-DIST-06 deferred for user publish). Archive: .planning/milestones/v2.6-ROADMAP.md
 - v2.7 Premium Templates - Phases 44-48 (shipped 2026-04-29) — Replaced 5 weak templates with overlay-zone schema + 3 new magazine-style premium templates (magazine-bold/tr3nding-news/documentary). Satori + React preview parity for overlays/photo backgrounds/page counter/highlight pills. AI prompt tuning with length caps, typo gate, template-aware voice notes. 8 picker thumbnails. 19/19 requirements. Archive: .planning/milestones/v2.7-ROADMAP.md
 - v2.8 Text Editor Right-Rail Redesign - Phases 49-53 (planning 2026-04-30) — Replace cluttered Hook/Body slot panel with selection-driven, single-element right rail (Figma/Canva model). Unified `text_boxes: TextBox[]` schema replacing fixed `hook_text` + `body_text` slots. Independent toggleable Shadow/Outline/Highlight effect rows (CapCut/VEED model). Dual-write migration with sunset of legacy fields targeted for v2.9.
+- v2.9 Viral Visual Quality - Phases 54-58 (planning 2026-05-01) — Upgrade visual output of AI-generated slides to match what's actually winning on TikTok / Instagram in early-to-mid 2026. Server-side photo treatment (B&W / duotone / grain) baked via sharp before Satori (TPLREND-05 parity preserved); 3 new free templates (editorial-serif, notes-app-chic, brutalist-grid); slide-role-aware AI generation (cover / reframe / support / pivot / close); AI-slop guardrails (no Inter default, no gradient backgrounds, no smiling-stock-team); Imagen 4 Fast model upgrade ($0.02/img, 10× faster); palette extraction via @vibrant/node; Instagram grid safe-zone overlay; premium-gated `match-photos-to-slides`. Success metric: ZIP download rate (baseline captured at Phase 54 start, verified at Phase 58 ship gate). 52 requirements across 10 categories (TREAT / SLOP / AIROLE / TPL / TYPO / EDITOR / PALETTE / MATCH / PARITY / METRIC).
 
 ## Phases
 
@@ -813,9 +814,102 @@ Selection-driven right-rail panel (Figma/Canva model) replacing dual-slot Hook+B
 
 </details>
 
+<details>
+<summary>v2.9 Viral Visual Quality (Phases 54-58) - planning 2026-05-01</summary>
+
+Upgrade the visual output of AI-generated carousel slides so they look like what's actually winning on TikTok and Instagram in early-to-mid 2026 — replicating proven patterns from successful creators (editorial / Notes-App-Chic / Brutalist) rather than guessing. Research-grounded in `.planning/research/SUMMARY.md` (Aesthetics of Photography 2026, Canva *Imperfect by Design*, It's Nice That, Mosseri Jan 2026 "rawness is proof"). Five phases append below v2.8 (no number reset).
+
+**Milestone success metric:** ZIP download rate per created carousel — proxy for "good enough to ship." Baseline captured at Phase 54 start (last 30 days pre-Phase-54). Phase 58 ship gate verifies non-regression.
+
+**Locked decisions:**
+- Photo treatment baked server-side via sharp — CSS filters silently break Satori PNG export (vercel/satori#573); pre-render is the only path
+- Imagen 4 Fast (`imagen-4.0-fast-generate-001`) replaces Imagen 3 (cheaper $0.02/img, 10× faster, better text rendering)
+- All 3 new templates free for all users (pre-PMF, top-of-funnel sharing > premium gating)
+- `match-photos-to-slides.ts` ships in Phase 58 premium-gated only (cost mitigated by MAX_PHOTOS=8 + cache + 10s timeout)
+- `stylize-image.ts` deferred to v3.0+ (architectural conflict + Vercel timeout breach + face-stylization legal risk per Reface/Kyland Young 9th Cir.)
+- No Pangram fonts (free Google Fonts only — Playfair Display, DM Serif Display, Bebas Neue, Archivo Black, Plus Jakarta Sans, Space Grotesk, Manrope)
+- No legacy schema sunset — pre-PMF, tech debt waits
+
+**Build-order dependencies (fixed):** 54 gates 55 (schema needs `TreatmentSpec` types from `treat.ts`); 55 gates 56 (templates need new schema fields + renderer helpers); 56 gates 57 (editor toggle is useless without templates that declare `photoTreatment`); 58 last (AI prompts reference template IDs by name; parity QA + ship gate finalize the milestone).
+
+**Parity invariant (TPLREND-05):** every new visual layer MUST be exported from `src/lib/render/resolve-overlay.ts` and consumed by both `render-slide-satori.tsx` and `slide-preview.tsx`. Skipping the resolver for "just one quick layer" is anti-pattern #4 in PITFALLS.md.
+
+- [ ] **Phase 54: Infrastructure Foundation** — sharp photo-treatment pipeline + Imagen 4 Fast model swap + AI-slop guardrails + ZIP-download-rate baseline (gates everything else)
+- [ ] **Phase 55: Schema + Renderer Extensions** — SlideTemplate / Slide schema additions + renderGrain / renderVignette helpers + display-font catalog expansion + premium hook size
+- [ ] **Phase 56: New Templates + Decorative Library** — editorial-serif, notes-app-chic, brutalist-grid templates + grain PNG asset set + decorative SVG/PNG overlay library + per-segment fontFamily
+- [ ] **Phase 57: Editor Controls + Palette Extraction** — photo-treatment-controls right-rail UI + @vibrant/node named-role palette + Instagram grid safe-zone overlay + treatment-bucket retention policy
+- [ ] **Phase 58: AI Tightening + Parity QA + match-photos** — slide-role schema (cover/reframe/support/pivot/close) + per-template AI override + diversity gate (20-prompt corpus) + premium-gated `match-photos-to-slides` + parity test harness + ship-gate checklist
+
+### Phase 54: Infrastructure Foundation
+**Goal**: Server-side photo-treatment pipeline + Imagen 4 Fast + AI-slop guardrails + success-metric baseline are live; nothing user-visible has changed yet, but every downstream phase builds on this foundation
+**Depends on**: Phase 53
+**Requirements**: TREAT-01, TREAT-02, TREAT-03, TREAT-04, TREAT-05, TREAT-06, SLOP-01, SLOP-02, SLOP-04, SLOP-05, METRIC-01, METRIC-02, METRIC-03
+**Success Criteria** (what must be TRUE):
+  1. `treatPhoto(sourceUrl, spec)` in `src/lib/photo-treatment/treat.ts` returns a treated PNG URL + extracted palette; calling twice with the same `(sourceUrl, spec)` returns the cached URL without re-running sharp (SHA-256 idempotency key)
+  2. `sharp.cache(false)` and `sharp.concurrency(1)` set at module load; pure-pipeline tests verify byte-identical output across two invocations of the same spec
+  3. New `slide-backgrounds-treated` public Supabase Storage bucket exists with 7-day retention on assets unattached to a project; generation pipeline writes treated URL to `slide.background_url` and original to new `slide.original_source_url` field (so re-treating never compounds)
+  4. Imagen calls in `src/lib/imagen/generate-image.ts` use `imagen-4.0-fast-generate-001`; Imagen prompts include the mandatory addendum forbidding gradient backgrounds / glossy 3D / abstract blobs; Pexels query helper appends "natural lighting, candid, editorial, portrait" and excludes `meeting, office, team, smiling, diverse group`
+  5. Existing 8 templates audited: every premium-tier template declares an explicit non-Inter `bodyFontFamily` (Plus Jakarta Sans / Manrope / Geist); AI hook system-prompt forbids "In a world where" / "Did you know" / "Imagine if" openings and instructs cross-slide variety
+  6. `download_zip` event tracked per project download (payload: `project_id`, `slide_count`, `template_id`, `user_tier`); admin/analytics query `zip_download_rate = downloads / created` works for any time window; baseline captured for the 30 days preceding Phase 54 start and recorded in `.planning/milestones/v2.9-METRIC-BASELINE.md`
+**Plans**: 2-3 plans (TBD via /gsd-plan-phase)
+
+### Phase 55: Schema + Renderer Extensions
+**Goal**: SlideTemplate and Slide schemas gain the additive optional fields the new templates will consume; resolve-overlay.ts gets `renderGrain` / `renderVignette` helpers consumed by BOTH renderers; font catalog expands; existing 8 templates remain byte-identical
+**Depends on**: Phase 54
+**Requirements**: TYPO-01, TYPO-02, TYPO-03, TYPO-04, TYPO-05, SLOP-03
+**Success Criteria** (what must be TRUE):
+  1. `SlideTemplate` extended with optional `grainMode` / `vignette` / `photoTreatment` / `paletteMode` / per-template `coverLayout` / `bodyFontFamily` (required on premium templates by validator); `Slide` extended with optional `original_source_url` + `style_overrides.derived_palette: string[]` + `style_overrides.treatment_applied: string` + `template_id_override?: string`
+  2. `renderGrain(intensity)` and `renderVignette(strength)` exported from `src/lib/render/resolve-overlay.ts`; both `render-slide-satori.tsx` and `slide-preview.tsx` import from the same module — TPLREND-05 parity invariant preserved (no JSX duplicated across renderers)
+  3. CSS filter properties (`filter: grayscale(...)` etc.) NOT used in any new render layer — server-side sharp pre-bake from Phase 54 is the only path for photo treatment (asserted via lint/test guard)
+  4. Font catalog adds 4-6 display sans (Bebas Neue, Archivo Black, Plus Jakarta Sans Display, Plus Jakarta Sans, Space Grotesk, Manrope) + 2 serifs (Playfair Display, DM Serif Display) as static-weight TTF via Fontsource; no variable fonts (Satori issues #162/#712 unresolved); no Pangram fonts; premium template hook default `fontSize` raised from 88px to per-template 110-130px range
+  5. Existing 8 templates remain unchanged (only additive optional fields); `validateTemplateRegistry` extended to require `bodyFontFamily` on every premium-tier template; `npx tsc --noEmit` clean; v2.7's 19/19 requirements re-verified — zero regression on legacy 5 + magazine-bold + tr3nding-news + documentary
+**Plans**: 2-3 plans (TBD via /gsd-plan-phase)
+
+### Phase 56: New Templates + Decorative Library
+**Goal**: Three new free templates (editorial-serif, notes-app-chic, brutalist-grid) ship with their decorative-overlay asset library and grain PNG set; users can pick them in the template picker and generate carousels through them
+**Depends on**: Phase 55
+**Requirements**: TPL-01, TPL-02, TPL-03, TPL-04, TPL-05, TPL-06, TPL-07, TPL-08, TPL-09, TPL-10
+**Success Criteria** (what must be TRUE):
+  1. `editorial-serif` template registered: B&W bleed photo (auto-treated via TREAT preset `bw`), Playfair Display 130px hook, cream `#F5EFE6` accent, page counter top-right, medium grain overlay (`grainMode: 'medium'`), free Recoleta-equivalent body font; user can generate a carousel and see it render byte-identically across React preview and Satori PNG export
+  2. `notes-app-chic` template registered: paper-texture background (committed PNG asset), ransom-note hook (mixed fonts via per-segment `fontFamily`), tape-strip + sticky-note + halftone-dot overlay assets, photocopier-grain overlay; per-segment `fontFamily?: string` field added to `TextSegment` and font loader walks segment-level fontFamily to register fonts with Satori
+  3. `brutalist-grid` template registered: hard 8-column grid, type-as-image hero (oversized hook fills frame), high-contrast B&W with single accent color (per-template config), no decorative overlays — minimalist by construction
+  4. Decorative-overlay asset library at `public/overlays/`: 12-16 SVG/PNG assets (tape strips ×3, sticky notes ×3 colors, halftone dot patterns ×2 densities, hand-drawn arrows ×4 directions, polaroid frame, paper torn-edge); grain PNG set at `public/textures/`: `grain-subtle.png`, `grain-medium.png`, `grain-heavy.png`, `paper-texture.png`, `xerox-grain.png` — all 1080×1920 tileable, generated via committed `scripts/build-textures.ts` (`npm run textures`)
+  5. All 3 new templates available to free-tier users (no paywall pre-PMF); per-template `coverLayout` distinct from `innerLayout`; `npm run thumbs` extended for the 3 new templates and `/templates` picker DOM regression test asserts thumbnails resolve (no swatch fallback); each new template passes parity audit — same `(slide_data, template_id)` produces byte-identical output between `<SlidePreview>` and Satori PNG export
+**Plans**: 3-4 plans (TBD via /gsd-plan-phase)
+**UI hint**: yes
+
+### Phase 57: Editor Controls + Palette Extraction
+**Goal**: Users can override photo treatment per slide from the right rail; palette-aware templates auto-derive accent colors from background photos; the canvas editor shows an Instagram-grid safe-zone overlay so users can see what the 3:4 grid crop will hide
+**Depends on**: Phase 56
+**Requirements**: EDITOR-01, EDITOR-02, EDITOR-03, EDITOR-04, PALETTE-01, PALETTE-02, PALETTE-03, PALETTE-04
+**Success Criteria** (what must be TRUE):
+  1. New `src/components/editor/photo-treatment-controls.tsx` mounts in the right rail below `SlideSettings` (no horizontal overflow, no v2.8 layout regression); offers per-slide B&W toggle, duotone preset picker (cream / cobalt), grain intensity (off / subtle / medium / heavy); wired to `editor-actions.ts: updateSlideTreatment(slideIndex, spec)` server action
+  2. Treatment toggle always re-treats from `slide.original_source_url` (never compounds on already-treated output); user can toggle B&W on a slide and see updated preview within ~3 seconds (cache hit on second toggle is instant)
+  3. `@vibrant/node@^4.0.3` installed; `extractPalette(treatedUrl)` returns named roles `{ Vibrant, DarkVibrant, LightVibrant, Muted, DarkMuted, LightMuted }` as hex strings; runs on a sharp-resized ≤256×256 thumbnail (Vercel function memory budget)
+  4. `slide.style_overrides.derived_palette` populated at generation time and on treatment override; `editorial-serif` and `notes-app-chic` templates with `paletteMode: 'palette-dominant'` consume `derived_palette` (Vibrant for chip backgrounds, DarkMuted for text on light backgrounds)
+  5. Instagram grid safe-zone overlay rendered in canvas editor when "IG grid preview" toggle is on: 4:5 (1080×1350) crop bounds shown as dashed outline — CSS-only, no rendering changes
+**Plans**: 2-3 plans (TBD via /gsd-plan-phase)
+**UI hint**: yes
+
+### Phase 58: AI Tightening + Parity QA + match-photos-to-slides
+**Goal**: Slide-role-aware AI generation lands with diversity gate; premium-gated `match-photos-to-slides` ships; parity test harness + ship-gate checklist verify non-regression vs the v2.9-start baseline
+**Depends on**: Phase 57
+**Requirements**: AIROLE-01, AIROLE-02, AIROLE-03, AIROLE-04, AIROLE-05, MATCH-01, MATCH-02, MATCH-03, MATCH-04, MATCH-05, PARITY-01, PARITY-02, PARITY-03, PARITY-04, PARITY-05, PARITY-06
+**Success Criteria** (what must be TRUE):
+  1. Gemini slide-generation response schema extends each slide with `role: 'cover' | 'reframe' | 'support' | 'pivot' | 'close'` (first slide = `cover`, last = `close`, middle distributed by carousel length); per-role copy guidance added to system prompt (cover = pattern-interrupt hook ≤8 words; reframe = "wait, but" tension; support = concrete evidence; pivot = unexpected angle; close = action / CTA / bookmark prompt); `template_id_override?: string` (closed enum, registry-validated) added to response schema for visual rhythm; missing/invalid `role` defaults to legacy flat distribution — never throws
+  2. AI diversity test corpus of 20 fixed prompts exists at `src/lib/ai/__tests__/diversity-corpus.ts` BEFORE the gate is implemented; CI-runnable diversity test renders 20 carousels and fails if hook-opening trigram repetition exceeds 30%; v2.7's 19/19 premium-tier audit baseline re-verified after prompt change — zero regression
+  3. `src/lib/ai/match-photos-to-slides.ts` wired into the upload flow, premium-tier-only; `MAX_PHOTOS = 8` enforced (excess falls through to index-order); result cached by `(photoSetSHA256, slideManifestSHA256)`; 10-second timeout on Gemini call with index-order fallback on timeout/error; usage tracked as `gemini_vision_match` credit-ledger line (1 credit per match call)
+  4. `src/lib/render/__tests__/parity.test.tsx` exists for each new template (editorial-serif, notes-app-chic, brutalist-grid) — asserts React preview HTML and Satori SVG output reference identical resolver helpers from `src/lib/render/resolve-overlay.ts`; `scripts/render-parity-grid.ts` (manual / opt-in) renders every template × 3 sample slides through both renderers; CSS filter properties NOT used in any new render layer (asserted via test)
+  5. ZIP export PNG metadata is byte-clean (no EXIF / XMP / C2PA — asserted via `image-size` or equivalent in test); cascade-delete audit verified — deleting a project cleans hero thumbnail + treated background assets + original-source uploads; ship-gate checklist from PITFALLS.md verified passing before milestone-complete; ZIP download rate measured post-launch ≥ baseline captured in Phase 54
+**Plans**: 3-4 plans (TBD via /gsd-plan-phase)
+
+</details>
+
+
 ## Progress
 
 **Execution Order:**
+v2.9 phases execute in strict numeric order: 54 -> 55 -> 56 -> 57 -> 58 (build-order dependencies fixed; no parallelization across phases — see v2.9 details block above)
 v2.8 phases execute in numeric order: 49 -> 50 -> 51 -> 52 -> 53 (Phase 51 can optionally run parallel to Phase 50 — both depend on Phase 49)
 v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 
@@ -873,3 +967,8 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 51. AI Prompt Rewrite | v2.8 | 1/1 | Complete | 2026-04-30 |
 | 52. Canvas Selection Improvements | v2.8 | 1/1 | Complete | 2026-04-30 |
 | 53. Migration & QA Polish | v2.8 | 1/1 | Complete | 2026-04-30 |
+| 54. Infrastructure Foundation | v2.9 | 0/0 | Not started | - |
+| 55. Schema + Renderer Extensions | v2.9 | 0/0 | Not started | - |
+| 56. New Templates + Decorative Library | v2.9 | 0/0 | Not started | - |
+| 57. Editor Controls + Palette Extraction | v2.9 | 0/0 | Not started | - |
+| 58. AI Tightening + Parity QA + match-photos | v2.9 | 0/0 | Not started | - |

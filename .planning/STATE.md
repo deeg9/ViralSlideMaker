@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.9
 milestone_name: Viral Visual Quality
-status: planning
-last_updated: "2026-05-01T13:26:12.679Z"
+status: ready
+last_updated: "2026-05-01T18:00:00.000Z"
 last_activity: 2026-05-01
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-30)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** v2.8 — Text Editor Right-Rail Redesign (selection-driven panel + unified text_boxes schema)
+**Current focus:** v2.9 — Viral Visual Quality (server-side photo treatment + 3 new free templates + slide-role-aware AI + AI-slop guardrails). Roadmap approved 2026-05-01; ready to start Phase 54.
+**Success metric:** ZIP download rate per created carousel — baseline captured at Phase 54 start, verified at Phase 58 ship gate.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 54 (Infrastructure Foundation) — next up
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-01 — Milestone v2.9 started
+Status: Roadmap approved; ready to start Phase 54
+Last activity: 2026-05-01 — v2.9 roadmap created (5 phases, 53 requirements mapped, 100% coverage)
+
+**Next phase:** Phase 54 — Infrastructure Foundation
+- TREAT-01..06 (sharp photo-treatment pipeline)
+- SLOP-01, 02, 04, 05 (Imagen + Pexels + AI hook prompt addenda + premium-template audit)
+- METRIC-01..03 (download_zip event + zip_download_rate query + baseline capture)
+- Plus Imagen 4 Fast model swap (one-line config change)
+- Gates Phase 55 (schema needs `TreatmentSpec` types from `treat.ts`)
+
+**Phase order (locked, no parallelization):** 54 → 55 → 56 → 57 → 58
 
 ## Performance Metrics
 
@@ -141,9 +151,10 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-04-30 — v2.8 milestone started. 5 phases (49-53) defined. REQUIREMENTS.md created with 22 REQ-IDs across SCHEMA/TEDIT/AIGEN/CANVAS/MIG. PROJECT.md updated with Current Milestone section + 8 Active requirements. Roadmap appended (v1.0 through v2.7 history preserved). Plan file: `~/.claude/plans/users-deeg-desktop-screenshot-2026-04-3-replicated-seal.md`.
-Stopped at: Milestone planning complete. Ready to start Phase 49 planning.
+Last activity: 2026-05-01 — v2.9 milestone roadmap created. 5 phases (54-58) defined and appended below v2.8 in `.planning/ROADMAP.md` (v1.0..v2.8 history preserved in collapsible blocks). 53 v2.9 requirements across 10 categories (TREAT/SLOP/AIROLE/TPL/TYPO/EDITOR/PALETTE/MATCH/PARITY/METRIC) all mapped to exactly one phase — 100% coverage, no orphans. REQUIREMENTS.md Traceability table updated with per-requirement phase assignment + per-phase summary + refinement notes (SLOP-03 moved from "54 + 58" bucket to Phase 55).
+Stopped at: Milestone roadmap complete. Ready to start Phase 54 planning.
 Resume file: None
-Next: `/gsd-plan-phase 49` — start planning Schema Unification & Migration.
+Next: `/gsd-discuss-phase 54` (or `/gsd-plan-phase 54` to skip discussion) — start planning Infrastructure Foundation (sharp photo-treatment pipeline + Imagen 4 Fast + AI-slop guardrails + ZIP-download-rate baseline).
 
-**Planned Phase:** 49 (Schema Unification & Migration) — TBD plans — 2026-04-30T00:00:00.000Z
+**Planned Phase:** 54 (Infrastructure Foundation) — TBD plans — 2026-05-01T18:00:00.000Z
+
