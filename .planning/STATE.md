@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.8
-milestone_name: Text Editor Right-Rail Redesign
-status: complete
-stopped_at: v2.8 SHIPPED 2026-04-30 — 5/5 phases, 7/7 plans, 30/32 reqs (2 deferred to v2.9). 542 tests, 0 regressions. Awaiting next-milestone decision.
-last_updated: "2026-04-30T00:00:00.000Z"
-last_activity: 2026-04-30
+milestone: v2.9
+milestone_name: Viral Visual Quality
+status: planning
+last_updated: "2026-05-01T13:26:12.679Z"
+last_activity: 2026-05-01
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-30)
 
 ## Current Position
 
-Phase: Milestone v2.8 SHIPPED 2026-04-30
+Phase: Not started (defining requirements)
 Plan: —
-Status: Audit passed; phases archived; v2.9 sunset checklist documented
-Last activity: 2026-04-30 — v2.8 lifecycle complete
-
-Progress: [██████████] 100% ✓
+Status: Defining requirements
+Last activity: 2026-05-01 — Milestone v2.9 started
 
 ## Performance Metrics
 

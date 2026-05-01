@@ -11,7 +11,30 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.8 Text Editor Right-Rail Redesign (2026-04-30)
-**Next Milestone:** TBD — v2.9 will sunset legacy schema fields and finish the deferred items (CANVAS-03 Layers mini-list, AIGEN-01 native Gemini text_boxes prompt). See `.planning/MIGRATION-NOTES.md` for the v2.9 sunset checklist.
+**Current Milestone:** v2.9 Viral Visual Quality (started 2026-05-01)
+
+---
+
+## Current Milestone: v2.9 Viral Visual Quality
+
+**Goal:** Upgrade the visual output of AI-generated slides so they look like what's actually winning on TikTok and Instagram right now — replicating proven patterns from successful creators rather than guessing.
+
+**Target features (subject to research findings — research drives requirements):**
+- Visual styling upgrades to match contemporary viral carousel patterns
+- Structural / compositional improvements (hierarchy, pacing across slides, hook-frame conventions)
+- Higher-quality template treatments and asset selection
+- Other quality gaps surfaced by research vs. what's actually winning on platform
+
+**Approach:** Research-first. Study successful TikTok and Instagram carousel creators in early-to-mid 2026, identify the visual patterns that correlate with viral posts, replicate them in our templates / AI prompts / rendering pipeline.
+
+**Out of scope for v2.9 (unless research surfaces them as visual-quality blockers):**
+- Legacy schema sunset (`hook_text` / `body_text` etc.) — pre-PMF, tech-debt waits
+- CANVAS-03 (Layers mini-list)
+- AIGEN-01 (native Gemini `text_boxes[]` prompt) — current adapter pattern works
+
+**Parked (not yet committed, decision pending research):**
+- `src/lib/ai/match-photos-to-slides.ts` (Gemini-vision photo→slide matching)
+- `src/lib/imagen/stylize-image.ts` (Gemini image-preview photo restyling)
 
 ---
 
@@ -226,15 +249,15 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [x] Canvas selection ring + click-to-select + keyboard shortcuts (⌘1-3, ⌘D, Delete) — v2.8 Phase 52
 - [x] Dual-write legacy + new schema (synced via reducer write-through) — v2.8 Phases 49+50
 
-### Deferred to v2.9
+### Deferred (post-PMF tech debt — not v2.9 scope)
 
-- [ ] AI prompts natively emit `text_boxes[]` (AIGEN-01) — light-touch alternative shipped in Phase 51 produces equivalent state via post-AI conversion
-- [ ] Floating Layers mini-list for overlapping text boxes (CANVAS-03) — Layer Strip from Phase 50 covers ~90% of cases
-- [ ] Sunset of legacy `hook_text` / `body_text` / `hook_segments` / `body_segments` / `custom_texts` fields — full v2.9 sunset checklist in `.planning/MIGRATION-NOTES.md`
+- [ ] AI prompts natively emit `text_boxes[]` (AIGEN-01) — light-touch alternative shipped in v2.8 Phase 51 produces equivalent state via post-AI conversion
+- [ ] Floating Layers mini-list for overlapping text boxes (CANVAS-03) — Layer Strip from v2.8 Phase 50 covers ~90% of cases
+- [ ] Sunset of legacy `hook_text` / `body_text` / `hook_segments` / `body_segments` / `custom_texts` fields — full sunset checklist in `.planning/MIGRATION-NOTES.md`. Defer until after PMF.
 
-### Active
+### Active (v2.9)
 
-(None — start next milestone with `/gsd-new-milestone`)
+- [ ] Visual quality of AI-generated slide output matches contemporary viral TikTok / Instagram carousels — specific requirements pending research
 
 ### Out of Scope
 
@@ -304,4 +327,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-30 — v2.8 Text Editor Right-Rail Redesign shipped (5/5 phases, 30/32 reqs, 542 tests passing)*
+*Last updated: 2026-05-01 — v2.9 Viral Visual Quality milestone started (research-first, requirements TBD)*
