@@ -814,8 +814,7 @@ Selection-driven right-rail panel (Figma/Canva model) replacing dual-slot Hook+B
 
 </details>
 
-<details>
-<summary>v2.9 Viral Visual Quality (Phases 54-58) - planning 2026-05-01</summary>
+## v2.9 Viral Visual Quality (Phases 54-58) — ACTIVE (planning 2026-05-01)
 
 Upgrade the visual output of AI-generated carousel slides so they look like what's actually winning on TikTok and Instagram in early-to-mid 2026 — replicating proven patterns from successful creators (editorial / Notes-App-Chic / Brutalist) rather than guessing. Research-grounded in `.planning/research/SUMMARY.md` (Aesthetics of Photography 2026, Canva *Imperfect by Design*, It's Nice That, Mosseri Jan 2026 "rawness is proof"). Five phases append below v2.8 (no number reset).
 
@@ -902,8 +901,6 @@ Upgrade the visual output of AI-generated carousel slides so they look like what
   4. `src/lib/render/__tests__/parity.test.tsx` exists for each new template (editorial-serif, notes-app-chic, brutalist-grid) — asserts React preview HTML and Satori SVG output reference identical resolver helpers from `src/lib/render/resolve-overlay.ts`; `scripts/render-parity-grid.ts` (manual / opt-in) renders every template × 3 sample slides through both renderers; CSS filter properties NOT used in any new render layer (asserted via test)
   5. ZIP export PNG metadata is byte-clean (no EXIF / XMP / C2PA — asserted via `image-size` or equivalent in test); cascade-delete audit verified — deleting a project cleans hero thumbnail + treated background assets + original-source uploads; ship-gate checklist from PITFALLS.md verified passing before milestone-complete; ZIP download rate measured post-launch ≥ baseline captured in Phase 54
 **Plans**: 3-4 plans (TBD via /gsd-plan-phase)
-
-</details>
 
 
 ## Progress
