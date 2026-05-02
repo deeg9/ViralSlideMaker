@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 
 describe('templates', () => {
-  it('templates array has exactly 8 entries (5 legacy + 3 Phase 46 premium)', async () => {
+  it('templates array has exactly 11 entries (5 legacy + 3 Phase 46 premium + 3 Phase 56 free)', async () => {
     const { templates } = await import('@/lib/render/templates/index')
-    expect(templates).toHaveLength(8)
+    expect(templates).toHaveLength(11)
   })
 
   it('each template has all required SlideTemplate fields', async () => {
@@ -35,18 +35,25 @@ describe('templates', () => {
     expect(template.id).toBe('highlight-bar')
   })
 
-  it('module-load validator passes for the live registry (legacy 5 declare no overlays; Phase 46 premium 3 do)', async () => {
+  it('module-load validator passes for the live registry (legacy 5 + Phase 46 premium 3 + Phase 56 free 3)', async () => {
     const mod = await import('@/lib/render/templates/index')
     // If validateTemplateRegistry threw at load, this import would have rejected.
-    expect(mod.templates).toHaveLength(8)
+    expect(mod.templates).toHaveLength(11)
 
     const legacyIds = new Set(['highlight-bar', 'news-drop', 'news-cyan', 'y2k-pop', 'bold-yellow'])
     const premiumIds = new Set(['magazine-bold', 'tr3nding-news', 'documentary'])
+    const phase56FreeIds = new Set(['editorial-serif', 'notes-app-chic', 'brutalist-grid'])
 
     for (const t of mod.templates) {
       if (legacyIds.has(t.id)) {
         expect(t.overlays).toBeUndefined()
       } else if (premiumIds.has(t.id)) {
+        expect(Array.isArray(t.overlays)).toBe(true)
+        expect((t.overlays ?? []).length).toBeGreaterThan(0)
+      } else if (phase56FreeIds.has(t.id)) {
+        // Phase 56 free templates declare overlays (page counter / topic label
+        // / decorative). brutalist-grid has 2; notes-app-chic has 4; editorial
+        // -serif has 1. All should have at least one overlay.
         expect(Array.isArray(t.overlays)).toBe(true)
         expect((t.overlays ?? []).length).toBeGreaterThan(0)
       } else {
