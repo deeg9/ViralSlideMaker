@@ -8,6 +8,7 @@ import { ActiveTextBoxCard } from './text-rail/ActiveTextBoxCard'
 import { SlideSettings } from './text-rail/SlideSettings'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
 import { PhotoTreatmentControls, type TreatmentSpec } from './photo-treatment-controls'
+import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
@@ -55,6 +56,13 @@ export interface TextEditorPanelProps {
   onSlideTreatmentChange?: (spec: TreatmentSpec) => void
   /** Phase 57: spinner state from useTransition() at the parent (slide-editor). */
   isTreatmentPending?: boolean
+  /** quick-260502-er5: per-slide watermark override callback. Optional — when
+      omitted, WatermarkControls renders read-only. */
+  userTier?: 'free' | 'plus' | 'pro'
+  onSlideWatermarkChange?: (spec: WatermarkSpec) => void
+  onWatermarkLogoUpload?: (file: File) => void
+  onWatermarkLogoRemove?: () => void
+  isWatermarkPending?: boolean
 }
 
 export function TextEditorPanel({
@@ -71,6 +79,11 @@ export function TextEditorPanel({
   brandKit,
   onSlideTreatmentChange,
   isTreatmentPending,
+  userTier = 'free',
+  onSlideWatermarkChange,
+  onWatermarkLogoUpload,
+  onWatermarkLogoRemove,
+  isWatermarkPending,
 }: TextEditorPanelProps) {
   const textBoxes = slide.text_boxes ?? []
 
@@ -122,6 +135,15 @@ export function TextEditorPanel({
         template={template}
         isPending={isTreatmentPending ?? false}
         onTreatmentChange={onSlideTreatmentChange}
+      />
+
+      <WatermarkControls
+        slide={slide}
+        userTier={userTier}
+        isPending={isWatermarkPending ?? false}
+        onWatermarkChange={onSlideWatermarkChange}
+        onCustomLogoUpload={onWatermarkLogoUpload}
+        onCustomLogoRemove={onWatermarkLogoRemove}
       />
 
       {selectedCustomText && onCustomTextUpdate && onCustomTextRemove && (
