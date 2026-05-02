@@ -27,5 +27,21 @@ export async function downloadSlidesAsZip(
 
   // Generate and trigger download
   const content = await zip.generateAsync({ type: 'blob' })
+
+  // Phase 54 (METRIC-01, D-18): fire-and-forget download tracking. NEVER
+  // block the user's download on tracking failure. Server reads template_id
+  // and user_tier from the project record server-side; client provides
+  // slide_count for cheap denormalization.
+  try {
+    void fetch(`/api/v1/projects/${projectId}/track-download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slide_count: slideCount }),
+      keepalive: true,
+    })
+  } catch {
+    // swallow — tracking failure must NOT prevent the user's download
+  }
+
   saveAs(content, `${projectTitle}.zip`)
 }
