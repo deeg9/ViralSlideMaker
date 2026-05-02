@@ -112,6 +112,34 @@ export async function loadFontBuffersForSlide(
   // Collect unique font names (hook and body may be the same)
   const uniqueFonts = new Set([hookFontName, bodyFontName])
 
+  // Phase 56 (TPL-07, D-22): walk segment-level fontFamily for ransom-note
+  // hooks (notes-app-chic). Each unique segment fontFamily is registered with
+  // Satori via its catalog entry. Forward-compat: also walk text_boxes /
+  // custom_texts segments so future templates can use per-segment fonts in
+  // body or custom-text boxes without a renderer change.
+  const segmentArrays: Array<readonly { fontFamily?: string }[] | undefined> = [
+    slide.hook_segments,
+    slide.body_segments,
+  ]
+  if (slide.text_boxes) {
+    for (const tb of slide.text_boxes) {
+      if (tb.segments) segmentArrays.push(tb.segments)
+    }
+  }
+  if (slide.custom_texts) {
+    for (const ct of slide.custom_texts) {
+      if (ct.segments) segmentArrays.push(ct.segments)
+    }
+  }
+  for (const segments of segmentArrays) {
+    if (!segments) continue
+    for (const seg of segments) {
+      if (seg.fontFamily) {
+        uniqueFonts.add(extractFontName(seg.fontFamily))
+      }
+    }
+  }
+
   // System fonts that need fallback to Inter
   const systemFonts = ['Georgia', 'Times New Roman', 'Arial', 'Helvetica']
 

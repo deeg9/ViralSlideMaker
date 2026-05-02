@@ -85,31 +85,50 @@ export interface ResolvedSlideStyles {
 
 export function resolveSlideStyles(
   slide: Slide,
-  template: SlideTemplate
+  template: SlideTemplate,
+  slideIndex?: number
 ): ResolvedSlideStyles {
   const overrides = slide.style_overrides ?? {}
 
-  const textColor = overrides.text_color ?? template.textColor
+  // Phase 56 (TPL-06, D-25, D-26): cover-vs-inner layout. When slideIndex===0
+  // AND template.coverLayout is defined, the cover-layout fields override
+  // the template defaults BEFORE individual style resolution. Existing 8
+  // templates leave coverLayout undefined → effectiveTemplate === template
+  // (zero behavior change).
+  const isCoverSlide = slideIndex === 0
+  const coverLayout = template.coverLayout
+  const effectiveTemplate: SlideTemplate =
+    isCoverSlide && coverLayout
+      ? {
+          ...template,
+          textPosition: coverLayout.textPosition ?? template.textPosition,
+          textAlign: coverLayout.textAlign ?? template.textAlign,
+          hookFontSize: coverLayout.hookFontSize ?? template.hookFontSize,
+          hookStyle: coverLayout.hookStyle ?? template.hookStyle,
+        }
+      : template
+
+  const textColor = overrides.text_color ?? effectiveTemplate.textColor
   const hookTextColor = overrides.hook_text_color ?? textColor
   const bodyTextColor = overrides.body_text_color ?? textColor
-  const textAlign = overrides.text_align ?? template.textAlign
-  const hookFontSize = overrides.hook_font_size ?? (parseInt(template.hookFontSize, 10) || 64)
-  const bodyFontSize = overrides.body_font_size ?? (parseInt(template.bodyFontSize, 10) || 32)
+  const textAlign = overrides.text_align ?? effectiveTemplate.textAlign
+  const hookFontSize = overrides.hook_font_size ?? (parseInt(effectiveTemplate.hookFontSize, 10) || 64)
+  const bodyFontSize = overrides.body_font_size ?? (parseInt(effectiveTemplate.bodyFontSize, 10) || 32)
 
   // Bold/italic (Phase 11) — hookFontStyle also considers template.hookStyle
   const hookFontWeight = overrides.hook_font_weight ?? 900
   const bodyFontWeight = overrides.body_font_weight ?? 400
   const hookFontStyle = overrides.hook_font_style
-    ?? (template.hookStyle === 'italic' ? 'italic' : 'normal')
+    ?? (effectiveTemplate.hookStyle === 'italic' ? 'italic' : 'normal')
   const bodyFontStyle = overrides.body_font_style ?? 'normal'
-  const hookTextTransform = template.hookStyle === 'uppercase' ? 'uppercase' : 'none'
+  const hookTextTransform = effectiveTemplate.hookStyle === 'uppercase' ? 'uppercase' : 'none'
 
   // Font family (Phase 12)
   // Extract base font name from CSS font-family strings like "'Inter', sans-serif" → "Inter"
   function extractFontName(css: string): string {
     return css.replace(/^['"]|['"]$/g, '').split(',')[0].trim().replace(/^['"]|['"]$/g, '')
   }
-  const templateFont = template.fontFamily || DEFAULT_FONT
+  const templateFont = effectiveTemplate.fontFamily || DEFAULT_FONT
   const hookFontRaw = overrides.hook_font_family ?? extractFontName(templateFont)
   const bodyFontRaw = overrides.body_font_family ?? extractFontName(templateFont)
   const hookEntry = getFontEntry(hookFontRaw)
@@ -119,9 +138,9 @@ export function resolveSlideStyles(
 
   const overlayOpacity = overrides.overlay_opacity != null
     ? overrides.overlay_opacity / 100
-    : template.overlayOpacity
+    : effectiveTemplate.overlayOpacity
 
-  const posPreset = overrides.text_position ?? template.textPosition
+  const posPreset = overrides.text_position ?? effectiveTemplate.textPosition
   const defaults = SAFE_ZONE[posPreset] ?? SAFE_ZONE.center
   const defaultX = SAFE_ZONE.x
 

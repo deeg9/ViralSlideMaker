@@ -1,4 +1,5 @@
 import type { SlideTemplate, OverlaySlot, OverlayContent, TemplateOverlay } from './index'
+import { DECORATIVE_ASSETS } from './decorative'
 import { PREMIUM_TEMPLATE_IDS } from './premium-tier'
 
 // Phase 44: registry validator. Runs at module load via a top-level call in
@@ -38,6 +39,32 @@ function validateContent(templateId: string, i: number, content: OverlayContent)
     const field = (content as { field?: unknown }).field
     if (typeof field !== 'string' || !VALID_SLIDE_FIELDS.includes(field as never)) {
       fail(templateId, i, `slide-field has invalid field '${String(field)}' (must be one of ${VALID_SLIDE_FIELDS.join(', ')})`)
+    }
+    return
+  }
+  // Phase 56 (TPL-04, D-34): decorative SVG/PNG asset validation. Closed-enum
+  // check against DECORATIVE_ASSETS exported from templates/index.ts. Optional
+  // rotation/scale/opacity fields are type-checked for sanity.
+  if (t === 'decorative') {
+    const asset = (content as { asset?: unknown }).asset
+    if (typeof asset !== 'string' || !(DECORATIVE_ASSETS as readonly string[]).includes(asset)) {
+      fail(
+        templateId,
+        i,
+        `decorative content has unknown asset '${String(asset)}' (must be one of ${DECORATIVE_ASSETS.join(', ')})`,
+      )
+    }
+    const rotation = (content as { rotation?: unknown }).rotation
+    if (rotation !== undefined && typeof rotation !== 'number') {
+      fail(templateId, i, `decorative content rotation must be a number, got ${typeof rotation}`)
+    }
+    const scale = (content as { scale?: unknown }).scale
+    if (scale !== undefined && (typeof scale !== 'number' || scale <= 0 || scale > 2)) {
+      fail(templateId, i, `decorative content scale must be a number in (0, 2], got ${String(scale)}`)
+    }
+    const opacity = (content as { opacity?: unknown }).opacity
+    if (opacity !== undefined && (typeof opacity !== 'number' || opacity < 0 || opacity > 1)) {
+      fail(templateId, i, `decorative content opacity must be a number in [0, 1], got ${String(opacity)}`)
     }
     return
   }

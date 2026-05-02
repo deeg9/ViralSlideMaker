@@ -9,6 +9,7 @@ import {
   bottomCardBackground,
   renderGrain,
   renderVignette,
+  renderDecorativeOverlay,
 } from './resolve-overlay'
 import type { Slide } from '@/lib/types/slide'
 
@@ -330,5 +331,101 @@ describe('Phase 55: renderVignette (layer 2.5)', () => {
     const el03 = renderVignette(0.3) as React.ReactElement
     const bg03 = ((el03.props as Record<string, unknown>).style as Record<string, unknown>).backgroundImage as string
     expect(bg03).toContain('rgba(0,0,0,0.3)')
+  })
+})
+
+describe('Phase 56: renderDecorativeOverlay (TPL-04)', () => {
+  it('returns <img> with src=/overlays/{asset}.svg for SVG assets', () => {
+    const el = renderDecorativeOverlay('tape-strip-1', { x: 60, y: 40 }) as React.ReactElement
+    const props = el.props as Record<string, unknown>
+    expect(el.type).toBe('img')
+    expect(props.src).toBe('/overlays/tape-strip-1.svg')
+    expect(props['data-layer']).toBe('decorative')
+    expect(props['data-asset']).toBe('tape-strip-1')
+  })
+
+  it('returns <img> with src=/overlays/{asset}.png for halftone-dots-light', () => {
+    const el = renderDecorativeOverlay('halftone-dots-light', { x: 0, y: 0 }) as React.ReactElement
+    const props = el.props as Record<string, unknown>
+    expect(props.src).toBe('/overlays/halftone-dots-light.png')
+  })
+
+  it('returns <img> with src=/overlays/{asset}.png for halftone-dots-dense', () => {
+    const el = renderDecorativeOverlay('halftone-dots-dense', { x: 0, y: 0 }) as React.ReactElement
+    const props = el.props as Record<string, unknown>
+    expect(props.src).toBe('/overlays/halftone-dots-dense.png')
+  })
+
+  it('applies rotation/scale via transform', () => {
+    const el = renderDecorativeOverlay('sticky-note-yellow', { x: 200, y: 300 }, { rotation: 12, scale: 0.8 }) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.transform).toBe('rotate(12deg) scale(0.8)')
+  })
+
+  it('omits transform when rotation===0 AND scale===1 (no options)', () => {
+    const el = renderDecorativeOverlay('arrow-up', { x: 100, y: 100 }) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.transform).toBeUndefined()
+  })
+
+  it('applies opacity from options', () => {
+    const el = renderDecorativeOverlay('halftone-dots-light', { x: 0, y: 0 }, { opacity: 0.5 }) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.opacity).toBe(0.5)
+  })
+
+  it('defaults opacity to 1 when not provided', () => {
+    const el = renderDecorativeOverlay('arrow-right', { x: 0, y: 0 }) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.opacity).toBe(1)
+  })
+
+  it('uses absolute positioning at given pixel coords', () => {
+    const el = renderDecorativeOverlay('polaroid-frame', { x: 200, y: 300 }) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.position).toBe('absolute')
+    expect(style.top).toBe(300)
+    expect(style.left).toBe(200)
+  })
+
+  it('does NOT use CSS filter / backdrop-filter / mix-blend-mode (PARITY-04)', () => {
+    const el = renderDecorativeOverlay('tape-strip-1', { x: 0, y: 0 }, { rotation: 5 }) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style).not.toHaveProperty('filter')
+    expect(style).not.toHaveProperty('backdropFilter')
+    expect(style).not.toHaveProperty('mixBlendMode')
+  })
+
+  it('pointerEvents is none (does not interfere with text selection / clicks)', () => {
+    const el = renderDecorativeOverlay('sticky-note-pink', { x: 0, y: 0 }) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.pointerEvents).toBe('none')
+  })
+})
+
+describe('Phase 56: renderSegments segment-level fontFamily (TPL-07)', () => {
+  it('applies segment fontFamily via inline style on a plain span', () => {
+    const segments = [{ text: 'sample', fontFamily: "'Bebas Neue', sans-serif" }]
+    const node = renderSegments('FALLBACK', segments, '#fff', '#0f0') as React.ReactElement[]
+    const span = node[0]
+    const style = (span.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.fontFamily).toBe("'Bebas Neue', sans-serif")
+  })
+
+  it('applies segment fontFamily via inline style on a highlight pill', () => {
+    const segments = [{ text: 'sell', fontFamily: "'Archivo Black', sans-serif", highlightColor: '#FFD86B', highlightStyle: 'pill' as const }]
+    const node = renderSegments('FALLBACK', segments, '#fff', '#0f0') as React.ReactElement[]
+    const span = node[0]
+    const style = (span.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.fontFamily).toBe("'Archivo Black', sans-serif")
+    expect(style.backgroundColor).toBe('#FFD86B')
+  })
+
+  it('does NOT set fontFamily on plain span when segment.fontFamily is undefined', () => {
+    const segments = [{ text: 'plain', accent: false }]
+    const node = renderSegments('FALLBACK', segments, '#fff', '#0f0') as React.ReactElement[]
+    const span = node[0]
+    const style = (span.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.fontFamily).toBeUndefined()
   })
 })

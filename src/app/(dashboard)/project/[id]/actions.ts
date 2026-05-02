@@ -1,6 +1,7 @@
 'use server'
 
 import { generateSlideContent } from '@/lib/ai/generate-slides'
+import { matchPhotosToSlides } from '@/lib/ai/match-photos-to-slides'
 import { searchPhotos } from '@/lib/pexels/search-photos'
 import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
@@ -10,6 +11,8 @@ import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
+import { getTemplate } from '@/lib/render/templates'
+import { treatPhoto, type TreatmentPreset } from '@/lib/photo-treatment/treat'
 
 // Templates that share the news-carousel skip-default-effects behavior.
 // Keep this list in sync with src/lib/ai/prompts.ts and src/lib/services/carousel.ts.
@@ -29,6 +32,11 @@ export async function generateCarousel(
     // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
+
+    // Mirror the client-side MAX_UPLOADS cap on the server.
+    if ((advancedOptions?.uploadedImageUrls?.length ?? 0) > 20) {
+      return { success: false, error: 'You can attach at most 20 photos.' }
+    }
 
     // Rate limit: 5-second cooldown between carousel generations
     const { ok } = rateLimit(`carousel:${user.id}`, 5)
@@ -147,14 +155,68 @@ export async function generateCarousel(
       )
     }
 
-    // 2a-bis. User-uploaded photos override the first N slide backgrounds.
+    // 2a-bis. User-uploaded photos override slide backgrounds. Gemini matches each
+    // photo to the slide whose copy it best fits; on any error the matcher falls
+    // back to index order so behavior never gets worse than today.
     const uploaded = advancedOptions?.uploadedImageUrls?.filter((u): u is string => typeof u === 'string' && u.length > 0) ?? []
-    if (uploaded.length > 0) {
+    const usable = uploaded.slice(0, clampedCount)
+    if (usable.length > 0) {
+      const assignments = await matchPhotosToSlides(slides, usable)
       slides = slides.map((slide, idx) =>
-        idx < uploaded.length
-          ? { ...slide, background_url: uploaded[idx], pexels_photo_id: null }
+        assignments[idx]
+          ? { ...slide, background_url: assignments[idx]!, pexels_photo_id: null }
           : slide
       )
+    }
+
+    // 2a-ter. Phase 56 (TPL-01, D-27): server-side photo treatment when the
+    // selected template declares photoTreatment. Best-effort — never blocks
+    // generation on failure (falls through to original URL). Writes:
+    //   slide.background_url     → treated URL
+    //   slide.original_source_url → original (untreated) URL — preserved so
+    //                              re-treatment in editor never compounds
+    //   slide.style_overrides.treatment_applied → preset descriptor
+    {
+      const template = getTemplate(templateId)
+      if (template.photoTreatment) {
+        const presetKind = template.photoTreatment
+        const spec: TreatmentPreset =
+          presetKind === 'bw'
+            ? { kind: 'bw' }
+            : presetKind === 'duotone-cream'
+              ? { kind: 'duotone-cream' }
+              : presetKind === 'duotone-cobalt'
+                ? { kind: 'duotone-cobalt' }
+                : { kind: 'contrast-bump' }
+        slides = await Promise.all(
+          slides.map(async (slide) => {
+            const originalUrl = slide.background_url
+            if (!originalUrl) return slide
+            try {
+              const result = await treatPhoto(originalUrl, spec, user.id)
+              return {
+                ...slide,
+                background_url: result.url,
+                original_source_url: originalUrl,
+                style_overrides: {
+                  ...(slide.style_overrides ?? {}),
+                  treatment_applied: presetKind,
+                  derived_palette: [
+                    result.palette.dominant.hex,
+                    result.palette.cluster1.hex,
+                    result.palette.cluster2.hex,
+                    result.palette.cluster3.hex,
+                  ],
+                },
+              }
+            } catch (err) {
+              console.error('[gen] treatPhoto failed; falling back to original url', err)
+              // Treatment is best-effort — preserve original_source_url for editor re-treat path
+              return { ...slide, original_source_url: originalUrl }
+            }
+          }),
+        )
+      }
     }
 
     // 2b. Apply advanced font/color overrides

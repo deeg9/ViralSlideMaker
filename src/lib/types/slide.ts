@@ -12,6 +12,12 @@ export interface TextSegment {
   accent?: boolean
   highlightColor?: string
   highlightStyle?: 'pill' | 'block'
+  /** Phase 56 (TPL-07, D-21): per-segment font family for ransom-note hooks
+      (notes-app-chic template). When set, renderer applies this fontFamily
+      via inline style on the segment's <span>. Falls back to template
+      fontFamily when undefined. The font loader walks all referenced
+      segment fontFamily values and registers them with Satori at render time. */
+  fontFamily?: string
 }
 
 export interface CustomText {

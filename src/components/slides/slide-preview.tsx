@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition, CustomText, TextSegment } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
@@ -21,6 +21,7 @@ import {
   bottomCardBackground,
   renderGrain,
   renderVignette,
+  renderDecorativeOverlay,
   type OverlayResolveCtx,
 } from '@/lib/render/resolve-overlay'
 import type { TemplateOverlay } from '@/lib/render/templates/index'
@@ -146,6 +147,21 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
   return (
     <>
       {template.overlays.map((overlay: TemplateOverlay, i: number) => {
+        // Phase 56 (TPL-04, D-14): decorative overlay branch. Renders SVG/PNG
+        // asset via the shared renderDecorativeOverlay helper — both renderers
+        // consume the same module (TPLREND-05 parity invariant).
+        if (overlay.content.type === 'decorative') {
+          const pos = { x: overlay.offset?.x ?? 0, y: overlay.offset?.y ?? 0 }
+          return (
+            <React.Fragment key={`overlay-${i}-${overlay.position}-decorative`}>
+              {renderDecorativeOverlay(overlay.content.asset, pos, {
+                rotation: overlay.content.rotation,
+                scale: overlay.content.scale,
+                opacity: overlay.content.opacity,
+              })}
+            </React.Fragment>
+          )
+        }
         const slot = SLOT_GEOMETRY[overlay.position]
         const offset = overlay.offset
         // Permissive index across the SLOT_GEOMETRY union (top-left has `left`,

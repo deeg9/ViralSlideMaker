@@ -1,5 +1,6 @@
 import React from 'react'
 import type { OverlayContent } from './templates'
+import type { DecorativeAsset } from './templates/decorative'
 import type { Slide, TextSegment } from '@/lib/types/slide'
 
 /**
@@ -170,6 +171,10 @@ export function renderSegments(
   return segments.map((seg, i) => {
     const baseSegmentColor = seg.accent ? accentColor : baseColor
     const isLast = i === segments.length - 1
+    // Phase 56 (TPL-07, D-23): per-segment fontFamily override for ransom-note hooks
+    // (notes-app-chic). Falls back to the parent text container's fontFamily when
+    // undefined — zero behavior change for legacy segments.
+    const segmentFontFamily: React.CSSProperties = seg.fontFamily ? { fontFamily: seg.fontFamily } : {}
     if (seg.highlightColor) {
       const isPill = (seg.highlightStyle ?? 'pill') === 'pill'
       const pillTextColor = pickContrastColor(seg.highlightColor, baseSegmentColor)
@@ -179,6 +184,7 @@ export function renderSegments(
         padding: isPill ? '4px 12px' : '4px 8px',
         borderRadius: isPill ? '8px' : '0',
         marginRight: isLast ? '0' : '8px',
+        ...segmentFontFamily,
       }
       return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: pillStyle }, seg.text)
     }
@@ -189,7 +195,11 @@ export function renderSegments(
     // segments like 'Folk Singer' lose their space in flex otherwise).
     const normalized = seg.text.replace(/\s+/g, ' ')
     const children = isLast ? normalized : `${normalized} `
-    return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: { color: baseSegmentColor } }, children)
+    return React.createElement(
+      'span',
+      { key: `${i}-${seg.text.slice(0, 20)}`, style: { color: baseSegmentColor, ...segmentFontFamily } },
+      children,
+    )
   })
 }
 
@@ -285,6 +295,54 @@ export function renderVignette(strength: number): React.ReactNode {
       width: CANVAS.W,
       height: CANVAS.H,
       backgroundImage: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${strength}) 100%)`,
+      pointerEvents: 'none',
+    },
+  })
+}
+
+/**
+ * Phase 56 (TPL-04, D-14): decorative SVG/PNG overlay (layer 4 — top of stack
+ * alongside other template overlays).
+ *
+ * Returns an absolutely-positioned <img> pointing to /overlays/{asset}.{ext}.
+ * Halftone-dots-* assets are PNG (raster needed for true grain quality); all
+ * others are SVG. PURE inline style — NO `filter:`, NO `backdrop-filter:`, NO
+ * `mix-blend-mode:` (Pitfall #2; PARITY-04). Rotation/scale apply via CSS
+ * `transform` (Satori SUPPORTS transform).
+ *
+ * Position is pixel-absolute on the 1080×1920 reference canvas (typically
+ * sourced from overlay.offset.{x,y} in the 'free' slot). `opacity` is a
+ * 0..1 multiplier; rotation is degrees; scale is unitless multiplier.
+ *
+ * Validator (templates/validate.ts) enforces the closed-enum DecorativeAsset
+ * at module load — unknown assets throw before any render.
+ */
+const DECORATIVE_PNG_ASSETS: ReadonlyArray<DecorativeAsset> = [
+  'halftone-dots-light',
+  'halftone-dots-dense',
+]
+
+export function renderDecorativeOverlay(
+  asset: DecorativeAsset,
+  position: { x: number; y: number },
+  options?: { rotation?: number; scale?: number; opacity?: number },
+): React.ReactNode {
+  const ext = DECORATIVE_PNG_ASSETS.includes(asset) ? 'png' : 'svg'
+  const src = `/overlays/${asset}.${ext}`
+  const rotation = options?.rotation ?? 0
+  const scale = options?.scale ?? 1
+  const transform =
+    rotation !== 0 || scale !== 1 ? `rotate(${rotation}deg) scale(${scale})` : undefined
+  return React.createElement('img', {
+    'data-layer': 'decorative',
+    'data-asset': asset,
+    src,
+    style: {
+      position: 'absolute',
+      top: position.y,
+      left: position.x,
+      transform,
+      opacity: options?.opacity ?? 1,
       pointerEvents: 'none',
     },
   })

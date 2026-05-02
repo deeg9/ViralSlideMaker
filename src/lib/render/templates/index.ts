@@ -13,14 +13,29 @@ import { validateTemplateRegistry } from './validate'
 // the Phase 45 renderer. Style block mirrors the CSS subset already used elsewhere.
 export type OverlaySlot = 'top-left' | 'top-right' | 'mid' | 'bottom-card' | 'free'
 
+// Phase 56 (TPL-04, D-13): decorative SVG/PNG asset library closed-enum.
+// Assets live in public/overlays/{asset}.{svg|png}; halftone-dots-* are PNG,
+// all others are SVG. Validator (templates/validate.ts) enforces this enum
+// at module load. renderDecorativeOverlay (resolve-overlay.ts) renders.
+//
+// IMPORTANT: the type + constant live in a leaf module (decorative.ts) and
+// are re-exported here. This avoids a TDZ import cycle between this file
+// and templates/validate.ts (mirrors Phase 55's premium-tier.ts pattern,
+// D-21 / D-Risk #5).
+import type { DecorativeAsset } from './decorative'
+export type { DecorativeAsset } from './decorative'
+export { DECORATIVE_ASSETS } from './decorative'
+
 // Discriminated union — content source for an overlay.
 //   literal      → static text from the template config
 //   page-counter → dynamic '{current}/{total}' rendered per slide (format string parsed by Phase 45 renderer)
 //   slide-field  → reads from the active slide's render context; closed enum (no open keyof Slide)
+//   decorative   → SVG/PNG asset from public/overlays/ (Phase 56 TPL-04, D-13)
 export type OverlayContent =
   | { type: 'literal'; text: string }
   | { type: 'page-counter'; format?: string }
   | { type: 'slide-field'; field: 'topic' | 'hook_text' | 'body_text' }
+  | { type: 'decorative'; asset: DecorativeAsset; rotation?: number; scale?: number; opacity?: number }
 
 // Overlay declaration. `offset` is fine-tuning relative to the slot's anchor;
 // `style` is an inline CSS subset applied by the renderer.

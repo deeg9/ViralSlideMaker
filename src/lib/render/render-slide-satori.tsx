@@ -13,6 +13,7 @@ import {
   bottomCardBackground,
   renderGrain,
   renderVignette,
+  renderDecorativeOverlay,
   type OverlayResolveCtx,
 } from './resolve-overlay'
 
@@ -318,6 +319,23 @@ export function buildSlideElement(
           preview to guarantee TPLREND-05 parity. Explicit keys per RESEARCH.md
           Pitfall 6 (snapshot stability across React 19 minor versions). */}
       {template.overlays?.map((overlay, i) => {
+        // Phase 56 (TPL-04, D-14): decorative overlay branch. Renders a SVG/PNG
+        // asset via the shared renderDecorativeOverlay helper — both renderers
+        // consume the same module (TPLREND-05 parity invariant). Decorative
+        // overlays are positioned at overlay.offset.{x,y} (typically using the
+        // 'free' slot, but any slot's offset is honored).
+        if (overlay.content.type === 'decorative') {
+          const pos = { x: overlay.offset?.x ?? 0, y: overlay.offset?.y ?? 0 }
+          return (
+            <React.Fragment key={`overlay-${i}-${overlay.position}-decorative`}>
+              {renderDecorativeOverlay(overlay.content.asset, pos, {
+                rotation: overlay.content.rotation,
+                scale: overlay.content.scale,
+                opacity: overlay.content.opacity,
+              })}
+            </React.Fragment>
+          )
+        }
         const slot = SLOT_GEOMETRY[overlay.position]
         const offset = overlay.offset
         // Index the slot via a permissive view so the additive-nudge branches

@@ -158,3 +158,128 @@ describe('Phase 55 (SLOP-03): premium-tier bodyFontFamily requirement', () => {
     expect(() => validateTemplateRegistry(templates)).not.toThrow()
   })
 })
+
+describe('Phase 56 (TPL-04, D-34): decorative overlay asset validation', () => {
+  const baseFreeTemplate = {
+    id: 'test-free-template',
+    name: 'Test Free',
+    thumbnail: '/test.png',
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    hookFontSize: '110px',
+    bodyFontSize: '32px',
+    textColor: '#fff',
+    backgroundColor: '#000',
+    overlayColor: '#000',
+    overlayOpacity: 0,
+    textAlign: 'left' as const,
+    textPosition: 'center' as const,
+    hookStyle: 'normal' as const,
+  }
+
+  it('accepts overlay with a valid decorative asset', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const tpl = {
+      ...baseFreeTemplate,
+      overlays: [
+        {
+          position: 'free' as const,
+          content: { type: 'decorative' as const, asset: 'tape-strip-1' as const },
+          offset: { x: 60, y: 40 },
+        },
+      ],
+    }
+    expect(() => validateTemplateRegistry([tpl])).not.toThrow()
+  })
+
+  it('throws when overlay has an unknown decorative asset', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const tpl = {
+      ...baseFreeTemplate,
+      overlays: [
+        {
+          position: 'free' as const,
+          content: { type: 'decorative' as const, asset: 'invented-asset' as never },
+        },
+      ],
+    }
+    expect(() => validateTemplateRegistry([tpl])).toThrow(/unknown asset 'invented-asset'/)
+  })
+
+  it('throws when decorative overlay has non-number rotation', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const tpl = {
+      ...baseFreeTemplate,
+      overlays: [
+        {
+          position: 'free' as const,
+          content: {
+            type: 'decorative' as const,
+            asset: 'sticky-note-yellow' as const,
+            rotation: 'invalid' as never,
+          },
+        },
+      ],
+    }
+    expect(() => validateTemplateRegistry([tpl])).toThrow(/rotation must be a number/)
+  })
+
+  it('throws when decorative overlay has scale <= 0', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const tpl = {
+      ...baseFreeTemplate,
+      overlays: [
+        {
+          position: 'free' as const,
+          content: { type: 'decorative' as const, asset: 'arrow-up' as const, scale: 0 },
+        },
+      ],
+    }
+    expect(() => validateTemplateRegistry([tpl])).toThrow(/scale must be a number in/)
+  })
+
+  it('throws when decorative overlay has scale > 2', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const tpl = {
+      ...baseFreeTemplate,
+      overlays: [
+        {
+          position: 'free' as const,
+          content: { type: 'decorative' as const, asset: 'arrow-up' as const, scale: 2.5 },
+        },
+      ],
+    }
+    expect(() => validateTemplateRegistry([tpl])).toThrow(/scale must be a number in/)
+  })
+
+  it('accepts decorative overlay with valid scale=1.5', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const tpl = {
+      ...baseFreeTemplate,
+      overlays: [
+        {
+          position: 'free' as const,
+          content: { type: 'decorative' as const, asset: 'polaroid-frame' as const, scale: 1.5 },
+        },
+      ],
+    }
+    expect(() => validateTemplateRegistry([tpl])).not.toThrow()
+  })
+
+  it('throws when decorative overlay has opacity > 1', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const tpl = {
+      ...baseFreeTemplate,
+      overlays: [
+        {
+          position: 'free' as const,
+          content: {
+            type: 'decorative' as const,
+            asset: 'halftone-dots-light' as const,
+            opacity: 1.5,
+          },
+        },
+      ],
+    }
+    expect(() => validateTemplateRegistry([tpl])).toThrow(/opacity must be a number in/)
+  })
+})
