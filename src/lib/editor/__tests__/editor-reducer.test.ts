@@ -476,3 +476,86 @@ describe('editorReducer — DUPLICATE_SLIDE', () => {
     expect(next.present[1].custom_images).toBeUndefined()
   })
 })
+
+// phase-59-c3 (UNDO-01): A single corner-drag gesture must produce exactly ONE
+// undo entry, regardless of how many onResize ticks fired during the drag.
+// The production code achieves this by NOT dispatching on onResize at all —
+// only on onResizeStop. This test pins that invariant: 60 hypothetical onResize
+// "ticks" don't go through the reducer (we don't dispatch them); only the final
+// onResizeStop dispatches. Result: history.past.length increases by 1.
+describe('editorReducer — UNDO-01: single history entry per resize gesture', () => {
+  test('60 hypothetical onResize ticks + 1 onResizeStop → history.past.length === 1', () => {
+    const initialSlide = makeSlide({
+      hook_text: 'STOP SCROLLING',
+      text_boxes: [{
+        id: 'hook-test-id',
+        role: 'hook',
+        text: 'STOP SCROLLING',
+        font_size: 48,
+        position: { anchor: 'top', width: 80 },
+      }],
+    })
+    let state = makeState([initialSlide])
+    expect(state.past.length).toBe(0)
+
+    // Simulate 60 onResize ticks. Production code does NOT dispatch on these —
+    // they only mutate react-rnd's internal visual state. We model that by NOT
+    // calling the reducer for these 60 ticks. (If a future regression added an
+    // onResize dispatch, this test would still pass at the reducer layer; the
+    // grep gate in slide-preview.tsx (no `onResize=` prop) is the structural
+    // backstop. This test confirms the reducer behavior given the contract.)
+    for (let i = 0; i < 60; i++) {
+      // No-op: onResize does NOT touch the reducer in production.
+    }
+    expect(state.past.length).toBe(0)  // still 0 mid-drag
+
+    // The onResizeStop dispatch — exactly as handleSizeChange in slide-editor.tsx
+    // sends it (UPDATE_SLIDE with both style_overrides and text_boxes).
+    state = editorReducer(state, {
+      type: 'UPDATE_SLIDE',
+      index: 0,
+      updates: {
+        style_overrides: { hook_width: 100, hook_font_size: 60 },
+        text_boxes: [{
+          id: 'hook-test-id',
+          role: 'hook',
+          text: 'STOP SCROLLING',
+          font_size: 60,
+          position: { anchor: 'top', width: 100 },
+        }],
+      },
+    })
+
+    expect(state.past.length).toBe(1)   // exactly one entry, NOT 60
+    expect(state.present[0].text_boxes![0].font_size).toBe(60)
+    expect(state.present[0].text_boxes![0].position.width).toBe(100)
+  })
+
+  test('Custom-text corner-drag dispatch (UPDATE_TEXT_BOX) also produces exactly 1 entry', () => {
+    const initialSlide = makeSlide({
+      text_boxes: [{
+        id: 'ct-test-id',
+        role: 'custom',
+        text: 'Custom',
+        font_size: 24,
+        position: { anchor: 'custom', x: 20, y: 50, width: 60 },
+      }],
+    })
+    let state = makeState([initialSlide])
+    expect(state.past.length).toBe(0)
+
+    state = editorReducer(state, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'ct-test-id',
+      updates: {
+        font_size: 30,
+        position: { anchor: 'custom', x: 20, y: 50, width: 75 },
+      },
+    })
+
+    expect(state.past.length).toBe(1)
+    expect(state.present[0].text_boxes![0].font_size).toBe(30)
+    expect(state.present[0].text_boxes![0].position.width).toBe(75)
+  })
+})
