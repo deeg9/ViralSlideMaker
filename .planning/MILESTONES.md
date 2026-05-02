@@ -1,5 +1,50 @@
 # Milestones
 
+## v2.10 Text Box Resize Handles (Shipped: 2026-05-02)
+
+**Phases completed:** 1 phase (59), 4 plans, 13/13 requirements (100% at code level)
+
+**Status:** tech_debt — 13/13 reqs satisfied at code level; 1 deferred verification gate (A11Y-01 iPhone Safari touch QA, skipped per orchestrator since localhost is not iPhone-reachable). Desktop side of A11Y-01 fully verified.
+
+**Stats:**
+- 19 commits between `034ad5c` (start v2.10) and `cea2be1` (audit + plan files)
+- 28 files changed, +5,830 / −2,754 LOC (planning docs heavy; production diff ~150-200 LOC across 4 files)
+- Tests: +50 phase-specific tests, 47/47 in 3 phase test files green
+- Timeline: single intensive day (2026-05-02)
+
+**Key accomplishments:**
+
+- **Phase 59 — Corner Resize Handles + Font-Scale:** Canva-style hybrid resize handles on text boxes. Corner-drag (TL/TR/BL/BR) scales `font_size` AND `position.width` by the same ratio (`new_size = clamp(round(old_size × widthRatio), role_min, role_max)`). Side handles preserve v2.8 width-only behavior. Top/bottom handles explicitly disabled. Shift+corner = width-only escape hatch. Past-the-cap = box keeps growing, font caps at 240 (hook) / 120 (body). Single undo entry per gesture (dispatch on `onResizeStop` only). WCAG 2.5.8 AA touch targets (24×24 CSS px hit zones via `inset: -10px` wrapper, visual handle 12×12). Cursors `nwse-resize` (TL/BR) / `nesw-resize` (TR/BL) on hover. Production touch confined to `slide-preview.tsx` (config flip + 3 onResizeStop extensions + module-level helpers `ROLE_FONT_BOUNDS`, `scaleFontSizeOnCorner`, `isCornerDir`), `slide-editor.tsx` (`handleSizeChange` + `handleCustomTextSizeChange` additions, legacy width handlers preserved for back-compat), and `slide-canvas.tsx` (2 forwarding props). All 3 schema/renderer files (`slide.ts`, `editor-reducer.ts`, `text-box-adapter.ts`, `render-slide.ts`, `render-slide-satori.tsx`, `resolve-overlay.ts`, `hook-fit.ts`) byte-identical to base SHA `e12a0fb` — TPLREND-05 invariant preserved end-to-end.
+
+**Decisions honored:**
+
+- Stayed on `react-rnd@10.5.3` — 6-line `enableResizing` flip beats a library swap.
+- No schema change. The auto-fit-text design fits short bold hooks; an explicit `height` field would be dead weight given the picked Canva-style UX.
+- Past-cap = box keeps growing, font caps. Forgiving > honest.
+- Shift+corner shipped as the modifier escape (5-line addition).
+- Touch QA deferred per user choice (localhost not iPhone-reachable; desktop side fully verified).
+
+**Built on:** v2.8 Text Editor Right-Rail Redesign (`TextBox[]` schema + `applyDualWrite` reducer + selection wiring) and v2.9 Viral Visual Quality (`resolve-overlay.ts` resolver pattern + `parity.test.tsx` invariant). Both consumed unchanged.
+
+**Research-grounded:** 4 parallel research agents (STACK / FEATURES / ARCHITECTURE / PITFALLS) → synthesized in `.planning/research/SUMMARY.md`. Industry survey of Canva, Figma, CapCut, Keynote, Pages, Adobe Express, VEED, Photoshop. WCAG 2.5.8 AA. react-rnd issues #110 / #766 / #732. Satori issues #325 / #393 / #573.
+
+**Out of scope (carried forward to v2.11+):**
+
+| Item | Reason |
+|---|---|
+| Top + bottom handles + explicit `height` field (RESIZE-05, HEIGHT-01) | Anti-feature for auto-fit text. |
+| Snap-to-alignment-guides during corner-resize (GUIDES-01) | `useAlignmentGuides` runs on `onDrag` only. v2.11 candidate. |
+| Rotation handles (ROTATE-01) | Defer to v3.0+ if ever. |
+| Aspect-ratio-lock toggle (ASPECT-01) | Shift+corner covers it. |
+| First-use onboarding toast (ONBOARD-01) | Pre-PMF; cursor change is enough discoverability. |
+| Custom-text dispatch path cleanup (CLEANUP-01) | 5-line refactor, low priority. |
+
+**Awaiting user:** Manual iPhone Safari touch QA — deploy to Vercel preview, run the 9-step touch test from `59-03-PLAN.md` §how-to-verify if mobile usability concerns arise.
+
+**Archive:** `.planning/milestones/v2.10-ROADMAP.md`. Audit: `.planning/v2.10-MILESTONE-AUDIT.md` (status: tech_debt).
+
+---
+
 ## v2.9 Viral Visual Quality (Shipped: 2026-05-01)
 
 **Phases completed:** 5 phases (54-58), 11 plans, 53/53 requirements (100%)

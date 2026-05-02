@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.10
 milestone_name: Text Box Resize Handles
-status: executing
-stopped_at: Roadmap committed; awaiting `/gsd-plan-phase 59` to decompose into plans.
-last_updated: "2026-05-02T22:27:05.753Z"
-last_activity: 2026-05-02 -- Phase 59 execution started
+status: shipped
+stopped_at: v2.10 milestone shipped — 1 phase complete (4/4 plans), 13/13 reqs at code level, audit=tech_debt with 1 deferred touch QA, archived.
+last_updated: "2026-05-02T23:10:00.000Z"
+last_activity: 2026-05-02 -- v2.10 milestone archived (ROADMAP + REQUIREMENTS); ready for git tag v2.10
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -26,10 +26,19 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.10 milestone started)
 
 ## Current Position
 
-Phase: 59 (Corner Resize Handles + Font-Scale) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 59
-Last activity: 2026-05-02 -- Phase 59 execution started
+Phase: 59 — COMPLETE (4/4 plans). Milestone v2.10 ready to ship.
+Plan: 4 of 4
+Status: Closing milestone v2.10
+Last activity: 2026-05-02 -- Phase 59 verified (13/13 reqs); milestone audit = tech_debt (1 deferred item)
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification_gap | Phase 59 — A11Y-01 iPhone Safari touch QA | deferred per orchestrator (localhost not iPhone-reachable; desktop side fully verified) |
+| stale_quick_tasks | 32 pre-v2.10 quick task directories without SUMMARY frontmatter | pre-existing — not introduced by v2.10; cleanup is its own future task |
 
 ## Performance Metrics
 
