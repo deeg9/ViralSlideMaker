@@ -85,9 +85,18 @@ export function SlideEditor({
   const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // quick-260502-fai: hoisted above the watermark handlers so they can read
+  // the slide's existing style_overrides.watermark when dispatching UPDATE_SLIDE.
+  // (Previously declared further down, near the keyboard-shortcut effect.)
+  const currentSlide = slides[selectedIndex]
+
   // Phase 57 (D-08): photo-treatment override handling. useTransition keeps
   // the spinner state co-located with the editor; revalidatePath fires from
   // the server action so the slide list refreshes on Next's normal cycle.
+  //
+  // quick-260502-fai: NOTE — handleSlideTreatmentChange (below) has the same
+  // local-state-sync bug shape as the watermark handlers but is not user-
+  // reported. Fix in a separate quick if/when surfaced.
   const [isTreatmentPending, startTreatmentTransition] = useTransition()
   const handleSlideTreatmentChange = useCallback((spec: TreatmentSpec) => {
     startTreatmentTransition(async () => {
@@ -99,16 +108,36 @@ export function SlideEditor({
   }, [projectId, selectedIndex])
 
   // quick-260502-er5: per-slide watermark override handling.
+  // quick-260502-fai: also dispatch UPDATE_SLIDE so the editor's React state
+  // reflects the change immediately — the server action alone does not flow
+  // back into the reducer, so without the dispatch the Switch + preview stay
+  // out of sync until a hard refresh.
   const [isWatermarkPending, startWatermarkTransition] = useTransition()
   const handleSlideWatermarkChange = useCallback((spec: WatermarkSpec) => {
+    if (!currentSlide) return
+    // Mirror the server's merge shape exactly: { ...existing, ...spec }.
+    const existing = currentSlide.style_overrides?.watermark ?? {}
+    dispatch({
+      type: 'UPDATE_SLIDE',
+      index: selectedIndex,
+      updates: {
+        style_overrides: {
+          ...(currentSlide.style_overrides ?? {}),
+          watermark: { ...existing, ...spec },
+        },
+      },
+    })
     startWatermarkTransition(async () => {
       const result = await updateSlideWatermark(projectId, selectedIndex, spec)
       if (!result.success) {
         console.warn('[updateSlideWatermark] failed:', result.error)
       }
     })
-  }, [projectId, selectedIndex])
+  }, [projectId, selectedIndex, currentSlide, dispatch])
 
+  // quick-260502-fai: dispatch UPDATE_SLIDE after a successful PUT so the
+  // logo preview thumbnail appears in WatermarkControls without a refresh.
+  // Sync runs BEFORE the awaited server action so the UI flips immediately.
   const handleWatermarkLogoUpload = useCallback((file: File) => {
     startWatermarkTransition(async () => {
       try {
@@ -122,6 +151,19 @@ export function SlideEditor({
           console.warn('[watermarkLogoUpload] PUT failed:', putRes.status)
           return
         }
+        if (currentSlide) {
+          const existing = currentSlide.style_overrides?.watermark ?? {}
+          dispatch({
+            type: 'UPDATE_SLIDE',
+            index: selectedIndex,
+            updates: {
+              style_overrides: {
+                ...(currentSlide.style_overrides ?? {}),
+                watermark: { ...existing, customLogoUrl: uploadInfo.publicUrl },
+              },
+            },
+          })
+        }
         const result = await updateSlideWatermark(projectId, selectedIndex, {
           customLogoUrl: uploadInfo.publicUrl,
         })
@@ -132,9 +174,24 @@ export function SlideEditor({
         console.warn('[watermarkLogoUpload] error:', (e as Error).message)
       }
     })
-  }, [projectId, selectedIndex])
+  }, [projectId, selectedIndex, currentSlide, dispatch])
 
+  // quick-260502-fai: dispatch UPDATE_SLIDE clearing customLogoUrl so the
+  // upload button reappears in WatermarkControls without a refresh.
   const handleWatermarkLogoRemove = useCallback(() => {
+    if (currentSlide) {
+      const existing = currentSlide.style_overrides?.watermark ?? {}
+      dispatch({
+        type: 'UPDATE_SLIDE',
+        index: selectedIndex,
+        updates: {
+          style_overrides: {
+            ...(currentSlide.style_overrides ?? {}),
+            watermark: { ...existing, customLogoUrl: undefined },
+          },
+        },
+      })
+    }
     startWatermarkTransition(async () => {
       const result = await updateSlideWatermark(projectId, selectedIndex, {
         customLogoUrl: undefined,
@@ -143,7 +200,7 @@ export function SlideEditor({
         console.warn('[watermarkLogoRemove] failed:', result.error)
       }
     })
-  }, [projectId, selectedIndex])
+  }, [projectId, selectedIndex, currentSlide, dispatch])
 
   // Phase 50 (D-19): feature flag to route between the new selection-driven
   // TextEditorPanel and the preserved LegacyTextEditorPanel. Default is the
@@ -228,8 +285,6 @@ export function SlideEditor({
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
     }
   }, [isDirty, doSave])
-
-  const currentSlide = slides[selectedIndex]
 
   // Phase 52 (T-03): keyboard shortcuts on the editor.
   //   Cmd/Ctrl+1, +2, +3 → select Nth text box on current slide
