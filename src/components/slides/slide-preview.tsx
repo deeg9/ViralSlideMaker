@@ -432,8 +432,10 @@ export function SlidePreview({
     color: hookTextColor,
     // Wrap inside the hook container — AI segment-rendered hooks must respect
     // the hook box width and not bleed past the slide canvas.
+    // quick-260502-j14: `wordBreak: 'break-word'` is a deprecated alias that
+    // browsers treat as `overflow-wrap: anywhere`, breaking words mid-character
+    // even when they'd fit on the next line. Stick to `overflow-wrap: break-word`.
     whiteSpace: 'normal',
-    wordBreak: 'break-word',
     overflowWrap: 'break-word',
   }
   const bodyTextStyle: React.CSSProperties = {

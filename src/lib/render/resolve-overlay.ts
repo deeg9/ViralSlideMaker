@@ -186,8 +186,11 @@ export function renderSegments(
         marginRight: isLast ? '0' : '8px',
         // Prevent a single long-word pill from extending past the hook
         // container's flex bounds and bleeding past the 1080px canvas.
+        // quick-260502-j14: do NOT set `wordBreak: 'break-word'` — that
+        // deprecated value behaves like `overflow-wrap: anywhere` and breaks
+        // mid-word even when the word would fit on the next line.
+        // `overflow-wrap: break-word` is the right rule.
         maxWidth: '100%',
-        wordBreak: 'break-word',
         overflowWrap: 'break-word',
         ...segmentFontFamily,
       }
@@ -209,8 +212,9 @@ export function renderSegments(
           // Same wrap protections as pill segments — keeps a long plain
           // segment from extending past the hook container's flex bounds
           // and bleeding past the canvas.
+          // quick-260502-j14: do NOT set `wordBreak: 'break-word'` — see pill
+          // segment style above for context.
           maxWidth: '100%',
-          wordBreak: 'break-word',
           overflowWrap: 'break-word',
           ...segmentFontFamily,
         },
