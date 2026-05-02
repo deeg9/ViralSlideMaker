@@ -985,6 +985,9 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
       style={
         {
           "color": "#FFFFFF",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -1010,6 +1013,9 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
       style={
         {
           "color": "#FFFFFF",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
         }
       }
     >

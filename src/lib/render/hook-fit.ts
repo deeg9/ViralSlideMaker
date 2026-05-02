@@ -13,23 +13,30 @@ type HookFitSpec = { baseSize: number; steps: HookFitStep[] }
 // `steps` are evaluated in order; first step where `len <= maxChars` wins.
 // If none match, the last step's scale applies.
 const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
-  // News templates — Anton (condensed). Original v2.7 calibration preserved.
+  // News templates — Anton (condensed) at 110px on a hookWidth ≈ 78% canvas
+  // (842px). Original calibration assumed 2-line wraps were OK; in practice
+  // AI-generated segment-rendered hooks don't always wrap inside spans, so
+  // single-line widths must fit the container. Tightened thresholds enforce
+  // single-line fit at each scale step (rough char-width math: Anton at S px
+  // averages ~0.45*S per char; container fits ~842/0.45*S chars = 1871/S).
   'news-drop': {
     baseSize: 110,
     steps: [
-      { maxChars: 22, scale: 1 },
-      { maxChars: 44, scale: 0.8 },
-      { maxChars: 66, scale: 0.64 },
-      { maxChars: Infinity, scale: 0.52 },
+      { maxChars: 14, scale: 1 },
+      { maxChars: 22, scale: 0.8 },
+      { maxChars: 32, scale: 0.65 },
+      { maxChars: 48, scale: 0.52 },
+      { maxChars: Infinity, scale: 0.42 },
     ],
   },
   'news-cyan': {
     baseSize: 110,
     steps: [
-      { maxChars: 22, scale: 1 },
-      { maxChars: 44, scale: 0.8 },
-      { maxChars: 66, scale: 0.64 },
-      { maxChars: Infinity, scale: 0.52 },
+      { maxChars: 14, scale: 1 },
+      { maxChars: 22, scale: 0.8 },
+      { maxChars: 32, scale: 0.65 },
+      { maxChars: 48, scale: 0.52 },
+      { maxChars: Infinity, scale: 0.42 },
     ],
   },
   // Premium magazine — Plus Jakarta Sans (proportional, wider) on a tight

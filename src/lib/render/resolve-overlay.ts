@@ -202,7 +202,19 @@ export function renderSegments(
     const children = isLast ? normalized : `${normalized} `
     return React.createElement(
       'span',
-      { key: `${i}-${seg.text.slice(0, 20)}`, style: { color: baseSegmentColor, ...segmentFontFamily } },
+      {
+        key: `${i}-${seg.text.slice(0, 20)}`,
+        style: {
+          color: baseSegmentColor,
+          // Same wrap protections as pill segments — keeps a long plain
+          // segment from extending past the hook container's flex bounds
+          // and bleeding past the canvas.
+          maxWidth: '100%',
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word',
+          ...segmentFontFamily,
+        },
+      },
       children,
     )
   })

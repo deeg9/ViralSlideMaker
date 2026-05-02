@@ -19,15 +19,22 @@ describe('hook-fit registry', () => {
     expect(hasHookFit('bold-yellow')).toBe(false)
   })
 
-  it('preserves news template thresholds (v2.7 quick-task calibration)', () => {
-    // baseSize 110 — original Anton calibration unchanged.
+  it('news templates fit single-line into 78%-canvas hook container', () => {
+    // baseSize 110 — re-tightened 2026-05-02 to enforce single-line fit so
+    // AI-generated segment hooks don't bleed past the canvas.
     expect(getHookFontSize('news-drop', 'SHORT', 110)).toBe(110) // 5 chars → 1.0
-    expect(getHookFontSize('news-drop', 'A'.repeat(22), 110)).toBe(110) // 22 chars → 1.0
-    expect(getHookFontSize('news-drop', 'A'.repeat(23), 110)).toBe(88) // 23 chars → 0.80
-    expect(getHookFontSize('news-drop', 'A'.repeat(44), 110)).toBe(88) // 44 chars → 0.80
-    expect(getHookFontSize('news-drop', 'A'.repeat(45), 110)).toBe(70) // 45 chars → 0.64
-    expect(getHookFontSize('news-drop', 'A'.repeat(67), 110)).toBe(57) // 67+ chars → 0.52
-    expect(getHookFontSize('news-cyan', 'AMAZON FACES PRICE-FIXING ALLEGATIONS', 110)).toBe(88)
+    expect(getHookFontSize('news-drop', 'A'.repeat(14), 110)).toBe(110) // 14 chars → 1.0
+    expect(getHookFontSize('news-drop', 'A'.repeat(15), 110)).toBe(88) // 15 chars → 0.80
+    expect(getHookFontSize('news-drop', 'A'.repeat(22), 110)).toBe(88) // 22 chars → 0.80
+    expect(getHookFontSize('news-drop', 'A'.repeat(23), 110)).toBe(72) // 23 chars → 0.65
+    expect(getHookFontSize('news-drop', 'A'.repeat(32), 110)).toBe(72) // 32 chars → 0.65
+    expect(getHookFontSize('news-drop', 'A'.repeat(33), 110)).toBe(57) // 33 chars → 0.52
+    expect(getHookFontSize('news-drop', 'A'.repeat(48), 110)).toBe(57) // 48 chars → 0.52
+    expect(getHookFontSize('news-drop', 'A'.repeat(80), 110)).toBe(46) // 49+ chars → 0.42
+    // Real samples from the regression bug report
+    expect(getHookFontSize('news-cyan', 'AMAZON FACES PRICE-FIXING ALLEGATIONS', 110)).toBe(57) // 37 chars → 0.52
+    expect(getHookFontSize('news-cyan', 'VIRALITY WAS HER ONLY HOPE', 110)).toBe(72) // 26 chars → 0.65
+    expect(getHookFontSize('news-cyan', 'THIS IS A HUGE PROBLEM', 110)).toBe(88) // 22 chars → 0.80
   })
 
   it('scales premium template hooks (Plus Jakarta Sans, tighter curve for bottom-card layouts)', () => {

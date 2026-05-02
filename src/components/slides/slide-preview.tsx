@@ -430,6 +430,11 @@ export function SlidePreview({
     fontStyle: hookFontStyle === 'italic' ? 'italic' : (template.hookStyle === 'italic' ? 'italic' : undefined),
     textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
     color: hookTextColor,
+    // Wrap inside the hook container — AI segment-rendered hooks must respect
+    // the hook box width and not bleed past the slide canvas.
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
   }
   const bodyTextStyle: React.CSSProperties = {
     fontSize: `${bodyFontSize}px`,

@@ -235,6 +235,9 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
       style={
         {
           "color": "#ffffff",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -260,6 +263,9 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
       style={
         {
           "color": "#ffffff",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -424,6 +430,9 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
       style={
         {
           "color": "#ffffff",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -449,6 +458,9 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
       style={
         {
           "color": "#ffffff",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
         }
       }
     >
