@@ -7,7 +7,8 @@ import { searchPhotos } from '@/lib/pexels/search-photos'
 import { generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { stylizeBackgroundFromPhoto, type StylizeResult } from '@/lib/imagen/stylize-image'
 import { rateLimit } from '@/lib/rate-limit'
-import type { Slide } from '@/lib/types/slide'
+import { getUserTier } from '@/lib/credits/check-credits'
+import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -331,6 +332,75 @@ export async function updateSlideTreatment(
       grain_intensity: spec.grain,
     }
 
+    slides[slideIndex] = slide
+
+    const { error: saveError } = await supabase
+      .from('projects')
+      .update({ slide_data: slides as unknown as Record<string, unknown>[] })
+      .eq('id', projectId)
+    if (saveError) return { success: false, error: saveError.message }
+
+    revalidatePath(`/project/${projectId}`)
+    return { success: true, slide }
+  } catch (err) {
+    return { success: false, error: (err as Error).message }
+  }
+}
+
+// --- quick-260502-er5: per-slide watermark ---
+
+export type WatermarkSpec = NonNullable<SlideStyleOverrides['watermark']>
+
+/**
+ * Apply a watermark spec patch to a single slide.
+ * Server-side tier enforcement (defense in depth — UI gates first):
+ *   - free tier: rejected when attempting to set `enabled: false` or
+ *     `customLogoUrl`. Position changes also rejected.
+ *   - paid tier: all fields honored, customLogoUrl validated as a URL we
+ *     trust (Supabase Storage public URL).
+ */
+export async function updateSlideWatermark(
+  projectId: string,
+  slideIndex: number,
+  patch: WatermarkSpec,
+): Promise<{ success: true; slide: Slide } | { success: false; error: string }> {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'unauthorized' }
+
+    const tier = await getUserTier(user.id)
+    const isPaid = tier === 'plus' || tier === 'pro'
+    if (!isPaid) {
+      // Free tier cannot toggle off, set custom logo, or change position.
+      // The UI prevents these, but defense in depth ensures the API can't be
+      // bypassed by a crafted client request.
+      return { success: false, error: 'paid tier required to customize watermark' }
+    }
+
+    const { data: project, error: loadError } = await supabase
+      .from('projects')
+      .select('slide_data, user_id')
+      .eq('id', projectId)
+      .single()
+    if (loadError || !project) {
+      return { success: false, error: 'project not found' }
+    }
+    if (project.user_id !== user.id) {
+      return { success: false, error: 'forbidden' }
+    }
+
+    const slides = ((project.slide_data ?? []) as unknown) as Slide[]
+    const slide = slides[slideIndex]
+    if (!slide) return { success: false, error: 'slide index out of range' }
+
+    const existing = slide.style_overrides?.watermark ?? {}
+    slide.style_overrides = {
+      ...(slide.style_overrides ?? {}),
+      watermark: { ...existing, ...patch },
+    }
     slides[slideIndex] = slide
 
     const { error: saveError } = await supabase

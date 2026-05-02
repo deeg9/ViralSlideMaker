@@ -20,7 +20,10 @@ import {
   regenerateSlideText,
   regenerateSlideImageQuery,
   updateSlideTreatment,
+  updateSlideWatermark,
+  createUploadUrl,
   type TreatmentSpec,
+  type WatermarkSpec,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
@@ -91,6 +94,53 @@ export function SlideEditor({
       const result = await updateSlideTreatment(projectId, selectedIndex, spec)
       if (!result.success) {
         console.warn('[updateSlideTreatment] failed:', result.error)
+      }
+    })
+  }, [projectId, selectedIndex])
+
+  // quick-260502-er5: per-slide watermark override handling.
+  const [isWatermarkPending, startWatermarkTransition] = useTransition()
+  const handleSlideWatermarkChange = useCallback((spec: WatermarkSpec) => {
+    startWatermarkTransition(async () => {
+      const result = await updateSlideWatermark(projectId, selectedIndex, spec)
+      if (!result.success) {
+        console.warn('[updateSlideWatermark] failed:', result.error)
+      }
+    })
+  }, [projectId, selectedIndex])
+
+  const handleWatermarkLogoUpload = useCallback((file: File) => {
+    startWatermarkTransition(async () => {
+      try {
+        const uploadInfo = await createUploadUrl(projectId, file.name)
+        const putRes = await fetch(uploadInfo.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        })
+        if (!putRes.ok) {
+          console.warn('[watermarkLogoUpload] PUT failed:', putRes.status)
+          return
+        }
+        const result = await updateSlideWatermark(projectId, selectedIndex, {
+          customLogoUrl: uploadInfo.publicUrl,
+        })
+        if (!result.success) {
+          console.warn('[watermarkLogoUpload] persist failed:', result.error)
+        }
+      } catch (e) {
+        console.warn('[watermarkLogoUpload] error:', (e as Error).message)
+      }
+    })
+  }, [projectId, selectedIndex])
+
+  const handleWatermarkLogoRemove = useCallback(() => {
+    startWatermarkTransition(async () => {
+      const result = await updateSlideWatermark(projectId, selectedIndex, {
+        customLogoUrl: undefined,
+      })
+      if (!result.success) {
+        console.warn('[watermarkLogoRemove] failed:', result.error)
       }
     })
   }, [projectId, selectedIndex])
@@ -618,6 +668,11 @@ export function SlideEditor({
                   brandKit={brandKit}
                   onSlideTreatmentChange={handleSlideTreatmentChange}
                   isTreatmentPending={isTreatmentPending}
+                  userTier={userTier}
+                  onSlideWatermarkChange={handleSlideWatermarkChange}
+                  onWatermarkLogoUpload={handleWatermarkLogoUpload}
+                  onWatermarkLogoRemove={handleWatermarkLogoRemove}
+                  isWatermarkPending={isWatermarkPending}
                 />
               ) : (
                 <LegacyTextEditorPanel
