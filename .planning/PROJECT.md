@@ -11,7 +11,26 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.10 Text Box Resize Handles (2026-05-02)
-**Current Milestone:** Planning next milestone (run `/gsd-new-milestone` to start)
+**Current Milestone:** v2.11 Full Editor Parity (research-first; replicate Figma/Canva patterns)
+
+---
+
+## Current Milestone: v2.11 Full Editor Parity
+
+**Goal:** Bring the slide editor to Figma/Canva-grade parity for multi-element manipulation — alignment, multi-select, group/ungroup, plus the adjacencies leading design tools always ship together. Replicate proven patterns; do not invent.
+
+**Target features:**
+- Multi-select (marquee + Shift/Cmd-click add/remove)
+- Alignment (align-to-canvas + align-to-selection, all 6 axes; distribute-evenly H + V)
+- Group / Ungroup (Cmd+G / Cmd+Shift+G; nested groups; ungroup preserves child positions)
+- "Maybe more" — research-defined; expected candidates: smart guides during drag, snapping (other elements + canvas edges + center), keyboard nudge (arrow / Shift+arrow), z-order controls, lock/unlock, layers panel
+
+**Approach:** Research-first. 4 parallel agents (Stack / Features / Architecture / Pitfalls) survey Figma, Canva, Figjam, Adobe Express, Keynote, Photoshop, VEED to surface every table-stakes editor capability and the integration patterns that ship them safely. Requirements scoped from research findings, not from intuition.
+
+**Hard constraints (carry-over):**
+- TPLREND-05 render parity invariant preserved — editor-only features (selection rings, marquee, smart guides) gate behind `editable={true}` so Satori PNG export remains byte-identical.
+- Builds on v2.8 `text_boxes[]` schema. Legacy fields (`hook_text` / `body_text` / etc.) remain untouched — sunset still deferred to post-PMF.
+- Multi-select / groups must address `custom_images` + watermarks + decorative overlays, not just text boxes.
 
 ---
 
@@ -320,10 +339,18 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [ ] Live Gemini wiring for diversity gate — advisory only in v2.9; wire live if monoculture observed in production
 - [ ] Variable fonts — Satori issues #162/#712 unresolved as of 2026-05
 
-### Active (next milestone — TBD via `/gsd-new-milestone`)
+### Active (v2.11 Full Editor Parity — research-defined, REQ-IDs assigned after research)
+
+- [ ] Multi-select (marquee + Shift/Cmd-click) across text boxes + custom_images + watermarks
+- [ ] Alignment (align-to-canvas + align-to-selection on all 6 axes; distribute-evenly H + V)
+- [ ] Group / Ungroup (Cmd+G / Cmd+Shift+G; nested; preserves child positions on ungroup)
+- [ ] Adjacent table-stakes capabilities surfaced by research (smart guides, snapping, nudge, z-order, lock, layers panel — final list locked after `.planning/research/SUMMARY.md`)
+
+### Pending Validation (carry-over from v2.9 / v2.10)
 
 - [ ] Real user feedback on visual output quality from v2.9 templates (manual QA pending)
 - [ ] ZIP-download-rate trajectory measured 14+ days post-launch against baseline
+- [ ] iPhone Safari touch QA for v2.10 corner resize handles (A11Y-01 deferred 2026-05-02)
 
 ### Out of Scope
 
@@ -401,4 +428,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-02 after v2.10 Text Box Resize Handles milestone shipped*
+*Last updated: 2026-05-02 — v2.11 Full Editor Parity milestone started (research-first)*
