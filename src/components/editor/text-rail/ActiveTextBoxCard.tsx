@@ -254,7 +254,7 @@ export function ActiveTextBoxCard({
           type="range"
           data-testid="active-text-box-size"
           min={textBox.role === 'body' ? 14 : 16}
-          max={textBox.role === 'body' ? 56 : 96}
+          max={textBox.role === 'body' ? 120 : 240}
           step={2}
           value={textBox.font_size ?? defaultSizeForRole(textBox.role, template)}
           onChange={(e) => onUpdate({ font_size: Number(e.target.value) })}
