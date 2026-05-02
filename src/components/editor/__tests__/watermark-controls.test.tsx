@@ -110,6 +110,7 @@ describe('WatermarkControls — tier gating', () => {
     )
     const radiogroup = container.querySelector('[role="radiogroup"]')
     expect(radiogroup).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /Top Left/i })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /Bottom Left/i })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /Bottom Right/i })).toBeTruthy()
   })
@@ -128,6 +129,24 @@ describe('WatermarkControls — tier gating', () => {
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ position: 'bottom-right' }),
+    )
+  })
+
+  // 260502-tlw: top-left is the new default + an explicit picker option.
+  it('paid tier: clicking Top Left fires onWatermarkChange with position=top-left', () => {
+    const onChange = vi.fn()
+    render(
+      <WatermarkControls
+        slide={makeSlide({ enabled: true, position: 'bottom-right' })}
+        userTier="pro"
+        isPending={false}
+        onWatermarkChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: /Top Left/i }))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ position: 'top-left' }),
     )
   })
 

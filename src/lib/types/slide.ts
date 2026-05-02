@@ -153,7 +153,7 @@ export interface SlideStyleOverrides {
     enabled?: boolean
     customLogoUrl?: string
     customText?: string
-    position?: 'bottom-left' | 'bottom-right'
+    position?: 'top-left' | 'bottom-left' | 'bottom-right'
   }
 }
 

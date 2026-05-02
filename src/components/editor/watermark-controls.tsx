@@ -20,7 +20,7 @@ import { Icon } from '@/components/ui/icon'
 import { Switch } from '@/components/ui/switch'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
 
-export type WatermarkPosition = 'bottom-left' | 'bottom-right'
+export type WatermarkPosition = 'top-left' | 'bottom-left' | 'bottom-right'
 
 export type WatermarkSpec = NonNullable<SlideStyleOverrides['watermark']>
 
@@ -39,6 +39,7 @@ export interface WatermarkControlsProps {
 }
 
 const POSITION_OPTIONS: Array<{ value: WatermarkPosition; label: string }> = [
+  { value: 'top-left', label: 'Top Left' },
   { value: 'bottom-left', label: 'Bottom Left' },
   { value: 'bottom-right', label: 'Bottom Right' },
 ]
@@ -59,7 +60,7 @@ export function WatermarkControls({
   // explicitly enabled OR a customLogoUrl is set.
   const renders = !isPaid || wm.enabled === true || !!wm.customLogoUrl
   const hasCustom = !!wm.customLogoUrl
-  const position: WatermarkPosition = wm.position ?? 'bottom-left'
+  const position: WatermarkPosition = wm.position ?? 'top-left'
 
   function emit(patch: Partial<WatermarkSpec>) {
     if (!onWatermarkChange) return
