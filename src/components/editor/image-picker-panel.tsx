@@ -6,6 +6,7 @@ import type { Slide } from '@/lib/types/slide'
 import {
   searchBackgroundPhotos,
   createUploadUrl,
+  stylizeSlidePhoto,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { AIGenerateTab } from '@/components/editor/ai-generate-tab'
 
@@ -47,6 +48,8 @@ export function ImagePickerPanel({
   const [regeneratingText, setRegeneratingText] = useState(false)
   const [regeneratingImage, setRegeneratingImage] = useState(false)
   const [lastUploadedUrl, setLastUploadedUrl] = useState<string | null>(null)
+  const [stylizing, setStylizing] = useState(false)
+  const [stylizeError, setStylizeError] = useState<string | null>(null)
 
   async function handleSearch() {
     if (!query.trim()) return
@@ -82,6 +85,22 @@ export function ImagePickerPanel({
       setUploading(false)
       // Reset input so same file can be re-selected
       e.target.value = ''
+    }
+  }
+
+  async function handleStylize() {
+    if (!lastUploadedUrl || stylizing) return
+    setStylizing(true)
+    setStylizeError(null)
+    try {
+      const result = await stylizeSlidePhoto(projectId, slideIndex, lastUploadedUrl)
+      if ('url' in result) {
+        onUpdate({ background_url: result.url, pexels_photo_id: null })
+      } else {
+        setStylizeError(result.error)
+      }
+    } finally {
+      setStylizing(false)
     }
   }
 
@@ -238,17 +257,35 @@ export function ImagePickerPanel({
               className="sr-only"
             />
           </label>
-          {lastUploadedUrl && onAddCanvasImage && (
-            <button
-              onClick={() => {
-                onAddCanvasImage(lastUploadedUrl)
-                setLastUploadedUrl(null)
-              }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors"
-            >
-              <Icon name="add_circle" size="sm" />
-              Add Last Upload to Canvas
-            </button>
+          {lastUploadedUrl && (
+            <>
+              {userTier !== 'free' && (
+                <button
+                  onClick={handleStylize}
+                  disabled={stylizing}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-[#3d0000] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                  title="Restyle this photo with AI to match the carousel's visual style. Uses 1 credit."
+                >
+                  <Icon name={stylizing ? 'progress_activity' : 'auto_awesome'} size="sm" className={stylizing ? 'animate-spin' : ''} />
+                  {stylizing ? 'Stylizing...' : 'AI-Stylize This Photo (1 credit)'}
+                </button>
+              )}
+              {stylizeError && (
+                <p className="text-[10px] text-red-700 px-1" role="alert">{stylizeError}</p>
+              )}
+              {onAddCanvasImage && (
+                <button
+                  onClick={() => {
+                    onAddCanvasImage(lastUploadedUrl)
+                    setLastUploadedUrl(null)
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors"
+                >
+                  <Icon name="add_circle" size="sm" />
+                  Add Last Upload to Canvas
+                </button>
+              )}
+            </>
           )}
         </div>
       )}

@@ -244,10 +244,31 @@ export function GenerationForm({
                 </button>
               </div>
             ))}
-            <p className="basis-full text-[10px] text-[#7d6161] mt-1">
-              These photos will be used as backgrounds for your first {Math.min(selectedFiles.length, slideCount)} slide
-              {Math.min(selectedFiles.length, slideCount) === 1 ? '' : 's'}.
-            </p>
+            {(() => {
+              const photos = selectedFiles.length
+              const slides = slideCount
+              if (photos === slides) {
+                return (
+                  <p className="basis-full text-[10px] text-[#7d6161] mt-1">
+                    All {photos} photo{photos === 1 ? '' : 's'} will be matched to your {slides} slide{slides === 1 ? '' : 's'} by content.
+                  </p>
+                )
+              }
+              if (photos < slides) {
+                const remaining = slides - photos
+                return (
+                  <p className="basis-full text-[10px] text-[#7d6161] mt-1">
+                    {photos} photo{photos === 1 ? '' : 's'} will be placed on the most relevant slide{photos === 1 ? '' : 's'}; the remaining {remaining} will use {imageSource === 'ai' ? 'AI' : 'stock'}.
+                  </p>
+                )
+              }
+              const ignored = photos - slides
+              return (
+                <p className="basis-full text-[10px] text-red-700 mt-1">
+                  Only {slides} of your {photos} photos will be used (carousel limited to {slides} slide{slides === 1 ? '' : 's'}). Increase the slide count or remove {ignored} photo{ignored === 1 ? '' : 's'}.
+                </p>
+              )
+            })()}
           </div>
         )}
       </div>
