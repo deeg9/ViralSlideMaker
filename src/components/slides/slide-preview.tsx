@@ -256,6 +256,39 @@ const cornerHandleHitStyle: React.CSSProperties = {
   position: 'absolute',
 }
 
+// phase-59-02: corner-drag font-scale formula. Returns the new font_size clamped
+// to role bounds. widthRatio = newWidthPx / oldWidthPx. Past-cap (FONTSCALE-02):
+// box keeps growing freely (caller writes width unchanged), font caps at role_max.
+// Bounds match the right-rail slider min/max at ActiveTextBoxCard.tsx:256-257.
+const ROLE_FONT_BOUNDS: Record<'hook' | 'body' | 'custom', { min: number; max: number }> = {
+  hook:   { min: 16, max: 240 },
+  body:   { min: 14, max: 120 },
+  custom: { min: 14, max: 120 },
+}
+
+function scaleFontSizeOnCorner(
+  oldFontSize: number,
+  oldWidthPx: number,
+  newWidthPx: number,
+  role: 'hook' | 'body' | 'custom',
+): number {
+  // Defensive: a zero/negative oldWidthPx would yield NaN/Infinity. Fall back
+  // to the unchanged size so a corrupt snapshot can't crash the dispatch.
+  if (!oldWidthPx || oldWidthPx <= 0) return oldFontSize
+  const widthRatio = newWidthPx / oldWidthPx
+  const scaled = Math.round(oldFontSize * widthRatio)
+  const { min, max } = ROLE_FONT_BOUNDS[role]
+  return Math.max(min, Math.min(max, scaled))
+}
+
+// phase-59-02: dir param classifier. Corner = any of 4 diagonal handles.
+// Side ('left' | 'right') and top/bottom (disabled by enableResizing) all
+// return false. Used in onResizeStop to gate the font_size dispatch.
+type RndDir = 'top' | 'right' | 'bottom' | 'left' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'
+function isCornerDir(dir: RndDir): boolean {
+  return dir === 'topLeft' || dir === 'topRight' || dir === 'bottomLeft' || dir === 'bottomRight'
+}
+
 interface SlidePreviewProps {
   slide: Slide
   template: SlideTemplate
@@ -273,8 +306,16 @@ interface SlidePreviewProps {
   userTier?: 'free' | 'plus' | 'pro'
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
+  // phase-59-02: size-change callbacks (width + optional font_size). Corner drags
+  // dispatch both; side drags dispatch width only (font_size omitted). Routes
+  // through slide-editor's handleSizeChange / handleCustomTextSizeChange. When
+  // the new prop is undefined (legacy callers — tests, storybook), the handler
+  // falls back to onWidthChange / onCustomTextWidthChange so existing wiring
+  // keeps working unchanged (FONTSCALE-01..04).
+  onSizeChange?: (field: 'hook' | 'body', size: { width: number; font_size?: number }) => void
   onCustomTextPositionChange?: (id: string, position: TextPosition) => void
   onCustomTextWidthChange?: (id: string, width: number) => void
+  onCustomTextSizeChange?: (id: string, size: { width: number; font_size?: number }) => void
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
   onCustomTextSelect?: (id: string | null) => void
   onCustomTextRemove?: (id: string) => void
@@ -294,8 +335,8 @@ interface SlidePreviewProps {
 
 export function SlidePreview({
   slide, template, index, slideIndex, totalSlides, topic, editable, brandKit, userTier,
-  onPositionChange, onWidthChange,
-  onCustomTextPositionChange, onCustomTextWidthChange,
+  onPositionChange, onWidthChange, onSizeChange,
+  onCustomTextPositionChange, onCustomTextWidthChange, onCustomTextSizeChange,
   onCustomTextUpdate, onCustomTextSelect, onCustomTextRemove,
   selectedCustomTextId,
   onCustomImagePositionChange, onCustomImageSizeChange,
@@ -969,14 +1010,38 @@ export function SlidePreview({
               fontSize: hookFontSize,
             }
           }}
-          onResizeStop={(_e, _dir, ref, _delta, position) => {
-            const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
-            onWidthChange?.('hook', Math.round(newWidthPct))
+          onResizeStop={(_e, dir, ref, _delta, position) => {
+            // phase-59-02: branch on dir. Corner = scale font + width; side = width
+            // only. Width clamp [20%,100%] is independent of the font clamp so the
+            // box keeps growing past the font cap (FONTSCALE-02 forgiving past-cap).
+            const newWidthPx = parseInt(ref.style.width)
+            const newWidthPct = Math.max(20, Math.min(100, (newWidthPx / REF_WIDTH) * 100))
+            const isCorner = isCornerDir(dir as RndDir)
+            let newFontSize: number | undefined = undefined
+            if (isCorner && hookResizeStartRef.current) {
+              newFontSize = scaleFontSizeOnCorner(
+                hookResizeStartRef.current.fontSize,
+                hookResizeStartRef.current.widthPx,
+                newWidthPx,
+                'hook',
+              )
+            }
+            if (onSizeChange) {
+              onSizeChange('hook', {
+                width: Math.round(newWidthPct),
+                ...(newFontSize !== undefined ? { font_size: newFontSize } : {}),
+              })
+            } else {
+              // Backcompat: callers that haven't wired onSizeChange (tests, storybook).
+              onWidthChange?.('hook', Math.round(newWidthPct))
+            }
             if (onPositionChange) {
               const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
               const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
               onPositionChange('hook', { x: percentX, y: percentY })
             }
+            // Clear gesture snapshot — UNDO-01: ref consumed exactly once per gesture.
+            hookResizeStartRef.current = null
           }}
           onMouseDown={(e) => {
             // Phase 52 (T-01): click on hook wrapper → resolve hook TextBox.id and
@@ -1051,14 +1116,34 @@ export function SlidePreview({
                 fontSize: bodyFontSize,
               }
             }}
-            onResizeStop={(_e, _dir, ref, _delta, position) => {
-              const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
-              onWidthChange?.('body', Math.round(newWidthPct))
+            onResizeStop={(_e, dir, ref, _delta, position) => {
+              // phase-59-02: branch on dir. Corner = scale font + width; side = width only.
+              const newWidthPx = parseInt(ref.style.width)
+              const newWidthPct = Math.max(20, Math.min(100, (newWidthPx / REF_WIDTH) * 100))
+              const isCorner = isCornerDir(dir as RndDir)
+              let newFontSize: number | undefined = undefined
+              if (isCorner && bodyResizeStartRef.current) {
+                newFontSize = scaleFontSizeOnCorner(
+                  bodyResizeStartRef.current.fontSize,
+                  bodyResizeStartRef.current.widthPx,
+                  newWidthPx,
+                  'body',
+                )
+              }
+              if (onSizeChange) {
+                onSizeChange('body', {
+                  width: Math.round(newWidthPct),
+                  ...(newFontSize !== undefined ? { font_size: newFontSize } : {}),
+                })
+              } else {
+                onWidthChange?.('body', Math.round(newWidthPct))
+              }
               if (onPositionChange) {
                 const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
                 const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
                 onPositionChange('body', { x: percentX, y: percentY })
               }
+              bodyResizeStartRef.current = null
             }}
             onMouseDown={(e) => {
               // Phase 52 (T-01): click on body wrapper → resolve body TextBox.id.
@@ -1157,12 +1242,37 @@ export function SlidePreview({
                   fontSize: ct.font_size ?? 48,
                 }
               }}
-              onResizeStop={(_e, _dir, ref, _delta, position) => {
-                const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
-                onCustomTextWidthChange?.(ct.id, Math.round(newWidthPct))
+              onResizeStop={(_e, dir, ref, _delta, position) => {
+                // phase-59-02: branch on dir. Corner = scale font + width; side = width only.
+                // Custom-text path goes through onCustomTextSizeChange so the dispatch
+                // routes through UPDATE_TEXT_BOX (applyDualWrite mirrors text_boxes
+                // back to legacy slide.custom_texts in the same reducer step).
+                const newWidthPx = parseInt(ref.style.width)
+                const newWidthPct = Math.max(20, Math.min(100, (newWidthPx / REF_WIDTH) * 100))
+                const isCorner = isCornerDir(dir as RndDir)
+                const startSnap = customTextResizeStartRefs.current[ct.id]
+                let newFontSize: number | undefined = undefined
+                if (isCorner && startSnap) {
+                  newFontSize = scaleFontSizeOnCorner(
+                    startSnap.fontSize,
+                    startSnap.widthPx,
+                    newWidthPx,
+                    'custom',
+                  )
+                }
+                if (onCustomTextSizeChange) {
+                  onCustomTextSizeChange(ct.id, {
+                    width: Math.round(newWidthPct),
+                    ...(newFontSize !== undefined ? { font_size: newFontSize } : {}),
+                  })
+                } else {
+                  // Backcompat for legacy callers that haven't wired the new prop.
+                  onCustomTextWidthChange?.(ct.id, Math.round(newWidthPct))
+                }
                 const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
                 const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
                 onCustomTextPositionChange?.(ct.id, { x: percentX, y: percentY })
+                delete customTextResizeStartRefs.current[ct.id]
               }}
               onMouseDown={(e) => {
                 // Phase 52 (T-01): also dispatch unified TextBox selection so
