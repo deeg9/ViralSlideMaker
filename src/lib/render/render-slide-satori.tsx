@@ -11,6 +11,8 @@ import {
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
   bottomCardBackground,
+  renderGrain,
+  renderVignette,
   type OverlayResolveCtx,
 } from './resolve-overlay'
 
@@ -269,6 +271,8 @@ export function buildSlideElement(
           }}
         />
       )}
+      {/* Phase 55 (D-13, layer 1.5): grain/noise overlay — only when template opts in. */}
+      {template.grainMode ? renderGrain(template.grainMode) : null}
       {/* Overlay - rendered before text so text appears on top (Satori has no z-index) */}
       <div
         style={{
@@ -281,6 +285,8 @@ export function buildSlideElement(
           opacity: overlayOpacity,
         }}
       />
+      {/* Phase 55 (D-13, layer 2.5): radial vignette — only when template opts in. */}
+      {template.vignette ? renderVignette(template.vignette.strength) : null}
       {/* Phase 45: bottom-card layer for backgroundMode === 'image-with-bottom-card'.
           Sits ABOVE tint and BELOW overlays/hook/body per CONTEXT.md Area 1 DOM order.
           Card height locked at 38% of canvas (≈730px on 1920); padding 80px matches

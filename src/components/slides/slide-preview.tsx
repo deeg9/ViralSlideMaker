@@ -19,6 +19,8 @@ import {
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
   bottomCardBackground,
+  renderGrain,
+  renderVignette,
   type OverlayResolveCtx,
 } from '@/lib/render/resolve-overlay'
 import type { TemplateOverlay } from '@/lib/render/templates/index'
@@ -97,6 +99,10 @@ function BackgroundLayers({
           }}
         />
       )}
+      {/* Phase 55 (D-13, layer 1.5): grain/noise overlay — only when template opts in.
+          Imported from @/lib/render/resolve-overlay (TPLREND-05 — same module as the
+          Satori renderer at src/lib/render/render-slide-satori.tsx). */}
+      {template.grainMode ? renderGrain(template.grainMode) : null}
       {/* Tint overlay — paints above the photo for tonal control of B&W treatments */}
       <div
         style={{
@@ -107,6 +113,10 @@ function BackgroundLayers({
           zIndex: 1,
         }}
       />
+      {/* Phase 55 (D-13, layer 2.5): radial vignette — only when template opts in.
+          Imported from @/lib/render/resolve-overlay (TPLREND-05 — same module as the
+          Satori renderer). Sits ABOVE tint, BELOW hook/body text + overlays. */}
+      {template.vignette ? renderVignette(template.vignette.strength) : null}
       {useBottomCard && (
         <div
           data-testid="bottom-card"

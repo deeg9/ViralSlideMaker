@@ -13,6 +13,19 @@ import type { Slide, TextSegment } from '@/lib/types/slide'
  *
  * Pure module — no DOM/Node deps. Safe to import on server and client.
  *
+ * v2.9 LAYER ORDER (Phase 55+ DOM-order contract — both renderers MUST agree):
+ *   0   Background fill / image                                  (existing)
+ *   1.0 backgroundMode: image-with-bottom-card bottom-card layer (existing — Phase 45)
+ *   1.5 renderGrain(template.grainMode)                          (Phase 55 — NEW; conditional)
+ *   2.0 Overlay color tint                                       (existing)
+ *   2.5 renderVignette(template.vignette.strength)               (Phase 55 — NEW; conditional)
+ *   3.0 Hook + body text                                         (existing)
+ *   4.0 Template overlays (slot-positioned)                      (existing — Phase 45)
+ *
+ * Layers 1.5 and 2.5 are absent unless the template declares the corresponding
+ * field. Existing 8 templates leave both undefined → no behavior change in
+ * Phase 55. Phase 56 templates (editorial-serif / notes-app-chic) opt in.
+ *
  * NOTE: this module intentionally lives at .ts (not .tsx). The JSX-emitting
  * helper `renderSegments` uses React.createElement directly so the file
  * compiles without a TSX transform — keeps the resolver tier-neutral and
@@ -199,4 +212,80 @@ export function bottomCardBackground(hex: string): string {
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, 0.85)`
+}
+
+/**
+ * Phase 55 (D-09, D-11, D-13, PARITY-02): grain/noise overlay (layer 1.5).
+ *
+ * Returns an absolutely-positioned full-canvas <img> element pointing to a
+ * static noise PNG. Phase 56 ships the actual assets via
+ * scripts/build-textures.ts → /public/textures/grain-${intensity}.png.
+ *
+ * In Phase 55 the helper is never invoked at runtime — existing 8 templates
+ * leave template.grainMode undefined. The placeholder paths resolve correctly
+ * once Phase 56 commits the PNG asset set; no Phase 55 code change required.
+ *
+ * Opacity map (D-11) — locked by CONTEXT.md; tunable in Phase 56 once real
+ * PNGs exist if visual targets miss:
+ *   subtle: 0.04   medium: 0.08   heavy: 0.14   paper: 0.18   xerox: 0.22
+ *
+ * Implementation note: returns React.createElement directly so this module
+ * stays at .ts (no TSX transform required by importers).
+ */
+const GRAIN_OPACITY_MAP = {
+  subtle: 0.04,
+  medium: 0.08,
+  heavy: 0.14,
+  paper: 0.18,
+  xerox: 0.22,
+} as const
+
+export function renderGrain(
+  intensity: 'subtle' | 'medium' | 'heavy' | 'paper' | 'xerox',
+): React.ReactNode {
+  return React.createElement('img', {
+    'data-layer': 'grain',
+    src: `/textures/grain-${intensity}.png`,
+    style: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: CANVAS.W,
+      height: CANVAS.H,
+      objectFit: 'cover',
+      opacity: GRAIN_OPACITY_MAP[intensity],
+      pointerEvents: 'none',
+    },
+  })
+}
+
+/**
+ * Phase 55 (D-09, D-12, D-13, PARITY-02, PARITY-04): radial vignette overlay
+ * (layer 2.5).
+ *
+ * Returns an absolutely-positioned full-canvas <div> with inline
+ * backgroundImage: radial-gradient(...). PURE CSS — NO `filter:`, NO
+ * `backdrop-filter:`, NO `mix-blend-mode:` (Pitfall #2 — Satori silently
+ * drops these properties; see vercel/satori#573).
+ *
+ * `strength` is 0-1 (0 = off, 1 = full black at edges). Inner stop at 40%
+ * transparent so the slide center remains untouched; outer at 100%
+ * rgba(0,0,0,strength).
+ *
+ * In Phase 55 the helper is never invoked at runtime — existing 8 templates
+ * leave template.vignette undefined.
+ */
+export function renderVignette(strength: number): React.ReactNode {
+  return React.createElement('div', {
+    'data-layer': 'vignette',
+    style: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: CANVAS.W,
+      height: CANVAS.H,
+      backgroundImage: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${strength}) 100%)`,
+      pointerEvents: 'none',
+    },
+  })
 }

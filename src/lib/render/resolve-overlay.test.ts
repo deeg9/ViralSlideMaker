@@ -7,6 +7,8 @@ import {
   CANVAS,
   renderSegments,
   bottomCardBackground,
+  renderGrain,
+  renderVignette,
 } from './resolve-overlay'
 import type { Slide } from '@/lib/types/slide'
 
@@ -250,5 +252,83 @@ describe('bottomCardBackground', () => {
 
   it("3-digit hex: expanded to 6-digit then composed as rgba with 0.85 alpha", () => {
     expect(bottomCardBackground('#FFF')).toBe('rgba(255, 255, 255, 0.85)')
+  })
+})
+
+describe('Phase 55: renderGrain (layer 1.5)', () => {
+  it('returns an <img> with the correct src for each intensity', () => {
+    const intensities = ['subtle', 'medium', 'heavy', 'paper', 'xerox'] as const
+    for (const intensity of intensities) {
+      const el = renderGrain(intensity) as React.ReactElement
+      const props = el.props as Record<string, unknown>
+      const style = props.style as Record<string, unknown>
+      expect(el.type).toBe('img')
+      expect(props.src).toBe(`/textures/grain-${intensity}.png`)
+      expect(style.position).toBe('absolute')
+      expect(style.width).toBe(1080)
+      expect(style.height).toBe(1920)
+      expect(style.pointerEvents).toBe('none')
+      expect(props['data-layer']).toBe('grain')
+    }
+  })
+
+  it('opacity map matches D-11 locked values', () => {
+    const expected: Record<string, number> = {
+      subtle: 0.04,
+      medium: 0.08,
+      heavy: 0.14,
+      paper: 0.18,
+      xerox: 0.22,
+    }
+    for (const [intensity, opacity] of Object.entries(expected)) {
+      const el = renderGrain(intensity as 'subtle' | 'medium' | 'heavy' | 'paper' | 'xerox') as React.ReactElement
+      const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+      expect(style.opacity).toBe(opacity)
+    }
+  })
+
+  it('does NOT use CSS filter property (PARITY-04 / D-24)', () => {
+    const el = renderGrain('medium') as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style).not.toHaveProperty('filter')
+    expect(style).not.toHaveProperty('backdropFilter')
+    expect(style).not.toHaveProperty('mixBlendMode')
+  })
+})
+
+describe('Phase 55: renderVignette (layer 2.5)', () => {
+  it('returns a <div> with radial-gradient backgroundImage', () => {
+    const el = renderVignette(0.5) as React.ReactElement
+    const props = el.props as Record<string, unknown>
+    const style = props.style as Record<string, unknown>
+    const bg = style.backgroundImage as string
+    expect(el.type).toBe('div')
+    expect(bg).toContain('radial-gradient')
+    expect(bg).toContain('ellipse at center')
+    expect(bg).toContain('transparent 40%')
+    expect(bg).toContain('rgba(0,0,0,0.5)')
+    expect(style.position).toBe('absolute')
+    expect(style.width).toBe(1080)
+    expect(style.height).toBe(1920)
+    expect(style.pointerEvents).toBe('none')
+    expect(props['data-layer']).toBe('vignette')
+  })
+
+  it('does NOT use CSS filter / backdrop-filter / mix-blend-mode (Pitfall #2 + D-24)', () => {
+    const el = renderVignette(0.5) as React.ReactElement
+    const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
+    expect(style).not.toHaveProperty('filter')
+    expect(style).not.toHaveProperty('backdropFilter')
+    expect(style).not.toHaveProperty('mixBlendMode')
+  })
+
+  it('strength interpolates into rgba alpha', () => {
+    const el07 = renderVignette(0.7) as React.ReactElement
+    const bg07 = ((el07.props as Record<string, unknown>).style as Record<string, unknown>).backgroundImage as string
+    expect(bg07).toContain('rgba(0,0,0,0.7)')
+
+    const el03 = renderVignette(0.3) as React.ReactElement
+    const bg03 = ((el03.props as Record<string, unknown>).style as Record<string, unknown>).backgroundImage as string
+    expect(bg03).toContain('rgba(0,0,0,0.3)')
   })
 })
