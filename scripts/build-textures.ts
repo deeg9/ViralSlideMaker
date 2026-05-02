@@ -1,12 +1,13 @@
 /**
  * Phase 56-01 (TPL-05): Deterministic grain PNG + halftone PNG generator.
  *
- * Outputs (idempotent — overwrites on every run):
+ * Outputs (idempotent — overwrites on every run). Filenames match the
+ * Phase 55 renderGrain resolver path convention `grain-${intensity}.png`:
  *   public/textures/grain-subtle.png   1080×1920 Gaussian noise σ=0.04
  *   public/textures/grain-medium.png   1080×1920 Gaussian noise σ=0.08
  *   public/textures/grain-heavy.png    1080×1920 Gaussian noise σ=0.14 + contrast +20%
- *   public/textures/paper-texture.png  1080×1920 paper-cream #F4EFE3 + low-freq noise + fiber streaks
- *   public/textures/xerox-grain.png    1080×1920 high-contrast B&W photocopier feel
+ *   public/textures/grain-paper.png    1080×1920 paper-cream #F4EFE3 + low-freq noise + fiber streaks
+ *   public/textures/grain-xerox.png    1080×1920 high-contrast B&W photocopier feel
  *
  *   public/overlays/halftone-dots-light.png  1080×1920 sparse Bayer halftone (#1A1A1A on transparent)
  *   public/overlays/halftone-dots-dense.png  1080×1920 dense Bayer halftone (#1A1A1A on transparent)
@@ -289,8 +290,8 @@ export async function main(): Promise<void> {
     ['grain-subtle.png', buildGrainSubtle],
     ['grain-medium.png', buildGrainMedium],
     ['grain-heavy.png', buildGrainHeavy],
-    ['paper-texture.png', buildPaperTexture],
-    ['xerox-grain.png', buildXeroxGrain],
+    ['grain-paper.png', buildPaperTexture],
+    ['grain-xerox.png', buildXeroxGrain],
   ]
   for (const [filename, builder] of grainTasks) {
     const buf = await builder()

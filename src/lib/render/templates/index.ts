@@ -7,6 +7,11 @@ import { boldYellow } from './bold-yellow'
 import { magazineBold } from './magazine-bold'
 import { tr3ndingNews } from './tr3nding-news'
 import { documentary } from './documentary'
+// Phase 56 (D-02): 3 new free-tier templates appended to preserve picker
+// order for existing users.
+import { editorialSerif } from './editorial-serif'
+import { notesAppChic } from './notes-app-chic'
+import { brutalistGrid } from './brutalist-grid'
 import { validateTemplateRegistry } from './validate'
 
 // Phase 44: overlay-zone schema. Named-slot positions map to fixed CSS layout in
@@ -150,6 +155,10 @@ export const templates: SlideTemplate[] = [
   magazineBold,    // new — Phase 46
   tr3ndingNews,    // new — Phase 46
   documentary,     // new — Phase 46
+  // Phase 56 (D-02): 3 new free-tier templates
+  editorialSerif,
+  notesAppChic,
+  brutalistGrid,
 ]
 
 // Phase 44: fail fast at module load if any registered template is misconfigured.
