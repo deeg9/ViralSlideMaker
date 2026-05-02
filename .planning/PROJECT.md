@@ -11,7 +11,25 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.9 Viral Visual Quality (2026-05-01)
-**Current Milestone:** Planning next milestone (run `/gsd-new-milestone` to start)
+**Current Milestone:** v2.10 Text Box Resize Handles (started 2026-05-02)
+
+---
+
+## Current Milestone: v2.10 Text Box Resize Handles
+
+**Goal:** Let users add top/bottom and corner resize handles to text boxes in the slide editor so they can scale the box (and optionally the font) interactively — not just adjust width via the side handles.
+
+**Target features:**
+- Corner + top/bottom resize handles (in addition to existing left/right)
+- Schema decision: `TextBoxPosition` currently has no `height` — pick a representation (explicit height vs auto-fit vs aspect-ratio)
+- UX call: corner-drag = resize box only / scale font with box / both
+- Renderer parity across `slide-preview.tsx`, `render-slide.ts` (HTML), and `render-slide-satori.tsx` (Satori PNG export)
+
+**Key context:**
+- Single-phase milestone — focused; ship the smallest thing that makes the affordance feel right.
+- Builds on v2.8 (TextBox-driven editor + `text_boxes[]` schema) and v2.9 (renderer parity discipline via `resolve-overlay.ts`).
+- Research-first — verifying current `react-rnd` capabilities and surveying Canva/Figma/CapCut handle UX before committing to schema/UX decisions.
+- Pre-PMF — no premature abstractions; resize-vs-scale-vs-both trade-offs decided by what feels right with stock photo + bold text overlays.
 
 ---
 
@@ -371,4 +389,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-01 after v2.9 Viral Visual Quality milestone shipped*
+*Last updated: 2026-05-02 — v2.10 Text Box Resize Handles milestone started*
