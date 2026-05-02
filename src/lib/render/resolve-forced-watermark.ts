@@ -12,6 +12,9 @@
  *       renders custom logo + optional customText (paid users brand their own)
  *   - paid + no watermark config: returns null (current default behavior)
  *
+ * Position default (260502-tlw): top-left for free tier and the paid picker
+ * fallback. Paid users can override to bottom-left or bottom-right.
+ *
  * Coordinate convention: returned values are in canvas pixels using the
  * supplied canvas dimensions (default 1080x1920). Callers that render in a
  * scaled container can scale (x, y, logoSize, fontSize, gap) uniformly via CSS.
@@ -79,19 +82,25 @@ export function resolveForcedWatermark(
   const fontSize = Math.round(canvas.width * FONT_SIZE_FRAC)
   const gap = Math.round(canvas.width * GAP_FRAC)
 
-  // Position: free tier locked to bottom-left; paid tier honors override.
-  const position = isPaid ? (wmConfig?.position ?? 'bottom-left') : 'bottom-left'
+  // Position: free tier locked to top-left; paid tier honors override.
+  const position = isPaid ? (wmConfig?.position ?? 'top-left') : 'top-left'
 
   let x: number
+  let y: number
   if (position === 'bottom-right') {
     // Estimate full mark width (logo + gap + text) and right-align.
     const textWidth = Math.round(fontSize * TEXT_ADVANCE_FRAC * text.length)
     const markWidth = logoSize + (text ? gap + textWidth : 0)
     x = canvas.width - margin - markWidth
-  } else {
+    y = canvas.height - margin - logoSize
+  } else if (position === 'bottom-left') {
     x = margin
+    y = canvas.height - margin - logoSize
+  } else {
+    // 'top-left' (default).
+    x = margin
+    y = margin
   }
-  const y = canvas.height - margin - logoSize
 
   return {
     logoUrl,
