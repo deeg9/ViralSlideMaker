@@ -1,35 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.10
-milestone_name: Text Box Resize Handles
-status: shipped
-stopped_at: v2.10 milestone shipped — 1 phase complete (4/4 plans), 13/13 reqs at code level, audit=tech_debt with 1 deferred touch QA, archived.
-last_updated: "2026-05-02T23:10:00.000Z"
-last_activity: 2026-05-02 -- v2.10 milestone archived (ROADMAP + REQUIREMENTS); ready for git tag v2.10
+milestone: v2.11
+milestone_name: Full Editor Parity
+status: planning
+last_updated: "2026-05-02T23:41:39.142Z"
+last_activity: 2026-05-02
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-02 — v2.10 milestone started)
+See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone started)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 59 — Corner Resize Handles + Font-Scale
-**Success metric (v2.10):** Corner-drag-to-scale-font-and-width on text boxes works end-to-end across editor preview + Satori PNG export + HTML render with single undo per gesture, WCAG 2.5.8 AA touch targets, and no Satori parity drift.
+**Current focus:** v2.11 Full Editor Parity — research first (4 parallel agents survey Figma/Canva/Adobe Express/Keynote)
+**Success metric (v2.11):** Multi-select + alignment + group/ungroup work end-to-end on text boxes AND custom_images AND watermarks across editor preview + Satori PNG export + HTML render, with TPLREND-05 parity invariant preserved and pattern fidelity to leading design tools demonstrably matched.
 
 ## Current Position
 
-Phase: 59 — COMPLETE (4/4 plans). Milestone v2.10 ready to ship.
-Plan: 4 of 4
-Status: Closing milestone v2.10
-Last activity: 2026-05-02 -- Phase 59 verified (13/13 reqs); milestone audit = tech_debt (1 deferred item)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-02 — Milestone v2.11 started
 
 ## Deferred Items
 
@@ -42,17 +41,15 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ## Performance Metrics
 
-**Velocity (from v1.0 through v2.9):**
+**Velocity (from v1.0 through v2.10):**
 
-- Total milestones shipped: v1.0, v1.1, v1.3, v2.0, v2.1, v2.2, v2.4, v2.5, v2.6, v2.7, v2.8, v2.9
-- Latest: v2.9 (5 phases, 11 plans, 53/53 reqs in single intensive day 2026-05-01)
-- Tests trajectory: v2.9 ended at 756 passing (+195 net new across 5 phases)
+- Total milestones shipped: v1.0, v1.1, v1.3, v2.0, v2.1, v2.2, v2.4, v2.5, v2.6, v2.7, v2.8, v2.9, v2.10
+- Latest: v2.10 (1 phase, 4 plans, 13/13 reqs at code level — 2026-05-02)
+- Tests trajectory: v2.10 ended at +50 phase-specific tests, 47/47 green in 3 phase test files
 
-**v2.10 Progress:**
+**v2.11 Progress:**
 
-| Phase | Plans | Status | Notes |
-|-------|-------|--------|-------|
-| 59. Corner Resize Handles + Font-Scale | 0/TBD | Not started | Single phase, 4 internal commits (C1-C4) |
+Phase numbering continues from 60. Roadmap pending — research must complete first.
 
 ## Accumulated Context
 
@@ -71,13 +68,15 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ### Pending Todos
 
-- Decompose Phase 59 into ~4 plans via `/gsd-plan-phase 59` (mirror C1-C4 commit shape).
-- Manual touch QA on iPhone Safari before phase close (PITFALLS.md #7 mandates).
+- v2.11: Run 4 parallel research agents (Stack/Features/Architecture/Pitfalls) before defining requirements.
+- Carry-over: Manual iPhone Safari touch QA for v2.10 corner resize handles (A11Y-01 deferred).
+- Carry-over: Manual visual QA on v2.9 templates (NYT/SSENSE / Loewe-Duolingo / AIGA fidelity).
 
 ### Blockers/Concerns
 
-- None for v2.10. Surface area is small (~150-200 LOC across 4-5 files). No DB migration. No new dependency.
-- Carry-over reminder: `hook-fit.ts` interaction is the highest-risk regression — FONTSCALE-04 mandates a regression test that corner-drag on `news-drop` correctly overrides the auto-shrink registry.
+- None for v2.11 yet — research will surface integration risks (multi-select + react-rnd, group transforms vs Satori parity, marquee z-order, image-vs-text uniform behavior).
+- Carry-over reminder: TPLREND-05 parity invariant — every editor-only addition must gate behind `editable={true}` so Satori/HTML render paths stay byte-identical. Selection rings, marquee, smart guides, alignment indicators, group bounding boxes are all editor-only.
+- Carry-over reminder: `hook-fit.ts` interaction is highest-risk regression for any text-box transform — group/multi-select operations must respect auto-shrink precedence at `slide-preview.tsx:313`.
 
 ### Quick Tasks Completed
 
@@ -89,6 +88,6 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ## Session Continuity
 
-Last activity: 2026-05-02 - Completed quick task 260502-mre: remove Generate Captions button + auto-publish newly generated carousels.
-Stopped at: Roadmap committed; awaiting `/gsd-plan-phase 59` to decompose into plans.
-Next: `/gsd-plan-phase 59` — decompose into ~4 plans mirroring C1-C4 commits (handles+a11y → dispatch+font-scale → tests+clamp+parity → Shift escape).
+Last activity: 2026-05-02 - Started v2.11 Full Editor Parity milestone (research-first).
+Stopped at: PROJECT.md + STATE.md updated; about to spawn 4 parallel research agents.
+Next: 4 parallel `gsd-project-researcher` agents → synthesize → define REQUIREMENTS.md → roadmap from Phase 60.
