@@ -2,44 +2,34 @@
 gsd_state_version: 1.0
 milestone: v2.9
 milestone_name: Viral Visual Quality
-status: executing
-stopped_at: Phase 56 execution complete — all plans verified
-last_updated: "2026-05-02T01:43:26.099Z"
-last_activity: 2026-05-02 -- Phase 55 execution started
+status: shipped
+stopped_at: v2.9 milestone shipped — all 5 phases complete, 53/53 reqs satisfied, archived
+last_updated: "2026-05-01T19:43:00.000Z"
+last_activity: 2026-05-01 -- v2.9 milestone archived (ROADMAP + REQUIREMENTS); git tag v2.9 created
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 4
-  percent: 50
+  completed_phases: 5
+  total_plans: 11
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-30)
+See: .planning/PROJECT.md (updated 2026-05-01 after v2.9 ship)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** Phase 55 — schema-renderer-extensions
-**Success metric:** ZIP download rate per created carousel — baseline captured at Phase 54 start, verified at Phase 58 ship gate.
+**Current focus:** Planning next milestone (run `/gsd-new-milestone` to start)
+**Success metric (v2.9):** ZIP download rate per created carousel — baseline captured 2026-05-01 (53 projects, 0% — clean baseline). Re-measure 14+ days post-launch.
 
 ## Current Position
 
-Phase: 55 (schema-renderer-extensions) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 55
-Last activity: 2026-05-02 -- Phase 55 execution started
+Status: v2.9 SHIPPED 2026-05-01
+Last activity: 2026-05-01 -- v2.9 archived; git tag v2.9 created (not pushed)
 
-**Next phase:** Phase 54 — Infrastructure Foundation
-
-- TREAT-01..06 (sharp photo-treatment pipeline)
-- SLOP-01, 02, 04, 05 (Imagen + Pexels + AI hook prompt addenda + premium-template audit)
-- METRIC-01..03 (download_zip event + zip_download_rate query + baseline capture)
-- Plus Imagen 4 Fast model swap (one-line config change)
-- Gates Phase 55 (schema needs `TreatmentSpec` types from `treat.ts`)
-
-**Phase order (locked, no parallelization):** 54 → 55 → 56 → 57 → 58
+**Next:** `/gsd-new-milestone` to start next milestone (questioning → research → requirements → roadmap)
 
 ## Performance Metrics
 
@@ -154,9 +144,6 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-05-01 — v2.9 milestone roadmap created. 5 phases (54-58) defined and appended below v2.8 in `.planning/ROADMAP.md` (v1.0..v2.8 history preserved in collapsible blocks). 53 v2.9 requirements across 10 categories (TREAT/SLOP/AIROLE/TPL/TYPO/EDITOR/PALETTE/MATCH/PARITY/METRIC) all mapped to exactly one phase — 100% coverage, no orphans. REQUIREMENTS.md Traceability table updated with per-requirement phase assignment + per-phase summary + refinement notes (SLOP-03 moved from "54 + 58" bucket to Phase 55).
-Stopped at: Phase 56 execution complete — all plans verified
-Resume file: .planning/phases/56-new-templates-decorative-library/56-VERIFICATION.md
-Next: `/gsd-discuss-phase 54` (or `/gsd-plan-phase 54` to skip discussion) — start planning Infrastructure Foundation (sharp photo-treatment pipeline + Imagen 4 Fast + AI-slop guardrails + ZIP-download-rate baseline).
-
-**Planned Phase:** 54 (Infrastructure Foundation) — TBD plans — 2026-05-01T18:00:00.000Z
+Last activity: 2026-05-01 — v2.9 Viral Visual Quality milestone SHIPPED + archived. 5 phases (54-58), 11 plans, 53/53 reqs satisfied. Archive at `.planning/milestones/v2.9-ROADMAP.md` + `v2.9-REQUIREMENTS.md`. ROADMAP.md collapsed v2.9 to one-line summary in `<details>` block. PROJECT.md v2.8 collapsed to archive; v2.9 promoted to "Latest Shipped". Git tag `v2.9` created (NOT pushed — user manages remote).
+Stopped at: v2.9 milestone archive committed
+Next: `/gsd-new-milestone` — questioning → research → requirements → roadmap for next milestone

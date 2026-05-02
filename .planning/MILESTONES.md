@@ -1,5 +1,57 @@
 # Milestones
 
+## v2.9 Viral Visual Quality (Shipped: 2026-05-01)
+
+**Phases completed:** 5 phases (54-58), 11 plans, 53/53 requirements (100%)
+
+**Status:** passed — all 5 phases verified clean; 6/6 cross-phase wires verified; 4/4 E2E flows complete; ship-gate 15/15 items green
+
+**Stats:**
+- ~30 commits between `04780ae` (roadmap) and `5c58cfd` (final ship-gate)
+- 152 files changed, +21,292 / −316 LOC
+- Tests: 561 → 756 passing (+195 net new); 13 pre-existing vitest 4.x typing fails preserved unchanged
+- Timeline: single intensive day (2026-05-01)
+
+**Key accomplishments:**
+
+- **Phase 54 — Infrastructure Foundation:** Server-side photo treatment pipeline (`src/lib/photo-treatment/treat.ts` with sharp, 4 presets `bw` / `duotone-cream` / `duotone-cobalt` / `contrast-bump`, idempotent SHA-256 cache key); `slide-backgrounds-treated` public Storage bucket with 7-day `pg_cron` retention; Imagen 4 Fast model upgrade (`imagen-4.0-fast-generate-001`, $0.04 → $0.02/img, 10× faster, better text rendering); AI-slop guardrails (Imagen prompt addendum forbidding gradients/3D/blobs, Pexels query exclusion of "smiling team" stock terms, hook variety addendum forbidding "In a world where" openings); 2 premium templates flipped Inter → Plus Jakarta Sans (`magazine-bold` + `documentary`); `download_zip` event tracking + `v_zip_download_rate` view + baseline captured (53 projects, 0 downloads, 0% — clean baseline since download tracking is brand-new).
+- **Phase 55 — Schema + Renderer Extensions:** `SlideTemplate` extended with optional `grainMode`, `vignette`, `photoTreatment`, `paletteMode`, `coverLayout`, `bodyFontFamily` (required on premium templates by validator); `Slide` extended with `original_source_url`, `style_overrides.derived_palette`, `style_overrides.treatment_applied`, `template_id_override`. `renderGrain(intensity)` + `renderVignette(strength)` exported from `resolve-overlay.ts`; both `render-slide-satori.tsx` and `slide-preview.tsx` consume from same module — TPLREND-05 parity invariant preserved. 4 new static-TTF font catalog entries (Archivo Black, Space Grotesk, Manrope, DM Serif Display) via Fontsource. Premium hook fontSize raised to 110-130px range. Legacy 8 templates byte-identical (legacy-byte-identical test 6 cases).
+- **Phase 56 — New Templates + Decorative Library:** Three new free-tier templates registered — `editorial-serif` (NYT/SSENSE aesthetic: B&W bleed photo + Playfair Display 130px hook + cream `#F5EFE6` accent + page counter top-right + medium grain), `notes-app-chic` (Loewe/Duolingo aesthetic: paper-texture background + ransom-note hook with per-segment `fontFamily` + tape-strip + sticky-note + halftone-dot + photocopier-grain), `brutalist-grid` (AIGA/Eye on Design aesthetic: hard 8-column grid + type-as-image hero + high-contrast B&W + single accent). 14 decorative SVG/PNG assets in `public/overlays/`. 5 grain PNGs in `public/textures/` (`grain-subtle`, `grain-medium`, `grain-heavy`, `paper-texture`, `xerox-grain`) generated via committed `scripts/build-textures.ts` (`npm run textures`). 8 → 11 templates total. Per-`TextSegment` `fontFamily?: string` field added with Satori font-loader walk.
+- **Phase 57 — Editor Controls + Palette Extraction:** `src/components/editor/photo-treatment-controls.tsx` mounted in right rail below `SlideSettings` — per-slide B&W toggle, duotone preset picker (cream / cobalt), grain intensity (off / subtle / medium / heavy), wired to `editor-actions.ts: updateSlideTreatment(slideIndex, spec)` server action. Always re-treats from `slide.original_source_url` (no compounding). `node-vibrant@4.0.4` (server-only, `'use server'` boundary) extracts named-role palette `{ Vibrant, DarkVibrant, LightVibrant, Muted, DarkMuted, LightMuted }` from sharp-resized ≤256×256 thumbnail (Vercel function memory budget). `derived_palette` populated on every generation + editor override; `editorial-serif` + `notes-app-chic` flipped to `paletteMode: 'palette-dominant'` (Vibrant for chip backgrounds, DarkMuted for text on light). Instagram 4:5 (1080×1350) safe-zone overlay rendered in canvas via CSS-only chip toggle. `text-editor-panel-composition.test.tsx` snapshot pins right-rail order.
+- **Phase 58 — AI Tightening + Parity QA + match-photos:** Gemini slide-generation schema gains `role: 'cover' | 'reframe' | 'support' | 'pivot' | 'close'` + `template_id_override?: string` (closed enum, registry-validated). Per-role copy guidance (cover = pattern-interrupt hook ≤8 words; reframe = "wait, but" tension; support = concrete evidence; pivot = unexpected angle; close = action / CTA / bookmark prompt). Server-side validator: missing/invalid `role` defaults to legacy flat distribution — never throws. 20-prompt diversity corpus at `src/lib/ai/__tests__/diversity-corpus.ts` + advisory `hookOpeningTrigram` repetition gate (does NOT fail CI in v2.9 — live Gemini wiring deferred to v3.0+). `src/lib/ai/match-photos-to-slides.ts` shipped premium-gated (was parked, shipped per research-synthesis approval) — `MAX_PHOTOS=8` + SHA-256 cache via `match_photo_cache` table + 10s `Promise.race` timeout + index-order fallback + `gemini_vision_match` credit ledger (charge-then-refund-on-failure pattern). Render parity tests: `parity.test.tsx` 10 cases assert resolver-singleton identity for new templates; `no-css-filter.test.ts` extended +16 cases; `zip-metadata.test.ts` 3 cases (PNG byte-clean, no EXIF/XMP/C2PA via `withMetadata({})` strip); `projects-delete.test.ts` 6 cases (cascade-delete extended for `slide-backgrounds-treated` + legacy `slide-backgrounds`). Ship-gate 15 items all green.
+
+**Decisions honored:**
+
+- Photo treatment baked server-side via sharp — CSS filters silently break Satori PNG export (vercel/satori#573); pre-render is the only path.
+- Imagen 4 Fast (`imagen-4.0-fast-generate-001`) replaces Imagen 3 ($0.02 vs $0.04/image, 10× faster).
+- All 3 new templates free for all users — pre-PMF, top-of-funnel sharing > premium gating.
+- `match-photos-to-slides.ts` ships in Phase 58 premium-gated only; cost mitigated by `MAX_PHOTOS=8` + cache + timeout.
+- `stylize-image.ts` deferred to v3.0+ — architectural conflict + Vercel timeout breach + right-of-publicity legal risk on faces (Reface/Kyland Young 9th Cir.).
+- No Pangram fonts — $120 deferred until paying users exist.
+- Diversity gate advisory only (D-14) — does not fail CI.
+- TPLREND-05 parity invariant preserved end-to-end across all 11 templates.
+
+**Built on:** v2.7 Premium Templates (`resolve-overlay.ts` resolver pattern + 3 magazine-style premium templates), v2.8 Text Editor Right-Rail Redesign (selection-driven panel + `TextBox[]` schema, both consumed unchanged).
+
+**Research-grounded:** Aesthetics of Photography "Viral Visual Grammar of US Instagram in 2026"; Canva *Imperfect by Design 2026*; It's Nice That graphic trends 2026; Mosseri Jan 2026 "rawness is proof"; verified Satori issues #573 / #162 / #712; Imagen 4 Fast pricing (Google AI docs); right-of-publicity precedent (Reface/Kyland Young, 9th Cir.).
+
+**Out of scope (definitively deferred to v3.0+):**
+
+| Item | Reason |
+|---|---|
+| `stylize-image.ts` (AI photo restyling) | Architectural conflict with deterministic treatment cache; 80s wall-clock breaches Vercel 60s `maxDuration`; right-of-publicity legal risk on faces |
+| Pangram Pangram fonts | $120 deferred until paying users exist |
+| Legacy schema sunset (`hook_text` / `body_text` / etc.) | Pre-PMF — tech debt waits until users love the product |
+| CANVAS-03 Layers mini-list | v2.8 Layer Strip covers ~90% of cases |
+| AIGEN-01 native Gemini `text_boxes[]` prompt | v2.8 Phase 51 light-touch alternative produces equivalent state |
+| Render parity grid React-preview half (PARITY-03) | Satori half ships and is source of truth used by `/api/render` |
+| Live Gemini wiring for diversity gate | Advisory only in v2.9; wire live if monoculture observed in production |
+| Variable fonts | Satori issues #162/#712 unresolved as of 2026-05 |
+
+**Awaiting user:** Manual visual QA — generate carousels through each of 3 new templates and verify visual fidelity matches reference patterns. Non-blocking — automated parity tests cover render-output identity. Re-measure ZIP download rate 14+ days post-launch against baseline.
+
+---
+
 ## v2.8 Text Editor Right-Rail Redesign (Shipped: 2026-04-30)
 
 **Phases completed:** 5 phases (49-53), 7 plans, 30/32 requirements (2 deferred to v2.9)

@@ -10,33 +10,42 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.8 Text Editor Right-Rail Redesign (2026-04-30)
-**Current Milestone:** v2.9 Viral Visual Quality (started 2026-05-01)
+**Latest Shipped:** v2.9 Viral Visual Quality (2026-05-01)
+**Current Milestone:** Planning next milestone (run `/gsd-new-milestone` to start)
 
 ---
 
-## Current Milestone: v2.9 Viral Visual Quality
+## Latest Shipped: v2.9 Viral Visual Quality (2026-05-01)
 
-**Goal:** Upgrade the visual output of AI-generated slides so they look like what's actually winning on TikTok and Instagram right now — replicating proven patterns from successful creators rather than guessing.
+**Goal:** Upgrade the visual output of AI-generated carousel slides so they look like what's actually winning on TikTok and Instagram in early-to-mid 2026 — replicating proven patterns from successful creators (editorial / Notes-App-Chic / Brutalist) rather than guessing.
 
-**Target features (subject to research findings — research drives requirements):**
-- Visual styling upgrades to match contemporary viral carousel patterns
-- Structural / compositional improvements (hierarchy, pacing across slides, hook-frame conventions)
-- Higher-quality template treatments and asset selection
-- Other quality gaps surfaced by research vs. what's actually winning on platform
+**Delivered:**
+- **Phase 54 — Infrastructure Foundation:** Server-side photo treatment pipeline (`src/lib/photo-treatment/treat.ts` with sharp, 4 presets `bw` / `duotone-cream` / `duotone-cobalt` / `contrast-bump`, idempotent SHA-256 cache); `slide-backgrounds-treated` Storage bucket with 7-day `pg_cron` retention; Imagen 4 Fast model upgrade ($0.04 → $0.02/img, 10× faster); AI-slop guardrails (Imagen prompt addendum, Pexels query hardening, hook-variety prompt addendum); 2 premium templates flipped Inter → Plus Jakarta Sans; `download_zip` event tracking + `v_zip_download_rate` view + baseline capture (53 projects, 0% — clean baseline since download tracking is brand-new).
+- **Phase 55 — Schema + Renderer Extensions:** `SlideTemplate` extended with optional `grainMode`, `vignette`, `photoTreatment`, `paletteMode`, `coverLayout`, `bodyFontFamily` (required on premium by validator); `Slide` extended with `original_source_url`, `style_overrides.derived_palette`, `style_overrides.treatment_applied`, `template_id_override`. `renderGrain` + `renderVignette` exported from `resolve-overlay.ts`; both renderers consume from same module (TPLREND-05 parity). 4 new display-font catalog entries (Archivo Black, Space Grotesk, Manrope, DM Serif Display) as static-TTF Fontsource. Legacy 8 templates byte-identical.
+- **Phase 56 — New Templates + Decorative Library:** Three new free-tier templates registered — `editorial-serif` (NYT/SSENSE: B&W bleed photo + Playfair Display 130px hook + cream `#F5EFE6` accent + page counter + medium grain), `notes-app-chic` (Loewe/Duolingo: paper-texture background + ransom-note hook with per-segment fontFamily + tape-strip + sticky-note + halftone-dot + photocopier-grain), `brutalist-grid` (AIGA/Eye on Design: hard 8-column grid + type-as-image hero + high-contrast B&W + single accent). 14 decorative SVG/PNGs in `public/overlays/`. 5 grain PNGs in `public/textures/` via committed `scripts/build-textures.ts`. 8 → 11 templates total. Per-`TextSegment` `fontFamily?: string` field added.
+- **Phase 57 — Editor Controls + Palette Extraction:** `src/components/editor/photo-treatment-controls.tsx` mounted in right rail below `SlideSettings` — per-slide B&W toggle, duotone preset picker (cream / cobalt), grain intensity (off / subtle / medium / heavy), wired to `editor-actions.ts: updateSlideTreatment`. Always re-treats from `original_source_url` (no compounding). `node-vibrant@4.0.4` server-only palette extraction (≤256×256 thumbnail) → `derived_palette` on every treat; `editorial-serif` + `notes-app-chic` flipped to `paletteMode: 'palette-dominant'`. Instagram 4:5 (1080×1350) safe-zone overlay rendered via CSS-only chip toggle.
+- **Phase 58 — AI Tightening + Parity QA + match-photos:** Gemini schema gains `role: 'cover' | 'reframe' | 'support' | 'pivot' | 'close'` + `template_id_override?: string` enum; per-role prompt guidance (cover = pattern-interrupt ≤8 words; reframe = "wait, but" tension; support = evidence; pivot = unexpected angle; close = CTA). 20-prompt diversity corpus + advisory `hookOpeningTrigram` repetition gate (does NOT fail CI in v2.9 — live Gemini wiring deferred to v3.0+). `src/lib/ai/match-photos-to-slides.ts` shipped premium-gated (was parked) — `MAX_PHOTOS=8` + SHA-256 cache table + 10s `Promise.race` timeout + index-order fallback + `gemini_vision_match` credit ledger (charge-then-refund-on-failure). Parity tests (`parity.test.tsx` 10 cases — resolver-singleton identity), CSS-filter guard (`no-css-filter.test.ts` +16 cases), ZIP metadata strip (`zip-metadata.test.ts` 3 cases), cascade-delete coverage (`projects-delete.test.ts` 6 cases). Ship-gate 15 items all green.
 
-**Approach:** Research-first. Study successful TikTok and Instagram carousel creators in early-to-mid 2026, identify the visual patterns that correlate with viral posts, replicate them in our templates / AI prompts / rendering pipeline.
+**53/53 requirements satisfied (100%).** Zero unsatisfied; zero orphans.
 
-**Out of scope for v2.9 (unless research surfaces them as visual-quality blockers):**
-- Legacy schema sunset (`hook_text` / `body_text` etc.) — pre-PMF, tech-debt waits
-- CANVAS-03 (Layers mini-list)
-- AIGEN-01 (native Gemini `text_boxes[]` prompt) — current adapter pattern works
+**Test count:** 561 → 756 passing (+195 net new across 5 phases). 13 pre-existing vitest 4.x typing fails preserved unchanged.
 
-**Parked (not yet committed, decision pending research):**
-- `src/lib/ai/match-photos-to-slides.ts` (Gemini-vision photo→slide matching)
-- `src/lib/imagen/stylize-image.ts` (Gemini image-preview photo restyling)
+**LOC:** 152 files changed, +21,292 / −316.
+
+**Research-grounded:** Aesthetics of Photography "Viral Visual Grammar of US Instagram in 2026"; Canva *Imperfect by Design 2026*; It's Nice That graphic trends 2026; Mosseri Jan 2026 "rawness is proof"; verified Satori issues #573 / #162 / #712; Imagen 4 Fast pricing; right-of-publicity precedent (Reface/Kyland Young, 9th Cir.).
+
+**TPLREND-05 parity invariant** preserved end-to-end across all 11 templates. 6/6 cross-phase wires verified; 4/4 end-to-end flows complete (free-tier generation, premium photo upload matching, editor treatment override, ZIP download metric loop).
+
+**Definitively deferred to v3.0+:** `stylize-image.ts` (architectural conflict + Vercel timeout breach + face-stylize legal risk); Pangram fonts ($120 deferred until paying users exist); legacy schema sunset (`hook_text` / `body_text` / etc.); CANVAS-03 Layers mini-list; AIGEN-01 native Gemini `text_boxes[]` prompt; render-parity-grid React-preview half (Satori half ships); live Gemini wiring for diversity gate (advisory only in v2.9).
+
+**Archive:** `.planning/milestones/v2.9-ROADMAP.md`. Audit: `.planning/milestones/v2.9-MILESTONE-AUDIT.md` (status: passed). Metric baseline: `.planning/milestones/v2.9-METRIC-BASELINE.md`.
+
+**Awaiting user:** Manual visual QA — generate carousels through each of 3 new templates and verify visual fidelity matches reference patterns (NYT/SSENSE / Loewe-Duolingo / AIGA). Non-blocking — automated parity tests cover render-output identity.
 
 ---
+
+<details>
+<summary>v2.8 Text Editor Right-Rail Redesign (2026-04-30) — archived</summary>
 
 ## Latest Shipped: v2.8 Text Editor Right-Rail Redesign (2026-04-30)
 
@@ -49,13 +58,13 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - **Phase 52 — Canvas Selection Improvements:** Click hook/body/custom on canvas → updates `selectedTextBoxId` → right rail mirrors instantly. Dashed `#3d0000` selection ring on active text box (CSS `outline` ignored by Satori, so PNG export unaffected). Keyboard shortcuts ⌘1/⌘2/⌘3 (switch active), ⌘D (add custom + auto-select), Delete (remove custom only — hook/body protected). All gated to `editable={true}` so Satori export path is untouched.
 - **Phase 53 — Migration & QA Polish:** 3 schema-boundary integration tests + `MIGRATION-NOTES.md` with concrete 10-step v2.9 sunset checklist. MIG-01 (Supabase backfill) deferred — eager migration handles existing rows transparently; mandatory only in v2.9 prep. MIG-02 (read-path flag) superseded by Phase 50's `applyDualWrite`.
 
-**30/32 requirements closed in v2.8.** Two deferred to v2.9: CANVAS-03 (Layers mini-list — Layer Strip covers 90% of cases), AIGEN-01 (native Gemini text_boxes prompt — defer to avoid v2.7 audit regression).
+**30/32 requirements closed in v2.8.** Two deferred to v2.9 (and ultimately to v3.0+): CANVAS-03 (Layers mini-list), AIGEN-01 (native Gemini text_boxes prompt).
 
 **Test count:** 423 → 542 (+119 across 5 phases). 11 baseline failures unchanged. Zero v2.7 audit regressions.
 
-**Industry-research-grounded:** patterns sourced from Figma, Canva (post-Glow Up 2025), CapCut, VEED, Adobe Express, Photoshop, NN/g design-tool inspector guidance. Plan file: `~/.claude/plans/users-deeg-desktop-screenshot-2026-04-3-replicated-seal.md`. Audit: `.planning/milestones/v2.8-MILESTONE-AUDIT.md` (status: passed).
+**Industry-research-grounded:** patterns sourced from Figma, Canva (post-Glow Up 2025), CapCut, VEED, Adobe Express, Photoshop, NN/g design-tool inspector guidance. Audit: `.planning/milestones/v2.8-MILESTONE-AUDIT.md` (status: passed).
 
-**Awaiting user:** Manual smoke test recommended on a real project (load existing v2.7 carousel → click hook → toggle effects → save → reload → verify identical render). Non-blocking — automated tests cover the data paths.
+</details>
 
 ---
 
@@ -242,22 +251,49 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ### Validated (v2.8)
 
 - [x] Selection-driven, single-element right-rail panel — v2.8 Phase 50
-- [x] Unified `TextBox[]` schema (legacy retained, sunset v2.9) — v2.8 Phase 49
+- [x] Unified `TextBox[]` schema (legacy retained, sunset deferred to v3.0+) — v2.8 Phase 49
 - [x] Layer strip for switching between text boxes — v2.8 Phase 50
 - [x] Independent toggleable Shadow / Outline / Highlight effects (stackable) — v2.8 Phase 50
 - [x] Visually distinct active-text-box input surface — v2.8 Phase 50
 - [x] Canvas selection ring + click-to-select + keyboard shortcuts (⌘1-3, ⌘D, Delete) — v2.8 Phase 52
 - [x] Dual-write legacy + new schema (synced via reducer write-through) — v2.8 Phases 49+50
 
-### Deferred (post-PMF tech debt — not v2.9 scope)
+### Validated (v2.9)
 
-- [ ] AI prompts natively emit `text_boxes[]` (AIGEN-01) — light-touch alternative shipped in v2.8 Phase 51 produces equivalent state via post-AI conversion
+- [x] Server-side photo treatment pipeline (sharp B&W / duotone-cream / duotone-cobalt / contrast-bump, idempotent SHA-256 cache) — v2.9 Phase 54
+- [x] `slide-backgrounds-treated` Storage bucket with 7-day `pg_cron` retention — v2.9 Phase 54
+- [x] Imagen 4 Fast model upgrade ($0.04 → $0.02/img, 10× faster) — v2.9 Phase 54
+- [x] AI-slop guardrails — Imagen prompt addendum, Pexels query hardening, hook variety addendum, Inter→Plus Jakarta Sans on premium templates — v2.9 Phase 54
+- [x] `download_zip` event tracking + `v_zip_download_rate` view + baseline capture — v2.9 Phase 54
+- [x] `SlideTemplate` + `Slide` schema additions (grainMode, vignette, photoTreatment, paletteMode, original_source_url, derived_palette, treatment_applied, template_id_override) — v2.9 Phase 55
+- [x] `renderGrain` + `renderVignette` resolver helpers consumed by both renderers (TPLREND-05 parity) — v2.9 Phase 55
+- [x] 4 new display-font catalog entries (Archivo Black, Space Grotesk, Manrope, DM Serif Display) — v2.9 Phase 55
+- [x] 3 new free-tier templates: editorial-serif (NYT/SSENSE), notes-app-chic (Loewe/Duolingo ransom-note), brutalist-grid (AIGA) — v2.9 Phase 56
+- [x] Decorative-overlay asset library (14 SVG/PNGs) + 5 grain PNG textures via committed build script — v2.9 Phase 56
+- [x] Per-`TextSegment` `fontFamily?: string` field — v2.9 Phase 56
+- [x] Per-slide photo-treatment editor controls (B&W / duotone / grain) in right rail — v2.9 Phase 57
+- [x] `node-vibrant@4.0.4` named-role palette extraction (server-only, ≤256×256 thumbnail) — v2.9 Phase 57
+- [x] Instagram 4:5 grid safe-zone overlay in canvas editor (CSS-only) — v2.9 Phase 57
+- [x] Slide-role-aware AI generation (cover/reframe/support/pivot/close) + `template_id_override` enum — v2.9 Phase 58
+- [x] 20-prompt diversity corpus + advisory hookOpeningTrigram repetition gate — v2.9 Phase 58
+- [x] Premium-gated `match-photos-to-slides` (was parked, shipped with MAX_PHOTOS=8 + cache + 10s timeout + credit ledger) — v2.9 Phase 58
+- [x] Render parity tests + ZIP metadata strip + cascade-delete coverage + ship-gate checklist — v2.9 Phase 58
+
+### Deferred (definitively post-PMF / v3.0+ — NOT in active scope)
+
+- [ ] AI prompts natively emit `text_boxes[]` (AIGEN-01) — light-touch alternative shipped in v2.8 Phase 51 produces equivalent state
 - [ ] Floating Layers mini-list for overlapping text boxes (CANVAS-03) — Layer Strip from v2.8 Phase 50 covers ~90% of cases
 - [ ] Sunset of legacy `hook_text` / `body_text` / `hook_segments` / `body_segments` / `custom_texts` fields — full sunset checklist in `.planning/MIGRATION-NOTES.md`. Defer until after PMF.
+- [ ] `stylize-image.ts` (AI photo restyling) — architectural conflict + Vercel timeout breach + right-of-publicity legal risk on faces (Reface/Kyland Young 9th Cir.). Defer to v3.0+
+- [ ] Pangram Pangram fonts — $120 deferred until paying users exist
+- [ ] Render parity grid React-preview half (PARITY-03) — Satori half ships and is source of truth used by `/api/render`
+- [ ] Live Gemini wiring for diversity gate — advisory only in v2.9; wire live if monoculture observed in production
+- [ ] Variable fonts — Satori issues #162/#712 unresolved as of 2026-05
 
-### Active (v2.9)
+### Active (next milestone — TBD via `/gsd-new-milestone`)
 
-- [ ] Visual quality of AI-generated slide output matches contemporary viral TikTok / Instagram carousels — specific requirements pending research
+- [ ] Real user feedback on visual output quality from v2.9 templates (manual QA pending)
+- [ ] ZIP-download-rate trajectory measured 14+ days post-launch against baseline
 
 ### Out of Scope
 
@@ -308,6 +344,14 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 | Google Imagen for premium AI images | Native Gemini ecosystem, cost-effective image gen | — Pending |
 | Hybrid credit model | Monthly sub with credit allowance + purchasable packs — flexible monetization | — Pending |
 | Stripe for payments | Industry standard, good Next.js integration | — Pending |
+| Server-side photo treatment via sharp (v2.9) | CSS filters silently break Satori PNG export (vercel/satori#573); pre-render is the only path | ✓ Good |
+| Imagen 4 Fast over Imagen 3 (v2.9) | Cheaper ($0.02 vs $0.04/image), 10× faster, better text rendering | ✓ Good |
+| All 3 new v2.9 templates free for all users | Pre-PMF, top-of-funnel sharing > premium gating | — Pending (validate via download rate) |
+| `match-photos-to-slides.ts` premium-gated only (v2.9) | Architectural cost concerns mitigated by MAX_PHOTOS=8 + cache + 10s timeout | — Pending |
+| `stylize-image.ts` deferred to v3.0+ | Architectural conflict with deterministic treatment cache + Vercel timeout breach + right-of-publicity legal risk on faces | ✓ Good (legal risk binding) |
+| Diversity gate advisory only in v2.9 | Live Gemini wiring deferred until monoculture observed in production | — Pending |
+| No Pangram fonts in v2.9 | $120 deferred until paying users exist | ✓ Good |
+| Success metric = ZIP download rate | Best available proxy for "good enough to ship" pre-PMF | — Pending |
 
 ## Evolution
 
@@ -327,4 +371,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-01 — v2.9 Viral Visual Quality milestone started (research-first, requirements TBD)*
+*Last updated: 2026-05-01 after v2.9 Viral Visual Quality milestone shipped*
