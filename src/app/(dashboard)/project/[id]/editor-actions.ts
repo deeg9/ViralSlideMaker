@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { GoogleGenAI, Type } from '@google/genai'
 import { createClient } from '@/lib/supabase/server'
 import { searchPhotos } from '@/lib/pexels/search-photos'
+import { generateCarouselStyle } from '@/lib/imagen/generate-prompt'
+import { stylizeBackgroundFromPhoto, type StylizeResult } from '@/lib/imagen/stylize-image'
+import { rateLimit } from '@/lib/rate-limit'
 import type { Slide } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -176,5 +179,169 @@ export async function createUploadUrl(
     signedUrl: data.signedUrl,
     path,
     publicUrl: publicData.publicUrl,
+  }
+}
+
+// --- AI Stylize: turn an uploaded photo into a styled slide background ---
+
+export async function stylizeSlidePhoto(
+  projectId: string,
+  slideIndex: number,
+  photoUrl: string,
+): Promise<StylizeResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Match the cooldown used by per-slide AI generation.
+  const { ok } = rateLimit(`stylize:${user.id}`, 3)
+  if (!ok) return { error: 'Too many requests. Please wait a moment.' }
+
+  // Pull the project's topic to seed the master visual style.
+  const { data: project, error } = await supabase
+    .from('projects')
+    .select('topic')
+    .eq('id', projectId)
+    .single()
+  if (error || !project?.topic) {
+    return { error: 'Could not load project context.' }
+  }
+
+  const stylePrompt = await generateCarouselStyle(project.topic)
+  return stylizeBackgroundFromPhoto(user.id, photoUrl, stylePrompt, projectId, slideIndex)
+}
+
+// --- Phase 57 (EDITOR-01..02, D-01..D-03, D-27): per-slide treatment override ---
+
+import { treatPhoto, type TreatmentPreset } from '@/lib/photo-treatment/treat'
+import { extractPalette } from '@/lib/photo-treatment/palette'
+
+export type TreatmentSpec = {
+  kind: 'bw' | 'duotone-cream' | 'duotone-cobalt' | 'none'
+  grain?: 'subtle' | 'medium' | 'heavy' | 'off'
+}
+
+/**
+ * Phase 57 (D-01..D-03): apply per-slide photo treatment override.
+ *
+ * Treatment ALWAYS re-treats from `slide.original_source_url` — never
+ * compounds on already-treated output (D-27). When `original_source_url`
+ * is null on a legacy slide (pre-Phase 55), it is back-filled from
+ * `background_url` BEFORE invoking treatPhoto.
+ *
+ * Algorithm (D-03):
+ *   1. Back-fill original_source_url if null
+ *   2. If kind === 'none': reset background_url to original; clear
+ *      treatment_applied + derived_palette
+ *   3. Otherwise: call treatPhoto + extractPalette; persist
+ *   4. Always write spec.grain into style_overrides.grain_intensity
+ *      (renderer-side override per D-09)
+ */
+export async function updateSlideTreatment(
+  projectId: string,
+  slideIndex: number,
+  spec: TreatmentSpec,
+): Promise<{ success: true; slide: Slide } | { success: false; error: string }> {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'unauthorized' }
+
+    const { data: project, error: loadError } = await supabase
+      .from('projects')
+      .select('slide_data, user_id')
+      .eq('id', projectId)
+      .single()
+    if (loadError || !project) {
+      return { success: false, error: 'project not found' }
+    }
+    if (project.user_id !== user.id) {
+      return { success: false, error: 'forbidden' }
+    }
+
+    const slides = ((project.slide_data ?? []) as unknown) as Slide[]
+    const slide = slides[slideIndex]
+    if (!slide) return { success: false, error: 'slide index out of range' }
+
+    // STEP 1 (D-27): back-fill original_source_url if null
+    if (!slide.original_source_url && slide.background_url) {
+      slide.original_source_url = slide.background_url
+    }
+
+    // STEP 2: 'none' branch — reset to original, clear treatment fields
+    if (spec.kind === 'none') {
+      if (slide.original_source_url) {
+        slide.background_url = slide.original_source_url
+      }
+      slide.style_overrides = {
+        ...(slide.style_overrides ?? {}),
+        treatment_applied: undefined,
+        derived_palette: undefined,
+      }
+    } else {
+      // STEP 3: treat + extract palette
+      if (!slide.original_source_url) {
+        return { success: false, error: 'no source photo to treat' }
+      }
+      const presetMap: Record<
+        Exclude<TreatmentSpec['kind'], 'none'>,
+        TreatmentPreset
+      > = {
+        'bw': { kind: 'bw' },
+        'duotone-cream': { kind: 'duotone-cream' },
+        'duotone-cobalt': { kind: 'duotone-cobalt' },
+      }
+      const preset = presetMap[spec.kind]
+      const treated = await treatPhoto(slide.original_source_url, preset, user.id)
+      slide.background_url = treated.url
+
+      // Best-effort palette extraction (D-19): always re-extract on editor override
+      let derived: string[] | undefined
+      try {
+        const named = await extractPalette(treated.url)
+        derived = [
+          named.Vibrant,
+          named.DarkVibrant,
+          named.LightVibrant,
+          named.Muted,
+          named.DarkMuted,
+          named.LightMuted,
+        ]
+      } catch (e) {
+        console.warn(
+          '[updateSlideTreatment] extractPalette failed:',
+          (e as Error).message,
+        )
+      }
+
+      slide.style_overrides = {
+        ...(slide.style_overrides ?? {}),
+        treatment_applied: spec.kind,
+        derived_palette: derived,
+      }
+    }
+
+    // STEP 4 (D-09): grain intensity (renderer-side override)
+    slide.style_overrides = {
+      ...(slide.style_overrides ?? {}),
+      grain_intensity: spec.grain,
+    }
+
+    slides[slideIndex] = slide
+
+    const { error: saveError } = await supabase
+      .from('projects')
+      .update({ slide_data: slides as unknown as Record<string, unknown>[] })
+      .eq('id', projectId)
+    if (saveError) return { success: false, error: saveError.message }
+
+    revalidatePath(`/project/${projectId}`)
+    return { success: true, slide }
+  } catch (err) {
+    return { success: false, error: (err as Error).message }
   }
 }

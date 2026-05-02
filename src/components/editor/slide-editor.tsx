@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useTransition } from 'react'
 import Link from 'next/link'
 import { useSlideEditor } from '@/lib/editor/use-slide-editor'
 import { getTemplate } from '@/lib/render/templates/index'
@@ -19,6 +19,8 @@ import {
   saveTemplateId,
   regenerateSlideText,
   regenerateSlideImageQuery,
+  updateSlideTreatment,
+  type TreatmentSpec,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
@@ -79,6 +81,19 @@ export function SlideEditor({
   const [selectedCustomTextId, setSelectedCustomTextId] = useState<string | null>(null)
   const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Phase 57 (D-08): photo-treatment override handling. useTransition keeps
+  // the spinner state co-located with the editor; revalidatePath fires from
+  // the server action so the slide list refreshes on Next's normal cycle.
+  const [isTreatmentPending, startTreatmentTransition] = useTransition()
+  const handleSlideTreatmentChange = useCallback((spec: TreatmentSpec) => {
+    startTreatmentTransition(async () => {
+      const result = await updateSlideTreatment(projectId, selectedIndex, spec)
+      if (!result.success) {
+        console.warn('[updateSlideTreatment] failed:', result.error)
+      }
+    })
+  }, [projectId, selectedIndex])
 
   // Phase 50 (D-19): feature flag to route between the new selection-driven
   // TextEditorPanel and the preserved LegacyTextEditorPanel. Default is the
@@ -601,6 +616,8 @@ export function SlideEditor({
                   onCustomTextUpdate={handleCustomTextUpdate}
                   onCustomTextRemove={handleRemoveCustomText}
                   brandKit={brandKit}
+                  onSlideTreatmentChange={handleSlideTreatmentChange}
+                  isTreatmentPending={isTreatmentPending}
                 />
               ) : (
                 <LegacyTextEditorPanel

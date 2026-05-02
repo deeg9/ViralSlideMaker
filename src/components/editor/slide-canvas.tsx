@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
@@ -60,6 +61,9 @@ export function SlideCanvas({
   selectedTextBoxId,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
+  // Phase 57 (EDITOR-03, D-21): IG feed crop preview toggle. Component-local
+  // session-scoped state — not persisted to project, not lifted to parent.
+  const [igGridOn, setIgGridOn] = useState(false)
   if (!currentSlide) return null
 
   const isFirst = selectedIndex === 0
@@ -98,6 +102,28 @@ export function SlideCanvas({
             onTextBoxSelect={onTextBoxSelect}
             selectedTextBoxId={selectedTextBoxId}
           />
+          {/* Phase 57 (EDITOR-03, D-20, D-23): IG feed safe-zone overlay.
+              CSS outline (not border) so layout is unaffected. Top-aligned —
+              IG center-crops portrait carousels to the top 4:5 (1080×1350).
+              Bottom inset 28.125% = (1920-1350)/1920 ≈ 29.7%, snapped to a
+              clean fraction so dashes align cleanly. */}
+          {igGridOn && (
+            <div
+              data-testid="ig-grid-overlay"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: '28.125%',
+                outline: '2px dashed rgba(255, 255, 255, 0.85)',
+                outlineOffset: '-2px',
+                pointerEvents: 'none',
+                zIndex: 10,
+              }}
+            />
+          )}
         </div>
 
         {/* Navigation arrows */}
@@ -121,10 +147,25 @@ export function SlideCanvas({
       </div>
 
       {/* Slide counter -- below the canvas */}
-      <div className="mt-4 bg-white px-4 py-2 rounded-full flex items-center gap-4 shadow-sm border border-[#dbc1bc]/10">
+      <div className="mt-4 bg-white px-4 py-2 rounded-full flex items-center gap-3 shadow-sm border border-[#dbc1bc]/10">
         <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-widest">
           Slide {selectedIndex + 1} / {slides.length}
         </span>
+        <span className="w-px h-3 bg-[#dbc1bc]/40" aria-hidden="true" />
+        <button
+          type="button"
+          onClick={() => setIgGridOn((v) => !v)}
+          aria-label="Toggle Instagram feed crop preview"
+          aria-pressed={igGridOn}
+          data-testid="ig-grid-chip"
+          className={
+            igGridOn
+              ? 'bg-[#3d0000] text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest'
+              : 'bg-transparent text-[#7d6161] hover:bg-[#fadbdb] px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-[#dbc1bc]/30'
+          }
+        >
+          IG Grid
+        </button>
       </div>
     </div>
   )

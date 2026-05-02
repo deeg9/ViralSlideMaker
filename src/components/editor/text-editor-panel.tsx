@@ -7,6 +7,7 @@ import { LayerStrip } from './text-rail/LayerStrip'
 import { ActiveTextBoxCard } from './text-rail/ActiveTextBoxCard'
 import { SlideSettings } from './text-rail/SlideSettings'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
+import { PhotoTreatmentControls, type TreatmentSpec } from './photo-treatment-controls'
 import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
@@ -49,6 +50,11 @@ export interface TextEditorPanelProps {
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
   onCustomTextRemove?: (id: string) => void
   brandKit?: BrandKit | null
+  /** Phase 57 (D-08, D-29): per-slide photo-treatment override callback. Optional —
+      when omitted, PhotoTreatmentControls renders read-only. */
+  onSlideTreatmentChange?: (spec: TreatmentSpec) => void
+  /** Phase 57: spinner state from useTransition() at the parent (slide-editor). */
+  isTreatmentPending?: boolean
 }
 
 export function TextEditorPanel({
@@ -63,6 +69,8 @@ export function TextEditorPanel({
   onCustomTextUpdate,
   onCustomTextRemove,
   brandKit,
+  onSlideTreatmentChange,
+  isTreatmentPending,
 }: TextEditorPanelProps) {
   const textBoxes = slide.text_boxes ?? []
 
@@ -107,6 +115,13 @@ export function TextEditorPanel({
         template={template}
         onUpdate={onUpdate}
         brandKit={brandKit}
+      />
+
+      <PhotoTreatmentControls
+        slide={slide}
+        template={template}
+        isPending={isTreatmentPending ?? false}
+        onTreatmentChange={onSlideTreatmentChange}
       />
 
       {selectedCustomText && onCustomTextUpdate && onCustomTextRemove && (
