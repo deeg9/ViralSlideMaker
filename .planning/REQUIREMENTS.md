@@ -77,18 +77,18 @@ created: 2026-05-02
 
 | REQ-ID | Phase | Status |
 |---|---|---|
-| RESIZE-01 | TBD | not started |
-| RESIZE-02 | TBD | not started |
-| RESIZE-03 | TBD | not started |
-| RESIZE-04 | TBD | not started |
-| FONTSCALE-01 | TBD | not started |
-| FONTSCALE-02 | TBD | not started |
-| FONTSCALE-03 | TBD | not started |
-| FONTSCALE-04 | TBD | not started |
-| PARITY-01 | TBD | not started |
-| PARITY-02 | TBD | not started |
-| UNDO-01 | TBD | not started |
-| A11Y-01 | TBD | not started |
-| A11Y-02 | TBD | not started |
+| RESIZE-01 | Phase 59 | not started |
+| RESIZE-02 | Phase 59 | not started |
+| RESIZE-03 | Phase 59 | not started |
+| RESIZE-04 | Phase 59 | not started |
+| FONTSCALE-01 | Phase 59 | not started |
+| FONTSCALE-02 | Phase 59 | not started |
+| FONTSCALE-03 | Phase 59 | not started |
+| FONTSCALE-04 | Phase 59 | not started |
+| PARITY-01 | Phase 59 | not started |
+| PARITY-02 | Phase 59 | not started |
+| UNDO-01 | Phase 59 | not started |
+| A11Y-01 | Phase 59 | not started |
+| A11Y-02 | Phase 59 | not started |
 
-(Phase column populated by roadmapper in next step.)
+**Coverage:** 13/13 active requirements mapped to Phase 59 (100%). Zero orphans.
