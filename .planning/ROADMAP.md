@@ -833,7 +833,7 @@ Upgrade the visual output of AI-generated carousel slides so they look like what
 
 **Parity invariant (TPLREND-05):** every new visual layer MUST be exported from `src/lib/render/resolve-overlay.ts` and consumed by both `render-slide-satori.tsx` and `slide-preview.tsx`. Skipping the resolver for "just one quick layer" is anti-pattern #4 in PITFALLS.md.
 
-- [ ] **Phase 54: Infrastructure Foundation** — sharp photo-treatment pipeline + Imagen 4 Fast model swap + AI-slop guardrails + ZIP-download-rate baseline (gates everything else)
+- [x] **Phase 54: Infrastructure Foundation** — sharp photo-treatment pipeline + Imagen 4 Fast model swap + AI-slop guardrails + ZIP-download-rate baseline (gates everything else) (completed 2026-05-02)
 - [ ] **Phase 55: Schema + Renderer Extensions** — SlideTemplate / Slide schema additions + renderGrain / renderVignette helpers + display-font catalog expansion + premium hook size
 - [ ] **Phase 56: New Templates + Decorative Library** — editorial-serif, notes-app-chic, brutalist-grid templates + grain PNG asset set + decorative SVG/PNG overlay library + per-segment fontFamily
 - [ ] **Phase 57: Editor Controls + Palette Extraction** — photo-treatment-controls right-rail UI + @vibrant/node named-role palette + Instagram grid safe-zone overlay + treatment-bucket retention policy
@@ -970,7 +970,7 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 51. AI Prompt Rewrite | v2.8 | 1/1 | Complete | 2026-04-30 |
 | 52. Canvas Selection Improvements | v2.8 | 1/1 | Complete | 2026-04-30 |
 | 53. Migration & QA Polish | v2.8 | 1/1 | Complete | 2026-04-30 |
-| 54. Infrastructure Foundation | v2.9 | 0/0 | Not started | - |
+| 54. Infrastructure Foundation | v2.9 | 2/2 | Complete   | 2026-05-02 |
 | 55. Schema + Renderer Extensions | v2.9 | 0/0 | Not started | - |
 | 56. New Templates + Decorative Library | v2.9 | 0/0 | Not started | - |
 | 57. Editor Controls + Palette Extraction | v2.9 | 0/0 | Not started | - |
