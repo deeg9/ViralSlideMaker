@@ -13,6 +13,7 @@ import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
 import { getTemplate } from '@/lib/render/templates'
 import { treatPhoto, type TreatmentPreset } from '@/lib/photo-treatment/treat'
+import { extractPalette } from '@/lib/photo-treatment/palette'
 
 // Templates that share the news-carousel skip-default-effects behavior.
 // Keep this list in sync with src/lib/ai/prompts.ts and src/lib/services/carousel.ts.
@@ -194,6 +195,38 @@ export async function generateCarousel(
             if (!originalUrl) return slide
             try {
               const result = await treatPhoto(originalUrl, spec, user.id)
+
+              // Phase 57 (PALETTE-02, D-17, D-18): for palette-dominant templates,
+              // use @vibrant/node named-role palette instead of the sharp-stats
+              // dominant/clusters (which work for the 3 fixed-mode premium templates
+              // but lack semantic role labels Vibrant/DarkMuted needed for accent
+              // resolution in editorial-serif + notes-app-chic).
+              let derivedPalette: string[] = [
+                result.palette.dominant.hex,
+                result.palette.cluster1.hex,
+                result.palette.cluster2.hex,
+                result.palette.cluster3.hex,
+              ]
+              if (template.paletteMode === 'palette-dominant') {
+                try {
+                  const named = await extractPalette(result.url)
+                  derivedPalette = [
+                    named.Vibrant,
+                    named.DarkVibrant,
+                    named.LightVibrant,
+                    named.Muted,
+                    named.DarkMuted,
+                    named.LightMuted,
+                  ]
+                } catch (paletteErr) {
+                  console.warn(
+                    '[gen] extractPalette failed; falling back to sharp clusters',
+                    paletteErr,
+                  )
+                  // best-effort: derivedPalette stays as the 4-entry sharp-cluster array
+                }
+              }
+
               return {
                 ...slide,
                 background_url: result.url,
@@ -201,12 +234,7 @@ export async function generateCarousel(
                 style_overrides: {
                   ...(slide.style_overrides ?? {}),
                   treatment_applied: presetKind,
-                  derived_palette: [
-                    result.palette.dominant.hex,
-                    result.palette.cluster1.hex,
-                    result.palette.cluster2.hex,
-                    result.palette.cluster3.hex,
-                  ],
+                  derived_palette: derivedPalette,
                 },
               }
             } catch (err) {

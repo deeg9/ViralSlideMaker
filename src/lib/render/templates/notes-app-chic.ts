@@ -39,7 +39,10 @@ export const notesAppChic: SlideTemplate = {
   backgroundMode: 'image-bleed',
   // No photoTreatment — paper texture IS the background
   grainMode: 'xerox',
-  paletteMode: 'fixed',
+  // Phase 57 (D-13, D-15, PALETTE-03): sticky-note tint uses Vibrant when
+  // derived_palette is set (via getNotesAppChicAccentColor + sticky-note-accent
+  // SVG); falls back to brand sticky-yellow #FFE066 otherwise.
+  paletteMode: 'palette-dominant',
   coverLayout: {
     textPosition: 'top',
     textAlign: 'left',

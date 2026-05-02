@@ -409,6 +409,34 @@ export function getNotesAppChicAccentColor(
 }
 
 /**
+ * Phase 57 (D-14, D-16): augment a page-counter overlay's style for
+ * editorial-serif when paletteMode is 'palette-dominant' AND a palette
+ * is set. Both renderers MUST call this helper before applying
+ * overlay.style (TPLREND-05 parity invariant).
+ *
+ * Returns the (possibly-augmented) overlay style. When the conditions
+ * for palette override are not met, returns the original style verbatim.
+ */
+export function augmentEditorialSerifPageCounterStyle(
+  baseStyle: Record<string, unknown> | undefined,
+  slide: Slide,
+  template: SlideTemplate,
+): Record<string, unknown> {
+  if (template.id !== 'editorial-serif') return { ...(baseStyle ?? {}) }
+  if (template.paletteMode !== 'palette-dominant') return { ...(baseStyle ?? {}) }
+  if (!getVibrant(slide)) return { ...(baseStyle ?? {}) }
+  const { background, text } = getEditorialSerifChipColors(slide, template)
+  return {
+    ...(baseStyle ?? {}),
+    background,
+    color: text,
+    // Add minor padding so the colored chip reads as a chip, not raw text
+    padding: '6px 12px',
+    borderRadius: 6,
+  }
+}
+
+/**
  * Phase 57 (D-09): per-slide grain-intensity override on top of
  * template.grainMode. Slide override wins; otherwise fall through to
  * the template's mode (only if it's one of the user-overridable values

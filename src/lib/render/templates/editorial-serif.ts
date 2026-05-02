@@ -37,7 +37,10 @@ export const editorialSerif: SlideTemplate = {
   backgroundMode: 'image-bleed',
   photoTreatment: 'bw',
   grainMode: 'medium',
-  paletteMode: 'fixed',
+  // Phase 57 (D-13, PALETTE-03): page-counter chip uses Vibrant background +
+  // DarkMuted text via getEditorialSerifChipColors when derived_palette is set;
+  // falls back to cream + deep-brown brand pair otherwise.
+  paletteMode: 'palette-dominant',
   coverLayout: {
     textPosition: 'top',
     textAlign: 'left',

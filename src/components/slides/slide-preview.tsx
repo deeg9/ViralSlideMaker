@@ -22,6 +22,8 @@ import {
   renderGrain,
   renderVignette,
   renderDecorativeOverlay,
+  augmentEditorialSerifPageCounterStyle,
+  getNotesAppChicAccentColor,
   type OverlayResolveCtx,
 } from '@/lib/render/resolve-overlay'
 import type { TemplateOverlay } from '@/lib/render/templates/index'
@@ -152,12 +154,18 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
         // consume the same module (TPLREND-05 parity invariant).
         if (overlay.content.type === 'decorative') {
           const pos = { x: overlay.offset?.x ?? 0, y: overlay.offset?.y ?? 0 }
+          // Phase 57 (D-15): notes-app-chic palette tint for sticky-note-accent
+          const tintColor =
+            overlay.content.asset === 'sticky-note-accent'
+              ? getNotesAppChicAccentColor(ctx.slide, template)
+              : undefined
           return (
             <React.Fragment key={`overlay-${i}-${overlay.position}-decorative`}>
               {renderDecorativeOverlay(overlay.content.asset, pos, {
                 rotation: overlay.content.rotation,
                 scale: overlay.content.scale,
                 opacity: overlay.content.opacity,
+                tintColor,
               })}
             </React.Fragment>
           )
@@ -186,6 +194,16 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
                   : {}),
               }
         const text = resolveOverlayContent(overlay.content, ctx)
+        // Phase 57 (D-14, D-16, PALETTE-03): editorial-serif page-counter chip
+        // gets Vibrant background + DarkMuted text when palette-dominant + palette set.
+        const augmentedStyle =
+          overlay.content.type === 'page-counter'
+            ? augmentEditorialSerifPageCounterStyle(
+                overlay.style as Record<string, unknown> | undefined,
+                ctx.slide,
+                template,
+              )
+            : { ...(overlay.style ?? {}) }
         return (
           <div
             key={`overlay-${i}-${overlay.position}`}
@@ -198,7 +216,7 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
               fontSize: 28,
               fontWeight: 700,
               lineHeight: 1,
-              ...(overlay.style ?? {}),
+              ...(augmentedStyle as React.CSSProperties),
             }}
           >
             {text}

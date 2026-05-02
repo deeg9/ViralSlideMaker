@@ -12,6 +12,7 @@
 export type DecorativeAsset =
   | 'tape-strip-1' | 'tape-strip-2' | 'tape-strip-3'
   | 'sticky-note-yellow' | 'sticky-note-pink' | 'sticky-note-blue'
+  | 'sticky-note-accent'  // Phase 57 (D-15): tintable via tintColor arg
   | 'halftone-dots-light' | 'halftone-dots-dense'
   | 'arrow-up' | 'arrow-down' | 'arrow-left' | 'arrow-right'
   | 'polaroid-frame'
@@ -20,6 +21,7 @@ export type DecorativeAsset =
 export const DECORATIVE_ASSETS: ReadonlyArray<DecorativeAsset> = [
   'tape-strip-1', 'tape-strip-2', 'tape-strip-3',
   'sticky-note-yellow', 'sticky-note-pink', 'sticky-note-blue',
+  'sticky-note-accent',  // Phase 57
   'halftone-dots-light', 'halftone-dots-dense',
   'arrow-up', 'arrow-down', 'arrow-left', 'arrow-right',
   'polaroid-frame',

@@ -2,6 +2,6 @@
 
 exports[`Phase 56: new templates parity (TPL-10) > brutalist-grid > configuration matches committed snapshot (regression guard) 1`] = `"a53a7640d6ab09f526a3449881427c45dea5eb32b07891d814adcf6a64a525b1"`;
 
-exports[`Phase 56: new templates parity (TPL-10) > editorial-serif > configuration matches committed snapshot (regression guard) 1`] = `"0adf65627f03786873fb781cd45c691f673d76d40fd5e35e231959cc19d5064e"`;
+exports[`Phase 56: new templates parity (TPL-10) > editorial-serif > configuration matches committed snapshot (regression guard) 1`] = `"f6fdd4d717fbc750913a38349bd236d73219aeac4fbfadb81e43bb26461dcb14"`;
 
-exports[`Phase 56: new templates parity (TPL-10) > notes-app-chic > configuration matches committed snapshot (regression guard) 1`] = `"6fab3ec173b158d4ec0ddd7ecccd435cebf83becaffb8e567f20896a28d342c5"`;
+exports[`Phase 56: new templates parity (TPL-10) > notes-app-chic > configuration matches committed snapshot (regression guard) 1`] = `"7ae1b89d343641a09037bc007e1857989068dfdad5a9763de6aa9021c656b82c"`;

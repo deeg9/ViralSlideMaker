@@ -14,6 +14,8 @@ import {
   renderGrain,
   renderVignette,
   renderDecorativeOverlay,
+  augmentEditorialSerifPageCounterStyle,
+  getNotesAppChicAccentColor,
   type OverlayResolveCtx,
 } from './resolve-overlay'
 
@@ -326,12 +328,18 @@ export function buildSlideElement(
         // 'free' slot, but any slot's offset is honored).
         if (overlay.content.type === 'decorative') {
           const pos = { x: overlay.offset?.x ?? 0, y: overlay.offset?.y ?? 0 }
+          // Phase 57 (D-15): notes-app-chic palette tint for sticky-note-accent
+          const tintColor =
+            overlay.content.asset === 'sticky-note-accent'
+              ? getNotesAppChicAccentColor(resolveCtx.slide, template)
+              : undefined
           return (
             <React.Fragment key={`overlay-${i}-${overlay.position}-decorative`}>
               {renderDecorativeOverlay(overlay.content.asset, pos, {
                 rotation: overlay.content.rotation,
                 scale: overlay.content.scale,
                 opacity: overlay.content.opacity,
+                tintColor,
               })}
             </React.Fragment>
           )
@@ -360,6 +368,16 @@ export function buildSlideElement(
                   : {}),
               }
         const text = resolveOverlayContent(overlay.content, resolveCtx)
+        // Phase 57 (D-14, D-16, PALETTE-03): editorial-serif page-counter chip
+        // gets Vibrant background + DarkMuted text when palette-dominant + palette set.
+        const augmentedStyle =
+          overlay.content.type === 'page-counter'
+            ? augmentEditorialSerifPageCounterStyle(
+                overlay.style as Record<string, unknown> | undefined,
+                resolveCtx.slide,
+                template,
+              )
+            : { ...(overlay.style ?? {}) }
         return (
           <div
             key={`overlay-${i}-${overlay.position}`}
@@ -370,7 +388,7 @@ export function buildSlideElement(
               fontSize: 28,
               fontWeight: 700,
               lineHeight: 1,
-              ...(overlay.style ?? {}),
+              ...(augmentedStyle as React.CSSProperties),
             }}
           >
             {text}
