@@ -10,28 +10,38 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.9 Viral Visual Quality (2026-05-01)
-**Current Milestone:** v2.10 Text Box Resize Handles (started 2026-05-02)
+**Latest Shipped:** v2.10 Text Box Resize Handles (2026-05-02)
+**Current Milestone:** Planning next milestone (run `/gsd-new-milestone` to start)
 
 ---
 
-## Current Milestone: v2.10 Text Box Resize Handles
+## Latest Shipped: v2.10 Text Box Resize Handles (2026-05-02)
 
-**Goal:** Let users add top/bottom and corner resize handles to text boxes in the slide editor so they can scale the box (and optionally the font) interactively — not just adjust width via the side handles.
+**Goal:** Ship Canva-style hybrid resize handles on text boxes — corner-drag scales font_size + box width together, side handles preserve today's width-only behavior, top/bottom omitted, Shift+corner = width-only escape hatch. Zero schema diff, zero migration risk.
 
-**Target features:**
-- Corner + top/bottom resize handles (in addition to existing left/right)
-- Schema decision: `TextBoxPosition` currently has no `height` — pick a representation (explicit height vs auto-fit vs aspect-ratio)
-- UX call: corner-drag = resize box only / scale font with box / both
-- Renderer parity across `slide-preview.tsx`, `render-slide.ts` (HTML), and `render-slide-satori.tsx` (Satori PNG export)
+**Delivered:**
+- **Phase 59 — Corner Resize Handles + Font-Scale:** Canva-style hybrid resize handles. Corner-drag (TL/TR/BL/BR) scales `font_size` AND `position.width` by the same ratio (`new_size = clamp(round(old_size × widthRatio), role_min, role_max)`); side handles preserve v2.8 width-only behavior; top/bottom handles explicitly disabled; Shift+corner = width-only escape hatch; past-the-cap = box keeps growing, font caps at 240 (hook) / 120 (body); single undo entry per gesture (dispatch on `onResizeStop` only); WCAG 2.5.8 AA touch targets (24×24 CSS px hit zones via `inset: -10px` wrapper, visual handle 12×12); cursors `nwse-resize` (TL/BR) / `nesw-resize` (TR/BL) on hover. Production touch confined to `slide-preview.tsx` (config flip + 3 onResizeStop extensions + module-level helpers `ROLE_FONT_BOUNDS`, `scaleFontSizeOnCorner`, `isCornerDir`), `slide-editor.tsx` (`handleSizeChange` + `handleCustomTextSizeChange` additions, legacy width handlers preserved for back-compat), and `slide-canvas.tsx` (2 forwarding props). All schema/renderer files (`slide.ts`, `editor-reducer.ts`, `text-box-adapter.ts`, `render-slide.ts`, `render-slide-satori.tsx`, `resolve-overlay.ts`, `hook-fit.ts`) byte-identical to base SHA `e12a0fb` — TPLREND-05 invariant preserved end-to-end.
 
-**Key context:**
-- Single-phase milestone — focused; ship the smallest thing that makes the affordance feel right.
-- Builds on v2.8 (TextBox-driven editor + `text_boxes[]` schema) and v2.9 (renderer parity discipline via `resolve-overlay.ts`).
-- Research-first — verifying current `react-rnd` capabilities and surveying Canva/Figma/CapCut handle UX before committing to schema/UX decisions.
-- Pre-PMF — no premature abstractions; resize-vs-scale-vs-both trade-offs decided by what feels right with stock photo + bold text overlays.
+**13/13 active requirements satisfied at code level (100%).**
+
+**Tech debt:** 1 deferred item — A11Y-01 manual iPhone Safari touch QA (localhost not iPhone-reachable; desktop side fully verified).
+
+**Test count:** +50 phase-specific tests, 47/47 in 3 phase test files green.
+
+**Research-grounded:** 4 parallel research agents (STACK / FEATURES / ARCHITECTURE / PITFALLS). Industry survey of Canva, Figma, CapCut, Keynote, Pages, Adobe Express, VEED, Photoshop. WCAG 2.5.8 AA. react-rnd issues #110 / #766 / #732. Satori issues #325 / #393 / #573.
+
+**TPLREND-05 parity invariant** preserved end-to-end. All 11 templates render byte-identical pre/post v2.10.
+
+**Definitively deferred to v2.11+:** Top + bottom handles + explicit `height` field (RESIZE-05, HEIGHT-01); snap-to-alignment-guides during corner-resize (GUIDES-01); rotation handles (ROTATE-01); aspect-ratio-lock toggle (ASPECT-01); first-use onboarding toast (ONBOARD-01); custom-text dispatch path cleanup (CLEANUP-01).
+
+**Archive:** `.planning/milestones/v2.10-ROADMAP.md`. Audit: `.planning/v2.10-MILESTONE-AUDIT.md` (status: tech_debt).
+
+**Awaiting user:** Manual iPhone Safari touch QA — deploy to Vercel preview, run the 9-step touch test from `59-03-PLAN.md` if mobile usability concerns arise.
 
 ---
+
+<details>
+<summary>v2.9 Viral Visual Quality (2026-05-01) — archived</summary>
 
 ## Latest Shipped: v2.9 Viral Visual Quality (2026-05-01)
 
@@ -59,6 +69,8 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 **Archive:** `.planning/milestones/v2.9-ROADMAP.md`. Audit: `.planning/milestones/v2.9-MILESTONE-AUDIT.md` (status: passed). Metric baseline: `.planning/milestones/v2.9-METRIC-BASELINE.md`.
 
 **Awaiting user:** Manual visual QA — generate carousels through each of 3 new templates and verify visual fidelity matches reference patterns (NYT/SSENSE / Loewe-Duolingo / AIGA). Non-blocking — automated parity tests cover render-output identity.
+
+</details>
 
 ---
 
@@ -389,4 +401,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-02 — v2.10 Text Box Resize Handles milestone started*
+*Last updated: 2026-05-02 after v2.10 Text Box Resize Handles milestone shipped*
