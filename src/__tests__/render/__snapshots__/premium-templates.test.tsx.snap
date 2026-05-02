@@ -81,7 +81,7 @@ exports[`Phase 46 premium templates — Satori snapshots > documentary: renders 
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Plus Jakarta Sans', sans-serif",
-        "fontSize": 88,
+        "fontSize": 72,
         "fontWeight": 900,
         "left": 119,
         "lineHeight": 1.1,

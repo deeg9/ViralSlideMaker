@@ -45,27 +45,51 @@ describe('hook-fit registry', () => {
     expect(getHookFontSize('magazine-bold', 'A'.repeat(60), 120)).toBe(54) // 0.45
     expect(getHookFontSize('magazine-bold', 'A'.repeat(80), 120)).toBe(46) // 0.38
 
-    // documentary baseSize 110
-    expect(getHookFontSize('documentary', 'A'.repeat(20), 110)).toBe(110) // 1.0
-    expect(getHookFontSize('documentary', 'A'.repeat(38), 110)).toBe(88) // 0.80
+    // documentary baseSize 110 — re-tightened 2026-05-02 to match
+    // news-template calibration (842px container, 269px hook zone).
+    expect(getHookFontSize('documentary', 'A'.repeat(14), 110)).toBe(110) // 1.0
+    expect(getHookFontSize('documentary', 'A'.repeat(22), 110)).toBe(88) // 0.80
+    expect(getHookFontSize('documentary', 'A'.repeat(32), 110)).toBe(72) // 0.65
+    expect(getHookFontSize('documentary', 'A'.repeat(48), 110)).toBe(57) // 0.52
+    expect(getHookFontSize('documentary', 'A'.repeat(80), 110)).toBe(46) // 0.42
   })
 
   it('scales Phase 56 templates with their own curves', () => {
-    // editorial-serif baseSize 130
-    expect(getHookFontSize('editorial-serif', 'A'.repeat(16), 130)).toBe(130) // 1.0
-    expect(getHookFontSize('editorial-serif', 'A'.repeat(30), 130)).toBe(101) // 0.78
-    expect(getHookFontSize('editorial-serif', 'A'.repeat(48), 130)).toBe(81) // 0.62
-    expect(getHookFontSize('editorial-serif', 'A'.repeat(80), 130)).toBe(65) // 0.50
+    // editorial-serif baseSize 130 — re-tightened 2026-05-02 (Lora bold serif,
+    // 269px inner hook zone forces stricter curve)
+    expect(getHookFontSize('editorial-serif', 'A'.repeat(13), 130)).toBe(130) // 1.0
+    expect(getHookFontSize('editorial-serif', 'A'.repeat(22), 130)).toBe(101) // 0.78
+    expect(getHookFontSize('editorial-serif', 'A'.repeat(34), 130)).toBe(81) // 0.62
+    expect(getHookFontSize('editorial-serif', 'A'.repeat(50), 130)).toBe(65) // 0.50
+    expect(getHookFontSize('editorial-serif', 'A'.repeat(80), 130)).toBe(52) // 0.40
 
-    // notes-app-chic baseSize 110
-    expect(getHookFontSize('notes-app-chic', 'A'.repeat(20), 110)).toBe(110)
-    expect(getHookFontSize('notes-app-chic', 'A'.repeat(38), 110)).toBe(88)
+    // notes-app-chic baseSize 110 — re-tightened 2026-05-02 (ransom-note
+    // multi-fonts widen lines, so curve mirrors documentary)
+    expect(getHookFontSize('notes-app-chic', 'A'.repeat(14), 110)).toBe(110)
+    expect(getHookFontSize('notes-app-chic', 'A'.repeat(22), 110)).toBe(88)
+    expect(getHookFontSize('notes-app-chic', 'A'.repeat(34), 110)).toBe(72)
+    expect(getHookFontSize('notes-app-chic', 'A'.repeat(50), 110)).toBe(57)
 
-    // brutalist-grid baseSize 180 — tightest curve due to 180px+ sizes
-    expect(getHookFontSize('brutalist-grid', 'A'.repeat(10), 180)).toBe(180) // 1.0
-    expect(getHookFontSize('brutalist-grid', 'A'.repeat(20), 180)).toBe(135) // 0.75
-    expect(getHookFontSize('brutalist-grid', 'A'.repeat(32), 180)).toBe(99) // 0.55
-    expect(getHookFontSize('brutalist-grid', 'A'.repeat(50), 180)).toBe(76) // 0.42
+    // brutalist-grid baseSize 180 — re-tightened 2026-05-02 (most exposed
+    // template; even 8 chars at full size already overflows 842px)
+    expect(getHookFontSize('brutalist-grid', 'A'.repeat(8), 180)).toBe(180) // 1.0
+    expect(getHookFontSize('brutalist-grid', 'A'.repeat(14), 180)).toBe(135) // 0.75
+    expect(getHookFontSize('brutalist-grid', 'A'.repeat(22), 180)).toBe(99) // 0.55
+    expect(getHookFontSize('brutalist-grid', 'A'.repeat(32), 180)).toBe(76) // 0.42
+    expect(getHookFontSize('brutalist-grid', 'A'.repeat(50), 180)).toBe(58) // 0.32
+  })
+
+  // Real-sample regression locks — these are each template's actual
+  // sample.hook_text (the text the picker thumbnail renders). Locking
+  // their resolved font sizes catches the next time someone changes a
+  // sample without re-checking the curve.
+  it('locks resolved font size for each template sample', () => {
+    expect(getHookFontSize('documentary', 'The Last Glassblower of Murano', 110)).toBe(72) // 30 chars
+    expect(
+      getHookFontSize('editorial-serif', 'The quietest revolutions begin in living rooms', 130),
+    ).toBe(65) // 46 chars
+    expect(getHookFontSize('notes-app-chic', 'I quit my job to sell paintings', 110)).toBe(72) // 31 chars
+    expect(getHookFontSize('brutalist-grid', 'NO HEADLINES. JUST TYPE.', 180)).toBe(76) // 24 chars
   })
 
   it('handles null/undefined/empty hook text safely', () => {

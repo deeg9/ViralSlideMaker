@@ -62,42 +62,57 @@ const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
       { maxChars: Infinity, scale: 0.38 },
     ],
   },
+  // documentary — Plus Jakarta Sans, 110px base, hookY 48% / bodyY 62% =
+  // tight 269px hook zone. Tightened 2026-05-02 to match news-template
+  // calibration so multi-line wraps don't bleed into body.
   'documentary': {
     baseSize: 110,
     steps: [
-      { maxChars: 20, scale: 1 },
-      { maxChars: 38, scale: 0.8 },
-      { maxChars: 60, scale: 0.64 },
-      { maxChars: Infinity, scale: 0.52 },
+      { maxChars: 14, scale: 1 },
+      { maxChars: 22, scale: 0.8 },
+      { maxChars: 32, scale: 0.65 },
+      { maxChars: 48, scale: 0.52 },
+      { maxChars: Infinity, scale: 0.42 },
     ],
   },
   // Phase 56 templates.
+  // editorial-serif — Lora bold serif, 130px base, inner hookY 48 → bodyY 62
+  // (269px). Cover layout is generous (346px) but inner is tightest
+  // constraint. Tightened 2026-05-02.
   'editorial-serif': {
     baseSize: 130,
     steps: [
-      { maxChars: 16, scale: 1 },
-      { maxChars: 30, scale: 0.78 },
-      { maxChars: 48, scale: 0.62 },
-      { maxChars: Infinity, scale: 0.5 },
+      { maxChars: 13, scale: 1 },
+      { maxChars: 22, scale: 0.78 },
+      { maxChars: 34, scale: 0.62 },
+      { maxChars: 50, scale: 0.5 },
+      { maxChars: Infinity, scale: 0.4 },
     ],
   },
+  // notes-app-chic — Plus Jakarta Sans + ransom-note multi-fonts. 346px
+  // hook zone is generous, but ransom-note widens lines so add safety buffer.
   'notes-app-chic': {
     baseSize: 110,
     steps: [
-      { maxChars: 20, scale: 1 },
-      { maxChars: 38, scale: 0.8 },
-      { maxChars: 60, scale: 0.64 },
-      { maxChars: Infinity, scale: 0.52 },
+      { maxChars: 14, scale: 1 },
+      { maxChars: 22, scale: 0.8 },
+      { maxChars: 34, scale: 0.65 },
+      { maxChars: 50, scale: 0.52 },
+      { maxChars: Infinity, scale: 0.42 },
     ],
   },
-  // Brutalist hits 180/220px — even short headlines need aggressive scaling.
+  // brutalist-grid — Space Grotesk bold, 180px base. Even 10 chars at full
+  // size overflows 842px container. Aggressive curve. (Cover layout uses
+  // 220px hookFontSize but registry sees template.hookFontSize=180; cover-
+  // aware baseSize is a future enhancement.)
   'brutalist-grid': {
     baseSize: 180,
     steps: [
-      { maxChars: 10, scale: 1 },
-      { maxChars: 20, scale: 0.75 },
-      { maxChars: 32, scale: 0.55 },
-      { maxChars: Infinity, scale: 0.42 },
+      { maxChars: 8, scale: 1 },
+      { maxChars: 14, scale: 0.75 },
+      { maxChars: 22, scale: 0.55 },
+      { maxChars: 32, scale: 0.42 },
+      { maxChars: Infinity, scale: 0.32 },
     ],
   },
 }
