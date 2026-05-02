@@ -146,6 +146,15 @@ export interface SlideStyleOverrides {
       template default. Renderer-side only — NOT a sharp pre-bake.
       Resolved via resolveGrainIntensity(slide, template). */
   grain_intensity?: 'subtle' | 'medium' | 'heavy' | 'off'
+  /** quick-260502-er5: per-slide watermark controls.
+      Free tier ignores `enabled: false` (forced ViralSlideMaker watermark).
+      Paid tier honors all fields. `customLogoUrl` overrides built-in mark. */
+  watermark?: {
+    enabled?: boolean
+    customLogoUrl?: string
+    customText?: string
+    position?: 'bottom-left' | 'bottom-right'
+  }
 }
 
 export interface Slide {

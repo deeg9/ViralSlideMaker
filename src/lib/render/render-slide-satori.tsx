@@ -247,7 +247,7 @@ export function buildSlideElement(
 
   // Forced free-tier watermark (260427-wmk). Rendered last in JSX so it sits on top.
   // Satori requires absolute URLs — when origin is provided we prepend it to /logo.png.
-  const forced = resolveForcedWatermark(tier, { width: W, height: H })
+  const forced = resolveForcedWatermark(tier, { width: W, height: H }, slide)
   const forcedLogoUrl = forced && origin && forced.logoUrl.startsWith('/')
     ? `${origin}${forced.logoUrl}`
     : forced?.logoUrl

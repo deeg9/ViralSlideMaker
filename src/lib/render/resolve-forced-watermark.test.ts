@@ -76,4 +76,85 @@ describe('resolveForcedWatermark', () => {
       expect(r.logoSize).toBe(24)
     })
   })
+
+  // quick-260502-er5: paid-tier opt-in + custom logo + bottom-right placement
+  describe('paid-tier per-slide config (quick-260502-er5)', () => {
+    const baseSlide = (watermark: NonNullable<NonNullable<import('../types/slide').Slide['style_overrides']>['watermark']>) =>
+      ({
+        hook_text: '',
+        body_text: '',
+        image_query: '',
+        is_cta: false,
+        background_url: null,
+        pexels_photo_id: null,
+        style_overrides: { watermark },
+      }) as unknown as import('../types/slide').Slide
+
+    it('paid tier WITHOUT slide config returns null (current default behavior preserved)', () => {
+      expect(resolveForcedWatermark('plus')).toBeNull()
+      expect(resolveForcedWatermark('pro')).toBeNull()
+    })
+
+    it('paid tier WITH enabled=true renders ViralSlideMaker mark', () => {
+      const r = resolveForcedWatermark('plus', undefined, baseSlide({ enabled: true }))
+      expect(r).not.toBeNull()
+      expect(r!.logoUrl).toBe('/logo.png')
+      expect(r!.text).toBe('ViralSlideMaker.com')
+    })
+
+    it('paid tier WITH enabled=false returns null', () => {
+      expect(
+        resolveForcedWatermark('pro', undefined, baseSlide({ enabled: false })),
+      ).toBeNull()
+    })
+
+    it('free tier WITH enabled=false STILL renders (free opt-out is locked)', () => {
+      const r = resolveForcedWatermark('free', undefined, baseSlide({ enabled: false }))
+      expect(r).not.toBeNull()
+      expect(r!.logoUrl).toBe('/logo.png')
+    })
+
+    it('paid tier WITH customLogoUrl renders custom logo', () => {
+      const r = resolveForcedWatermark(
+        'pro',
+        undefined,
+        baseSlide({ customLogoUrl: 'https://cdn.example.com/my-brand.png', customText: 'My Brand' }),
+      )
+      expect(r).not.toBeNull()
+      expect(r!.logoUrl).toBe('https://cdn.example.com/my-brand.png')
+      expect(r!.text).toBe('My Brand')
+    })
+
+    it('free tier IGNORES customLogoUrl (always shows ViralSlideMaker)', () => {
+      const r = resolveForcedWatermark(
+        'free',
+        undefined,
+        baseSlide({ customLogoUrl: 'https://cdn.example.com/my-brand.png', customText: 'My Brand' }),
+      )
+      expect(r!.logoUrl).toBe('/logo.png')
+      expect(r!.text).toBe('ViralSlideMaker.com')
+    })
+
+    it('paid tier WITH position=bottom-right places mark on the right edge', () => {
+      const r = resolveForcedWatermark(
+        'pro',
+        { width: 1080, height: 1920 },
+        baseSlide({ enabled: true, position: 'bottom-right' }),
+      )
+      expect(r).not.toBeNull()
+      // x should be far right (canvas.width - margin - markWidth), much greater than the bottom-left margin (~43)
+      expect(r!.x).toBeGreaterThan(500)
+      // y unchanged from bottom-left
+      expect(r!.y).toBeCloseTo(1827.8, 1)
+    })
+
+    it('free tier IGNORES position override (always bottom-left)', () => {
+      const r = resolveForcedWatermark(
+        'free',
+        { width: 1080, height: 1920 },
+        baseSlide({ position: 'bottom-right' }),
+      )
+      expect(r!.x).toBeCloseTo(43.2, 1) // bottom-left margin
+    })
+  })
 })

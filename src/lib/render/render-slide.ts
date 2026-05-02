@@ -183,7 +183,7 @@ export function buildSlideHtml(
     : ''
 
   // Forced free-tier watermark (260427-wmk). z-index:6 so it sits above the brand-kit watermark.
-  const forced = resolveForcedWatermark(tier, { width: 1080, height: 1920 })
+  const forced = resolveForcedWatermark(tier, { width: 1080, height: 1920 }, slide)
   const forcedWatermarkHtml = forced
     ? `<div style="position:absolute; left:${forced.x}px; top:${forced.y}px; display:flex; align-items:center; opacity:${forced.opacity}; z-index:6; pointer-events:none;"><img src="${forced.logoUrl}" style="width:${forced.logoSize}px; height:${forced.logoSize}px; object-fit:contain; margin-right:${forced.gap}px;" /><span style="font-size:${forced.fontSize}px; font-weight:700; color:${forced.textColor}; text-shadow:${forced.textShadow}; letter-spacing:-0.2px; line-height:1;">${forced.text}</span></div>`
     : ''

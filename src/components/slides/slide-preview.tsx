@@ -668,7 +668,7 @@ export function SlidePreview({
 
           {/* Forced free-tier watermark (260427-wmk) — non-editable preview */}
           {(() => {
-            const fw = resolveForcedWatermark(userTier, { width: REF_WIDTH, height: REF_HEIGHT })
+            const fw = resolveForcedWatermark(userTier, { width: REF_WIDTH, height: REF_HEIGHT }, slide)
             if (!fw) return null
             return (
               <div
@@ -1269,7 +1269,7 @@ export function SlidePreview({
 
         {/* Forced free-tier watermark (260427-wmk) — editable view */}
         {(() => {
-          const fw = resolveForcedWatermark(userTier, { width: REF_WIDTH, height: REF_HEIGHT })
+          const fw = resolveForcedWatermark(userTier, { width: REF_WIDTH, height: REF_HEIGHT }, slide)
           if (!fw) return null
           return (
             <div
