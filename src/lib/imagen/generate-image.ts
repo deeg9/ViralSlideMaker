@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai'
 import { deductCredit } from '@/lib/credits/check-credits'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CREDIT_COSTS } from '@/lib/credits/types'
+import { IMAGEN_ADDENDUM } from '@/lib/ai/slop-guardrails'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -24,9 +25,13 @@ export async function generateImagenBackground(
   if (!deducted) return { error: `Insufficient credits (AI images cost ${CREDIT_COSTS.imagen_generation} credit)` }
 
   try {
-    // 2. Truncate prompt to 350 words max (Imagen has 480-token limit)
-    const words = prompt.split(/\s+/)
-    const truncatedPrompt = words.length > 350 ? words.slice(0, 350).join(' ') : prompt
+    // 2. Prepend AI-slop guardrail addendum (Phase 54 SLOP-01, D-09/D-10),
+    //    then truncate combined prompt to 350 words max (Imagen 480-token limit).
+    //    The addendum is ~30 words; prepending before truncation guarantees
+    //    the leading constraint clauses survive even on long user prompts.
+    const guardedPrompt = `${IMAGEN_ADDENDUM}\n\n${prompt}`
+    const words = guardedPrompt.split(/\s+/)
+    const truncatedPrompt = words.length > 350 ? words.slice(0, 350).join(' ') : guardedPrompt
 
     // 3. Call Imagen API
     const response = await ai.models.generateImages({

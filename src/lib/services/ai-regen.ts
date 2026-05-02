@@ -2,6 +2,7 @@ import { GoogleGenAI, Type } from '@google/genai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { CREDIT_COSTS } from '@/lib/credits/types'
 import type { Slide } from '@/lib/types/slide'
+import { IMAGEN_ADDENDUM } from '@/lib/ai/slop-guardrails'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -60,8 +61,11 @@ export async function generateImagenBackgroundAdmin(
   }
 
   try {
-    const words = prompt.split(/\s+/)
-    const truncatedPrompt = words.length > 350 ? words.slice(0, 350).join(' ') : prompt
+    // Phase 54 (SLOP-01, D-09/D-10): prepend AI-slop guardrail addendum
+    // before truncation so leading constraint clauses always reach Imagen.
+    const guardedPrompt = `${IMAGEN_ADDENDUM}\n\n${prompt}`
+    const words = guardedPrompt.split(/\s+/)
+    const truncatedPrompt = words.length > 350 ? words.slice(0, 350).join(' ') : guardedPrompt
 
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-fast-generate-001',

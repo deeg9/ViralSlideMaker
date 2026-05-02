@@ -1,5 +1,6 @@
 import { getTemplate } from '@/lib/render/templates'
 import { isPremiumTemplate } from './validate-slides'
+import { AI_HOOK_VARIETY_ADDENDUM } from './slop-guardrails'
 
 // Templates that share the news-carousel prompt branch + skip-default-effects
 // behavior. News Cyan reuses the entire News Drop generation flow — only the
@@ -53,6 +54,9 @@ ${
     ? `- HIGHLIGHTS: documentary template uses a minimal aesthetic. You do NOT populate highlightColor or highlightStyle on any segment. Leave hook_segments and body_segments unset OR provide segments WITHOUT highlightColor/highlightStyle fields.`
     : `- HIGHLIGHTS: populate hook_segments AND optionally body_segments with per-word color spans. On 1-2 segments per hook (and 0-1 per body), set highlightColor: '${accentHex}' and highlightStyle: 'pill'. Choose ACTION VERBS, PROPER NOUNS, and NUMBERS/QUANTITIES for highlights — never connector words ("a", "the", "of", "on", "and", "is", "to", "for"). Examples that match the desired aesthetic: "FIGHTS BACK", "CLONED HER VOICE", "$50M", "12 MINUTES".`
 }
+
+HOOK VARIETY (Phase 54 SLOP-04, D-12):
+${AI_HOOK_VARIETY_ADDENDUM}
 `
     : ''
 
