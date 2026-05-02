@@ -19,8 +19,13 @@ interface SlideCanvasProps {
   topic?: string
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
+  // phase-59-02: corner-drag size callbacks (width + optional font_size). Forwarded
+  // to SlidePreview unchanged. Side drags supply { width } only; corner drags supply
+  // { width, font_size } (FONTSCALE-01..04).
+  onSizeChange?: (field: 'hook' | 'body', size: { width: number; font_size?: number }) => void
   onCustomTextPositionChange?: (id: string, position: TextPosition) => void
   onCustomTextWidthChange?: (id: string, width: number) => void
+  onCustomTextSizeChange?: (id: string, size: { width: number; font_size?: number }) => void
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
   onCustomTextSelect?: (id: string | null) => void
   onCustomTextRemove?: (id: string) => void
@@ -46,8 +51,10 @@ export function SlideCanvas({
   topic,
   onPositionChange,
   onWidthChange,
+  onSizeChange,
   onCustomTextPositionChange,
   onCustomTextWidthChange,
+  onCustomTextSizeChange,
   onCustomTextUpdate,
   onCustomTextSelect,
   onCustomTextRemove,
@@ -88,8 +95,10 @@ export function SlideCanvas({
             userTier={userTier}
             onPositionChange={onPositionChange}
             onWidthChange={onWidthChange}
+            onSizeChange={onSizeChange}
             onCustomTextPositionChange={onCustomTextPositionChange}
             onCustomTextWidthChange={onCustomTextWidthChange}
+            onCustomTextSizeChange={onCustomTextSizeChange}
             onCustomTextUpdate={onCustomTextUpdate}
             onCustomTextSelect={onCustomTextSelect}
             onCustomTextRemove={onCustomTextRemove}

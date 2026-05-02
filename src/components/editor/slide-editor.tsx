@@ -10,6 +10,7 @@ import { SlideCanvas } from '@/components/editor/slide-canvas'
 import { TextEditorPanel } from '@/components/editor/text-editor-panel'
 import { LegacyTextEditorPanel } from '@/components/editor/text-editor-panel-legacy'
 import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
+import { ElementsPanel } from '@/components/editor/elements-panel'
 import { CaptionPanel } from '@/components/captions/caption-panel'
 import { Icon } from '@/components/ui/icon'
 import { downloadSlidesAsZip } from '@/lib/download/zip-slides'
@@ -77,7 +78,7 @@ export function SlideEditor({
       ? synthesizeBrandKitTemplate(brandKit)
       : getTemplate(currentTemplateId)
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [activeTab, setActiveTab] = useState<'text' | 'images'>('text')
+  const [activeTab, setActiveTab] = useState<'text' | 'elements' | 'images'>('text')
   const [showCaptions, setShowCaptions] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [exporting, setExporting] = useState(false)
@@ -453,6 +454,43 @@ export function SlideEditor({
     })
   }
 
+  // phase-59-02: size-change handler — extends handleWidthChange to also write
+  // style_overrides.{hook,body}_font_size + text_boxes[i].font_size when the
+  // onResizeStop branch detected a corner drag. When font_size is omitted (side
+  // drag), behavior is identical to handleWidthChange. Routes through existing
+  // override field at slide-preview.tsx:313 to preserve hook-fit precedence
+  // (FONTSCALE-04). handleWidthChange is kept intact for back-compat — no
+  // callers are migrated by this plan.
+  function handleSizeChange(
+    field: 'hook' | 'body',
+    size: { width: number; font_size?: number },
+  ) {
+    if (!currentSlide) return
+    const overrides = currentSlide.style_overrides ?? {}
+    const widthKey = field === 'hook' ? 'hook_width' : 'body_width'
+    const fontKey = field === 'hook' ? 'hook_font_size' : 'body_font_size'
+    const updatedTextBoxes = currentSlide.text_boxes?.map((tb) => {
+      if (tb.role !== field) return tb
+      return {
+        ...tb,
+        position: { ...tb.position, width: size.width },
+        ...(size.font_size !== undefined ? { font_size: size.font_size } : {}),
+      }
+    })
+    dispatch({
+      type: 'UPDATE_SLIDE',
+      index: selectedIndex,
+      updates: {
+        style_overrides: {
+          ...overrides,
+          [widthKey]: size.width,
+          ...(size.font_size !== undefined ? { [fontKey]: size.font_size } : {}),
+        },
+        ...(updatedTextBoxes ? { text_boxes: updatedTextBoxes } : {}),
+      },
+    })
+  }
+
   // Custom text handlers
   function handleAddCustomText() {
     // Phase 49 (HR-03): dispatch the unified ADD_TEXT_BOX so the new box lands in
@@ -479,6 +517,29 @@ export function SlideEditor({
     })
   }
 
+  // phase-59-02: custom-text size handler — dispatches UPDATE_TEXT_BOX (not the
+  // legacy UPDATE_CUSTOM_TEXT) so applyDualWrite mirrors text_boxes → legacy
+  // slide.custom_texts automatically (editor-reducer.ts:271-280). When font_size
+  // is omitted (side drag), only position.width updates. handleCustomTextWidthChange
+  // is kept intact for back-compat (CLEANUP-01 — deferred).
+  function handleCustomTextSizeChange(
+    id: string,
+    size: { width: number; font_size?: number },
+  ) {
+    if (!currentSlide) return
+    const tb = currentSlide.text_boxes?.find((b) => b.id === id)
+    if (!tb) return
+    dispatch({
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: selectedIndex,
+      textBoxId: id,
+      updates: {
+        position: { ...tb.position, width: size.width },
+        ...(size.font_size !== undefined ? { font_size: size.font_size } : {}),
+      },
+    })
+  }
+
   function handleCustomTextUpdate(id: string, updates: Partial<CustomText>) {
     dispatch({
       type: 'UPDATE_CUSTOM_TEXT',
@@ -496,6 +557,18 @@ export function SlideEditor({
   // Custom image handlers
   function handleAddCustomImage(url: string) {
     dispatch({ type: 'ADD_CUSTOM_IMAGE', slideIndex: selectedIndex, url })
+  }
+
+  // Elements panel — divider/line inserts. Same reducer action as photos but
+  // with centered + narrow + short defaults so the rule lands as a typographic
+  // separator under the headline, not as a half-canvas image.
+  function handleInsertDivider(dataUri: string) {
+    dispatch({
+      type: 'ADD_CUSTOM_IMAGE',
+      slideIndex: selectedIndex,
+      url: dataUri,
+      initial: { x: 25, y: 60, width: 50, height: 4, opacity: 100 },
+    })
   }
 
   function handleCustomImagePositionChange(id: string, position: { x: number; y: number }) {
@@ -676,8 +749,13 @@ export function SlideEditor({
           topic={topic}
           onPositionChange={handlePositionChange}
           onWidthChange={handleWidthChange}
+          // phase-59-02: corner-drag font-scale + side-drag width-only routes through
+          // these callbacks (FONTSCALE-01..04). handleSizeChange writes style_overrides.
+          // {hook,body}_font_size + text_boxes[i].font_size in one UPDATE_SLIDE dispatch.
+          onSizeChange={handleSizeChange}
           onCustomTextPositionChange={handleCustomTextPositionChange}
           onCustomTextWidthChange={handleCustomTextWidthChange}
+          onCustomTextSizeChange={handleCustomTextSizeChange}
           onCustomTextUpdate={handleCustomTextUpdate}
           onCustomTextSelect={setSelectedCustomTextId}
           onCustomTextRemove={handleRemoveCustomText}
@@ -704,6 +782,16 @@ export function SlideEditor({
               }`}
             >
               Text
+            </button>
+            <button
+              onClick={() => setActiveTab('elements')}
+              className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                activeTab === 'elements'
+                  ? 'border-b-2 border-[#3d0000] text-[#3d0000]'
+                  : 'text-[#7d6161] hover:bg-[#fff0f0]'
+              }`}
+            >
+              Elements
             </button>
             <button
               onClick={() => setActiveTab('images')}
@@ -783,6 +871,12 @@ export function SlideEditor({
                   brandKit={brandKit}
                 />
               )
+            )}
+            {currentSlide && activeTab === 'elements' && (
+              <ElementsPanel
+                templateTextColor={template.textColor}
+                onInsertDivider={handleInsertDivider}
+              />
             )}
             {currentSlide && activeTab === 'images' && (
               <ImagePickerPanel
