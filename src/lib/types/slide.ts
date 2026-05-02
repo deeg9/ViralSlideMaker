@@ -141,6 +141,11 @@ export interface SlideStyleOverrides {
       (preset descriptor or SHA-256 cache-key suffix). Editor surfaces in
       Phase 57 so users can see what's applied. */
   treatment_applied?: string
+  /** Phase 57 (D-09, D-10): per-slide grain intensity override on top of
+      template.grainMode. 'off' explicitly disables grain regardless of
+      template default. Renderer-side only — NOT a sharp pre-bake.
+      Resolved via resolveGrainIntensity(slide, template). */
+  grain_intensity?: 'subtle' | 'medium' | 'heavy' | 'off'
 }
 
 export interface Slide {

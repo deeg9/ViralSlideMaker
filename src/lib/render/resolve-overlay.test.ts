@@ -10,8 +10,14 @@ import {
   renderGrain,
   renderVignette,
   renderDecorativeOverlay,
+  getVibrant,
+  getDarkMuted,
+  getEditorialSerifChipColors,
+  getNotesAppChicAccentColor,
+  resolveGrainIntensity,
 } from './resolve-overlay'
 import type { Slide } from '@/lib/types/slide'
+import type { SlideTemplate } from './templates'
 
 // Reusable fixture matching Murphy reference shape.
 const baseSlide: Slide = {
@@ -427,5 +433,84 @@ describe('Phase 56: renderSegments segment-level fontFamily (TPL-07)', () => {
     const span = node[0]
     const style = (span.props as Record<string, unknown>).style as Record<string, unknown>
     expect(style.fontFamily).toBeUndefined()
+  })
+})
+
+describe('Phase 57: palette-aware helpers (PALETTE-03, D-14, D-16)', () => {
+  function makeSlide(palette?: string[], grain?: 'subtle' | 'medium' | 'heavy' | 'off'): Slide {
+    return {
+      hook_text: '', body_text: '', image_query: '', is_cta: false,
+      background_url: null, pexels_photo_id: null,
+      style_overrides: {
+        ...(palette ? { derived_palette: palette } : {}),
+        ...(grain ? { grain_intensity: grain } : {}),
+      },
+    } as Slide
+  }
+
+  function makeTemplate(opts: { paletteMode?: 'fixed' | 'palette-dominant'; grainMode?: 'subtle' | 'medium' | 'heavy' | 'paper' | 'xerox' } = {}): SlideTemplate {
+    return {
+      id: 't', name: 'T', description: '', tier: 'free',
+      backgroundColor: '#fff', textColor: '#000',
+      hookFontSize: 100, bodyFontSize: 30, fontFamily: 'sans',
+      paletteMode: opts.paletteMode,
+      grainMode: opts.grainMode,
+    } as unknown as SlideTemplate
+  }
+
+  it('getVibrant returns derived_palette[0] or null', () => {
+    expect(getVibrant(makeSlide(['#FF0000', '#000', '#fff', '#888', '#444', '#ccc']))).toBe('#FF0000')
+    expect(getVibrant(makeSlide())).toBeNull()
+  })
+
+  it('getDarkMuted returns derived_palette[4] or null', () => {
+    expect(getDarkMuted(makeSlide(['#A', '#B', '#C', '#D', '#444444', '#F']))).toBe('#444444')
+    expect(getDarkMuted(makeSlide())).toBeNull()
+  })
+
+  it('getEditorialSerifChipColors returns brand fallback when paletteMode=fixed', () => {
+    const slide = makeSlide(['#FF0000', '#800000', '#FFcccc', '#888', '#222', '#ccc'])
+    const tmpl = makeTemplate({ paletteMode: 'fixed' })
+    expect(getEditorialSerifChipColors(slide, tmpl)).toEqual({ background: '#F5EFE6', text: '#3d0000' })
+  })
+
+  it('getEditorialSerifChipColors uses Vibrant + DarkMuted when palette-dominant + palette set', () => {
+    const slide = makeSlide(['#FF0000', '#800000', '#FFcccc', '#888', '#222222', '#ccc'])
+    const tmpl = makeTemplate({ paletteMode: 'palette-dominant' })
+    expect(getEditorialSerifChipColors(slide, tmpl)).toEqual({ background: '#FF0000', text: '#222222' })
+  })
+
+  it('getEditorialSerifChipColors falls back when palette-dominant but no palette', () => {
+    const slide = makeSlide()
+    const tmpl = makeTemplate({ paletteMode: 'palette-dominant' })
+    expect(getEditorialSerifChipColors(slide, tmpl)).toEqual({ background: '#F5EFE6', text: '#3d0000' })
+  })
+
+  it('getNotesAppChicAccentColor returns sticky-yellow when fixed; Vibrant when dominant', () => {
+    const slide = makeSlide(['#FF0000', '#800000', '#FFcccc', '#888', '#222', '#ccc'])
+    expect(getNotesAppChicAccentColor(slide, makeTemplate({ paletteMode: 'fixed' }))).toBe('#FFE066')
+    expect(getNotesAppChicAccentColor(slide, makeTemplate({ paletteMode: 'palette-dominant' }))).toBe('#FF0000')
+    expect(getNotesAppChicAccentColor(makeSlide(), makeTemplate({ paletteMode: 'palette-dominant' }))).toBe('#FFE066')
+  })
+
+  it('resolveGrainIntensity prioritizes slide override over template grainMode', () => {
+    expect(resolveGrainIntensity(makeSlide(undefined, 'medium'), makeTemplate({ grainMode: 'subtle' }))).toBe('medium')
+  })
+
+  it("resolveGrainIntensity returns 'off' when slide override is 'off' (does NOT fall through to template)", () => {
+    expect(resolveGrainIntensity(makeSlide(undefined, 'off'), makeTemplate({ grainMode: 'medium' }))).toBe('off')
+  })
+
+  it('resolveGrainIntensity falls through to template grainMode for simple values', () => {
+    expect(resolveGrainIntensity(makeSlide(), makeTemplate({ grainMode: 'heavy' }))).toBe('heavy')
+  })
+
+  it('resolveGrainIntensity ignores paper/xerox template grainMode (template-only)', () => {
+    expect(resolveGrainIntensity(makeSlide(), makeTemplate({ grainMode: 'paper' }))).toBeUndefined()
+    expect(resolveGrainIntensity(makeSlide(), makeTemplate({ grainMode: 'xerox' }))).toBeUndefined()
+  })
+
+  it('resolveGrainIntensity returns undefined when both slide and template are unset', () => {
+    expect(resolveGrainIntensity(makeSlide(), makeTemplate())).toBeUndefined()
   })
 })

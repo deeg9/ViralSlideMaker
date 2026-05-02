@@ -1,5 +1,5 @@
 import React from 'react'
-import type { OverlayContent } from './templates'
+import type { OverlayContent, SlideTemplate } from './templates'
 import type { DecorativeAsset } from './templates/decorative'
 import type { Slide, TextSegment } from '@/lib/types/slide'
 
@@ -325,7 +325,7 @@ const DECORATIVE_PNG_ASSETS: ReadonlyArray<DecorativeAsset> = [
 export function renderDecorativeOverlay(
   asset: DecorativeAsset,
   position: { x: number; y: number },
-  options?: { rotation?: number; scale?: number; opacity?: number },
+  options?: { rotation?: number; scale?: number; opacity?: number; tintColor?: string },
 ): React.ReactNode {
   const ext = DECORATIVE_PNG_ASSETS.includes(asset) ? 'png' : 'svg'
   const src = `/overlays/${asset}.${ext}`
@@ -333,6 +333,9 @@ export function renderDecorativeOverlay(
   const scale = options?.scale ?? 1
   const transform =
     rotation !== 0 || scale !== 1 ? `rotate(${rotation}deg) scale(${scale})` : undefined
+  // Phase 57 (D-15): tintColor injects via CSS `color` so SVGs that use
+  // fill="currentColor" pick up the dynamic accent. PNG assets ignore tintColor
+  // (raster — recoloring would require a CSS filter, which is banned).
   return React.createElement('img', {
     'data-layer': 'decorative',
     'data-asset': asset,
@@ -343,7 +346,89 @@ export function renderDecorativeOverlay(
       left: position.x,
       transform,
       opacity: options?.opacity ?? 1,
+      color: options?.tintColor,
       pointerEvents: 'none',
     },
   })
+}
+
+// =====================================================================
+// Phase 57 (D-07, D-09, D-14, D-16): palette-aware rendering helpers.
+// Both render-slide-satori.tsx and slide-preview.tsx import from this
+// module to honor TPLREND-05 (no JSX duplicated across renderers).
+// =====================================================================
+
+/**
+ * Read the Vibrant role (index 0) from a slide's derived_palette.
+ * Returns null when palette has not been extracted yet.
+ */
+export function getVibrant(slide: Slide): string | null {
+  return slide.style_overrides?.derived_palette?.[0] ?? null
+}
+
+/**
+ * Read the DarkMuted role (index 4) from a slide's derived_palette.
+ * Returns null when palette has not been extracted yet.
+ */
+export function getDarkMuted(slide: Slide): string | null {
+  return slide.style_overrides?.derived_palette?.[4] ?? null
+}
+
+/**
+ * Resolve the page-counter chip background+text colors for the
+ * editorial-serif template. When paletteMode is 'palette-dominant' AND
+ * a palette is present, the chip uses Vibrant background + DarkMuted text.
+ * Otherwise falls back to the cream + deep-brown brand pair.
+ */
+export function getEditorialSerifChipColors(
+  slide: Slide,
+  template: SlideTemplate,
+): { background: string; text: string } {
+  if (template.paletteMode !== 'palette-dominant') {
+    return { background: '#F5EFE6', text: '#3d0000' }
+  }
+  const vibrant = getVibrant(slide)
+  if (!vibrant) {
+    return { background: '#F5EFE6', text: '#3d0000' }
+  }
+  const darkMuted = getDarkMuted(slide) ?? '#3d0000'
+  return { background: vibrant, text: darkMuted }
+}
+
+/**
+ * Resolve the sticky-note tint color for the notes-app-chic template.
+ * When paletteMode is 'palette-dominant' AND a palette is present, returns
+ * Vibrant. Otherwise returns the brand sticky-yellow.
+ */
+export function getNotesAppChicAccentColor(
+  slide: Slide,
+  template: SlideTemplate,
+): string {
+  if (template.paletteMode !== 'palette-dominant') return '#FFE066'
+  return getVibrant(slide) ?? '#FFE066'
+}
+
+/**
+ * Phase 57 (D-09): per-slide grain-intensity override on top of
+ * template.grainMode. Slide override wins; otherwise fall through to
+ * the template's mode (only if it's one of the user-overridable values
+ * 'subtle' | 'medium' | 'heavy' — paper/xerox stay template-only).
+ *
+ * Returns 'off' explicitly when slide override is 'off' (callers must
+ * skip rendering grain in that case).
+ */
+export function resolveGrainIntensity(
+  slide: Slide,
+  template: SlideTemplate,
+): 'subtle' | 'medium' | 'heavy' | 'off' | undefined {
+  const override = slide.style_overrides?.grain_intensity
+  if (override) return override
+  if (
+    template.grainMode === 'subtle' ||
+    template.grainMode === 'medium' ||
+    template.grainMode === 'heavy'
+  ) {
+    return template.grainMode
+  }
+  return undefined
 }
