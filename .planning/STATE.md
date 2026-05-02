@@ -81,10 +81,14 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ### Quick Tasks Completed
 
-(unchanged — see prior STATE.md history; latest quick: 260502-er5 watermark right-rail UI on 2026-05-02)
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260502-mre | Remove Generate Captions button + default new carousels to Public | 2026-05-02 | 92af6a7 | [260502-mre-remove-generate-captions-button-and-defa](./quick/260502-mre-remove-generate-captions-button-and-defa/) |
+
+(prior history truncated — latest before this: 260502-er5 watermark right-rail UI on 2026-05-02)
 
 ## Session Continuity
 
-Last activity: 2026-05-02 — v2.10 roadmap written. Phase 59 (Corner Resize Handles + Font-Scale) defined with 13 active requirements all mapped, 5 success criteria, locked engineering direction from research synthesis.
+Last activity: 2026-05-02 - Completed quick task 260502-mre: remove Generate Captions button + auto-publish newly generated carousels.
 Stopped at: Roadmap committed; awaiting `/gsd-plan-phase 59` to decompose into plans.
 Next: `/gsd-plan-phase 59` — decompose into ~4 plans mirroring C1-C4 commits (handles+a11y → dispatch+font-scale → tests+clamp+parity → Shift escape).
