@@ -6,6 +6,7 @@ import { searchPhotos } from '@/lib/pexels/search-photos'
 import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { checkCredits, deductCredit, getCreditBalance, getUserTier } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { rateLimit } from '@/lib/rate-limit'
@@ -156,13 +157,30 @@ export async function generateCarousel(
       )
     }
 
-    // 2a-bis. User-uploaded photos override slide backgrounds. Gemini matches each
-    // photo to the slide whose copy it best fits; on any error the matcher falls
-    // back to index order so behavior never gets worse than today.
+    // 2a-bis. User-uploaded photos override slide backgrounds.
+    //
+    // Phase 58 (MATCH-01..05): premium-tier gate. Free tier falls through
+    // to index-order (existing behavior); premium tier gets vision-matched
+    // assignments via Gemini with cache + 10s timeout + credit ledger.
+    // On timeout/error/zero-assignments, the matcher refunds the credit
+    // and returns index-order — never blocks generation.
     const uploaded = advancedOptions?.uploadedImageUrls?.filter((u): u is string => typeof u === 'string' && u.length > 0) ?? []
     const usable = uploaded.slice(0, clampedCount)
     if (usable.length > 0) {
-      const assignments = await matchPhotosToSlides(slides, usable)
+      const isPremium = tier !== 'free'
+      let assignments: (string | null)[]
+      if (isPremium) {
+        const admin = createAdminClient()
+        assignments = await matchPhotosToSlides(slides, usable, {
+          userId: user.id,
+          admin,
+        })
+      } else {
+        // Free tier: index-order — no Gemini, no credit, no cache.
+        assignments = slides.map((_, idx) =>
+          idx < usable.length ? usable[idx] : null,
+        )
+      }
       slides = slides.map((slide, idx) =>
         assignments[idx]
           ? { ...slide, background_url: assignments[idx]!, pexels_photo_id: null }
