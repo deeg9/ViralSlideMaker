@@ -94,18 +94,57 @@ export function SlideEditor({
   // the spinner state co-located with the editor; revalidatePath fires from
   // the server action so the slide list refreshes on Next's normal cycle.
   //
-  // quick-260502-fai: NOTE — handleSlideTreatmentChange (below) has the same
-  // local-state-sync bug shape as the watermark handlers but is not user-
-  // reported. Fix in a separate quick if/when surfaced.
+  // quick-260502-fv9: hybrid local-state sync — see handler below.
   const [isTreatmentPending, startTreatmentTransition] = useTransition()
+  // quick-260502-fv9: hybrid local-state sync. Optimistically dispatch
+  // treatment_applied + grain_intensity BEFORE the server call so the
+  // active button flips instantly. After the server returns, merge the
+  // server-computed fields (background_url, original_source_url,
+  // derived_palette) so the preview swaps to the treated image without
+  // a refresh.
   const handleSlideTreatmentChange = useCallback((spec: TreatmentSpec) => {
+    if (currentSlide) {
+      // Optimistic — flip the button + grain state immediately.
+      // background_url is server-computed (treatPhoto + Storage upload),
+      // so it stays untouched here and is merged from the response below.
+      dispatch({
+        type: 'UPDATE_SLIDE',
+        index: selectedIndex,
+        updates: {
+          style_overrides: {
+            ...(currentSlide.style_overrides ?? {}),
+            treatment_applied: spec.kind === 'none' ? undefined : spec.kind,
+            grain_intensity: spec.grain,
+          },
+        },
+      })
+    }
     startTreatmentTransition(async () => {
       const result = await updateSlideTreatment(projectId, selectedIndex, spec)
       if (!result.success) {
         console.warn('[updateSlideTreatment] failed:', result.error)
+        return
       }
+      // Server-computed fields: background_url (treated image URL),
+      // original_source_url (back-filled if it was null pre-Phase 55),
+      // and derived_palette (re-extracted from the treated image).
+      const updated = result.slide
+      dispatch({
+        type: 'UPDATE_SLIDE',
+        index: selectedIndex,
+        updates: {
+          background_url: updated.background_url,
+          original_source_url: updated.original_source_url,
+          style_overrides: {
+            ...(currentSlide?.style_overrides ?? {}),
+            treatment_applied: updated.style_overrides?.treatment_applied,
+            grain_intensity: updated.style_overrides?.grain_intensity,
+            derived_palette: updated.style_overrides?.derived_palette,
+          },
+        },
+      })
     })
-  }, [projectId, selectedIndex])
+  }, [projectId, selectedIndex, currentSlide, dispatch])
 
   // quick-260502-er5: per-slide watermark override handling.
   // quick-260502-fai: also dispatch UPDATE_SLIDE so the editor's React state
