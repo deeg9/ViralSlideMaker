@@ -49,3 +49,43 @@ describe('Phase 55 (D-24, D-25, PARITY-04): no CSS filter properties in resolver
     expect(stripped).not.toMatch(/\bmixBlendMode\s*:/)
   })
 })
+
+// Phase 58 (PARITY-04): extend the lint guard to scan the 3 new Phase 56
+// template files plus decorative.ts. CSS filter properties are silently
+// dropped by Satori (vercel/satori#573) and would create preview/export
+// drift — server-side sharp pre-bake from Phase 54 is the ONLY path for
+// photo treatment.
+describe('Phase 58 (PARITY-04): no CSS filter properties in new templates', () => {
+  const templateFiles = [
+    'editorial-serif.ts',
+    'notes-app-chic.ts',
+    'brutalist-grid.ts',
+    'decorative.ts',
+  ]
+
+  templateFiles.forEach((file) => {
+    describe(file, () => {
+      const filePath = resolve(__dirname, '..', 'templates', file)
+      const source = readFileSync(filePath, 'utf8')
+      const stripped = stripComments(source)
+
+      it(`${file}: no "filter:" property usage`, () => {
+        expect(stripped).not.toMatch(/(?<!backdrop-)filter\s*:/)
+      })
+
+      it(`${file}: no "backdrop-filter:" property usage`, () => {
+        expect(stripped).not.toMatch(/backdrop-filter\s*:/)
+      })
+
+      it(`${file}: no "mix-blend-mode:" property usage`, () => {
+        expect(stripped).not.toMatch(/mix-blend-mode\s*:/)
+      })
+
+      it(`${file}: no JS-style camelCase filter variants`, () => {
+        expect(stripped).not.toMatch(/\bfilter\s*:/)
+        expect(stripped).not.toMatch(/\bbackdropFilter\s*:/)
+        expect(stripped).not.toMatch(/\bmixBlendMode\s*:/)
+      })
+    })
+  })
+})

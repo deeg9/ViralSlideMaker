@@ -35,7 +35,82 @@ export async function createProjectService(
   return data
 }
 
-export async function deleteProjectService(supabase: SupabaseClient, userId: string, projectId: string) {
+// Phase 58 (PARITY-06, D-17): extract storage path from a public Supabase
+// URL. Returns null if URL is not a Supabase storage URL for the given
+// bucket. Pure function — easily unit-testable.
+export function extractStoragePath(url: string, bucket: string): string | null {
+  if (!url) return null
+  const marker = `/storage/v1/object/public/${bucket}/`
+  const idx = url.indexOf(marker)
+  if (idx === -1) return null
+  return url.substring(idx + marker.length)
+}
+
+interface SlideForCleanup {
+  background_url?: string | null
+  original_source_url?: string | null
+}
+
+export async function deleteProjectService(
+  supabase: SupabaseClient,
+  userId: string,
+  projectId: string,
+  admin?: SupabaseClient,
+) {
+  // Phase 58 (PARITY-06, D-17): cascade-delete cleanup. Best-effort —
+  // never blocks the row delete on storage cleanup failure.
+  if (admin) {
+    try {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('slide_data')
+        .eq('id', projectId)
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (project?.slide_data) {
+        const slides = (project.slide_data ?? []) as SlideForCleanup[]
+        const treatedPaths: string[] = []
+        const originalPaths: string[] = []
+        for (const slide of slides) {
+          if (slide.background_url) {
+            const p = extractStoragePath(
+              slide.background_url,
+              'slide-backgrounds-treated',
+            )
+            if (p) treatedPaths.push(p)
+          }
+          if (slide.original_source_url) {
+            const p = extractStoragePath(
+              slide.original_source_url,
+              'slide-backgrounds',
+            )
+            if (p) originalPaths.push(p)
+          }
+        }
+
+        if (treatedPaths.length > 0) {
+          await admin.storage
+            .from('slide-backgrounds-treated')
+            .remove(treatedPaths)
+            .catch((err) =>
+              console.warn('[delete-project] treated cleanup failed:', err),
+            )
+        }
+        if (originalPaths.length > 0) {
+          await admin.storage
+            .from('slide-backgrounds')
+            .remove(originalPaths)
+            .catch((err) =>
+              console.warn('[delete-project] original cleanup failed:', err),
+            )
+        }
+      }
+    } catch (err) {
+      console.warn('[delete-project] cascade-delete pre-fetch failed:', err)
+    }
+  }
+
   const { error } = await supabase
     .from('projects')
     .delete()

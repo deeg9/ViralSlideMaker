@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   createProjectService,
   deleteProjectService,
@@ -42,7 +43,10 @@ export async function deleteProject(projectId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  await deleteProjectService(supabase, user.id, projectId)
+  // Phase 58 (PARITY-06): pass admin client so cascade-delete cleanup
+  // runs (treated backgrounds + original-source uploads).
+  const admin = createAdminClient()
+  await deleteProjectService(supabase, user.id, projectId, admin)
 
   revalidatePath('/dashboard')
 }
