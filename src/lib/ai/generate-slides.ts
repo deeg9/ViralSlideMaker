@@ -58,8 +58,26 @@ const responseSchema: Schema = {
             enum: ['cover', 'body'],
           },
           is_cta: { type: Type.BOOLEAN, description: 'Whether this is the closing CTA slide' },
+          // Phase 58 (AIROLE-01, D-01, D-02): closed 5-value enum. Required on AI
+          // emit side; validator (validate-slides.ts) backfills missing values
+          // via assignSlideRoles so post-validation code can rely on `role` being
+          // set. Never-throws contract preserved.
+          role: {
+            type: Type.STRING,
+            enum: ['cover', 'reframe', 'support', 'pivot', 'close'],
+            description:
+              'Slide role: cover (slide 1), reframe, support, pivot, or close (last slide)',
+          },
+          // Phase 58 (AIROLE-03, D-03): closed enum from registry. Optional —
+          // null/undefined = use project template. Invalid IDs (not in TEMPLATE_IDS)
+          // silently stripped server-side by validateAndRepair (D-06, D-08).
+          template_id_override: {
+            type: Type.STRING,
+            description:
+              'Optional per-slide template_id override for visual rhythm. Leave unset to use the project template. Closed enum — invalid IDs silently stripped server-side.',
+          },
         },
-        required: ['hook_text', 'body_text', 'image_query', 'is_cta'],
+        required: ['hook_text', 'body_text', 'image_query', 'is_cta', 'role'],
       },
     },
   },
@@ -111,6 +129,16 @@ export async function generateSlideContent(
 
   // First call.
   let parsed = (await callGemini(baseContents)) as { slides: unknown[] }
+
+  // Phase 58 (AIROLE-01): trace emitted roles for production debugging.
+  const emittedRoles = (parsed.slides as Array<{ role?: string }>).map(
+    (s) => s.role ?? '<missing>',
+  )
+  console.info(
+    `[generate-slides] roles emitted (templateId=${templateId ?? '<none>'}):`,
+    emittedRoles,
+  )
+
   let { data, warnings } = validateAndRepair(parsed as never, { templateId })
 
   // Retry-once gate: only when warnings exist AND the template is premium

@@ -39,6 +39,20 @@ export const SlideContentSchema = z.object({
     .optional()
     .describe('News-carousel layout: cover (image top, text bar bottom) or body (text top, image bottom)'),
   is_cta: z.boolean().describe('Whether this is the closing CTA slide'),
+  // Phase 58 (AIROLE-01, AIROLE-04, D-01): optional in Zod (validator
+  // backfills missing/invalid values via assignSlideRoles), required in
+  // Gemini Type schema. Zod stays dependency-light — TEMPLATE_IDS validation
+  // for template_id_override happens in validate-slides.ts.
+  role: z
+    .enum(['cover', 'reframe', 'support', 'pivot', 'close'])
+    .optional()
+    .describe('Slide role in the carousel arc — defaults via validator if missing/invalid (AIROLE-04)'),
+  template_id_override: z
+    .string()
+    .optional()
+    .describe(
+      'Optional per-slide template_id override (closed enum from registry; invalid values silently stripped per D-08)',
+    ),
 })
 
 export const CarouselSchema = z.object({

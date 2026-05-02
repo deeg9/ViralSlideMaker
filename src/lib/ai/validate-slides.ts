@@ -11,6 +11,8 @@
 // 2 (typo gate), and 3 (documentary highlight strip).
 
 import { KNOWN_TYPOS } from './typos'
+import { assignSlideRoles, SLIDE_ROLES, type SlideRole } from './role-distribution'
+import { TEMPLATE_IDS } from '@/lib/render/templates'
 
 // Locked set per Phase 46 + 47-CONTEXT.md Area 1. Inlined to avoid a circular
 // dep on src/lib/render/templates/index.ts (which imports the validator at
@@ -192,6 +194,8 @@ export function validateAndRepair<
         highlightColor?: string
         highlightStyle?: 'pill'
       }>
+      role?: string
+      template_id_override?: string
     }>
   },
 >(data: T, options: ValidateAndRepairOptions = {}): ValidateAndRepairResult<T> {
@@ -211,6 +215,24 @@ export function validateAndRepair<
       })
     })
   }
+
+  // Phase 58 (AIROLE-04, D-06, D-08): silently default missing/invalid role
+  // values to the deterministic per-length distribution. Silently strip
+  // invalid template_id_override values not in TEMPLATE_IDS. NO warnings
+  // emitted — these are AI emit defaults, not detectable mistakes. Never-
+  // throws contract preserved.
+  const defaultRoles = assignSlideRoles(data.slides.length)
+  data.slides.forEach((slide, idx) => {
+    if (!slide.role || !SLIDE_ROLES.includes(slide.role as SlideRole)) {
+      slide.role = defaultRoles[idx]
+    }
+    if (
+      slide.template_id_override !== undefined &&
+      !TEMPLATE_IDS.includes(slide.template_id_override)
+    ) {
+      delete slide.template_id_override
+    }
+  })
 
   const overflows = detectOverflows(data.slides, templateId)
   overflows.forEach((o) => {

@@ -164,6 +164,12 @@ export const templates: SlideTemplate[] = [
 // Phase 44: fail fast at module load if any registered template is misconfigured.
 validateTemplateRegistry(templates)
 
+// Phase 58 (AIROLE-03, D-03): closed enum for AI template_id_override.
+// Derived at module load — extends automatically when new templates land in
+// the array above. Used by validate-slides.ts to silently strip invalid IDs
+// from Gemini output (D-06, D-08).
+export const TEMPLATE_IDS: readonly string[] = templates.map((t) => t.id)
+
 export function getTemplate(id: string): SlideTemplate {
   return templates.find((t) => t.id === id) ?? templates[0]
 }

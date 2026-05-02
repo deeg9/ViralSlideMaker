@@ -60,8 +60,20 @@ ${AI_HOOK_VARIETY_ADDENDUM}
 `
     : ''
 
-  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}
+  // Phase 58 (AIROLE-02, D-04): per-role copy guidance, verbatim. Unconditional —
+  // applies to every templateId. Inserted BEFORE the HOOK PATTERNS section so it
+  // informs all hooks (premium or not).
+  const perRoleGuidance = `
 
+PER-ROLE COPY GUIDANCE — every slide has a role; write each accordingly:
+- cover (slide 1): pattern-interrupt hook, ≤8 words, designed to stop the scroll
+- reframe: introduce a "wait, but" tension that contradicts the cover
+- support: concrete evidence, example, or specific number
+- pivot: unexpected angle that reframes what came before
+- close (last slide): action / CTA / bookmark prompt — tell the viewer what to do next
+`
+
+  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}${perRoleGuidance}
 HOOK PATTERNS - Use these proven TikTok hook formulas:
 - Curiosity gaps: "The one thing about X that nobody talks about"
 - Pattern interrupts: "Stop scrolling if you..." / "This changed everything"
