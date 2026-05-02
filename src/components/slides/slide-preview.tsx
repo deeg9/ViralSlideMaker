@@ -238,6 +238,24 @@ const resizeHandleStyle: React.CSSProperties = {
   transform: 'translateY(-50%)',
 }
 
+// phase-59-01: 24×24 hit zone (WCAG 2.5.8 AA) painting the central 12×12
+// only. padding+backgroundClip:'content-box' keeps the outer 6px transparent
+// but hit-testable (12 + 6 + 6 = 24 CSS-px). Cursor goes inline per-corner
+// so it trumps the inner cursor:'grab' (UI-SPEC "Cursor Affordance Contract").
+// Mirrors the custom-image precedent at slide-preview.tsx:1168 with size
+// 8→12 and an outer hit-zone wrapper for touch a11y.
+const cornerHandleHitStyle: React.CSSProperties = {
+  width: 24,
+  height: 24,
+  padding: 6,
+  boxSizing: 'border-box',
+  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  backgroundClip: 'content-box',
+  border: '1px solid rgba(0, 0, 0, 0.35)',
+  borderRadius: 2,
+  position: 'absolute',
+}
+
 interface SlidePreviewProps {
   slide: Slide
   template: SlideTemplate
@@ -297,9 +315,20 @@ export function SlidePreview({
   const [draggingElementId, setDraggingElementId] = useState<string | null>(null)
   const [overTrash, setOverTrash] = useState(false)
 
-  const textColor = overrides.text_color ?? template.textColor
-  const hookTextColor = overrides.hook_text_color ?? textColor
-  const bodyTextColor = overrides.body_text_color ?? textColor
+  // Color-only templates ignore per-slide color overrides so stale values
+  // from a prior template (e.g. hook_text_color: '#FFFFFF' baked in by
+  // bold-minimal for photo legibility) don't leak through and break the
+  // template's typographic contract. Same kill-switch as resolve-styles.ts.
+  const isColorOnlyTpl = template.backgroundMode === 'color'
+  const textColor = isColorOnlyTpl
+    ? template.textColor
+    : overrides.text_color ?? template.textColor
+  const hookTextColor = isColorOnlyTpl
+    ? template.textColor
+    : overrides.hook_text_color ?? textColor
+  const bodyTextColor = isColorOnlyTpl
+    ? template.textColor
+    : overrides.body_text_color ?? textColor
   const textAlign = overrides.text_align ?? template.textAlign
   // Templates with a hook-fit registry entry auto-shrink the hook size for long
   // headlines so multi-line hooks don't overflow the reserved hook zone.
@@ -323,9 +352,14 @@ export function SlidePreview({
   const hookFontStyle = overrides.hook_font_style ?? 'normal'
   const bodyFontStyle = overrides.body_font_style ?? 'normal'
 
-  const overlayOpacity = overrides.overlay_opacity != null
-    ? overrides.overlay_opacity / 100
-    : template.overlayOpacity
+  // Color-only templates (paper-essay, brutalist-grid) suppress the slide-wide
+  // darkening overlay regardless of any persisted style_overrides — same kill-
+  // switch logic as resolve-styles.ts and the Satori renderer.
+  const overlayOpacity = template.backgroundMode === 'color'
+    ? 0
+    : overrides.overlay_opacity != null
+      ? overrides.overlay_opacity / 100
+      : template.overlayOpacity
 
   const hookPos = overrides.hook_position
   const bodyPos = overrides.body_position
@@ -349,8 +383,14 @@ export function SlidePreview({
   // templates leave backgroundMode undefined → newsZone path runs unchanged.
   const isTemplateBgMode =
     template.backgroundMode != null && template.backgroundMode !== 'color'
+  // backgroundMode: 'color' is a hard kill-switch — the template promises a
+  // pure-typography canvas, so any persisted `slide.background_url` must be
+  // ignored in this live preview just as it is in the Satori/HTML renderers.
+  const isColorOnlyTemplate = template.backgroundMode === 'color'
   const newsZone =
-    !isTemplateBgMode && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+    !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
+      ? NEWS_LAYOUT[overrides.layout]
+      : null
   const useBgMode = isTemplateBgMode
   const useBottomCard =
     useBgMode && template.backgroundMode === 'image-with-bottom-card'
@@ -458,7 +498,7 @@ export function SlidePreview({
     // an absolutely-positioned <img> — suppress the CSS backgroundImage to avoid
     // a redundant second fetch and match Satori which never sets backgroundImage
     // on the root element (Satori uses only the <img> tag, no CSS background).
-    backgroundImage: !newsZone && !useBgMode && slide.background_url
+    backgroundImage: !newsZone && !useBgMode && !isColorOnlyTemplate && slide.background_url
       ? `url(${slide.background_url})`
       : undefined,
     backgroundSize: 'cover',
@@ -798,20 +838,50 @@ export function SlidePreview({
   const hookWidthPx = (hookWidth / 100) * REF_WIDTH
   const bodyWidthPx = (bodyWidth / 100) * REF_WIDTH
 
+  // phase-59-01: corners on, top/bottom off (auto-fit text design — RESIZE-01/02/03 per CONTEXT.md).
   const enableResizing = {
     left: true,
     right: true,
     top: false,
     bottom: false,
-    topLeft: false,
-    topRight: false,
-    bottomLeft: false,
-    bottomRight: false,
+    topLeft: true,
+    topRight: true,
+    bottomLeft: true,
+    bottomRight: true,
   }
 
+  // phase-59-01: side handles preserve existing 4×40 vertical-bar visual; 4 corner
+  // handles add 12×12 white-fill / dark-border square inside a 24×24 hit zone
+  // (WCAG 2.5.8 AA), with diagonal resize cursors set inline so they win over
+  // the inner content's cursor:'grab' (UI-SPEC "Cursor Affordance Contract").
+  // Wrapper offset top/left: -12 centers the 24×24 hit zone on the corner.
   const resizeHandleStyles = {
     left: { ...resizeHandleStyle, left: -2 },
     right: { ...resizeHandleStyle, right: -2 },
+    topLeft: {
+      ...cornerHandleHitStyle,
+      top: -12,
+      left: -12,
+      cursor: 'nwse-resize',
+    },
+    topRight: {
+      ...cornerHandleHitStyle,
+      top: -12,
+      right: -12,
+      cursor: 'nesw-resize',
+    },
+    bottomLeft: {
+      ...cornerHandleHitStyle,
+      bottom: -12,
+      left: -12,
+      cursor: 'nesw-resize',
+    },
+    bottomRight: {
+      ...cornerHandleHitStyle,
+      bottom: -12,
+      right: -12,
+      cursor: 'nwse-resize',
+    },
   }
 
   return (
