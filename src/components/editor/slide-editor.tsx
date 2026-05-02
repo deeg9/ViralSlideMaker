@@ -20,7 +20,7 @@ import {
   regenerateSlideText,
   regenerateSlideImageQuery,
   updateSlideTreatment,
-  updateSlideWatermark,
+  updateProjectWatermark,
   createUploadUrl,
   type TreatmentSpec,
   type WatermarkSpec,
@@ -147,36 +147,41 @@ export function SlideEditor({
   }, [projectId, selectedIndex, currentSlide, dispatch])
 
   // quick-260502-er5: per-slide watermark override handling.
-  // quick-260502-fai: also dispatch UPDATE_SLIDE so the editor's React state
-  // reflects the change immediately — the server action alone does not flow
-  // back into the reducer, so without the dispatch the Switch + preview stay
-  // out of sync until a hard refresh.
+  // quick-260502-fai: also dispatch so the editor's React state reflects the
+  // change immediately — the server action alone does not flow back into the
+  // reducer, so without the dispatch the Switch + preview stay out of sync
+  // until a hard refresh.
+  // quick-260502-ik8: watermark is a project-wide setting — every slide gets
+  // the same patch. Build the new slides[] client-side (mirroring
+  // updateProjectWatermark's server-side merge) and dispatch SET_SLIDES so the
+  // broadcast lands as ONE undo step. The server confirms via
+  // updateProjectWatermark.
   const [isWatermarkPending, startWatermarkTransition] = useTransition()
   const handleSlideWatermarkChange = useCallback((spec: WatermarkSpec) => {
-    if (!currentSlide) return
-    // Mirror the server's merge shape exactly: { ...existing, ...spec }.
-    const existing = currentSlide.style_overrides?.watermark ?? {}
-    dispatch({
-      type: 'UPDATE_SLIDE',
-      index: selectedIndex,
-      updates: {
+    const next = slides.map((s) => {
+      const existing = s.style_overrides?.watermark ?? {}
+      return {
+        ...s,
         style_overrides: {
-          ...(currentSlide.style_overrides ?? {}),
+          ...(s.style_overrides ?? {}),
           watermark: { ...existing, ...spec },
         },
-      },
-    })
-    startWatermarkTransition(async () => {
-      const result = await updateSlideWatermark(projectId, selectedIndex, spec)
-      if (!result.success) {
-        console.warn('[updateSlideWatermark] failed:', result.error)
       }
     })
-  }, [projectId, selectedIndex, currentSlide, dispatch])
+    dispatch({ type: 'SET_SLIDES', slides: next })
+    startWatermarkTransition(async () => {
+      const result = await updateProjectWatermark(projectId, spec)
+      if (!result.success) {
+        console.warn('[updateProjectWatermark] failed:', result.error)
+      }
+    })
+  }, [projectId, slides, dispatch])
 
-  // quick-260502-fai: dispatch UPDATE_SLIDE after a successful PUT so the
-  // logo preview thumbnail appears in WatermarkControls without a refresh.
-  // Sync runs BEFORE the awaited server action so the UI flips immediately.
+  // quick-260502-fai: dispatch after a successful PUT so the logo preview
+  // thumbnail appears in WatermarkControls without a refresh. Sync runs
+  // BEFORE the awaited server action so the UI flips immediately.
+  // quick-260502-ik8: now a project-wide broadcast — set customLogoUrl on
+  // every slide and persist via updateProjectWatermark.
   const handleWatermarkLogoUpload = useCallback((file: File) => {
     startWatermarkTransition(async () => {
       try {
@@ -190,20 +195,18 @@ export function SlideEditor({
           console.warn('[watermarkLogoUpload] PUT failed:', putRes.status)
           return
         }
-        if (currentSlide) {
-          const existing = currentSlide.style_overrides?.watermark ?? {}
-          dispatch({
-            type: 'UPDATE_SLIDE',
-            index: selectedIndex,
-            updates: {
-              style_overrides: {
-                ...(currentSlide.style_overrides ?? {}),
-                watermark: { ...existing, customLogoUrl: uploadInfo.publicUrl },
-              },
+        const next = slides.map((s) => {
+          const existing = s.style_overrides?.watermark ?? {}
+          return {
+            ...s,
+            style_overrides: {
+              ...(s.style_overrides ?? {}),
+              watermark: { ...existing, customLogoUrl: uploadInfo.publicUrl },
             },
-          })
-        }
-        const result = await updateSlideWatermark(projectId, selectedIndex, {
+          }
+        })
+        dispatch({ type: 'SET_SLIDES', slides: next })
+        const result = await updateProjectWatermark(projectId, {
           customLogoUrl: uploadInfo.publicUrl,
         })
         if (!result.success) {
@@ -213,33 +216,33 @@ export function SlideEditor({
         console.warn('[watermarkLogoUpload] error:', (e as Error).message)
       }
     })
-  }, [projectId, selectedIndex, currentSlide, dispatch])
+  }, [projectId, slides, dispatch])
 
-  // quick-260502-fai: dispatch UPDATE_SLIDE clearing customLogoUrl so the
-  // upload button reappears in WatermarkControls without a refresh.
+  // quick-260502-fai: dispatch clearing customLogoUrl so the upload button
+  // reappears in WatermarkControls without a refresh.
+  // quick-260502-ik8: now a project-wide broadcast — clear customLogoUrl on
+  // every slide and persist via updateProjectWatermark.
   const handleWatermarkLogoRemove = useCallback(() => {
-    if (currentSlide) {
-      const existing = currentSlide.style_overrides?.watermark ?? {}
-      dispatch({
-        type: 'UPDATE_SLIDE',
-        index: selectedIndex,
-        updates: {
-          style_overrides: {
-            ...(currentSlide.style_overrides ?? {}),
-            watermark: { ...existing, customLogoUrl: undefined },
-          },
+    const next = slides.map((s) => {
+      const existing = s.style_overrides?.watermark ?? {}
+      return {
+        ...s,
+        style_overrides: {
+          ...(s.style_overrides ?? {}),
+          watermark: { ...existing, customLogoUrl: undefined },
         },
-      })
-    }
+      }
+    })
+    dispatch({ type: 'SET_SLIDES', slides: next })
     startWatermarkTransition(async () => {
-      const result = await updateSlideWatermark(projectId, selectedIndex, {
+      const result = await updateProjectWatermark(projectId, {
         customLogoUrl: undefined,
       })
       if (!result.success) {
         console.warn('[watermarkLogoRemove] failed:', result.error)
       }
     })
-  }, [projectId, selectedIndex, currentSlide, dispatch])
+  }, [projectId, slides, dispatch])
 
   // Phase 50 (D-19): feature flag to route between the new selection-driven
   // TextEditorPanel and the preserved LegacyTextEditorPanel. Default is the
