@@ -184,6 +184,11 @@ export function renderSegments(
         padding: isPill ? '4px 12px' : '4px 8px',
         borderRadius: isPill ? '8px' : '0',
         marginRight: isLast ? '0' : '8px',
+        // Prevent a single long-word pill from extending past the hook
+        // container's flex bounds and bleeding past the 1080px canvas.
+        maxWidth: '100%',
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word',
         ...segmentFontFamily,
       }
       return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: pillStyle }, seg.text)

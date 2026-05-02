@@ -5,7 +5,7 @@ import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
-import { isNewsTemplate, getNewsHookFontSize } from './news-hook-fit'
+import { getHookFontSize, hasHookFit } from './hook-fit'
 import {
   resolveOverlayContent,
   SLOT_GEOMETRY,
@@ -122,12 +122,12 @@ export function buildSlideElement(
 
   const textColor = overrides.text_color ?? template.textColor
   const textAlign = overrides.text_align ?? template.textAlign
-  // News templates auto-shrink the hook size for long headlines so multi-line
-  // hooks don't overflow into the body zone. Manual override always wins.
+  // Templates with a hook-fit registry entry auto-shrink hook size for long
+  // headlines. Manual override always wins.
   const baseHookSizePx = parseInt(template.hookFontSize, 10) || 64
   const autoFitHookPx =
-    overrides.hook_font_size == null && isNewsTemplate(template.id)
-      ? getNewsHookFontSize(slide.hook_text, baseHookSizePx)
+    overrides.hook_font_size == null && hasHookFit(template.id)
+      ? getHookFontSize(template.id, slide.hook_text, baseHookSizePx)
       : null
   const hookFontSize = overrides.hook_font_size
     ? overrides.hook_font_size

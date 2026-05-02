@@ -9,7 +9,7 @@ import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
-import { isNewsTemplate, getNewsHookFontSize } from '@/lib/render/news-hook-fit'
+import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
 // Phase 45 — shared resolver that guarantees the React preview renders overlay
 // content + slot anchors + per-segment highlight pills with the SAME source as
 // the Satori PNG export (TPLREND-05 parity contract). The 5-export surface is
@@ -301,13 +301,14 @@ export function SlidePreview({
   const hookTextColor = overrides.hook_text_color ?? textColor
   const bodyTextColor = overrides.body_text_color ?? textColor
   const textAlign = overrides.text_align ?? template.textAlign
-  // News templates auto-shrink the hook size for long headlines so multi-line
-  // hooks don't overflow into the body zone (60-80% Y window in cover layout).
+  // Templates with a hook-fit registry entry auto-shrink the hook size for long
+  // headlines so multi-line hooks don't overflow the reserved hook zone.
+  // Templates not in the registry keep their declared hookFontSize unchanged.
   // Manual `hook_font_size` override always wins.
   const baseHookSize = parseInt(template.hookFontSize)
   const autoFitHookSize =
-    overrides.hook_font_size == null && isNewsTemplate(template.id)
-      ? getNewsHookFontSize(slide.hook_text, baseHookSize)
+    overrides.hook_font_size == null && hasHookFit(template.id)
+      ? getHookFontSize(template.id, slide.hook_text, baseHookSize)
       : null
   const hookFontSize = overrides.hook_font_size ?? autoFitHookSize ?? baseHookSize
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)

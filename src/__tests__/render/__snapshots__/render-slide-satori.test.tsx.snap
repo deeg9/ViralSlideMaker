@@ -493,7 +493,10 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
           "borderRadius": "0",
           "color": "#000000",
           "marginRight": "0",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
           "padding": "4px 8px",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -994,7 +997,10 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
           "borderRadius": "8px",
           "color": "#000000",
           "marginRight": "8px",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
           "padding": "4px 12px",
+          "wordBreak": "break-word",
         }
       }
     >

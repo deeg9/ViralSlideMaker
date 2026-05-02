@@ -81,7 +81,7 @@ exports[`Phase 46 premium templates — Satori snapshots > documentary: renders 
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Plus Jakarta Sans', sans-serif",
-        "fontSize": 110,
+        "fontSize": 88,
         "fontWeight": 900,
         "left": 119,
         "lineHeight": 1.1,
@@ -219,7 +219,7 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
-        "fontSize": 120,
+        "fontSize": 54,
         "fontWeight": 900,
         "left": 119,
         "lineHeight": 1.1,
@@ -247,7 +247,10 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
           "borderRadius": "8px",
           "color": "#000000",
           "marginRight": "8px",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
           "padding": "4px 12px",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -269,7 +272,10 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
           "borderRadius": "8px",
           "color": "#000000",
           "marginRight": "0",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
           "padding": "4px 12px",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -402,7 +408,7 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
-        "fontSize": 120,
+        "fontSize": 66,
         "fontWeight": 900,
         "left": 119,
         "lineHeight": 1.1,
@@ -430,7 +436,10 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
           "borderRadius": "8px",
           "color": "#000000",
           "marginRight": "8px",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
           "padding": "4px 12px",
+          "wordBreak": "break-word",
         }
       }
     >
@@ -452,7 +461,10 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
           "borderRadius": "8px",
           "color": "#000000",
           "marginRight": "0",
+          "maxWidth": "100%",
+          "overflowWrap": "break-word",
           "padding": "4px 12px",
+          "wordBreak": "break-word",
         }
       }
     >
