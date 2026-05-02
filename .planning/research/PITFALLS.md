@@ -1,542 +1,314 @@
-# Pitfalls Research: v2.9 Viral Visual Quality
+# Pitfalls — v2.10 Text Box Resize Handles
 
-**Domain:** Adding visual-quality upgrades to an existing AI-generated TikTok/Instagram carousel image SaaS
-**Researched:** 2026-05-01
-**Stack in play:** Next.js 15.5 + React 19, Satori (via `next/og` `ImageResponse`), Gemini 2.5 Flash + `gemini-2.5-flash-image-preview`, Imagen 4, Pexels API, Supabase, Upstash, Vercel
-**Confidence:** MEDIUM-HIGH (Satori limits + Gemini/Imagen pricing verified from official sources; trend/aesthetic claims grounded in 2026 industry write-ups; pre-PMF discipline grounded in startup-marketing canon)
+**Domain:** Adding corner + top/bottom resize handles to text boxes in an existing slide editor
+**Researched:** 2026-05-02
+**Stack in play:** Next.js 15.5 + React 19, react-rnd 10.5.3, Satori (via `next/og` ImageResponse) for PNG export, CSS-transform-scaled 1080×1920 canvas, three render paths required to stay byte-identical (TPLREND-05)
+**Confidence:** HIGH on react-rnd / Satori facts (verified against GitHub issues, library README, and the in-repo source). MEDIUM on UX recommendations (Canva/Figma behaviour observed and cited but design decisions are pre-PMF judgement calls).
 
-> **Tone:** This is a v2.9-specific pitfalls doc. It assumes the v2.3 MCP/tooling pitfalls (auth, idempotency, transports) are already mitigated and concentrates only on what breaks when you start chasing visual quality on top of a working pipeline. It is opinionated about pre-PMF discipline.
-
----
-
-## How To Read This Doc
-
-Each pitfall has:
-- **What goes wrong** — concrete failure
-- **Why it happens** — root cause
-- **Warning signs** — how you'd recognize it before users complain
-- **Prevention** — specific lib/config/test, not platitudes
-- **Phase to address** — pinned to v2.9 phase boundaries (research → templates → photo treatment → AI tightening → QA)
-
-The Pitfall-to-Phase Mapping at the bottom is the executive summary the roadmap should read.
+> **Read this before any other research file in `.planning/research/`.** The other files (STACK / FEATURES / ARCHITECTURE / SUMMARY) describe what to build; this file describes the specific code paths that will silently corrupt state, drift the editor away from the export, or feel jittery to users if the executor doesn't pre-mitigate them.
+>
+> Each pitfall has: **failure mode**, **prevention**, **owner phase / file**. Pitfalls are split into "in scope, must address" (the executor cannot ship without a defensible answer for each) and "out of scope, worth noting" (defer with a one-line rationale).
 
 ---
 
-## Pre-PMF Discipline (read this first)
+## In-scope (must address)
 
-Before any pitfall: **the most expensive mistake in v2.9 is building visual polish that doesn't move the metric we actually need (creators ship-and-share).** The user is pre-PMF. Visual quality matters insofar as it removes a "this looks like AI slop / I'd be embarrassed to post this" objection. Beyond that, every additional polish hour competes with finding the actual wedge.
+### 1. CSS-transform scale + react-rnd handle math
 
-**Hard rules for v2.9 (do not relax without a user signal):**
+**Failure mode:** The slide canvas is rendered at REF_WIDTH=1080 / REF_HEIGHT=1920 and CSS-scaled to fit the viewport with `transform: scale(${scale})` on the inner wrapper (`slide-preview.tsx` line ~469). react-rnd's drag and resize math is computed in raw client pixels by default. Without correction, dragging a corner handle by 100 viewport pixels would resize the box by 100/scale canvas pixels — at scale=0.4 (typical for the editor) the box would grow ~250 canvas pixels for every 100 px of mouse travel, giving a "runaway" / "1.5×-too-fast" feel. This is documented in [react-rnd issue #110](https://github.com/bokuweb/react-rnd/issues/110) ("the problem when using transform: scale()") and [#766](https://github.com/bokuweb/react-rnd/issues/766) ("Rnd Components rerender will has wrong position when use scale").
 
-1. **No new dependencies in v2.9 unless a current pipeline blocks a documented user complaint.** That means: no `sharp` in production unless we have evidence an existing user wanted, e.g., duotone and bounced. (Pitfall #5 below.)
-2. **Ship 1–3 templates, not 8.** Trend-fatigue research (see Pitfall #1) shows format-based trends saturate in 3–4 weeks. Investing 2 weeks each into 8 templates burns runway on stuff that ages out.
-3. **The two parked features (`match-photos-to-slides.ts`, `stylize-image.ts`) require a measured user-need signal before promoting from `parked` to `shipped`.** Both add cost-per-carousel and latency; neither is a known objection from current users. (Pitfalls #6, #7, #11.)
-4. **Do not build accessibility tooling, alt-text generation, or screen-reader audits this milestone** unless an enterprise/agency lead asks. (Pitfall #14: not the metric.)
-5. **One AI cost line at a time.** If we add Gemini Vision, we don't simultaneously add Imagen-stylization. Watch the Vercel + Gemini bill for one week before stacking the next AI feature. (Pitfall #11.)
+**Prevention:** The fix is the `scale` prop on `<Rnd>`. Per the [react-rnd README](https://github.com/bokuweb/react-rnd): *"Specifies the scale of the canvas your are resizing and dragging this element on. This allows you to, for example, get the correct resize and drag deltas while you are zoomed in or out via a transform or matrix in the parent of this element."* This codebase **already** passes `scale={scale}` on every existing `<Rnd>` (slide-preview.tsx lines 862, 939, 1027, 1160). The executor must:
 
-If a pitfall mitigation conflicts with one of these rules, the rule wins by default and we explicitly note we're deferring the mitigation.
+  1. **Preserve `scale={scale}` on every new Rnd instance and on every resize-related code path.** Do not introduce an "uncorrected" branch.
+  2. Never mix `transform: scale` with manual `e.clientX` math — the `scale` prop only patches the values that pass through `onDrag`/`onResize` data parameters. If the executor reaches into raw mouse events, they re-introduce the bug.
+  3. The reference dimensions (REF_WIDTH/REF_HEIGHT) are constants at the top of `slide-preview.tsx` — keep all percent ↔ pixel conversions in canvas units, not client units. The pattern `(data.x / REF_WIDTH) * 100` is the canonical conversion in this file; reuse it.
+  4. Test by recording: drag a corner handle 200 px in the viewport at ~30% canvas scale; assert that `text_boxes[i].position.width` changes by ~62% (200 / (REF_WIDTH * 0.3) * 100), not 18% or 200%.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (the new `<Rnd enableResizing={{ topLeft: true, topRight: true, bottomLeft: true, bottomRight: true, top: true, bottom: true, ...}} />` block on the hook/body/custom branches).
 
 ---
 
-## Critical Pitfalls
+### 2. Satori export drift (resize handles must not leak into the PNG)
 
-### Pitfall 1: Chasing a Viral Aesthetic That Saturates Mid-Build
+**Failure mode:** Satori does not understand `outline`, custom resize-handle DOM, hover/selection rings, or `react-rnd`'s injected `transform: translate(...)` wrapper styles. If the resize-handle JSX leaks into the non-editable branch (`editable={false}`), one of three things happens: (a) Satori crashes on an unsupported style and the PNG export 500s for the affected slide, (b) Satori silently ignores the styles and the export looks identical but the React preview now has visible resize handles drawn on top — instant TPLREND-05 parity violation, or (c) `react-rnd`'s outer `<div>` injects a `transform: translate(...)` that Satori either ignores (drift) or partially honours (worse drift, since [Satori has limited transform support](https://github.com/vercel/satori) and `display: flex` is mandatory on most parents).
 
-**What goes wrong:**
-You spend Phase 2 (Premium Templates) replicating a specific look — Murphy-magazine, mint-pill, "tr3nding" red caption bar, bento grid, etc. — that's currently winning. By the time you ship and creators try it on TikTok, the algorithm and audience have moved on. The template feels stale at launch and dated within a quarter. Bento grids in particular peak within days and disappear; even the broader 90s-revival aesthetic is hitting fatigue in 2026.
+**Prevention:** The codebase already enforces a hard branch split: `slide-preview.tsx` has a `if (!editable) { return <non-rnd JSX>; }` block (line 553) that runs *before* any `<Rnd>` is mounted. Every existing react-rnd-related affordance — selection rings, hover outlines, trash zone, alignment guides, double-click-to-edit — sits behind that gate. The new resize handles MUST follow the same pattern:
 
-**Why it happens:**
-The 2026 cross-platform aesthetic flywheel runs Pinterest (18-month incubation) → TikTok (1–4 weeks to saturation) → Instagram Reels/Carousels (2–8 weeks commercialization) → re-fragmentation. Format-based trends typically run 3–4 weeks before saturation. Engineering cycle (research → ship → user feedback → iterate) is longer than a 3–4 week saturation window. By the time the template ships, what's "viral" has rotated.
+  1. **Add resize handles only inside the editable branch.** Do not touch the non-editable JSX. The non-editable branch already renders hook/body/custom_text as plain absolute-positioned `<div>`s with `left: ${x}%; top: ${y}%; width: ${w}%`; these are what Satori reads (via `render-slide-satori.tsx`, which mirrors that DOM shape). If the schema gains a `height` field, the non-editable branch must also render `height: ${h}%` — and `render-slide-satori.tsx` + `render-slide.ts` (HTML) must be updated **in the same commit** or the byte-identity contract breaks.
+  2. **Never add `outline` / `box-shadow` selection rings to the schema.** Phase 52 specifically chose `outline` (not `border`) because Satori ignores it and CSS-outline doesn't reflow. If the executor stores selection state in the slide record (e.g. `slide.text_boxes[i].selected = true`), it will leak. Selection state lives in the React component's local state only.
+  3. **Test:** add a parity test in `src/__tests__/render` (alongside the existing `parity.test.tsx`) that renders the same slide with `editable={true}` then `editable={false}` and asserts no `[data-rnd]` / `<Rnd>` DOM survives the second pass. Also add a Satori snapshot test that renders the slide with the new schema fields populated and asserts the PNG byte hash matches a fixture.
+  4. **Three-renderer audit before PR merge:** open `slide-preview.tsx`, `render-slide.ts`, `render-slide-satori.tsx` side-by-side. Any new style key (`height`, `min-height`, etc.) must appear in all three or in none. v2.7 Phase 48 commit `e96fd3a` is the precedent — a Satori `display: flex` bug was hidden for an entire phase because only one renderer was audited.
 
-**Warning signs:**
-- Reference inspirations are all from a single 4-week window
-- Designer/PM pushes for "every style we've seen on TikTok this month"
-- Templates locked to a specific accent color (#mint, #electric-orange) with no easy theme override
-- One template named after a specific creator's exact look ("the @username layout")
-- Marketing copy says "match what's trending this month"
+**Owner:** Phase 1 / Phase 2 — `src/components/slides/slide-preview.tsx` (editable branch), `src/lib/render/render-slide-satori.tsx`, `src/lib/render/render-slide.ts`. Phase-end gate: add a parity test pin.
+
+---
+
+### 3. Auto-fit vs explicit height (schema decision drives every other pitfall)
+
+**Failure mode:** The current `TextBoxPosition` has only `x`, `y`, `width` — no `height`. Three viable schema choices, each with distinct failure modes:
+
+  - **(A) Stay auto-fit (no `height` field).** Box height is determined by content. Resize-handle drag on the bottom edge resizes *width* only (rejected because the user dragged a vertical handle and saw nothing happen — feels broken). Top/bottom corner-drags either map to font-size (next pitfall) or are disabled.
+  - **(B) Add explicit `height` field.** User can drag bottom handle and the box height changes. **But** if content > height, what happens? Three sub-failure-modes:
+    - `overflow: hidden` → text gets silently clipped mid-letter — looks like a render bug, especially in the Satori PNG where the user can't even see the cursor to know they're editing.
+    - `overflow: visible` → text spills outside the box, defeating the purpose of having a height.
+    - Auto-shrink font-size to fit → fights with the existing `news-hook-fit.ts` registry (pitfall 9), and font-size slider in the right rail goes out of sync with the visual (pitfall 4).
+  - **(C) Auto-fit with min-height.** Box auto-grows to content, but the user can drag a `min_height` floor so an empty box stays a fixed visual size. This matches Figma's "Auto Height" mode ([Figma docs](https://help.figma.com/hc/en-us/articles/27378154668951-Adjust-text-dimensions-and-resizing): "Auto Height — the height of the text layer will grow and shrink depending on its contents"). Avoids clipping entirely.
+
+**Prevention:** Pick **(C) auto-fit with optional min-height** as the default for hook/body and use **(B) explicit height with `overflow: hidden` + visible end-of-line indicator** for custom text boxes only if a strong UX case emerges. Rationale:
+
+  1. Hook/body currently auto-fit and have a `news-hook-fit.ts` shrink curve that the renderer parity tests pin. Switching to explicit-height would invalidate every existing slide. (C) preserves those slides byte-identical.
+  2. Auto-fit + min-height matches Figma's "Auto Height" — proven design-tool pattern.
+  3. Explicit height with clipping is a Canva-style ([Canva Help — Resize designs](https://www.canva.com/help/resize/)) trap: users routinely complain content gets cut off when they don't realize they're editing inside a fixed-height box.
+  4. Schema: add `position.min_height?: number` (optional, percent of canvas). When present and content height < min_height, box renders at min_height. When absent, fully auto-fit. Top/bottom resize handles set `min_height`. Corner resize on hook/body still scales font (pitfall 4) but only after the user opts in via a modifier (Shift) — see pitfall 4.
+  5. **Do not change the existing `TextBox.position` storage shape for legacy slides** — the `min_height` field is optional and back-compat. Renderer parity is preserved when the field is absent.
+
+**Owner:** Phase 0 (schema) / `src/lib/types/slide.ts`. Decision must be made before any `<Rnd>` props are touched in Phase 1.
+
+---
+
+### 4. Font-scaling on corner drag
+
+**Failure mode:** If corner-drag scales the font (the "Canva text-box" feel), four bugs cluster:
+
+  1. **Linear coupling looks broken at extremes.** A 1px / 1px coupling means dragging a corner 200px shrinks a 120px font to 120 - 200 = -80 (clamped to a min, but the box looks empty). A `0.5×` coupling looks unresponsive.
+  2. **Aspect-ratio coupled to width-only feels right but breaks on tall slides.** New font_size = base * (newWidth / oldWidth) is the Canva model. But hooks tend to wrap, so widening 50% rarely needs a 50% font bump.
+  3. **The font-size slider in the right rail goes out of sync.** The user drags a corner, font becomes 96px, but the slider still says 120px. Then they bump the slider to 130px and the box "snaps back" — they lost their corner-drag state.
+  4. **Undo/redo loses the relationship.** Each pointermove fires `UPDATE_TEXT_BOX`, history fills, and undo unwinds size + font in lockstep but at the granularity of pointer ticks (pitfall 8).
 
 **Prevention:**
-- **Build for the structural pattern, not the surface aesthetic.** Hierarchy (hook >> body > CTA), pacing (slide 1 hook → slides 2-N value → last CTA), bold-large-readable typography, image-led composition, page counter — these patterns hold across 2024–2026 viral carousels. The mint color, the 8-bit pixel font, the specific photo filter — those age.
-- **Make every template parametric (color, font weight, accent shape) at the schema level.** Each template should be a `compositionPattern` + `themeOverrides`. Re-skinning to follow a 2026-Q3 trend should be a CSS/JSON change, not a new file.
-- **Limit v2.9 to 1–3 new templates.** More than that and you're betting on aesthetics over patterns.
-- **Pin a "trend half-life" check** in the milestone audit: "Will this template still be defensible in 6 months?" If no, it's not worth shipping.
-- **Avoid micro-trends in `aiVoiceNote` strings.** Don't tell Gemini "write copy in the 'demure mindful' voice" — that voice was dead 6 weeks after it peaked.
 
-**Phase to address:** Phase 1 (Research) finalizes which patterns we actually replicate vs. which surface details we leave parametric. Phase 2 (Templates) executes against patterns, not aesthetics.
+  1. **Default: corner drag resizes the box only (width + height/min-height).** No automatic font-scaling. This matches every modern tool's default (Figma, Sketch, Adobe XD all separate text-box-resize from text-scale).
+  2. **Opt-in font scaling via `Shift+corner-drag` (Canva precedent).** When Shift is held during a corner drag, scale `font_size` proportionally to `Math.sqrt((newWidth * newHeight) / (oldWidth * oldHeight))` (sqrt-of-area, so a 2× area increase = 1.41× font, intuitive for "zoom" mental model). Update `font_size` AND `position.width` in the same `UPDATE_TEXT_BOX` action so they round-trip.
+  3. **Single source of truth.** The right-rail font-size slider reads from `text_boxes[i].font.size` — which is the same field the corner drag writes. After corner drag completes, the slider re-renders to the new value automatically. Never store font-size in two places.
+  4. **Clamp aggressively.** `font.size` is clamped to `[12, 320]` in the reducer (similar to existing custom-text font-size clamps in `editor-reducer.ts`). Out-of-bounds drags are silently clamped, not rejected.
+  5. **Snapshot test:** Shift+drag from corner with mocked pointer-event sequence, assert final `font.size` matches sqrt-of-area formula within ±1px tolerance.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` `onResize` callback + `src/lib/editor/editor-reducer.ts` `UPDATE_TEXT_BOX` clamp.
 
 ---
 
-### Pitfall 2: Satori Silent-Ignore on Trendy CSS — Filters, Mix-Blend-Mode, Backdrop-Filter, Masks
+### 5. Snap-to-grid / alignment guides — already shipped, preserve don't break
 
-**What goes wrong:**
-You add a "liquid glass overlay" to slides using `backdrop-filter: blur()`, or a "blend overlay" using `mix-blend-mode: multiply`, or a `mask-image` cutout. The React preview in `<SlidePreview>` looks great in the browser. Satori's `ImageResponse` silently drops every one of these properties. The exported PNG ships without the effect. Users export, post to TikTok, find their carousel looks completely different from what they previewed, and churn.
+**Failure mode:** The codebase already has snap/alignment guides (`src/hooks/use-alignment-guides.ts`, integrated in `slide-preview.tsx` lines 877-881, 942-955). They run on `onDrag`. If the executor naively wires resize callbacks without including snap, two things happen:
 
-This is the **same class of bug** as the Phase 48 `display:flex` issue caught in v2.7 (commit `e96fd3a`) but for visual effects rather than layout.
-
-**Why it happens:**
-Satori implements a Flexbox-based layout engine on top of an SVG 1.1 backend, not a real browser. From the official README: 3D transforms unsupported, no z-index, no `calc()`, no kerning/ligatures, no RTL, only TTF/OTF/WOFF (no WOFF2). `backdrop-filter`, `mix-blend-mode`, `box-decoration-break`, and `mask-image` have no implementation entry in the docs, and Satori "silently ignores unsupported features." There are open GitHub issues going back years (#493 mix-blend-mode, #545 mask-image) with no resolution.
-
-**Warning signs:**
-- A new template uses CSS that *isn't* already in `resolve-overlay.ts` or one of the 8 existing templates
-- Previewing a slide in the browser shows an effect that's missing in the `/api/render` PNG
-- Tests pass against `<SlidePreview>` but you have no Satori snapshot test
-- A designer says "I want frosted glass" or "color blend"
-- A trend study says the winning aesthetic uses noise textures, gradients with grain, or animated micro-interactions (Satori is static, no animations regardless)
+  1. Resizing a box near a centre-line drifts off-centre by 1-3 px because the snap only fires on drag, not resize.
+  2. After resize, the *position* of the box is changed by react-rnd (resizing from top-left moves the bottom-right anchor) and bypasses the snap calculator entirely, so a user resizing-then-stopping next to an aligned-element ends up off-grid even though they were in the snap zone.
 
 **Prevention:**
-- **Maintain a Satori-supported-CSS allowlist** in `src/lib/render/satori-css-allowlist.ts`. Every new property used in a template gets added here only after a Satori snapshot test confirms it actually renders. The allowlist is the source of truth — designers hit it before mocking.
-- **Mandatory parity test:** every new template gets a `render-slide-satori.test.tsx` snapshot. If a property has no effect on the snapshot but is present in the React preview, the test must explicitly mark it as `// SATORI: dropped, intentional fallback` or fail review.
-- **Forbidden in v2.9 templates** (verified absent from Satori): `backdrop-filter`, `filter` (anything beyond text), `mix-blend-mode`, `mask-image` / `-webkit-mask`, `clip-path` beyond simple rects, CSS animations/transitions (no effect on a static PNG anyway), CSS variables with custom properties (limited), WOFF2 fonts, `box-decoration-break: clone`. The existing Phase 45 fallback pattern for `tight` highlight (REND-04) is the model — degrade gracefully, in code, with a comment.
-- **For "trendy" effects we want anyway:** pre-bake them. If we want a noise overlay, ship a 1080x1920 PNG noise tile in `public/textures/` and `<img>` it. If we want a gradient with grain, render the grain into the gradient PNG offline. **This is preferable to anything that could break parity.**
-- **Lock font format to TTF/OTF.** Reject WOFF2 in font-picker validation server-side. Phase 51 the font picker validation.
 
-**Phase to address:** Phase 2 (Templates). The allowlist file and parity test policy land before any new template lands.
+  1. **Add snap to the resize callbacks too.** In `onResize` (during, not stop), call `calculateSnap()` with the dragging box's bounds AND apply the result by adjusting BOTH `data.x/y` AND `ref.style.width/height` so the snap holds at all four edges. Pattern: snap edge-by-edge — if resizing from `bottomRight`, snap the right edge to the nearest vertical guide and snap the bottom edge to the nearest horizontal guide independently.
+  2. **Clear guides in `onResizeStop` and `onResizeEnd`** — the existing `clearGuides()` is called on `onDragStop` only. Mirror that for resize.
+  3. **Don't snap in two axes when the user is only dragging one handle.** A `top-only` handle drag should never adjust `x` or `width`. The existing `enableResizing` map (`{ top: true, bottom: true, ... }`) controls which axes are mutable; respect that in the snap math.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` `onResize` (new) + `src/hooks/use-alignment-guides.ts` (no change unless an axis-restricted snap is needed).
 
 ---
 
-### Pitfall 3: Color Drift Between React Preview and Satori PNG (Gradient, Anti-Aliasing, Text Shadow)
+### 6. Multiple text boxes overlapping during resize
 
-**What goes wrong:**
-Even properties Satori claims to support drift visually: gradient color stops interpolate slightly differently in SVG vs. CSS, `textShadow` blur radii are clamped or rendered as a single duplicate offset, anti-aliasing on rounded corners differs, sub-pixel text positioning differs. A user picks a brand color, sees a perfect cream-on-mint preview, exports, and the PNG comes out a shade off. Worse for brand-kit users who picked the color from their brand guidelines.
+**Failure mode:** When user resizes a box and it grows over another text box, what's the policy? Three options observed in design tools:
 
-**Why it happens:**
-Satori is *not* a browser. It implements a subset of CSS atop an SVG renderer. Rendered output "doesn't guarantee 100% match the browser-rendered HTML output" by the maintainers' own statement. The React preview uses the actual browser engine. Two different rendering pipelines = drift.
-
-**Warning signs:**
-- Brand-kit users complain about "wrong color" in exports
-- A/B comparing the preview screenshot vs. the PNG export shows visible difference
-- Gradients look fine in preview but "banded" in PNG
-- Text shadow is "too sharp" or "too soft" in PNG
-- Designer screenshots a brand-style guide swatch and the rendered PNG is off by hex 2–4
+  - **Push** (CSS auto-layout in Figma): the other box gets shoved aside. **But:** [Figma's auto-layout containers refuse to overlap](https://forum.figma.com/ask-the-community-7/overlap-elements-in-auto-layout-39792) — overlap is only allowed in non-auto-layout free-position frames. This codebase is non-auto-layout (free positioning by `x/y` percentage), so push is wrong.
+  - **Allow overlap** (Figma free-position frames, Canva default): the boxes just overlap, z-index decides what's on top. The user can adjust manually after.
+  - **Block resize** (none of the major tools): forbid the resize that would cause overlap. Feels broken — the user wonders why the handle stopped moving.
 
 **Prevention:**
-- **Treat Satori as the source of truth, the React preview as an approximation.** Update preview CSS to match Satori's actual rendering when divergence is unfixable, not the other way around. (We already did the inverse for `display:flex` in Phase 48 — same discipline.)
-- **Add a "preview accuracy" toggle** that renders a small Satori PNG inline in the editor every ~2 seconds (debounced) so the user sees the actual output. This is cheap (server-side rendering of one slide), prevents export-shock, and is more defensible than chasing pixel-parity in CSS.
-- **Document known drifts** in `MIGRATION-NOTES.md` or a new `SATORI-NOTES.md`: "textShadow blur radii > 8px are clamped," "linear-gradient with > 4 stops may band," etc. When a user reports drift, link them.
-- **Avoid gradients with > 3 stops** in v2.9 templates. Two-stop gradients render reliably; three is borderline; four+ bands.
-- **No emoji in template defaults.** Satori's emoji fallback is a Twitter CDN that fails in some sandboxed builds and renders "tofu." If a user types an emoji into a hook, that's their choice; if our template embeds one (e.g., 🔥 in TR3NDING), we ship it as inline SVG, not a Unicode codepoint.
 
-**Phase to address:** Phase 2 (Templates) for the policy; Phase 5 (QA) for the inline-Satori-preview if we ship it.
+  1. **Allow overlap by default.** Match Canva/Figma free-position behaviour. The slide canvas is creative-tool territory, not a layout-engine container — overlap is a feature, not a bug (e.g. text on top of an image).
+  2. **z-index: hook = 10, body = 10, custom_texts = 15, custom_images = 12, watermark = 18-19.** This is already established in `slide-preview.tsx`. New resize handles must not change these.
+  3. **Do not auto-deduplicate / collision-resolve in the reducer.** Storing a box with overlapping bounds is fine; the renderer handles z-index.
+  4. **No additional warnings or modals.** Overlap is intentional. Users who don't want it will adjust manually.
+
+**Owner:** Phase 1 / no code change required, but document this decision in the phase plan so a future engineer doesn't add a "fix" for overlap.
 
 ---
 
-### Pitfall 4: Over-Constrained AI Prompt → Monoculture Output
+### 7. Mobile/touch — react-rnd works but handles need bigger hit targets
 
-**What goes wrong:**
-You add a "viral voice" addendum to the Gemini prompt — "always start with a curiosity gap, max 12 words, must include accent word, must hit emotional cadence X" — plus tightened the JSON schema with stricter enums on every field, plus per-template `aiVoiceNote` strings (already in v2.7), plus a typo gate (already in v2.7). Suddenly every carousel reads the same. Hooks all start with "The reason..." or "Nobody talks about..." Body text all has the same rhythm. Users stop generating because two carousels in a row felt identical.
-
-This is a real, documented degradation: forcing LLMs into rigid JSON schemas costs 10–15% on reasoning quality, and constrained decoding suppresses the model's natural variation, producing "robotic, repetitive, or overly literal" output. Smaller models (under 14B) tolerate constraints; larger models (which we'd want for quality) get worse.
-
-**Why it happens:**
-Each constraint feels safe in isolation. Stacked, they collapse the output distribution. Gemini 2.5 Flash is small enough to handle constraints reasonably, but the v2.7 stack (premium-tier word caps + 28-entry typo gate + per-template voice notes + retry-on-detection) is already approaching the ceiling.
-
-**Warning signs:**
-- Two carousels generated from different topics open with structurally identical hooks
-- The same accent word appears in 30%+ of generations
-- Body text rhythm is identical across topics ("X. Y. Then Z.")
-- Internal QA people start saying "they all sound the same"
-- Gemini's first attempt fails the typo gate frequently — implies it's straining against the constraints
-- A/B against a less-constrained baseline shows higher engagement on the looser version
+**Failure mode:** react-rnd 10.5.3 supports touch events by default (it wraps `react-draggable` which has touch support). However, the existing image-resize handles in `slide-preview.tsx` are **8×8 px visual size with a 1px border** (lines 1147-1153) — well below the [WCAG 2.5.8 minimum target size of 24×24 CSS pixels](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html). On touch, users will need 3-5 attempts to grab the handle, especially at the editor's typical 30-40% canvas scale where the visual hit area shrinks further to ~3px on screen.
 
 **Prevention:**
-- **Two-pass generation:** first call free-form with no schema (just "draft slide content for topic X"), second call constrained (parse free-form into the schema). This is the documented mitigation for JSON-mode reasoning loss.
-- **Tighten one axis at a time.** v2.9 should *not* simultaneously: tighten word caps, add new voice notes, add new typo entries, add structural constraints. Pick one and measure output diversity before adding the next.
-- **Output diversity metric:** in CI, run 20 carousel generations on a fixed test prompt set and compute n-gram repetition rate hook-to-hook. If repetition exceeds a threshold (say, 30% trigram overlap across 20 samples), block the AI prompt change.
-- **Per-template voice notes are higher leverage than global constraints.** A template-specific note ("documentary tone — no hyperbole") creates intentional diversity; a global note ("always start with a curiosity gap") creates monoculture.
-- **Explicitly tell Gemini to vary** in the system prompt: "Hooks should not all begin with the same word or pattern. Vary opening across slides and across runs." This works, anecdotally.
 
-**Phase to address:** Phase 4 (AI tightening). Build the diversity test harness first, change the prompt second.
+  1. **Visual size: 12×12 px (or 4×40 for top/bottom edge bars, matching the existing `resizeHandleStyle`).** Visual matches Figma's small handle aesthetic.
+  2. **Hit area: 24×24 px minimum, 32×32 px preferred.** Pad the handle with an invisible `::before` pseudo-element or a wrapper `<div>` with `position: absolute; inset: -10px;` to extend the hit zone without enlarging the visual. WCAG 2.5.8 AA = 24×24, AAA = 44×44 ([Smashing Magazine](https://www.smashingmagazine.com/2023/04/accessible-tap-target-sizes-rage-taps-clicks/)).
+  3. **Account for the canvas scale.** At canvas scale=0.4, a 24px-CSS hit area renders at 60px on the editor canvas (24 / 0.4). Accept this — bigger is better on mobile, and it doesn't show in the export because it's on the editor-only DOM.
+  4. **Test on iOS Safari touch.** The user explicitly noted "TikTok creators commonly post-from-mobile." Run a manual touch QA on the deployed preview.
+  5. **Don't rely on hover.** The `hover:outline` selection ring in `slide-preview.tsx` (line 909) does not fire on touch. Selection ring must show on `focus` / `active` / `selectedTextBoxId == box.id` — the existing dashed ring already does this.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (resize handle styles + invisible hit-area wrappers). Phase-end gate: manual touch test on iPhone Safari.
 
 ---
 
-### Pitfall 5: Adding `sharp` to a Serverless Pipeline — Memory Fragmentation OOMs
+### 8. Undo/redo correctness — every resize tick must NOT push history
 
-**What goes wrong:**
-v2.9 calls for image treatments: B&W, duotone, dominant-color extraction for theme matching, smart crop, downscaling for thumbnails. The natural lib is `sharp`. You add it. Locally it works. In production on Vercel, after a few hundred slides processed, a serverless instance starts hitting heap limits and crashing. Symptom: intermittent 502s on render, never reproducible, only on warm instances.
-
-**Why it happens:**
-Sharp's underlying libvips library is a multi-threaded C++ allocator. On Linux (Vercel's runtime), the default glibc malloc fragments memory under sharp's many-small-allocations pattern. The V8 heap looks fine but the process RSS climbs. This isn't a "true leak" — it's fragmentation — but it crashes the process the same way. Documented across years of `lovell/sharp` issues. The recommended fix (jemalloc) is incompatible with Vercel's lambda runtime out of the box.
-
-**Warning signs:**
-- Intermittent 5xx on `/api/render` only after the function has been warm for minutes
-- Vercel logs show "JavaScript heap out of memory" or function killed by SIGKILL
-- Vercel function memory graph climbs slowly, never resets
-- Only happens at "moderate scale" — fine in dev, fine for one user, fails when 5+ users render simultaneously
-- Putting `sharp` calls behind `Promise.all([...])` makes it dramatically worse
+**Failure mode:** Look at `src/lib/editor/editor-reducer.ts` line 270 — `case 'UPDATE_TEXT_BOX': ... return pushHistory(state, slides)`. Every `UPDATE_TEXT_BOX` action pushes a new entry to the undo stack. react-rnd fires `onResize` on every pointer move (~60 fps). A 1-second drag = ~60 history entries. After 5 drags, undo'ing once feels like "nothing happened" — the user has to mash Cmd+Z 60+ times to go back one resize. `MAX_HISTORY` (in editor-reducer.ts) caps the stack but the symptom remains: 60 ticks of one drag flush legitimate prior history off the back.
 
 **Prevention:**
-- **Default position: do not add sharp in v2.9.** Pre-PMF rule #1. Most "image treatments" creators want (B&W, duotone, slight desaturation) can be approximated in **Satori CSS** (`filter` is partial — but `opacity` over a solid-color tint works) or rendered server-side via the existing Satori path with no new dep.
-- **If a treatment genuinely requires raster manipulation** (e.g., true duotone with two-tone color mapping), do it as a one-shot at upload time, not at render time. Store the processed image in Supabase Storage. Render path stays sharp-free.
-- **If sharp ends up necessary anyway:**
-  - Serial processing only — no `Promise.all` over more than 1 sharp pipeline at a time
-  - `sharp.cache(false)` and `sharp.concurrency(1)` at module load
-  - Move sharp into a separate Vercel function with elevated memory (1024–3008MB), not the main render path
-  - Set `maxDuration` and a hard timeout
-  - Track function memory in Vercel observability and alert on RSS > 80% of allocation
-- **Watch egress costs alongside memory.** Each sharp transform that fetches a Pexels/Imagen image adds ingress; each upload back to Supabase adds egress. Easy to silently 10x bandwidth.
 
-**Phase to address:** Phase 3 (photo treatments) gates this. If Phase 1 research surfaces a user-validated need for raster effects, Phase 3 is the place. Otherwise, defer to v3.0+.
+  1. **Use `onResizeStop` (and `onDragStop`) for the history-pushing dispatch, not `onResize`.** This is exactly the pattern react-rnd documents — `onResizeStop` fires once at the end of the gesture. The codebase already does this for the existing `onPositionChange`/`onWidthChange` calls (lines 882, 957, etc.). Mirror the pattern.
+  2. **For live preview during drag, use a non-history-pushing channel.** Two options:
+     - **Local state only:** during drag, react-rnd renders from its own internal state and the slide store is not touched. On `onResizeStop`, dispatch `UPDATE_TEXT_BOX`. This is what the existing code does for position drag and it's correct.
+     - **Add a `UPDATE_TEXT_BOX_TRANSIENT` action** that mutates `state.present` without calling `pushHistory()`, used during drag, and a finalising `UPDATE_TEXT_BOX` on stop. Only needed if other components must reactively re-render mid-drag (currently they don't).
+  3. **Single history entry per gesture.** Test: start with stack length 0, drag a corner from 100×100 to 200×200 in 30 ticks, assert stack length is 1 (not 30) after `onResizeStop`. Add the test to `src/lib/editor/__tests__/editor-reducer.test.ts`.
+  4. **Don't try to "merge" consecutive history entries by timestamp.** It's brittle — pure stop-event dispatch is correct.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (`onResize` is local-only, `onResizeStop` dispatches). Phase-end test: history-stack-size assertion.
 
 ---
 
-### Pitfall 6: Gemini Vision for Photo↔Slide Matching — Cost-Per-Carousel Trap
+### 9. Auto-shrink interaction with `news-hook-fit.ts`
 
-**What goes wrong:**
-The parked `src/lib/ai/match-photos-to-slides.ts` calls Gemini Vision with each user photo (base64-encoded, in-line) plus a slide manifest, returning a slideIndex→photoIndex mapping. Looks elegant. Then a power user uploads 12 photos for an 8-slide carousel. One generation = 12 vision-input tokens (~12 × 1120 tokens for Gemini 2.5 Flash image input) + slide manifest text + JSON output. Per Gemini's published 2025 pricing, image input is ~560–1120 tokens **per image** depending on model. 12 photos = ~13,440 tokens just for vision input, on top of text. Carousel generation that used to cost 1 credit (one Gemini text call) now costs 5–8x in Gemini billing. We don't see it in our credit ledger because it's denominated in *Gemini tokens we pay for*, not user credits.
+**Failure mode:** `src/lib/render/hook-fit.ts` (the file is `hook-fit.ts`, not `news-hook-fit.ts`) is a per-template registry that returns a smaller `hookFontSize` when `slide.hook_text` is long (lines 15-118). It runs in BOTH renderers (`slide-preview.tsx` line 309 and the Satori path) so the hook auto-shrinks on long text. Three failure modes if v2.10 isn't careful:
 
-**Why it happens:**
-The credit system was sized to one Gemini-text call per carousel + N Imagen calls per AI image. Vision adds an undeclared cost line. There's no per-photo cap in the code path. There's no per-user rate limit on photo count.
-
-**Warning signs:**
-- The Gemini bill exceeds the projection and you can't pin which feature
-- Free-tier users (who upload many photos to "see what works") cost 3-5x more than paid users
-- A power user with 30 uploaded photos crashes the matcher (timeout) or burns $0.50 per generation in Gemini token cost
-- `match-photos-to-slides.ts` has no `MAX_PHOTOS` constant in the implementation path
+  1. **Manual `font_size` set via corner drag is silently overridden by the auto-fit.** User Shift+corner-drags hook from 110px to 80px on the `news-drop` template. The renderer hits `hook-fit.ts`, sees a 14-char hook, applies the `scale: 1` step → renders at 110px. User's drag is invisible. (This bug already exists for the right-rail font-size slider but is hidden because the slider only operates on `style_overrides.hook_font_size`.)
+  2. **Conversely:** if v2.10 adds an explicit `text_boxes[i].font.size` and routes it through `style_overrides.hook_font_size` (the existing override field), then the registry's auto-fit is bypassed (line 310: `overrides.hook_font_size == null && hasHookFit(template.id)`) — which is correct. But if the executor adds a NEW field (e.g. `text_boxes[i].font.size_override`) that the registry doesn't check, the auto-fit fights the user's drag.
+  3. **Corner-drag width affects character-count threshold indirectly.** The registry uses `hookText.length` (line 127) to pick a step. It does not consider box width. If the executor "fixes" this by feeding box width into the registry, every existing slide gets a different render = TPLREND-05 violation, every parity test fails.
 
 **Prevention:**
-- **Cap photos sent to vision at 8 per call.** If user uploaded more, send first 8 + slide manifest, fallback to index-order for the rest. (Existing fallback already exists; just gate on count.)
-- **Charge an extra credit for vision-matching, or absorb the cost only on premium tier.** Track the cost line in the credit ledger explicitly: `gemini_vision_match`. Then the bill matches the ledger.
-- **Pre-PMF: do not ship this feature unless we have a user complaint that index-order matching is bad.** Phase 1 research validates this. The current index-order fallback is fine for 80% of cases. Vision matching is polish for the 20% where photo selection feels random.
-- **If shipped, gate behind a paid tier or credit cost.** Free tier gets index-order; premium gets vision. Aligns cost with revenue.
-- **Time-box the vision call** to ~10 seconds. If it fails or times out, fallback silently to index-order. Vision-matching MUST be a quality booster, not a generation blocker.
-- **Cache vision results per (photo-set hash, slide-set hash).** Same upload + same slide content = no re-call. This kills repeat costs on edit-and-regen flows.
 
-**Phase to address:** Phase 4 (AI tightening) decides whether to ship at all. If yes, gates the cost protections.
+  1. **Route v2.10 corner-drag font-size through the existing `style_overrides.hook_font_size` field, not a new field.** Line 313 (`const hookFontSize = overrides.hook_font_size ?? autoFitHookSize ?? baseHookSize`) already prioritises explicit override > auto-fit > template default. v2.10 just sets `overrides.hook_font_size` and the precedence works.
+  2. **Body and custom_text don't have auto-fit.** No interaction — straightforward.
+  3. **Do NOT modify `hook-fit.ts`.** Adding a width parameter to the registry would invalidate every legacy slide. If the executor needs width-aware shrink, add a SEPARATE width-aware path that runs only for slides with `text_boxes[i].position.height` set (i.e. v2.10 schema). Legacy slides (no height) keep using the registry unchanged.
+  4. **Test:** create a slide with `template_id='news-drop'`, hook 14-char (would naturally fit at 110px), set `style_overrides.hook_font_size = 80`. Assert renderer uses 80px, not 110px. Then unset the override; assert renderer uses 110px. This test already exists in spirit in `slide-preview.test.tsx` — extend if needed.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (don't touch hook-fit.ts; just route through existing override).
 
 ---
 
-### Pitfall 7: Imagen Stylization (`stylize-image.ts`) — Latency, Cost-Per-Slide, Quality Drift
+### 10. Performance — re-render on every pointermove
 
-**What goes wrong:**
-The parked `src/lib/imagen/stylize-image.ts` calls `gemini-2.5-flash-image-preview` to restyle a user photo into a "viral aesthetic." Per slide. With 8 slides per carousel and Imagen 4 at $0.04/image (or `gemini-2.5-flash-image-preview` whose cost we should verify before launch), a stylized carousel costs $0.32+ in raw model spend. Plus 5–15 seconds latency *per slide* (image-to-image is slower than text-to-image). 8 slides × 10s = 80s of wall clock, well over Vercel's 60s `maxDuration`.
-
-Worse: the output quality varies. Stylization preserves "subject and recognizable content" only loosely. A user uploading a photo of themselves for a personal-brand carousel ends up with a slightly-different-faced version of themselves across 8 slides — uncanny valley. Coca-Cola's 2025 ad campaign is the cautionary tale: 70,000 AI clips, 5 specialists, 100 staff, public backlash. Smaller-scale: GS25's distorted-hands campaign in South Korea. The pattern is consistent — AI image manipulation of recognizable people is high-risk.
-
-**Why it happens:**
-Image-preview models are non-deterministic. Stylization preserves style direction but not identity continuity across calls. There's no built-in "same face across N renders" primitive.
-
-**Warning signs:**
-- A user reports their face looks "off" or "different" across slides
-- Carousels with people in the photos hit lower share/save rates than carousels without
-- Generation times for stylized carousels exceed 60s and timeouts spike
-- Imagen/Gemini bill has a long tail of "premium" carousels eating margin
-- Customer support gets a "this isn't me" complaint
-- Right-of-publicity concerns surface (user uploaded a celebrity photo and asks for "Studio Ghibli style")
+**Failure mode:** `<SlidePreview>` is a 1400-line component with many derived values (`resolveSlideStyles`, `resolveOverlayContent`, `resolveWatermark`, `resolveForcedWatermark`, `buildOthersForSnap`). On a drag, react-rnd causes the wrapper `<Rnd>` to update its internal state ~60×/second. If the executor wires `onResize` to `setState` on the parent (slide store), every tick re-runs all of those resolvers. On a low-end laptop, the editor drops to 20-30fps mid-drag.
 
 **Prevention:**
-- **Pre-PMF: do not ship full-photo restyling.** The risk profile (uncanny faces + ToS friction + cost + latency) doesn't match a pre-PMF user need. Defer to v3.0+ when we have data on demand.
-- **If shipped:** restrict to non-face photos (use a face-detector pre-pass; if face detected, refuse and offer "background-only" restyling). This sidesteps the worst quality and legal risks.
-- **Stylize backgrounds, not subjects.** A "viral aesthetic" can be achieved with a stylized background plate + un-touched user photo composited on top. Cheaper, no uncanny-valley issue.
-- **Async + background queue.** Stylization happens after generation; user gets a regular carousel immediately and the stylized version when ready. Frees us from `maxDuration` and lets the user share unstyled if they're impatient.
-- **Lock to a small, opinionated set of style prompts.** "Minimalist B&W documentary." "Mid-2010s film grain." "Mute color editorial." Three styles, each with a tested prompt. Do not let the user free-form prompt — that's where you get "Studio Ghibli" requests and right-of-publicity blowback.
-- **Add a moderation pre-pass.** Before sending a user photo to Gemini image-preview, check it against a basic moderation API. If it's flagged (real recognizable person, brand logo, etc.), refuse. This is cheap insurance against ToS violations.
-- **Log every stylize call** with input/output URL, prompt, cost. We need this for the support and legal trail.
 
-**Phase to address:** Phase 3 (photo treatments). Default verdict: defer entirely to v3.0+. If Phase 1 research surfaces evidence of real demand, Phase 3 ships the locked-style background-only variant.
+  1. **Don't lift drag state up.** During a drag/resize, react-rnd manages its own visual state internally — the parent only needs to know the final value on `onResizeStop`. The existing code does this correctly for position/width — preserve the pattern.
+  2. **Use refs (not state) for transient drag values.** If the executor needs to expose mid-drag values (e.g. live position display in the right rail), use a ref + `requestAnimationFrame` to throttle to 1× per frame max.
+  3. **Memoise the expensive derivations.** `resolved = resolveSlideStyles(slide, template)` (line 372) re-runs on every render. It's pure — wrap in `useMemo([slide, template])`. Same for `buildOthersForSnap` (already wrapped at line 538 with `useCallback`, but its deps include `slide.custom_texts` which changes by reference on every store mutation — consider `useMemo` over deep-equal once if drag perf is an issue).
+  4. **Profile before optimising.** Add a v2.10 perf gate: run the editor in Chrome devtools Performance, drag a corner for 2 seconds, assert frame rate stays ≥ 55fps. If it drops, profile and memoise specifically; do not preemptively memoise everything.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (drag state stays in react-rnd, dispatch on stop). Phase-end perf gate is optional — only add if a manual smoke test feels jittery.
 
 ---
 
-### Pitfall 8: TikTok / Instagram Algorithm Penalty for "AI Slop"
+### 11. `lockAspectRatio` trap on text boxes
 
-**What goes wrong:**
-TikTok in late 2025 added user-controllable AI-content filtering and is invisibly watermarking AI-generated content from its own tools. Reach suppression for fully-AI-generated content depicting fake scenarios is reportedly ~73% within 48 hours of detection. A creator's carousel posted from our tool gets buried because:
-1. The Imagen-generated background image carries C2PA metadata indicating AI authorship
-2. The visual style (over-symmetrical layout, AI-stock-photo look) triggers the heuristic
-3. The hook copy reads as obviously LLM-generated ("In a world where..." style)
-
-User churns, blames us, leaves a review.
-
-**Why it happens:**
-- Imagen 4 outputs include SynthID watermarking by default
-- Platforms increasingly read C2PA metadata on upload
-- Algorithmic detection of "AI editing patterns" is part of the Sept 2025 TikTok update
-- Our defaults (centered text, large hook, identical slide rhythm) are the patterns the algorithm fingerprints
-
-**Warning signs:**
-- A creator reports "this isn't getting any views"
-- A/B test of our carousels vs. hand-made carousels shows disproportionate reach gap
-- Image metadata inspection shows C2PA AI tags surviving export
-- Stylistic analysis of 50 random user carousels shows visual homogeneity (ties to Pitfall #4)
+**Failure mode:** The image-resize block in `slide-preview.tsx` uses `lockAspectRatio={true}` (line 1162). This is correct for images. If the executor copy-pastes that block as the starting point for text-box resize handles, they inherit `lockAspectRatio` — but text boxes shouldn't lock aspect ratio. A locked aspect ratio means dragging the right edge also moves the bottom edge, which is wrong for text (you usually want narrow + tall, or wide + short, not proportional both).
 
 **Prevention:**
-- **Strip metadata aggressively on export.** Satori PNG export should already produce a clean PNG, but verify EXIF/XMP/C2PA fields are absent in the final ZIP. If we ever add Imagen-stylized backgrounds, run them through a metadata-strip step (one of the few legit uses for sharp's `withMetadata({})`).
-- **Embrace creator-feel defaults.** Slight imperfections — a casual phone-photo source, hand-drawn-feel arrows, varied text positions across slides — read as "human-made" to the algorithm and to viewers. Our v2.7 magazine-bold template's full-bleed B&W photo + mint highlight is *less* generic than centered-on-gradient. Continue down that path.
-- **Do not auto-pick Imagen-generated backgrounds by default.** Pexels-stock or user-uploaded should remain default. Imagen-generated is a power feature, not a default visual.
-- **In the AI text prompt, explicitly forbid AI-tells:** "Do not start hooks with 'In a world where', 'Did you know', 'Imagine if'. Avoid generic LLM cadence."
-- **Don't claim the carousel as AI-made in the watermark or metadata.** That's an algorithmic kill-switch.
-- **Document this in the Resources page.** Tell creators: "Edit slide 1 even slightly so it reads as yours" — this offsets sameness.
 
-**Phase to address:** Phase 4 (AI tightening) for the prompt-side; Phase 5 (QA) for the metadata-strip verification.
+  1. **Explicit `lockAspectRatio={false}` on text-box `<Rnd>` instances.** Default react-rnd is unlocked, but if Shift-modifier-during-drag is supposed to enable temporary lock (Figma pattern), the executor must implement the modifier explicitly because react-rnd's `lockAspectRatio` is a static prop, not a runtime modifier.
+  2. **Shift = font-scale (per pitfall 4), not aspect-lock.** Pick one Shift behaviour. Don't overload.
+
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (text-box `<Rnd>` props).
 
 ---
 
-### Pitfall 9: Aspect-Ratio Crop in Profile Grid — Important Content Cut
+### 12. Reducer integrity — `UPDATE_TEXT_BOX` schema and dual-write
 
-**What goes wrong:**
-Our output is 1080×1920 (9:16 portrait). On TikTok feed, that displays full. On Instagram Posts carousel, the recommended size is **1080×1350 (4:5)** — Instagram crops 9:16 inputs. On Instagram profile *grid*, even 4:5 carousels get cropped to **3:4** with only the **center 1012×1350** visible. We render at 9:16, position the hook in `SAFE.top.hookY: 12` (near top), and the grid-preview crop centers the image — meaning the hook is half-cut in the user's profile grid. Users post, see their own grid look bad, blame us.
-
-**Why it happens:**
-We optimized for 9:16 (TikTok-first) and never re-tested cropped versions. Instagram cross-posting was implicit in the product but never visually validated.
-
-**Warning signs:**
-- A user reports "looks fine in the post but cut off in my grid"
-- Internal posting test: pull up Instagram, post the carousel, switch to grid view, check if hook is visible
-- Instagram-aware competitors render at 4:5 by default and add center safe-zones
+**Failure mode:** v2.8 introduced the `applyDualWrite` reducer pattern (BL-01 in v2.8 Phase 50): every TextBox edit also writes the legacy `hook_text` / `body_text` / `custom_texts` fields so the renderer (which still reads legacy on some paths) stays in sync. If v2.10 adds new fields to `TextBox.position` (e.g. `height`, `min_height`) and the dual-write path doesn't propagate them to a legacy-equivalent field, the live preview can diverge silently from the saved state — same class of bug as BL-01.
 
 **Prevention:**
-- **Add an Instagram-grid safe-zone overlay** in the canvas editor: a translucent box showing the 3:4 center crop. User can see what the grid will show before exporting. Cheap to ship — pure CSS overlay.
-- **Offer a "crop preview" toggle** in the export modal: "Preview as TikTok feed / Instagram post / Instagram grid." Pure CSS — no extra rendering.
-- **Set hook position defaults to `center.hookY: 30` rather than `top.hookY: 12`** for templates intended for cross-posting. Or: offer a per-template `crossPlatformSafe` flag that constrains hook to the 3:4 center crop.
-- **Document the crops** in the resources page. Creators who understand the constraint design around it.
-- **Do not auto-export a 4:5 version this milestone.** That's a real feature with its own complexity (re-flow, safe-zone re-resolve). Defer unless validated.
 
-**Phase to address:** Phase 2 (Templates) for the safe-zone overlay; Phase 5 (QA) for the export modal preview.
+  1. **Audit `text-box-adapter.ts` (`legacyToTextBoxes` / `textBoxesToLegacy`).** Any new schema field must round-trip. If there's no legacy equivalent for `position.height` (likely — legacy didn't have height), the adapter just ignores the field on the legacy side. That's fine, but document it: "v2.10 fields are TextBox-only; they will be lost if a slide is round-tripped through legacy fields and the legacy fields are written-back as the source of truth."
+  2. **`applyDualWrite` reducer must include the new fields.** Open `editor-reducer.ts` around line 270 (`case 'UPDATE_TEXT_BOX'`) and confirm the dual-write path covers position changes. If it currently only dual-writes text+font properties and not position, v2.10 width/height/min-height changes will not show up in the renderer. Test path: edit a text box's `min_height`, save, reload, assert min_height persists AND legacy `custom_texts[i].height` is in sync (or document the divergence).
+  3. **MIGRATION-NOTES.md.** v2.8 already deferred legacy-schema sunset to v3.0+. v2.10 should add a one-liner: "v2.10 added `position.height` / `position.min_height`. Legacy fields not affected. Sunset of legacy fields (v3.0+) will drop the v2.8 `applyDualWrite` path entirely."
+
+**Owner:** Phase 0 (schema) / `src/lib/types/slide.ts`, `src/lib/editor/text-box-adapter.ts`, `src/lib/editor/editor-reducer.ts`. Phase-end test: round-trip integration test in `src/lib/editor/__tests__/text-box-adapter.integration.test.ts`.
 
 ---
 
-### Pitfall 10: Pexels Photo + Stylization → Right-of-Publicity / License Friction
+### 13. Three-renderer parity (TPLREND-05) on the new schema fields
 
-**What goes wrong:**
-A user picks a Pexels photo of a recognizable person (Pexels' license permits commercial use of photos but does *not* grant rights of publicity for recognizable people). They run our stylize feature on it. Now we've materially altered a recognizable person's likeness for commercial use, surfaced it on Explore, and someone notices. Pexels' license + the underlying right of publicity are different things. The Ninth Circuit upheld a class action against the Reface app over Kyland Young's likeness in 2024–2025 — directly precedential for face-style apps.
-
-**Why it happens:**
-Stock-photo licenses cover the photographer's copyright but explicitly disclaim model releases for editorial/commercial-as-endorsement use. Face-stylization crosses the line.
-
-**Warning signs:**
-- Users posting carousels using stylized photos of recognizable real people
-- Explore page surfaces a stylized photo of a celebrity
-- A DMCA-adjacent or right-of-publicity complaint comes in
-- Customer support gets "is it legal to..." questions
+**Failure mode:** The v2.9 audit established TPLREND-05: `slide-preview.tsx`, `render-slide.ts` (HTML), and `render-slide-satori.tsx` (PNG export) must produce byte-identical output for any given slide. v2.7 commit `e96fd3a` is precedent for what happens when this is violated — a Satori `display: flex` bug shipped silently because only the React preview was tested. If v2.10 adds `position.height` and only updates `slide-preview.tsx`, the Satori PNG export uses the old auto-fit and the user's resized box looks fine in the editor but exports at the original size.
 
 **Prevention:**
-- **Tie this directly to Pitfall #7 mitigation.** If we don't ship full-photo restyling on faces, this risk evaporates.
-- **If we ship anything stylization-adjacent:** add a face-detection pre-pass that refuses to stylize images with detected faces above a confidence threshold. Pre-built libs: TensorFlow.js BlazeFace (client-side) or a Gemini-vision "is there a face" pre-check.
-- **Update ToS** to disclaim user responsibility for likeness rights and grant us indemnity. (Probably out of scope for v2.9 itself; flag for a legal-review milestone.)
-- **Disallow stylization on Explore-shared carousels** until ToS and detection are firm. Explore is the public-surface risk vector.
 
-**Phase to address:** Phase 3 (photo treatments) only if stylization ships. Default: deferred entirely.
+  1. **Three-file commit rule.** Any new schema field that affects layout must be applied in all three renderers in the same commit. A pre-merge checklist item: "search for `position.width` in the codebase; for every match, the new field appears (or is intentionally absent with a comment)."
+  2. **Parity tests.** Extend `src/__tests__/render/parity.test.tsx` to include the new fields. The existing 10 cases assert resolver-singleton identity for the existing fields — add 3-5 cases for height/min-height (typical slide, edge-case empty box, max-height clamp).
+  3. **Satori `display: flex` requirement.** Any new wrapper `<div>` that holds the resized text MUST have `display: 'flex'` (or be an absolute-positioned single element with no children that need flex layout). Per [Satori's README and issue #325](https://github.com/vercel/satori/issues/325), Satori only supports `display: flex` and `display: none`. If the executor adds a `<div style={{ height: '20%', overflow: 'hidden' }}>` without `display: flex`, Satori will crash or produce unexpected layout.
+  4. **`overflow-wrap` not `word-break`.** This codebase already has a fix for the `word-break: break-word` deprecated alias bug (quick-260502-j14). Stick to `overflowWrap: 'break-word'` and `whiteSpace: 'normal'` — both Satori-supported. Do not add `word-break` to any new style block.
+
+**Owner:** Phase 1 / Phase 2 — all three renderer files, plus `src/__tests__/render/parity.test.tsx`. Pre-merge: grep audit + parity test diff.
 
 ---
 
-### Pitfall 11: AI Cost Stacking — One Carousel, N Model Calls, Silent Margin Compression
+### 14. Cursor affordance and "what does this handle do?"
 
-**What goes wrong:**
-v2.9 adds, plausibly: Gemini Vision photo-matching (1 call) + Imagen-stylize per slide (8 calls) + Gemini text-regen per slide (8 calls if user iterates) + caption generation + alt-text generation. A single "make me a carousel" can fan out to **20+ model calls**. Each carousel that used to cost ~$0.01 in raw AI now costs $0.30–$0.50. Subscription tier doesn't cover it on heavy users. We learn this at the next billing cycle.
-
-**Why it happens:**
-Each feature was costed in isolation against "free tier." Stacked, the worst-case per-carousel cost is the sum of all features × users who max each out. Margin compression is invisible until the bill hits.
-
-**Warning signs:**
-- The Gemini + Imagen + (anything else) bill is up >2x and you can't attribute it cleanly
-- Power users (top 5%) cost more than they pay
-- Free-tier conversion isn't covering the AI cost of the free-tier itself
-- The credit ledger doesn't have a 1:1 with the AI bill
+**Failure mode:** A user sees a corner handle and doesn't know if it resizes the box, scales the font, rotates, or all three. Without explicit affordances, the v2.10 corner-drag feature feels like a guess. Worse, if the cursor doesn't change on hover, users miss the handle entirely.
 
 **Prevention:**
-- **One AI cost line per phase.** Phase 3 ships *one* of {photo-match, photo-stylize, alt-text}. Watch the bill for one week. Then ship the next. **Hard rule.**
-- **Track every model call in the credit ledger as a typed line item:** `gemini_text`, `gemini_vision`, `imagen_4`, `gemini_image_preview`. Aggregate weekly and reconcile to the AI bill.
-- **Per-carousel AI-cost budget.** Define a max $/carousel (say $0.05 for free tier, $0.20 for premium). When a generation projects to exceed it (e.g., user uploaded 30 photos triggering 30 vision calls), cap at the budget — fall back to non-AI matching or warn the user.
-- **Cache aggressively.** Photo-match results, image-prompt embeddings, regen drafts all cache by content-hash for 24h. Repeat generations on the same input cost $0.
-- **Surface model-cost telemetry to the dashboard early.** A 2-line `creditsBurned this week` widget in the dev dashboard catches blow-ups before billing.
 
-**Phase to address:** Phase 3 / Phase 4 (whichever ships first AI feature). The cost-tracking infra goes in *before* the feature.
+  1. **Cursor: `nwse-resize` / `nesw-resize` for corners, `ew-resize` for left/right, `ns-resize` for top/bottom.** react-rnd sets these by default but the existing code overrides with `cursor: 'grab'` on the inner div (line 916) — make sure the resize-handle wrapper's cursor takes precedence (z-index higher OR avoid setting cursor on the handle's parent).
+  2. **Tooltip on first hover.** Show "Drag to resize. Shift+drag to scale text." for the first 3 hovers in a session, then suppress (use localStorage). This matches Figma's onboarding tooltips. Pre-PMF: a single one-time toast on first selection of a text box is enough — don't over-engineer.
+  3. **Don't show corner handles on every text box at once.** Show handles only on the selected box (already the pattern from v2.8 Phase 52 — `selectedTextBoxId` gates the dashed ring). Extend: handles render only when the box is the active selection. Other boxes get the hover-only outline.
 
----
-
-### Pitfall 12: Vercel Function Egress + Storage Bloat from Asset Multiplication
-
-**What goes wrong:**
-v2.9 adds higher-quality assets: 2x retina template thumbnails, multi-resolution exports (1080x1920 + 1620x2880 for "premium"), saved Imagen backgrounds, stylized variants, dominant-color extraction caching. Each project now stores 5–10x the asset count of v2.8. Supabase Storage cost goes up linearly. Vercel egress (every render, every download, every preview) goes up linearly. Pro plan limits hit silently mid-month.
-
-**Why it happens:**
-Asset count was a non-issue when each project = 8 PNGs. Adding intermediate caches, variants, and retina assets compounds. No retention policy.
-
-**Warning signs:**
-- Supabase Storage usage trending exponentially
-- Vercel egress alerts firing
-- "Slow to load editor" reports — the editor is loading uncached intermediate assets
-- The "delete project" action doesn't clean up child assets
-
-**Prevention:**
-- **Asset retention policy** in Supabase: intermediate cache assets (vision-match outputs, stylized variants) auto-purge after 7 days unless promoted to a saved project. Cron job or Postgres trigger.
-- **One canonical resolution per export, period.** v2.9 does NOT ship retina/multi-resolution. 1080x1920 is correct for the platforms; anything more is bloat. (TikTok and Instagram both downscale anyway.)
-- **Lazy-load template thumbnails.** Already partially done in v2.7. Verify the picker doesn't fetch all 8 thumbnails on mount.
-- **Watch the Supabase Storage egress dashboard weekly.** Alert at 50% of plan limit.
-- **`DELETE /projects/{id}` must also delete `published_carousels` snapshot, hero thumbnail, and any cached intermediate assets.** Audit the cascade.
-
-**Phase to address:** Phase 5 (QA). Cleanup audit is a ship gate.
+**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (cursor styles, conditional handle rendering on selection).
 
 ---
 
-### Pitfall 13: Premature Visual Polish that Doesn't Move Retention or Share-Rate
+## Out of scope (worth noting)
 
-**What goes wrong:**
-We spend the milestone on subtle polish — better gradient stops, perfect kerning, an Instagram grid safe-zone overlay, a 9-stop color picker. Users don't notice (they wouldn't have churned on the old version). Meanwhile the actual blockers — say, "I don't know which template is right for me" or "the AI hooks don't match my niche" — go untouched. Milestone closes, retention is flat, shareto-TikTok rate is flat.
+### 15. Rotation handle
 
-**Why it happens:**
-Visual polish feels productive and is gratifying. It is the easiest thing to schedule against. It is also the thing pre-PMF startups most consistently overinvest in.
+Figma and Canva both have a top-centre rotation handle in addition to corner-resize. **Defer.** Rotation requires `transform: rotate(...)` which Satori has limited support for (the [Satori README](https://github.com/vercel/satori) lists rotation under "limited" CSS support), and would force a width-aware text-fit pass. v2.10 is "smallest thing that makes the affordance feel right" — rotation belongs in a v2.11+ iteration once basic resize is validated.
 
-**Warning signs:**
-- The roadmap is heavy on "improve the look of X" and light on "improve the user's outcome on platform Y"
-- No success metric tied to the milestone other than "looks better"
-- No user interview citation in any phase plan
-- The phase plans don't reference current creator complaints
-- v2.9 phases ship and the engineer-week-to-user-impact ratio is unmeasurable
+### 16. Multi-select resize
 
-**Prevention:**
-- **Every phase has one quantitative success metric.** "X% more users complete a carousel," "X% more carousels get downloaded as ZIP," not "the templates look more current."
-- **One in-product instrumentation per phase.** Don't ship a feature without a measurable signal it shipped well. Even crude — "carousel-completed events / generation-started events" — beats vibes.
-- **A user interview every 2 weeks during v2.9.** Not optional. Show the latest preview, ask "would you post this?" If the answer is "almost," that's the gap. If the answer is "yes," the visual is done — go fix the thing that's actually blocking them.
-- **Reserve at least 40% of milestone capacity for "research-driven, not polish-driven" features.** If Phase 1 research surfaces "users don't trust the hooks for their niche," that's higher-leverage than any visual polish and should outrank.
-- **Ship the smallest visual upgrade that crosses the quality bar.** If the bar is "doesn't look like AI slop," and 1 new template + tighter type-pair achieves it, *stop*.
+Selecting two text boxes at once and resizing them together (Figma pattern). **Defer.** Pre-PMF, single-element editing is the dominant flow per v2.8 right-rail design. Adds combinatorial complexity (which anchor? proportional?) for a workflow most users don't do on a 5-9 slide carousel.
 
-**Phase to address:** Phase 1 (Research) and the milestone audit. The roadmap structure itself is the prevention.
+### 17. Pixel-precise input fields
 
----
+A "W: 540 H: 200" numeric input pair next to the box (Figma's design panel). **Defer.** The right rail already shows font-size as a slider; width/height as numeric inputs is incremental UX polish. v2.10 ships if drag + value-displayed-in-right-rail works.
 
-### Pitfall 14: Adding "Accessibility / Alt-Text" as Visual-Quality Polish Without User Demand
+### 18. Aspect-ratio lock toggle button
 
-**What goes wrong:**
-Industry research surfaces accessibility (WCAG, screen-reader, contrast, alt text) as a "quality" axis. We schedule a phase to add alt-text generation, contrast checking, motion-reduction modes. Engineering eats 1–2 weeks. No paying user asked. EAA enforcement is "early stages" with few public penalties — not yet an enterprise threat for solo creators. Pre-PMF, we just spent runway on a non-objection.
+A UI toggle in the right rail for "lock aspect ratio while resizing" (separate from Shift modifier). **Defer.** Modifier-key-only is the convention in pro design tools (Photoshop, Figma, Sketch). UI toggle is a polish item.
 
-**Why it happens:**
-Accessibility is morally legible and feels like quality. It also has near-zero pull from a creator-facing pre-PMF product.
+### 19. Text-fitting font-size auto-shrink (Canva "Magic Resize")
 
-**Warning signs:**
-- "Accessibility" appears as a phase before any user has asked
-- The justification is "platforms started enforcing" without a specific platform/penalty cited
-- The work item is "WCAG compliance" rather than "fix this user's specific complaint"
+When the user resizes a box to be smaller, automatically shrink the font to fit (the inverse of `news-hook-fit.ts` but per-box, not per-template). **Defer to a separate research doc.** This is a real feature but it interacts with auto-fit, the registry, and per-segment font-family overrides in non-trivial ways. v2.10 ships with: corner-drag changes box size (and optionally font on Shift), nothing else automatic.
 
-**Prevention:**
-- **Defer accessibility tooling out of v2.9.** Park it in Out of Scope with a note: revisit when (a) an enterprise/agency lead asks, (b) a platform actively enforces, or (c) a user reports a specific accessibility blocker.
-- **Bake the cheap defaults** without making it a phase: ensure existing templates pass 4.5:1 text contrast, ensure body alt text is human-readable. That's an hour of polish, not a milestone.
-- **If a real demand signal arrives, it gets its own milestone**, not a v2.9 phase.
+### 20. Undo for accidental delete-via-resize
 
-**Phase to address:** This is a *non*-phase. Explicitly excluded.
+If the user resizes a box to width=0 / height=0 (a UI bug), the box becomes invisible but is not deleted. **Mitigate via clamps, do not add a dedicated undo path.** Reducer clamps width to ≥ 5% and height to ≥ a min based on `font_size` (e.g. `1.2 * font_size`) so the box is always visible. The existing `Math.max(20, ...)` clamp pattern at line 890 is the precedent — apply to height too.
 
 ---
 
-### Pitfall 15: Cache Invalidation on Visual Treatments — Stale Renders in Production
+## Citations
 
-**What goes wrong:**
-You change a template's CSS or a stylization prompt in code. Existing rendered PNGs in Supabase Storage (from earlier exports, hero thumbnails, Explore page snapshots) don't update. Some users see the old visual, some the new. Explore page hero thumbnails are wrong. Customer support gets "you said you fixed X but my export still has Y."
+### react-rnd
 
-The Explore feature already does the snapshot pattern — `published_carousels` is a deep-copy at publish time. Changing a template post-publish doesn't update published carousels. **This is correct** for Explore (immutability). But for *unpublished* projects whose hero thumbnails were cached, it's wrong.
+- [GitHub repo bokuweb/react-rnd](https://github.com/bokuweb/react-rnd) — `scale` prop docs in README ("Specifies the scale of the canvas... allows you to get the correct resize and drag deltas while you are zoomed in or out via a transform or matrix in the parent")
+- [Issue #110 — the problem when using transform: scale()](https://github.com/bokuweb/react-rnd/issues/110) — the canonical bug-report that prompted the `scale` prop
+- [Issue #766 — Rnd Components rerender will has wrong position when use scale](https://github.com/bokuweb/react-rnd/issues/766) — late-breaking re-render edge case (verify before shipping)
+- [Issue #732 — Ability to override or disable 'transform' property](https://github.com/bokuweb/react-rnd/issues/732) — react-rnd injects `transform: translate(...)` on the wrapper which is occasionally annoying for parity with Satori
+- [Issue #185 — Overriding or adding transform property](https://github.com/bokuweb/react-rnd/issues/185)
+- [npm page for react-rnd](https://www.npmjs.com/package/react-rnd) — version 10.5.3 confirmed in `package.json` line 49
 
-**Why it happens:**
-We render server-side and persist. Persisted assets don't auto-invalidate when the template changes.
+### Satori
 
-**Warning signs:**
-- Users report "I updated the slide but the export still has the old version"
-- Explore thumbnails don't match current content
-- Hero thumbnails for projects don't match the project's actual current state
-- Race conditions between "save" and "render" produce stale views
+- [vercel/satori](https://github.com/vercel/satori) README — supported CSS subset, `display: flex` requirement
+- [Issue #325 — Rendering inline elements](https://github.com/vercel/satori/issues/325) — flex-only support
+- [Issue #573 — CSS filter behaviour](https://github.com/vercel/satori/issues/573) — referenced by v2.9 photo-treatment baking decision (cited in PROJECT.md)
+- [Issue #393 — Text layout can be wider than node's width](https://github.com/vercel/satori/issues/393) — relevant when adding `position.height` since text can overflow
 
-**Prevention:**
-- **Versioned template IDs.** When a template is materially changed (not a fix), bump its version: `magazine-bold@1.0` → `magazine-bold@1.1`. Existing projects keep `@1.0` (locked snapshot). New projects get `@1.1`. This is the immutability pattern Explore already implies.
-- **Render output paths include a hash of inputs:** `{projectId}/{slideIndex}/{contentHash}.png`. Re-render produces a new path. Old renders are orphaned (cleaned up by retention policy from Pitfall #12).
-- **Hero thumbnail re-generation on edit.** The publish-actions path already re-renders on publish — extend to project-edit if we surface project thumbnails anywhere.
-- **Don't change template IDs in place.** Add new ones, deprecate old ones, never mutate.
+### Figma / Canva (UX precedent)
 
-**Phase to address:** Phase 2 (Templates) for the versioning policy; Phase 5 (QA) for the cache-invalidation audit.
+- [Figma — Adjust text dimensions and resizing](https://help.figma.com/hc/en-us/articles/27378154668951-Adjust-text-dimensions-and-resizing) — Auto Width / Auto Height / Fixed Size taxonomy used in Pitfall 3
+- [Figma `textAutoResize` plugin API](https://www.figma.com/plugin-docs/api/properties/TextNode-textautoresize/) — confirms the three modes are actual property values
+- [Figma forum — Overlap elements in Auto layout](https://forum.figma.com/ask-the-community-7/overlap-elements-in-auto-layout-39792) — overlap allowed only outside auto-layout; basis for Pitfall 6 "allow overlap" recommendation
+- [Canva Help — Resize designs and size limits](https://www.canva.com/help/resize/)
 
----
+### Accessibility / touch
 
-## Pitfall-to-Phase Mapping (Roadmap Index)
+- [WCAG 2.5.8 Target Size (Minimum) — W3C](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) — 24×24 CSS pixel minimum (AA), basis for Pitfall 7
+- [Smashing Magazine — Accessible Target Sizes Cheatsheet](https://www.smashingmagazine.com/2023/04/accessible-tap-target-sizes-rage-taps-clicks/) — 44×44 best practice
 
-| # | Pitfall | Severity | Phase to Bake Prevention In | Verification |
-|---|---|---|---|---|
-| 1 | Trend-fatigued aesthetic | CRITICAL | Phase 1 (Research) → Phase 2 (Templates) | Templates parametric (color/font as data); ≤3 new templates total |
-| 2 | Satori silent-ignore on trendy CSS | CRITICAL | Phase 2 (Templates) | `satori-css-allowlist.ts` checked in; per-template Satori snapshot test |
-| 3 | Color drift preview vs PNG | HIGH | Phase 2 (Templates) | Inline Satori preview in editor; documented drift list |
-| 4 | Over-constrained AI → monoculture | HIGH | Phase 4 (AI tightening) | Diversity test harness in CI; 1 constraint added per change |
-| 5 | sharp memory fragmentation | HIGH | Phase 3 (photo treatments) — *defer* | Default position: no sharp; if added, serial only + jemalloc note |
-| 6 | Gemini Vision cost trap | HIGH | Phase 4 (AI tightening) — *gate* | MAX_PHOTOS=8; vision call cached by content hash; cost tracked |
-| 7 | Imagen stylize cost/latency/uncanny | CRITICAL | Phase 3 (photo treatments) — *defer to v3.0* | Background-only if shipped; locked style prompts; face-detect refusal |
-| 8 | Algorithm "AI slop" penalty | HIGH | Phase 4 (AI tightening) + Phase 5 (QA) | Strip metadata on export; forbid AI-tell hooks; default to user/Pexels images |
-| 9 | IG grid 3:4 crop hides hook | MEDIUM | Phase 2 (Templates) | Safe-zone overlay in editor; export-modal preview |
-| 10 | Right-of-publicity / face stylize | CRITICAL (legal) | Phase 3 — *defer with stylize* | Face-detect refusal; locked styles only; ToS update |
-| 11 | AI cost stacking, margin compression | CRITICAL | Phase 3 / Phase 4 (whichever first) | One AI feature per phase; per-call ledger lines; per-carousel cost cap |
-| 12 | Asset bloat / egress | MEDIUM | Phase 5 (QA) | Retention cron; single-resolution export; cascade-delete audit |
-| 13 | Polish that doesn't move metric | CRITICAL (process) | Phase 1 (Research) + audit | One quantitative metric per phase; biweekly user interview |
-| 14 | Accessibility as polish without demand | MEDIUM | Out of scope for v2.9 | Park in Out of Scope; revisit on signal |
-| 15 | Stale renders / cache invalidation | MEDIUM | Phase 2 + Phase 5 | Versioned template IDs; content-hash render paths |
+### In-codebase precedent (already-shipped patterns to preserve)
 
----
-
-## "Looks Done But Isn't" Checklist (v2.9 ship gate)
-
-- [ ] Each new template renders byte-identical-or-better in Satori PNG vs React preview (snapshot test, not visual eyeball)
-- [ ] No new template uses CSS not on the Satori allowlist
-- [ ] No emoji in template defaults (if used, inline SVG)
-- [ ] AI-prompt diversity test: 20 carousels on the same topic generate ≥X distinct hook openings (threshold TBD by the AI tightening phase)
-- [ ] Per-carousel AI cost projection ≤ budget for free tier
-- [ ] If photo-match shipped: MAX_PHOTOS cap, fallback path tested, content-hash cache verified
-- [ ] If stylize shipped: face-detect refusal in path, locked style prompts only, async queue (not blocking generation)
-- [ ] Export ZIP PNG metadata is clean (no EXIF, no XMP, no C2PA)
-- [ ] Editor canvas shows IG-grid safe-zone overlay (cheap, ship it)
-- [ ] Each phase has one quantitative success metric defined and instrumented before ship
-- [ ] Cascade-delete: deleting a project removes its hero thumbnail and any cached intermediate assets
-- [ ] Template versioning policy in place (no in-place mutation of shipped templates)
-- [ ] No regression on the v2.8 542 test count; new tests added per new template / per new AI feature
-
----
-
-## Recovery Strategies (when prevention failed)
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---|---|---|
-| 1 — trend already aged | LOW–MEDIUM | Re-skin via theme overrides, not new template; sunset the worst-aged template |
-| 2 — Satori silent-drop | LOW | Remove the unsupported property; substitute pre-baked asset (PNG noise tile etc.); add to allowlist as forbidden |
-| 3 — color drift complaints | MEDIUM | Update React preview to match Satori output (not vice versa); document known drifts |
-| 4 — monoculture output | MEDIUM | Two-pass generation; loosen one constraint; add explicit "vary opening" instruction |
-| 5 — sharp OOM in prod | HIGH | Move sharp to dedicated function with elevated memory; serial-only; or rip sharp out and use Satori CSS approximations |
-| 6 — vision cost spike | LOW | Add MAX_PHOTOS, add cache, gate behind premium tier |
-| 7 — uncanny stylize complaints | HIGH | Disable feature; refund affected users; switch to background-only stylization |
-| 8 — algorithm penalty | MEDIUM | Strip metadata aggressively; A/B test new prompt cadence; offer "humanize this hook" UX |
-| 9 — IG grid crop | LOW | Add safe-zone overlay in editor; offer reposition tool |
-| 10 — right-of-publicity threat | HIGH | Take feature down; remove offending Explore content; legal review |
-| 11 — bill blowout | MEDIUM | Add per-call ledger lines; reconcile to bill; cap per-carousel cost |
-| 12 — storage / egress alarm | LOW | Add retention cron; downgrade retina (if shipped); cascade-delete audit |
-| 13 — polished, didn't move metric | HIGH (runway) | Pause polish work; user interviews; pivot next milestone toward unblocking the actual objection |
-| 14 — accessibility scope creep | LOW | Park work; redirect to demand signal |
-| 15 — stale renders | LOW | Force re-render with content-hash path; backfill hero thumbnails on next edit |
-
----
-
-## Sources
-
-- [Satori README — supported/unsupported CSS](https://github.com/vercel/satori/blob/main/README.md) (HIGH — official, current)
-- [Satori issue #493 — mix-blend-mode unsupported](https://github.com/vercel/satori/issues/493) (HIGH — primary source)
-- [Satori issue #545 — mask-image rendering broken](https://github.com/vercel/satori/issues/545) (HIGH)
-- [Satori issue #41 — silent ignoring of unsupported properties](https://github.com/vercel/satori/issues/41) (HIGH)
-- [Gemini API pricing — image input/output token rates 2025/2026](https://ai.google.dev/gemini-api/docs/pricing) (HIGH — official)
-- [Imagen 4 pricing — $0.04 standard, $0.06 Ultra, $0.02 Fast per output image](https://developers.googleblog.com/imagen-4-now-available-in-the-gemini-api-and-google-ai-studio/) (HIGH — official)
-- [TikTok 2026 algorithm — AI slop suppression, ~73% reach reduction signal](https://buffer.com/resources/tiktok-algorithm/) (MEDIUM — industry write-up; cross-referenced with multiple 2025–2026 sources)
-- [TikTok adding AI-slop filter tools + invisible watermarks on TikTok-AI tools](https://htxt.co.za/2025/11/you-can-now-control-how-much-ai-slop-you-see-on-tiktok/) (MEDIUM)
-- [TikTok carousel algorithm 2026 — slide 1 hook drives 60–80% swipe-through](https://www.postwaffle.com/blog/tiktok-carousel-algorithm) (MEDIUM)
-- [TikTok hook eye-tracking — 1.7s attention shift threshold (WARC + TikTok Creative Center)](https://www.opus.pro/blog/tiktok-hook-formulas) (MEDIUM)
-- [Instagram 2026 carousel sizing — 1080×1350 (4:5) recommended; 3:4 grid crop center 1012×1350](https://socialbee.com/blog/instagram-aspect-ratio-and-image-size/) (MEDIUM)
-- [Instagram cross-platform aesthetic flywheel + 3–4 week format-trend saturation](https://aestheticsofphotography.com/the-viral-visual-grammar-of-us-instagram-in-2026-aesthetics-algorithms-and-attention/) (MEDIUM — well-sourced industry write-up)
-- [Sharp memory fragmentation in serverless — multi-threaded libvips + glibc malloc](https://www.context.dev/blog/preventing-memory-issues-in-node-js-sharp-a-journey) (HIGH — engineering postmortem)
-- [Sharp issue #3052 — memory leak / fragmentation under load](https://github.com/lovell/sharp/issues/3052) (HIGH — primary source)
-- [Sharp issue #1041 — bloating in production, jemalloc as mitigation](https://github.com/lovell/sharp/issues/1041) (HIGH)
-- [LLM constrained-decoding cost — 10–15% reasoning loss; monoculture risk](https://arxiv.org/html/2501.10868v1) (HIGH — academic)
-- [SLOT: Two-pass generation as constrained-decoding mitigation](https://aclanthology.org/2025.emnlp-industry.32.pdf) (HIGH — academic)
-- [AI-image uncanny-valley failures — Coca-Cola, GS25 case studies](https://davinci.ai/blog/why-do-ai-generated-images-look-uncanny) (MEDIUM)
-- [Right-of-publicity + AI face stylization — Reface/Kyland Young 9th Cir.](https://perkinscoie.com/insights/blog/refaceoff-animating-right-publicity-dawn-generative-ai) (HIGH — legal source)
-- [Pre-PMF mistakes — premature scaling, optimizing landing-page before product](https://www.allied.vc/guides/growth-metrics-before-product-market-fit) (MEDIUM)
-- [Sean Ellis on optimization mistakes that kill startups](https://www.startup-marketing.com/optimization-mistakes-that-kill-startups/) (MEDIUM — canonical)
-- [a16z — 12 Things About Product-Market Fit](https://a16z.com/12-things-about-product-market-fit/) (MEDIUM — canonical)
-- [Web carousel accessibility — WCAG 2025, EAA enforcement state](https://www.allaccessible.org/blog/color-contrast-accessibility-wcag-guide-2025) (MEDIUM)
-- Codebase: `src/lib/render/render-slide-satori.tsx` (existing Satori path, REND-04 box-decoration-break fallback in place)
-- Codebase: `src/lib/render/resolve-overlay.ts` (single source of truth for Satori + React parity — model for new templates)
-- Codebase: `src/lib/ai/match-photos-to-slides.ts` (parked feature reviewed for cost/cap pitfalls)
-- Codebase: `src/lib/imagen/stylize-image.ts` (parked feature reviewed for legal/uncanny pitfalls)
-- Codebase: `package.json` (no `sharp` dep currently — supports Pre-PMF Rule #1)
-- Prior research: `.planning/research/archive-pre-v2.9/PITFALLS.md` (v2.3 MCP pitfalls — assumed mitigated, not re-stated here)
-
----
-*Pitfalls research for: v2.9 Viral Visual Quality*
-*Researched: 2026-05-01*
-*Confidence: MEDIUM-HIGH. Lowest confidence on TikTok algorithm specifics (industry write-ups, not platform documentation); highest confidence on Satori limits and AI pricing (official sources).*
+- `src/components/slides/slide-preview.tsx` lines 553 (editable branch gate), 862 (`scale={scale}` on Rnd), 882 (onDragStop dispatches, onDrag does not), 1162 (`lockAspectRatio={true}` is image-only)
+- `src/lib/editor/editor-reducer.ts` lines 91 (`pushHistory`), 270 (`UPDATE_TEXT_BOX`)
+- `src/lib/render/hook-fit.ts` lines 120-132 (registry lookup; explicit override wins on line 313 of slide-preview.tsx)
+- `.planning/MILESTONES.md` v2.7 commit `e96fd3a` (Satori `display: flex` parity bug — precedent for three-renderer audit rule)
+- `.planning/MILESTONES.md` v2.8 BL-01 (`applyDualWrite` reducer dual-write — precedent for Pitfall 12)
+- `.planning/quick/260502-j14-fix-ai-text-mid-word-break-remove-deprec` (`word-break: break-word` deprecated alias — Pitfall 13 #4)

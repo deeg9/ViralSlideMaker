@@ -1,730 +1,481 @@
-# Architecture Research: v2.9 Viral Visual Quality Integration
+# Architecture — v2.10 Text Box Resize Handles
 
-**Domain:** Visual-quality upgrades to an existing Satori + React dual-renderer carousel pipeline
-**Researched:** 2026-05-01
-**Confidence:** HIGH for the parity invariant and Satori-CSS-via-resvg constraints (Context7 + GitHub issue verified). MEDIUM for build-order — the FEATURES.md research is running in parallel, so the exact set of treatments isn't final yet, but the integration shape below holds for any reasonable subset.
+**Domain:** Adding corner + top/bottom resize handles to text boxes in an existing dual-renderer slide editor.
+**Researched:** 2026-05-02
+**Confidence:** HIGH — every claim below is grounded in the current codebase (file + line numbers given). The single MEDIUM-confidence claim is the optional font-scaling math, which is purely a UX choice and can be tuned in-phase.
 
-> **Verdict up front:** The existing pipeline can absorb every viral pattern under consideration WITHOUT redesign. The 9-layer DOM stack already has the right shape; the schema-shape (`overlays[]`, `backgroundMode`, `text_boxes[]`, `style_overrides`) already has the right joints. What's missing is a **server-side photo-treatment stage** between "background URL acquired" and "background URL persisted on the slide." Add that one stage and almost every visual treatment becomes a template-config change. The two parked experiments (`match-photos-to-slides`, `stylize-image`) both fit cleanly — but stylize-image conflicts with the deterministic photo-treatment stage and should be reframed as a one-shot user action, not a build-block.
+This document answers six concrete questions. The TL;DR up front, then per-section details.
 
----
-
-## Standard Architecture
-
-### System Overview — current pipeline + v2.9 insertions
-
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                          AI GENERATION (server)                             │
-│                                                                              │
-│  generate-slides.ts ──► Gemini 2.5 Flash ──► Zod parse ──► legacyToTextBoxes│
-│   (system prompt +      (responseSchema)      (validate-     (Phase 51       │
-│    aiVoiceNote per                            slides.ts +     adapter at     │
-│    template)                                  typo gate)      ingest         │
-│                                                              boundary)       │
-│                          ▲                                                   │
-│                          │  topic, slideCount, templateId                    │
-└──────────────────────────┼───────────────────────────────────────────────────┘
-                           │ slide.image_query (per slide)
-                           ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                       BACKGROUND ACQUISITION (server)                       │
-│                                                                              │
-│   Pexels.search(image_query)         OR  Imagen 4.0-fast    OR  user upload │
-│           │                               (generate-image.ts)        │       │
-│           ▼                                       ▼                  ▼       │
-│      pexels URL                          Supabase Storage URL                │
-│                                                                              │
-│   ◄═════════════════════════ NEW v2.9 INSERTION ═══════════════════════════►│
-│   ┌──────────────────────────────────────────────────────────────────────┐ │
-│   │   src/lib/photo-treatment/treat.ts (NEW)                              │ │
-│   │   Deterministic, idempotent transform pipeline:                       │ │
-│   │   1. fetch(sourceUrl) → Buffer                                        │ │
-│   │   2. sharp() ─► resize 1080×1920 cover                                │ │
-│   │           ─► optional: greyscale() | duotone(LUT) | linear(...)       │ │
-│   │           ─► optional: extractDominantColor() (sharp.stats / Vibrant) │ │
-│   │   3. cacheKey = SHA-256(sourceUrl + treatmentSpec)                    │ │
-│   │   4. Storage: slide-backgrounds-treated/<userId>/<cacheKey>.png       │ │
-│   │   5. Return { treatedUrl, dominantHexes[5], treatmentApplied }        │ │
-│   └──────────────────────────────────────────────────────────────────────┘ │
-│           │                                                                  │
-│           ▼                                                                  │
-│      slide.background_url ← treatedUrl   (replaces raw URL)                 │
-│      slide.style_overrides.derived_palette ← dominantHexes (NEW field)      │
-│      slide.style_overrides.treatment_applied ← spec hash (NEW field)        │
-└────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                    DUAL RENDERER (parity-locked)                            │
-│                                                                              │
-│   src/lib/render/resolve-overlay.ts  ◄══ SINGLE SOURCE OF TRUTH ══►         │
-│            ▲                                              ▲                  │
-│            │                                              │                  │
-│   render-slide-satori.tsx                       slide-preview.tsx           │
-│   (Server, Satori → SVG → resvg-js → PNG)       (Client, React DOM)         │
-│            │                                              │                  │
-│            └─────────── 9-layer DOM stack ────────────────┘                  │
-│              1. photo (full-bleed <img>)                                     │
-│              2. tint overlay (overlayColor × overlayOpacity)                 │
-│              3. bottom-card (image-with-bottom-card mode only)               │
-│              4. template overlays[] (chip / counter / mid pill / free)       │
-│              5. hook text                                                    │
-│              6. body text                                                    │
-│              7. custom_images[]                                              │
-│              8. brand watermark                                              │
-│              9. forced free-tier watermark                                   │
-│                                                                              │
-│   ◄═════════════════════════ NEW v2.9 LAYERS ══════════════════════════════►│
-│              1.5  grain/noise overlay (template.grainMode, NEW)              │
-│              2.5  vignette / radial darken (template.vignette, NEW)          │
-│              4.5  type-as-image hero treatment (extends overlays[])          │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Status | Touched in v2.9? |
-|-----------|----------------|--------|------------------|
-| `src/lib/ai/generate-slides.ts` | Gemini text gen + adapter | Existing | YES — extend prompts only when FEATURES research demands |
-| `src/lib/ai/match-photos-to-slides.ts` | Vision-based photo→slide assignment | **Parked** | KEEP (commit + wire into upload flow) |
-| `src/lib/imagen/generate-image.ts` | Imagen 4.0-fast prompt-to-image | Existing | Possibly swap model (config-only) |
-| `src/lib/imagen/stylize-image.ts` | Photo restyle via gemini-2.5-flash-image-preview | **Parked** | DEFER (see §9 Verdict) |
-| `src/lib/photo-treatment/treat.ts` | **NEW** — sharp-based B&W/duotone/contrast + dominant-color extract | **NEW** | YES — primary v2.9 component |
-| `src/lib/render/templates/index.ts` | Template registry + schema | Existing | YES — extend `SlideTemplate` schema |
-| `src/lib/render/templates/validate.ts` | Fail-fast registry validator | Existing | YES — add new-field validators |
-| `src/lib/render/resolve-overlay.ts` | **PARITY-CRITICAL** shared resolver | Existing | YES — extend with new layer renderers |
-| `src/lib/render/render-slide-satori.tsx` | Server Satori path | Existing | YES — consume new layers from resolver |
-| `src/components/slides/slide-preview.tsx` | Client React preview | Existing | YES — mirror new layers from resolver |
-| `src/lib/render/load-font.ts` | Font buffer loader (Google Fonts TTF) | Existing | YES — extend catalog for new typography |
-| `src/lib/types/slide.ts` | Slide / TextBox types | Existing | Additive: `style_overrides.derived_palette`, `treatment_applied` |
-| `supabase/migrations/v29_*.sql` | **NEW** — `slide-backgrounds-treated` bucket + (optional) `photo_treatments` cache table | **NEW** | YES |
+| Decision | Recommendation |
+|---|---|
+| Schema: explicit `height` on `TextBoxPosition`? | **YES — add `height?: number` (% 0-100), absent ⇒ auto-fit (current behavior).** |
+| Auto-height fallback location | **Shared helper `resolveTextBoxBounds()` in `resolve-overlay.ts`** (or a new `resolve-textbox.ts` if `resolve-overlay.ts` grows past comfort). |
+| Reducer/action change | **None new — `UPDATE_TEXT_BOX` already accepts `Partial<TextBox>`. The Rnd handler dispatches `position: { ...prev, height, width }` (and optionally `font_size`) in one action.** |
+| Editor `<Rnd>` location | **`src/components/slides/slide-preview.tsx` lines 860 / 935 / 1023 — three call-sites (hook, body, custom). All three use the same `enableResizing` constant at line 801.** |
+| Migration | **Lazy auto-fit fallback. No SQL backfill, no `text-box-adapter.ts` change required for absence-means-auto-fit.** |
+| Phasing | **Single cohesive phase, executed in 4 commits.** |
+| Legacy `hook_width`/`body_width` | **Already mirrored from `text_boxes[].position.width` via `applyDualWrite` (Phase 50). Add `hook_height`/`body_height` to `SlideStyleOverrides` ONLY if a non-Phase-49 codepath needs to read them — for v2.10, default to NO (canonical write path is `text_boxes[]`).** |
 
 ---
 
-## Recommended Project Structure (additions only)
+## Schema decision
 
-```
-src/
-├── lib/
-│   ├── photo-treatment/          # NEW — visual asset transforms
-│   │   ├── treat.ts              # Public entry: treatPhoto(url, spec) → { treatedUrl, palette }
-│   │   ├── transforms.ts         # Pure sharp pipelines: greyscale, duotone, contrast-bump
-│   │   ├── palette.ts            # Dominant-color extraction (sharp.stats + LUT mapping)
-│   │   ├── cache.ts              # SHA-256 cache key + Storage probe (HEAD before transform)
-│   │   └── treat.test.ts         # Pure-pipeline tests with fixture buffers
-│   ├── render/
-│   │   ├── resolve-overlay.ts    # Existing — extended with renderGrain, renderVignette, renderTypeAsImage
-│   │   └── templates/
-│   │       ├── index.ts          # SlideTemplate extended: grainMode?, vignette?, photoTreatment?, paletteMode?
-│   │       └── <new-templates>.ts# 1-3 new templates per FEATURES research
-│   ├── ai/
-│   │   ├── generate-slides.ts    # Existing — possibly extend prompts per template aiVoiceNote
-│   │   └── match-photos-to-slides.ts  # KEEP (commit), wire into upload flow
-│   └── imagen/
-│       ├── generate-image.ts     # Existing — model upgrade is a string change
-│       └── stylize-image.ts      # KEEP file, DO NOT wire into v2.9 default path (§9)
-├── app/
-│   └── (dashboard)/project/[id]/
-│       ├── actions.ts            # Existing — add server action: treatBackground (per-slide)
-│       └── editor-actions.ts     # Existing — extend regenerateBackground to pipe through treat()
-└── components/
-    └── editor/
-        └── photo-treatment-controls.tsx  # NEW — opt-in B&W toggle, contrast slider per slide
+### Trade-off table
+
+| Option | Pros | Cons | Verdict |
+|---|---|---|---|
+| **A: Add `height?: number` (% 0-100), absent ⇒ auto-fit** | Mirrors existing `width?` precedent (`TextBoxPosition.width` at `src/lib/types/slide.ts:87`); zero disruption to non-resized slides; the resize handle has somewhere to write its result; no over-fitting on AI-generated text that hasn't been touched. | Two render modes per slide (auto vs explicit); helpers must branch. | **CHOSEN.** |
+| B: Renderer auto-fits height; corner handle only adjusts `font_size` | Simpler schema (no new field). | Corner handle writing `font_size` only is unintuitive — users expect to size a *box*, not a font. Makes "resize box without changing text size" impossible. Loses the affordance of "drag to make this hook headline take up the whole upper third of the slide." | **REJECTED.** |
+| C: `aspectRatio` field instead of height | Geometric purity; easy lockAspectRatio. | Awkward when text content rewraps inside the box (text height ≠ aspect-driven height). Doesn't solve the "I want this hook to occupy 30% of canvas height" use case directly. | **REJECTED.** |
+
+### Why option A fits the existing schema philosophy
+
+Look at `TextBoxPosition` in `src/lib/types/slide.ts:83-88`:
+
+```ts
+export interface TextBoxPosition {
+  anchor: TextBoxAnchor
+  x?: number       // percentage 0-100 (only when anchor='custom')
+  y?: number       // percentage 0-100 (only when anchor='custom')
+  width?: number   // percentage 0-100 (overrides symmetric calc)
+}
 ```
 
-### Structure Rationale
+`x`, `y`, and `width` are all **optional percentages where absence delegates to a default-resolution function**. Adding `height` follows that exact pattern. The codebase has already converged on "absent = compute from defaults; present = user override" for every position field — `height` would be the fourth member of an established pattern, not a new pattern.
 
-- **`src/lib/photo-treatment/`:** New top-level lib because it's used by **three** call paths (initial generation, "regenerate background," manual user toggle in the editor). Putting it under `imagen/` would tie it to AI image gen specifically; it should also process Pexels and user uploads.
-- **No new `src/lib/render/` files for grain/vignette layers:** They're cheap CSS-only effects (radial-gradient masks, repeating PNG noise tile). Add them as new exported render helpers within `resolve-overlay.ts` so the parity invariant stays automatic — both renderers import from the same module.
-- **`treat.test.ts` not template-render tests:** Photo-treatment is pure (Buffer-in, Buffer-out). Render parity is covered separately (§8).
+### Final schema patch
+
+`src/lib/types/slide.ts:83-88`:
+
+```ts
+export interface TextBoxPosition {
+  anchor: TextBoxAnchor
+  x?: number
+  y?: number
+  width?: number
+  /** v2.10: percentage 0-100. Absent ⇒ auto-fit from content (current behavior).
+      Present ⇒ explicit box height; renderer pins the box to this height and
+      the inner text overflows / aligns within it according to vertical-align. */
+  height?: number
+}
+```
+
+### Optional companion field — `font_scale_locked?: boolean`
+
+If we ship the "scale font with box" UX (corner-drag-with-shift), we have two implementation options:
+
+1. **Implicit:** corner-drag computes a font_size delta and dispatches it alongside `height`. The new `font_size` is just a number on `TextBox`. No schema change beyond `height`.
+2. **Explicit:** add `font_scale_locked?: boolean` to `TextBoxPosition` so the renderer always re-computes font from box dimensions.
+
+**Recommend implicit (option 1).** It matches Canva/Figma — the user manipulates a number that's already on the element; no hidden state. `font_size` is already a top-level field on `TextBox` (`slide.ts:97`).
 
 ---
 
-## Architectural Patterns
+## Renderer changes (3 paths)
 
-### Pattern 1: Pre-Bake at Storage, Not at Render
+### Where height is consumed today
 
-**What:** Photo treatments (B&W, duotone, contrast bump) execute server-side via `sharp` BEFORE the URL is written to `slide.background_url`. Renderers see only the already-treated URL and treat it as opaque pixels.
+| Path | Current state | Change needed |
+|---|---|---|
+| `src/components/slides/slide-preview.tsx` (lines 588, 608 — non-editable; 911-930, 985-1004 — editable) | Hook/body wrappers have **no height set** on the inner `<div>` — height comes from text content. | Wrapper inherits `height: ${resolvedHeight}%` when set; add `display: flex` + `flexDirection: column` + `justifyContent: 'center'` to vertically center text in the box (or expose alignment field, see Open Q below). |
+| `src/lib/render/render-slide.ts` (lines 230-258, `.hook` / `.body` rules) | Same — width-only positioning. | Same — add explicit `height: ${resolvedHeight}%` to the rule when set. |
+| `src/lib/render/render-slide-satori.tsx` (lines 196-208 hookStyle, 224-236 bodyStyle, 453-477 custom_texts) | Same — width-only. | Same — add `height: pxY(resolvedHeight)` to the style when set. **Satori caveat:** Satori already respects explicit numeric `height` on absolute children (verified in v2.9 bottom-card pattern at `render-slide-satori.tsx:298-316`), so this is a known-good path. |
 
-**When to use:** Any treatment that can't round-trip identically through both Satori and React DOM. This is most of them — see §2.
+### Where the auto-fit fallback lives
 
-**Why:** Verified via Context7 + [vercel/satori#573](https://github.com/vercel/satori/issues/573):
-- Satori "supports" CSS `filter` per the README, but **the SVG output of `filter: grayscale(1)` does NOT survive resvg-js rasterization to PNG**. Filter-via-CSS is silently lost on the server path.
-- React DOM honors all CSS filters natively.
-- Net: if we put `filter: grayscale(1)` on the `<img>` layer, the editor preview would be B&W and the exported PNG would be color — a TPLREND-05 zero-drift parity violation, the exact bug class v2.7 Phase 45 was built to prevent.
+**Recommend a new shared helper at `src/lib/render/resolve-overlay.ts`** (or a new file `src/lib/render/resolve-textbox.ts` if the maintainer prefers to keep `resolve-overlay.ts` focused on overlays — both work).
 
-**Trade-offs:** Storage cost (one extra PNG per treatment per slide), one-time CPU cost (sharp is ~50ms for a 1080×1920 transform), idempotent so cache makes it free on regeneration. Wins: byte-identical Satori/React parity, instant client render (no client-side wasm or canvas), and treatments work for `<img>` tags whose underlying URLs Satori never inspects.
+Add a function:
 
-**Example:**
-
-```typescript
-// src/lib/photo-treatment/treat.ts
-import sharp from 'sharp'
-import { createHash } from 'crypto'
-import { createAdminClient } from '@/lib/supabase/admin'
-
-export type TreatmentSpec = {
-  mode: 'none' | 'bw' | 'duotone' | 'contrast-bump'
-  duotoneShadow?: string  // hex, only when mode === 'duotone'
-  duotoneHighlight?: string
-  contrastBoost?: number   // 0-50, only when mode === 'contrast-bump'
+```ts
+// src/lib/render/resolve-overlay.ts (new export, ~30 lines)
+export interface ResolvedTextBoxBounds {
+  x: number       // percent 0-100
+  y: number       // percent 0-100
+  width: number   // percent 0-100
+  height?: number // percent 0-100; UNDEFINED ⇒ caller renders without height (auto-fit)
 }
 
-export interface TreatedPhoto {
-  treatedUrl: string
-  palette: string[]        // top 5 dominant hex colors
-  treatmentApplied: string // SHA-256 of (sourceUrl + spec) — idempotency key
-}
+/**
+ * v2.10 (TPLREND-05 parity): resolve final pixel/percentage bounds for a
+ * TextBox given its anchor + overrides + template defaults. All 3 renderers
+ * must call this so width/height/x/y resolution stays in sync.
+ *
+ * Returns `height: undefined` when the box should auto-fit content (current
+ * behavior). Returns a number when the user has explicitly resized.
+ */
+export function resolveTextBoxBounds(
+  box: TextBox,
+  ctx: { template: SlideTemplate; slide: Slide; role: TextBoxRole },
+): ResolvedTextBoxBounds { ... }
+```
 
-export async function treatPhoto(
-  userId: string,
-  sourceUrl: string,
-  spec: TreatmentSpec,
-): Promise<TreatedPhoto> {
-  const cacheKey = createHash('sha256')
-    .update(sourceUrl + JSON.stringify(spec))
-    .digest('hex')
+Then, all 3 renderers stop computing `hookX`, `hookY`, `hookWidth` inline and instead call `resolveTextBoxBounds(hookBox, { template, slide, role: 'hook' })`. Same call site swap in 3 files.
 
-  const supabase = createAdminClient()
-  const path = `${userId}/treated/${cacheKey}.png`
+### TPLREND-05 parity contract — mandatory test
 
-  // 1. HEAD probe: skip work if already cached.
-  const { data: existing } = await supabase.storage
-    .from('slide-backgrounds-treated')
-    .list(`${userId}/treated`, { search: `${cacheKey}.png` })
-  if (existing && existing.length > 0) {
-    const { data } = supabase.storage
-      .from('slide-backgrounds-treated').getPublicUrl(path)
-    // Palette still needed — re-extract from cached buffer or store sidecar JSON.
-    // Recommend: store palette JSON next to PNG at <cacheKey>.json.
-    return { treatedUrl: data.publicUrl, palette: await loadPalette(path), treatmentApplied: cacheKey }
+The v2.7 / v2.9 milestones locked a render-parity invariant: every visual change ships with a parity test that asserts both renderers produce identical output for a given slide.
+
+For v2.10, add to `src/lib/render/__tests__/parity.test.tsx`:
+
+1. Box with `height: 30` (% — explicit) ⇒ Satori PNG height ≈ 576px (30% of 1920); React preview wrapper computed style `height` ≈ 30% of container.
+2. Box without `height` ⇒ both renderers omit the height property (visually auto-fit, byte-identical to v2.9 baseline for legacy slides).
+3. Round-trip via `applyDualWrite` ⇒ legacy `hook_height` / `body_height` not added (see SlideStyleOverrides decision below).
+
+---
+
+## react-rnd integration changes
+
+### Where the `<Rnd>` instances live (file + line)
+
+`src/components/slides/slide-preview.tsx`:
+- **Line 860** — hook `<Rnd>` (editable branch only)
+- **Line 935** — body `<Rnd>` (editable branch only, gated on `slide.body_text`)
+- **Line 1023** — custom-text `<Rnd>` (one per `slide.custom_texts[]`)
+- **Line 1156** — custom-image `<Rnd>` — already supports all 8 handles + `lockAspectRatio={true}`. **This is the precedent to copy.**
+
+### Current dispatch shape (resize)
+
+Lines 889-897 (hook resize-stop), 964-972 (body resize-stop), 1062-1068 (custom-text resize-stop) all share the same handler signature:
+
+```ts
+onResizeStop={(_e, _dir, ref, _delta, position) => {
+  const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
+  onWidthChange?.('hook', Math.round(newWidthPct))
+  if (onPositionChange) {
+    const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+    const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+    onPositionChange('hook', { x: percentX, y: percentY })
   }
+}}
+```
 
-  // 2. Fetch + transform.
-  const res = await fetch(sourceUrl)
-  let pipeline = sharp(Buffer.from(await res.arrayBuffer()))
-    .resize(1080, 1920, { fit: 'cover', position: 'centre' })
+Width and position are dispatched as **two separate calls** to two separate handlers (`onWidthChange`, `onPositionChange`). Both handlers in `slide-editor.tsx` (lines 405-454) then synchronously update both `style_overrides.{hook,body}_{position,width}` AND the matching entry in `text_boxes[]`.
 
-  if (spec.mode === 'bw') {
-    pipeline = pipeline.greyscale()
-  } else if (spec.mode === 'contrast-bump') {
-    pipeline = pipeline.linear(1 + (spec.contrastBoost ?? 15) / 100, -((spec.contrastBoost ?? 15) / 2))
-  } else if (spec.mode === 'duotone') {
-    // Duotone: greyscale → tint(highlight) → tint(shadow) on dark pixels.
-    // sharp.tint() applies a single tint; for true duotone use .recomb() with a 3x3 LUT.
-    pipeline = pipeline.greyscale().tint({ r: 0xa8, g: 0xe0, b: 0xb0 /* example */ })
-  }
+### Minimum-touch change
 
-  const treated = await pipeline.png({ quality: 90 }).toBuffer()
-  const palette = await extractPalette(treated)
+Two surgical edits:
 
-  // 3. Upload + sidecar palette.
-  await supabase.storage.from('slide-backgrounds-treated').upload(path, treated, { contentType: 'image/png' })
-  await supabase.storage.from('slide-backgrounds-treated').upload(
-    `${userId}/treated/${cacheKey}.json`,
-    Buffer.from(JSON.stringify({ palette })),
-    { contentType: 'application/json' },
-  )
+#### Edit 1: `slide-preview.tsx:801-810` — flip the gate
 
-  const { data: pub } = supabase.storage.from('slide-backgrounds-treated').getPublicUrl(path)
-  return { treatedUrl: pub.publicUrl, palette, treatmentApplied: cacheKey }
+```ts
+// BEFORE (current — left/right only)
+const enableResizing = {
+  left: true, right: true,
+  top: false, bottom: false,
+  topLeft: false, topRight: false, bottomLeft: false, bottomRight: false,
+}
+
+// AFTER (v2.10 — all 8 handles)
+const enableResizing = {
+  left: true, right: true,
+  top: true, bottom: true,
+  topLeft: true, topRight: true, bottomLeft: true, bottomRight: true,
 }
 ```
 
-### Pattern 2: New Layers Land in `resolve-overlay.ts`, Not in Renderers
+Plus expand `resizeHandleStyles` (lines 812-815) to all 8 positions — the custom-image branch at lines 1173-1182 is the exact recipe.
 
-**What:** Any new visual layer (grain, vignette, type-as-image hero) is added as an exported helper in `src/lib/render/resolve-overlay.ts`. Both `render-slide-satori.tsx` and `slide-preview.tsx` import that helper and place it in the same DOM order.
+#### Edit 2: extend the `onResizeStop` callbacks to also emit height
 
-**When to use:** Always — this is the TPLREND-05 invariant. v2.7 Phase 45 ratified this pattern; v2.9 must extend it, not bypass it.
+Three call-sites (hook, body, custom) all gain:
 
-**Trade-offs:** None. The cost is one extra exported function per layer; the benefit is automatic parity. The alternative (separate Satori vs React implementations) is the exact failure mode the resolver was built to prevent.
+```ts
+onResizeStop={(_e, _dir, ref, _delta, position) => {
+  const newWidthPct  = Math.max(20, Math.min(100, (parseInt(ref.style.width)  / REF_WIDTH)  * 100))
+  const newHeightPct = Math.max(5,  Math.min(100, (parseInt(ref.style.height) / REF_HEIGHT) * 100))
+  onSizeChange?.('hook', { width: Math.round(newWidthPct), height: Math.round(newHeightPct) })
+  if (onPositionChange) {
+    const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH)  * 100))
+    const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+    onPositionChange('hook', { x: percentX, y: percentY })
+  }
+}}
+```
 
-**Example:**
+**Note:** the new callback is `onSizeChange` (not `onWidthChange`). Either:
 
-```typescript
-// src/lib/render/resolve-overlay.ts (additions)
+- **A — additive:** add `onSizeChange?: (field, { width, height }) => void` alongside `onWidthChange`, deprecate `onWidthChange`. Less risky.
+- **B — replace:** rename `onWidthChange` → `onSizeChange`. One commit, but touches every caller.
 
-export function renderGrain(intensity: 'subtle' | 'medium' | 'strong'): React.ReactNode {
-  // Tile a static noise PNG (in /public/textures/grain-medium.png) at low opacity.
-  // Both Satori and resvg handle <img> with repeated tiling via inline-style background-image
-  // OR via an explicit absolutely-positioned <img>. Satori prefers the latter.
-  const opacityMap = { subtle: 0.04, medium: 0.08, strong: 0.14 } as const
-  return React.createElement('img', {
-    src: `/textures/grain-${intensity}.png`,  // Satori needs absolute URL via origin prepend in server
-    style: {
-      position: 'absolute',
-      top: 0, left: 0,
-      width: CANVAS.W, height: CANVAS.H,
-      objectFit: 'cover',  // Or set to a tile via repeating-linear-gradient as backup
-      opacity: opacityMap[intensity],
-      pointerEvents: 'none',
-    },
+**Recommend A.** `onWidthChange` keeps working untouched for left/right drags (resize handle of width=true, height=false). For corner / top / bottom drags, dispatch `onSizeChange`. The two coexist trivially; deprecate later.
+
+#### Edit 3: `slide-editor.tsx:433-454` — extend `handleWidthChange` into `handleSizeChange`
+
+```ts
+function handleSizeChange(field: 'hook' | 'body', size: { width: number; height: number }) {
+  if (!currentSlide) return
+  const overrides = currentSlide.style_overrides ?? {}
+  const updatedTextBoxes = currentSlide.text_boxes?.map((tb) => {
+    if (tb.role !== field) return tb
+    return {
+      ...tb,
+      position: { ...tb.position, width: size.width, height: size.height },
+    }
   })
-}
-
-export function renderVignette(strength: number /* 0-1 */): React.ReactNode {
-  // Pure CSS — radial-gradient is supported in BOTH Satori and React DOM.
-  // No filter, no backdrop-filter, no mix-blend-mode. Just an absolutely positioned
-  // div with a radial-gradient backgroundImage. Verified Satori-supported via Context7.
-  return React.createElement('div', {
-    style: {
-      position: 'absolute',
-      top: 0, left: 0,
-      width: CANVAS.W, height: CANVAS.H,
-      backgroundImage: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${strength}) 100%)`,
-      pointerEvents: 'none',
+  dispatch({
+    type: 'UPDATE_SLIDE',
+    index: selectedIndex,
+    updates: {
+      // Legacy hook_width/body_width still set so applyDualWrite stays in sync.
+      style_overrides: {
+        ...overrides,
+        [field === 'hook' ? 'hook_width'  : 'body_width']:  size.width,
+        // No hook_height/body_height legacy field — see Cross-references section.
+      },
+      ...(updatedTextBoxes ? { text_boxes: updatedTextBoxes } : {}),
     },
   })
 }
 ```
 
-### Pattern 3: Schema-Additive Template Extensions, Not New Fields on Slides
+For custom boxes, the existing `UPDATE_TEXT_BOX` action already accepts `Partial<TextBox>` (`editor-actions.ts:26`), so the dispatch is just:
 
-**What:** New visual treatments are **template config**, not slide config. The slide stays simple (text + background URL); the template carries `grainMode`, `vignette`, `photoTreatment`, etc. This means switching templates re-applies the visual treatment automatically.
-
-**When to use:** For treatments that should be template-aesthetic decisions. Per-slide overrides go through `style_overrides` (existing pattern).
-
-**Trade-offs:** Limits per-slide flexibility, but that's intentional — viral carousels read as a *set* with consistent treatment, not as 7 unrelated images. Per-slide override is still possible via `style_overrides.photo_treatment` for power users.
-
-**Example schema extension:**
-
-```typescript
-// src/lib/render/templates/index.ts (additions)
-export interface SlideTemplate {
-  // ... existing fields ...
-
-  /** v2.9: opt-in noise/grain overlay above the photo (layer 1.5). */
-  grainMode?: 'none' | 'subtle' | 'medium' | 'strong'
-
-  /** v2.9: radial vignette darkens edges (layer 2.5). 0-1, 0 = off. */
-  vignette?: number
-
-  /** v2.9: server-applied photo treatment baked into background_url at gen time. */
-  photoTreatment?: TreatmentSpec  // imported from photo-treatment/treat.ts
-
-  /** v2.9: how to derive accent colors. 'fixed' = use accentColor verbatim;
-      'palette-dominant' = pick from slide.style_overrides.derived_palette. */
-  paletteMode?: 'fixed' | 'palette-dominant'
-}
-```
-
-### Pattern 4: AI-Driven Layout = Template Selection, Not Per-Slide Composition
-
-**What:** "AI chooses layout per slide" is implemented as **AI chooses `slide.style_overrides.layout`** (existing field for cover/body) and/or **AI chooses `slide.template_id_override`** (new field). The composition layers stay in templates; AI just picks which template-flavored layout each slide uses.
-
-**When to use:** For variation across slides in a single carousel — first slide hook-frame, middle slides body-heavy, CTA slide stripped-down.
-
-**Trade-offs:** Less flexibility than freeform per-slide composition, but **massively** simpler to implement, debug, and parity-test. Freeform per-slide composition would essentially require a third renderer that can interpret arbitrary layout JSON; that's out of scope for pre-PMF.
-
-**Schema addition:**
-
-```typescript
-// src/lib/types/slide.ts (additive)
-export interface Slide {
-  // ... existing fields ...
-
-  /** v2.9: per-slide template override. When present, the renderer
-      uses getTemplate(template_id_override) instead of project.template_id.
-      Validates against template registry at slide-load. */
-  template_id_override?: string
-}
-```
-
-The AI prompt then emits `template_id_override` as a string from a closed enum. Validation runs at `validateAndRepair` time (existing) — unknown IDs get stripped to `undefined` (graceful fallback to project default).
-
----
-
-## Data Flow
-
-### Generation flow (with v2.9 photo-treatment stage inserted)
-
-```
-User submits topic + template choice
-    │
-    ▼
-generate-slides.ts ──► Gemini ──► validateAndRepair ──► CarouselWithTextBoxes
-    │                              (typo gate, length caps, segments)
-    ▼
-For each slide:
-  ┌──► slide.image_query ──► pexels.search() OR Imagen ──► sourceUrl
-  │
-  ▼
-  ◄════ NEW v2.9 ════►
-  treatPhoto(userId, sourceUrl, template.photoTreatment)
-    │
-    ▼
-  { treatedUrl, palette, treatmentApplied }
-    │
-    ├── slide.background_url ← treatedUrl
-    ├── slide.style_overrides.derived_palette ← palette
-    └── slide.style_overrides.treatment_applied ← treatmentApplied (cache key)
-
-  ▼
-Persist to projects.slide_data (Supabase)
-```
-
-### Editor edit flow (when user changes treatment)
-
-```
-User toggles "Black & White" on slide 3
-    │
-    ▼
-editor-actions.ts: updateSlideTreatment(slideIdx, { mode: 'bw' })
-    │
-    ▼
-treatPhoto(userId, slide.original_source_url, { mode: 'bw' })
-    │ ◄── NEW slide field: original_source_url (untreated, stable across treatment changes)
-    ▼
-{ treatedUrl, palette, treatmentApplied }
-    │
-    ▼
-slide.background_url ← treatedUrl  (saved via existing per-slide PATCH path)
-```
-
-> **Critical schema note:** Add `slide.original_source_url` so re-treatment doesn't compound (treating a B&W image again produces nothing new; treating a contrast-bumped image to B&W loses fidelity). Always treat from the original.
-
-### Render flow (unchanged in shape, layers added)
-
-```
-ImageResponse({ buildSlideElement(slide, template, brandKit, tier, origin, ctx) })
-    │
-    ▼
-buildSlideElement assembles JSX:
-    1.   <img src={slide.background_url}> ← already-treated URL (opaque to renderer)
-    1.5  ◄ NEW renderGrain(template.grainMode) if set
-    2.   tint <div>
-    2.5  ◄ NEW renderVignette(template.vignette) if set
-    3.   bottom-card <div> if backgroundMode === 'image-with-bottom-card'
-    4.   template.overlays?.map(...)
-    4.5  ◄ NEW type-as-image hero (extends overlays via new content-type 'type-hero')
-    5.   hook <div>
-    6.   body <div>
-    7.   slide.custom_images?.map(...)
-    8.   brand watermark
-    9.   forced free-tier watermark
-    │
-    ▼
-Satori → SVG → @resvg/resvg-js → PNG buffer → ZIP
-
-(React preview path: same JSX shape via slide-preview.tsx, same import from resolve-overlay)
-```
-
----
-
-## Question-by-Question Answers
-
-### 1. New layers in the 9-layer DOM stack
-
-**Add as new layers in `resolve-overlay.ts` exports, not as overlay schema extensions.**
-
-| Visual treatment | Layer slot | Implementation | Satori-safe? |
-|------------------|------------|----------------|--------------|
-| Grain/noise overlay | **1.5** (above photo, below tint) | Tiled PNG `<img>` at `/public/textures/grain-{intensity}.png`, low opacity | YES — `<img>` + `opacity` are core Satori |
-| Vignette / radial darken | **2.5** (above tint, below bottom-card) | `<div>` with `backgroundImage: radial-gradient(...)` | YES — verified via Context7 |
-| Type-as-image hero | **4.5** (extends `overlays[]` with new content-type) | New `OverlayContent.type = 'hero-text'` with `fontSize: 240`, fills slot | YES — uses existing overlays infra |
-| Per-word color animations | N/A — out of scope (we render PNG, not video) | — | — |
-| Halftone / dot pattern | Treat as photo-treatment (Pattern 1), bake server-side | sharp doesn't have halftone built in; use `sharp.composite` with a tile | Bake server-side |
-| Inline diagonal text rotation | `transform: rotate(...)` on the hook `<div>` | Existing `transform` support | YES — verified Context7 |
-
-**Schema extensions, in order of risk:**
-
-- **LOW risk (schema-additive):** `template.grainMode`, `template.vignette`, `template.photoTreatment`, `template.paletteMode`. All optional; existing 5 legacy + 3 premium templates leave them undefined → zero behavior change.
-- **LOW risk:** Extend `OverlayContent` discriminated union with new variant `{ type: 'hero-text'; field: 'hook_text'; fontSize: number }`. The validator in `validate.ts` gets a new branch; existing templates unaffected.
-- **NO** new `backgroundMode` is needed for v2.9. The three existing modes (`color`, `image-bleed`, `image-with-bottom-card`) plus `grainMode` + `vignette` cover the visual surface area. Reserve a 4th mode only if FEATURES research surfaces a layout that's geometrically incompatible with the current three.
-
-### 2. Photo-treatment pipeline
-
-**Decision: Server-side `sharp`, baked into Storage at slide-generation time. Idempotent cache by SHA-256 of `(sourceUrl, treatmentSpec)`.**
-
-**Why not Satori CSS filters:** Verified via [vercel/satori#573](https://github.com/vercel/satori/issues/573) and [Context7 docs](https://context7.com/vercel/satori/llms.txt) — Satori "supports" `filter` syntactically, but the SVG output (using `<feGaussianBlur>`, `<feColorMatrix>`) frequently fails to round-trip through `@resvg/resvg-js` rasterization. **Even if Satori emits the right SVG primitives, resvg-js drops or mis-renders them.** This is the v2.7 Phase 45 issue class — Satori claims support, resvg silently disagrees, and the React preview becomes the source of drift.
-
-**Why not on-demand at render time:** Render is invoked once per slide download (free) but also once per editor preview thumbnail update. Caching the treatment buffer in a server transform is essentially free; recomputing on every render burns CPU and slows the editor.
-
-**Why sharp specifically:**
-- Already in the lockfile (transitive dep of `@vercel/og` / Next.js image optimization).
-- `greyscale()`, `linear()` for contrast, `recomb()` for duotone, `tint()` for color overlays, `composite()` for halftone tiling, `stats()` for dominant color — all native, all fast, all deterministic.
-- Same library Vercel uses internally; well-tested at scale.
-
-**New table or new bucket?**
-- **New Storage bucket:** `slide-backgrounds-treated` (public, like `slide-backgrounds`). Path: `{userId}/treated/{sha256}.png` + `{userId}/treated/{sha256}.json` (palette sidecar).
-- **No new Postgres table needed for v2.9.** The cache is purely Storage-keyed. If FEATURES research demands cross-slide treatment reuse (e.g. "I treated this Pexels photo for slide 1, slide 4 picked the same Pexels photo, share the treated asset"), then add a `photo_treatments` table with `(source_url, spec_hash, treated_url, palette JSONB)` as a global cache. Defer until needed.
-- **Slide schema additions** (additive, optional): `slide.original_source_url`, `slide.style_overrides.derived_palette: string[]`, `slide.style_overrides.treatment_applied: string`. All optional; legacy slides keep working.
-
-### 3. Dominant-color extraction
-
-**Decision: Co-locate extraction with photo treatment. Extract once when transform runs; persist palette as Storage sidecar JSON + on the slide row in `style_overrides.derived_palette`.**
-
-**Where:**
-- Inside `treatPhoto()`. After `sharp.png().toBuffer()`, call `sharp(buffer).stats()` (returns per-channel mean/stddev) OR use `node-vibrant` (proper LUT-based palette).
-- Recommendation: start with `sharp.stats()` — it's already a dep, returns dominant in ~5ms. Switch to `node-vibrant` only if FEATURES research demands actual perceptual color clustering.
-
-**When:** At generation time (same trip as the transform). If the user uploads a custom photo mid-edit, extraction runs again as part of the same `treatPhoto()` call.
-
-**Storage:** Persisted in two places for two access patterns:
-1. `slide.style_overrides.derived_palette: string[]` (5 hex strings) — fast read at render time, no extra fetch.
-2. `slide-backgrounds-treated/{userId}/treated/{sha256}.json` — sidecar for cache reuse (when multiple slides share a sourceUrl, the second slide skips re-extraction).
-
-**Consumed at render time** by `template.paletteMode === 'palette-dominant'`: a new resolver helper picks `derived_palette[0]` as the effective `accentColor` (overriding `template.accentColor`). Both Satori and React preview read the same field via the resolver — parity automatic.
-
-### 4. AI-driven layout / composition
-
-**Decision: NOT per-slide freeform composition. Two-tier approach:**
-
-1. **Per-slide template override** (new field `slide.template_id_override`): AI emits this as a closed enum from the template registry. Each slide can pick a different template. Lets AI decide "slide 1 = magazine-bold for hook, slides 2-6 = documentary for body, slide 7 = bold-yellow for CTA."
-
-2. **Per-slide layout variant within a template** (extend existing `slide.style_overrides.layout`): The AI already emits `layout: 'cover' | 'body'` for news templates. Generalize to a closed enum per template (e.g. magazine-bold offers `layout: 'hero' | 'detail' | 'cta'`).
-
-**Why not freeform:**
-- A new "composition layer" in the schema means: AI emits arbitrary JSON describing layouts, both renderers must interpret it identically, validation gets exponentially harder, parity tests multiply. That's a v3+ project.
-- The two-tier approach delivers ~80% of the perceived variety with ~5% of the engineering cost.
-
-**Implementation:**
-- Add `slide.template_id_override?: string` to `Slide`. Validate at `validateAndRepair` against the template registry; unknown IDs stripped (graceful fallback). Renderer: `const effectiveTemplate = getTemplate(slide.template_id_override ?? project.template_id)`.
-- Extend the AI response schema with `template_id_override: z.string().optional()`. Add a new `system-prompt` clause: "When the carousel topic suggests a hook-frame style for slide 1 and a calmer pace for body slides, you may emit `template_id_override` to vary slides. Choose from: [enum]."
-
-### 5. Typography upgrades
-
-**Constraints to respect:**
-- **Satori font registration is mandatory.** Every font used on the server must be loaded as ArrayBuffer and passed via `ImageResponse.fonts`. Currently done in `loadFontBuffersForSlide()` via the Google Fonts CSS-API trick (User-Agent spoof for TTF instead of woff2).
-- **Variable fonts are NOT explicitly supported.** Verified via Context7 — Satori README does not mention variable fonts; community reports say they sometimes work for specific axes but render unreliably for opsz/wght axes simultaneously. **Recommendation: continue treating fonts as discrete weight/style variants. No variable fonts in v2.9.**
-- **Custom user-uploaded fonts are out of scope for v2.9.** They'd require a font-storage bucket, MIME validation, license verification, and Storage→ArrayBuffer plumbing. None of that is on the critical path for visual quality. Defer.
-
-**What v2.9 SHOULD do:**
-1. **Expand the font catalog** in `src/lib/fonts/font-catalog.ts` with 10-15 hand-picked viral-aesthetic Google Fonts (Anton, Bebas Neue, Archivo Black, Playfair Display, Editorial New, etc.). The catalog is already the source of truth for `loadFontBuffersForSlide()`.
-2. **Type-as-image hero treatments** are NOT custom fonts — they're large-fontSize hook text rendered through the existing typography path. Implementation is template config (`hookFontSize: '180px'`) + new layout variant. Zero font-system changes.
-3. **Per-segment font variants** (e.g. one word in italic Editorial New, the rest in Anton): existing `TextSegment` schema can be extended with `seg.font?: string`. Loader needs to walk all segment fonts to know what to register. Add this only if FEATURES research demands it.
-
-**Flow through both renderers:**
-- React preview: directly uses `fontFamily` CSS — Google Fonts loaded via existing `<link>` tags in the editor shell.
-- Satori: `loadFontBuffersForSlide()` walks `template.fontFamily`, `template.headingFontFamily`, `slide.text_boxes[].font_family` (NEW — currently walks only legacy fields), and `seg.font` (if added). All variants fetched from Google Fonts CSS API.
-
-### 6. AI image quality upgrades
-
-**Decision: Model swap is a one-line config change in `generate-image.ts`. Backwards compat is automatic — old slides have URLs to PNGs already in Storage; the model used to generate them is irrelevant to the renderer.**
-
-**Where the swap happens:**
-```typescript
-// src/lib/imagen/generate-image.ts
-const response = await ai.models.generateImages({
-  model: 'imagen-4.0-fast-generate-001',  // ← change this string
-  // ...
+```ts
+dispatch({
+  type: 'UPDATE_TEXT_BOX',
+  slideIndex: selectedIndex,
+  textBoxId: id,
+  updates: { position: { ...currentTb.position, width, height } },
 })
 ```
 
-**Models to consider (FEATURES research will confirm best pick):**
-- `imagen-4.0-generate-001` (full-quality, ~2.5x cost of fast — likely worth it for v2.9)
-- `imagen-4.0-ultra-generate-001` (top-quality, ~10x cost — only if research shows it materially beats 4.0)
-- Alternative: `gemini-2.5-flash-image-preview` (the model `stylize-image.ts` uses — multimodal, can take photo refs)
+**No reducer changes needed.** `applyDualWrite` will already mirror `position.width` to `style_overrides.hook_width`/`body_width` because that pathway is already wired (`text-box-adapter.ts:231,245`).
 
-**Backwards compat:** Zero work. Old slides reference Storage URLs that are immutable. The model identifier is not stored on the slide — only the resulting PNG URL is. If we want to track which model generated which URL for debugging, add `slide.style_overrides.image_model: string` (additive, optional, never read by renderer).
+### Optional: font-scaling on shift+corner
 
-**Coupling with photo-treatment:** Imagen output URLs go through `treatPhoto()` like any other source URL. `imagen-4.0` + `photoTreatment: { mode: 'bw' }` works exactly like `pexels` + `photoTreatment: { mode: 'bw' }`.
+If we ship the "scale font with box" mode (Canva/Figma corner+shift behavior), the `onResizeStop` handler computes a multiplicative font delta:
 
-### 7. Build order — explicit dependencies
-
-**Critical-path dependencies:**
-
-```
-                  ┌──────────────────────────────────────────────┐
-                  │ A. Photo-treatment infra (sharp pipeline +    │
-                  │    Storage bucket + cache)                    │
-                  └──────────────┬───────────────────────────────┘
-                                 │
-              ┌──────────────────┼──────────────────┐
-              ▼                  ▼                  ▼
-    ┌─────────────────┐  ┌──────────────────┐  ┌────────────────┐
-    │ B. Schema +     │  │ C. Editor toggle │  │ D. Dominant-   │
-    │    template     │  │    (B&W on/off   │  │    color       │
-    │    field exts   │  │    per slide)    │  │    extraction  │
-    └────────┬────────┘  └──────────────────┘  └───────┬────────┘
-             │                                          │
-             ▼                                          ▼
-    ┌─────────────────┐                        ┌────────────────┐
-    │ E. New layers   │                        │ F. paletteMode │
-    │    in resolve-  │                        │    consumer in │
-    │    overlay.ts   │                        │    resolver    │
-    │    (grain,      │                        └───────┬────────┘
-    │    vignette,    │                                │
-    │    type-hero)   │                                │
-    └────────┬────────┘                                │
-             │                                         │
-             ▼                                         ▼
-    ┌─────────────────┐                        ┌────────────────┐
-    │ G. New          │ ◄──── depends on E + F ┤                │
-    │    templates    │                        │                │
-    │    (1-3 per     │                        │                │
-    │    FEATURES)    │                        │                │
-    └────────┬────────┘                        │                │
-             │                                                  │
-             ▼                                                  │
-    ┌─────────────────┐                                         │
-    │ H. AI prompt    │                                         │
-    │    addenda      │                                         │
-    │    (aiVoiceNote │                                         │
-    │    + per-slide  │                                         │
-    │    template     │                                         │
-    │    override)    │                                         │
-    └────────┬────────┘                                         │
-             │                                                  │
-             ▼                                                  ▼
-    ┌─────────────────────────────────────────────────────────────┐
-    │ I. Parity tests (snapshot Satori PNG ↔ React DOM markup)    │
-    │    Required gate before milestone-complete.                  │
-    └─────────────────────────────────────────────────────────────┘
+```ts
+const widthRatio = newWidthPct / oldWidthPct
+const newFontSize = Math.round((tb.font_size ?? defaultFontSize) * widthRatio)
+// dispatch UPDATE_TEXT_BOX with updates: { font_size: newFontSize, position: { ..., width, height } }
 ```
 
-**Recommended phase ordering:**
-
-1. **Phase 54 — Photo-Treatment Foundation (A + D):** sharp pipeline, `treat.ts`, Storage bucket migration, palette sidecar, idempotent cache. Pure server-side, zero renderer changes. Tests with fixture buffers. **Gates everything else.**
-2. **Phase 55 — Schema + Template Extensions (B):** Extend `SlideTemplate` (`grainMode`, `vignette`, `photoTreatment`, `paletteMode`), `Slide` (`original_source_url`, `style_overrides.derived_palette`, `treatment_applied`, `template_id_override`). Update validators. Generation pipeline writes treated URL + palette. Existing 8 templates pass through unchanged.
-3. **Phase 56 — New Render Layers (E + F):** Add `renderGrain`, `renderVignette`, `renderTypeHero`, palette consumer to `resolve-overlay.ts`. Wire into both `render-slide-satori.tsx` and `slide-preview.tsx`. Snapshot tests on the resolver. No new templates yet — verify via existing 8 with feature flags.
-4. **Phase 57 — New Templates (G):** 1-3 new templates per FEATURES research. Each template registers in `templates/index.ts` and validates at module load. Thumbnail generation via `npm run thumbs` (existing pipeline).
-5. **Phase 58 — Editor Toggle (C):** UI surface for per-slide treatment override. Wires into existing editor-actions PATCH path. Re-treats from `original_source_url` when changed.
-6. **Phase 59 — AI Prompt Tuning (H):** `aiVoiceNote` for new templates, `template_id_override` enum in response schema, premium-tier addendum updates if needed.
-7. **Phase 60 — Parity QA (I):** Render-grid test (every template × representative slide → both renderers → assert DOM order + key style values match). Manual visual audit per FEATURES checklist.
-
-**Parallelizable:**
-- A + B can be done in one phase if scoped tightly.
-- D can be folded into A (extract palette inside `treat.ts`).
-- C and H are independent of each other.
-
-**Cannot parallelize:**
-- Anything that touches `resolve-overlay.ts` MUST land before new templates (G) consume those layers.
-- AI prompt updates (H) MUST come after new templates exist (G) — the prompt references template IDs.
-
-### 8. Two-renderer parity testing
-
-**Existing infrastructure we should reuse:**
-- `src/lib/render/resolve-overlay.test.ts` — pure-function tests for the resolver (already exists). Extend with new helper tests.
-- `src/components/slides/__tests__/slide-preview.selection.test.tsx` — DOM snapshot smoke. Pattern works; extend.
-- `src/lib/render/templates/validate.test.ts` — template registry validator. Extend with new field validators.
-
-**New test infra needed:**
-
-1. **`src/lib/render/__tests__/parity.test.tsx` (NEW)** — for each new layer (grain, vignette, type-hero), assert:
-   - Resolver helper returns identical React element structure when called with the same args (snapshot).
-   - When invoked from both `buildSlideElement` (Satori) and `<SlidePreview editable={false}>` (React) with the same slide+template+ctx, the resulting JSX trees have the same DOM order, same keys, same critical CSS values (`backgroundColor`, `opacity`, `position`, `top/left/right/bottom`, `width/height`).
-   - **What we don't snapshot:** computed pixel values that diverge intentionally (Satori uses numeric pixels, React uses percentages). Test against the resolver-computed values, not the renderer-final values.
-
-2. **`scripts/render-parity-grid.ts` (NEW)** — opt-in script (not in CI): renders every template × 3 sample slides through both renderers, pixel-diffs the React DOM screenshot vs the Satori PNG, flags drift > 2px or color delta > 5. Runs locally before milestone audits. Surfaces silent Satori-CSS-not-honored bugs (the v2.7 Phase 45 issue class).
-
-3. **`src/lib/photo-treatment/__tests__/idempotency.test.ts` (NEW)** — for each `TreatmentSpec`, treat the same fixture buffer twice; assert byte-identical output AND identical SHA-256 cache key.
-
-**What NOT to test:**
-- Don't snapshot full DOM trees of `slide-preview` — they're too big and brittle. Test the resolver outputs (small, pure) and the renderer's *consumption* of them.
-- Don't render PNGs in CI — slow and flaky. Save for the manual `render-parity-grid.ts` invocation.
-
-### 9. Verdict on parked experiments
-
-**`src/lib/ai/match-photos-to-slides.ts` — VERDICT: COMMIT and wire in.**
-
-- Architecture fit: clean. Runs at the upload boundary (user uploads N photos, AI assigns them to slides by content). Output is `(string | null)[]` — a per-slide photo URL or null. Plugs into the existing slide-generation pipeline trivially: assigned URL becomes `sourceUrl` for `treatPhoto()`.
-- v2.9 fit: directly improves visual quality (right photo on right slide instead of arbitrary order). Low risk — graceful fallback to index-order if the model fails or returns garbage.
-- **Recommended phase:** Fold into Phase 56 or Phase 58. Surfaced via the existing `image-picker-panel.tsx` "auto-match" affordance.
-
-**`src/lib/imagen/stylize-image.ts` — VERDICT: KEEP file, DO NOT promote to default v2.9 path.**
-
-- Architecture conflict: This restyles a USER PHOTO via `gemini-2.5-flash-image-preview`. The output is a brand-new generated image — non-deterministic, non-cacheable by content hash (the same input + prompt produces visually different output run-to-run), and it competes with `treatPhoto()` for the "transform a user's photo" slot.
-- **Why deterministic photo treatment beats generative restyling for v2.9:**
-  - Cacheable: SHA-256(url + spec) → fixed asset. Stylize: every run is unique, no cache.
-  - Predictable: B&W is B&W. Stylize: "make it look like watercolor" can produce 7 wildly different images across 7 slides, breaking visual cohesion.
-  - Cheap: sharp local CPU. Stylize: 1 credit + Gemini API latency per call.
-  - Reversible: keep `original_source_url`, re-treat. Stylize: original is one of many AI outputs.
-- **Architectural conflict:** If both stages run, `treatPhoto(stylized_url)` becomes the slide's `background_url`. But `original_source_url` would point to the stylized output (already AI-modified), so "B&W toggle off" reverts to the stylized image, not the user's actual photo. Confusing; either we add `slide.user_original_url` (truly original) AND `slide.original_source_url` (AI-restyled) AND `slide.background_url` (treated) — three URLs per slide for one image — or we declare these features mutually exclusive.
-- **Recommendation:** Defer stylize-image to a post-v2.9 milestone as a one-shot user-invoked action ("✨ Restyle this photo with AI" button), separate from the photo-treatment pipeline. Keep the file in the repo, do not commit it as part of v2.9 default flow, do not run it during initial generation.
-- **If FEATURES research surfaces "viral carousels lean heavily on AI-restyled imagery" as a quality blocker:** revisit. The plumbing change is small — feed `stylized_url` as `sourceUrl` to `treatPhoto()` and store `original_source_url = stylized_url`. But this should be an explicit user choice, not a default in the gen pipeline.
+This is one extra dispatch field; no architectural change. Gate it on `e.shiftKey` (read from the wrapping `_e` argument) or on a UX-decided modifier (Figma uses unmodified corner-drag for proportional resize; we can choose).
 
 ---
 
-## Anti-Patterns
+## Migration story
 
-### Anti-Pattern 1: CSS Filter on `<img>` for B&W / contrast / duotone
+### Existing slides without height
 
-**What people do:** `<img style={{ filter: 'grayscale(1) contrast(1.2)' }}>` to make the editor preview B&W.
-**Why it's wrong:** Verified silently fails in the Satori → resvg-js path ([vercel/satori#573](https://github.com/vercel/satori/issues/573)). Editor preview shows B&W; downloaded PNG is full color. This is the EXACT class of bug the TPLREND-05 invariant exists to prevent.
-**Do this instead:** Pre-bake the B&W PNG via sharp at upload/generation time. The renderer never sees a "color" image; both renderers see only the already-treated URL.
+Every existing slide row in Postgres has `slide_data` JSONB where each text-box `position` object has at most `{ anchor, x?, y?, width? }` — no `height`. After the v2.10 schema patch:
 
-### Anti-Pattern 2: Per-slide freeform composition JSON
+1. **Read path:** when a renderer calls `resolveTextBoxBounds(box, ...)` and `box.position.height === undefined`, the helper returns `{ height: undefined }`. All 3 renderers omit the height CSS / Satori prop in that case, falling back to the current auto-fit behavior. **Existing slides render byte-identical.**
 
-**What people do:** AI emits arbitrary "give me 3 text boxes, an image at 30% width left-anchored, and a colored block at 60% scale rotated 12deg" JSON. Renderer interprets it.
-**Why it's wrong:** Effectively requires inventing a Figma-lite layout language. Both renderers must interpret it identically. Validation explodes. Parity testing multiplies. Pre-PMF over-engineering.
-**Do this instead:** AI picks from a closed enum of templates and per-template layout variants. Variation comes from template diversity, not freeform composition.
+2. **Eager migration on load:** `legacyToTextBoxes` in `text-box-adapter.ts:31-64` does NOT need to populate `height`. The function intentionally only emits position fields that the legacy schema knew about (`x`, `y`, `width`). Leaving `height` undefined is correct and round-trip-safe.
 
-### Anti-Pattern 3: Variable fonts via Satori
+3. **Round-trip via `textBoxesToLegacy`:** at `text-box-adapter.ts:222-251`, the function emits `style_overrides_patch.hook_width` / `body_width` from `position.width`. It does **not** emit a `hook_height` / `body_height` because those fields don't exist in `SlideStyleOverrides`. Round-trip safety is preserved: `legacyToTextBoxes(textBoxesToLegacy(boxes))` reconstructs everything except `height` (which is fine — height isn't a legacy field, so it can only round-trip via `text_boxes[]` itself).
 
-**What people do:** Register a single variable-font TTF and let Satori interpolate weights/widths at render time.
-**Why it's wrong:** Satori README does not mention variable fonts. Community reports show inconsistent behavior — some axes work, others render at the file's default. The font-catalog system was built to register specific (weight, style) variants because that's what Satori reliably handles.
-**Do this instead:** Register discrete variants per (weight, style) pair. Treat each weight as its own font in the catalog. v2.9 typography wins come from font *selection* (Anton, Bebas Neue, Editorial New), not from variable-font interpolation.
+4. **Supabase backfill:** **NOT REQUIRED.** Absence-means-auto-fit is the contract.
 
-### Anti-Pattern 4: Skipping the resolver for "just one quick layer"
+### What `text-box-adapter.ts` needs
 
-**What people do:** Add a grain `<img>` directly inside `render-slide-satori.tsx` without going through `resolve-overlay.ts` because "it's just one layer."
-**Why it's wrong:** This is how the v2.7 Phase 45 invariant was broken before being established. The next person adds it to `slide-preview.tsx` slightly differently, opacity drifts, parity is gone.
-**Do this instead:** Every new layer is a function exported from `resolve-overlay.ts`. Both renderers import. If a layer is "too dynamic" to live in the resolver, that's a sign it shouldn't exist as a layer — promote it to template config or photo treatment.
+**One small additive change**: in `text-box-adapter.ts:78-81` (`customTextToBox`) — when migrating legacy `CustomText` to `TextBox`, the legacy `CustomText` interface (`slide.ts:39-48`) already has `height: number` for **custom_images**, but `CustomText` does NOT have height (`slide.ts:23-37`). So custom-text TextBoxes derived from legacy `slide.custom_texts` have no height — perfect, they auto-fit. No change needed.
 
-### Anti-Pattern 5: Treating Imagen-generated images twice
-
-**What people do:** `imagen.generate()` → `treatPhoto(imagen_url, { mode: 'bw' })`, then user toggles treatment off → fall back to imagen_url, but the new toggle "contrast bump" runs on the raw imagen output AGAIN and we double-bump.
-**Why it's wrong:** Re-treatment compounds. B&W of B&W is fine; contrast-bump of contrast-bumped is broken.
-**Do this instead:** Always treat from `original_source_url` (immutable across treatment changes). Editor server action: `treatPhoto(slide.original_source_url, newSpec)`, never `treatPhoto(slide.background_url, newSpec)`.
+Inverse path (`textBoxToCustomText` at `text-box-adapter.ts:154-170`): the legacy `CustomText` interface doesn't have a height field, so we don't write one. **No change needed.**
 
 ---
 
-## Integration Points
+## Phase decomposition
 
-### External Services
+### Recommendation: ONE phase, executed in 4 commits
 
-| Service | Integration pattern | v2.9 changes |
-|---------|---------------------|--------------|
-| Pexels | URL fetched → passed to `treatPhoto()` | Same; URL becomes `original_source_url` |
-| Imagen 4.0 | URL fetched → passed to `treatPhoto()` | Possible model swap (string change) |
-| Gemini 2.5 Flash | Text generation only | `aiVoiceNote` extensions + `template_id_override` schema |
-| Gemini 2.5 Flash Image Preview | Restyle (parked) | Defer; not on v2.9 critical path |
-| Supabase Storage `slide-backgrounds` | Existing bucket for raw uploads/Imagen | Unchanged |
-| Supabase Storage `slide-backgrounds-treated` | **NEW** bucket for treated outputs + palette sidecars | New migration |
-| Google Fonts CSS API | Font TTF fetching for Satori | Catalog grows; mechanism unchanged |
+Defense:
 
-### Internal Boundaries
+1. **Tight feedback loop.** The schema, renderer, and editor changes are mutually coupled — splitting into separate phases means N-1 phases ship a feature half-implemented. A single phase keeps the editor, the export pipeline, and the parity tests landing together.
 
-| Boundary | Communication | v2.9 impact |
-|----------|---------------|-------------|
-| AI gen → background acquisition | `slide.image_query` string | Unchanged |
-| Background acquisition → photo treatment | `sourceUrl` string + `template.photoTreatment` spec | **NEW boundary** |
-| Photo treatment → renderer | `treatedUrl` string + `palette` array on slide | **NEW write** |
-| Resolver → Satori | Same JSX shape, `React.createElement` | Unchanged |
-| Resolver → React preview | Same JSX shape, JSX | Unchanged |
-| Editor → server action `treatBackground` | Per-slide PATCH with `treatment` field | **NEW** server action |
-| Validator → AI response | Zod schema strict-parse | Schema gains `template_id_override` enum |
+2. **Surgical surface area.** Total touched files: ~6-7 (schema, 3 renderers, 1 helper, 1 editor wiring, 1 test file). Lines changed estimated <300. Below the threshold where multi-phase decomposition pays for itself.
 
----
+3. **No prerequisite milestone work.** Unlike v2.9 (which needed Phase 54 infrastructure before Phase 55-58 features), v2.10 adds a thin layer on top of patterns already shipped. There's no "build the foundation, then build the feature" arc.
 
-## Scaling Considerations
+4. **The TPLREND-05 invariant requires atomic shipping.** Schema-only PR followed by renderer-rewrite PR violates parity for the duration of the gap — Satori would emit one shape and React preview another. Single phase keeps both renderers in lock-step at every commit.
 
-| Scale | Architecture adjustments |
-|-------|--------------------------|
-| 0-1k carousels treated | Current pattern fine. Cache hit rate is high because templates fix the spec. |
-| 1k-10k carousels treated | Storage cost ~5-10x raw photo cost (1 treated PNG per template per Pexels source per user). Add cron to GC orphaned treated buffers monthly. |
-| 10k+ carousels treated | Consider promoting `photo_treatments` to a Postgres table keyed by `(source_url_hash, spec_hash)` for cross-user sharing. Pexels URLs are public; treated outputs from a public source can be shared globally. Cuts storage 10-100x. |
+### Decompose into 4 commits inside the phase
 
-### Scaling priorities
+| Commit | What | Tests |
+|---|---|---|
+| C1 | Schema: add `height?` to `TextBoxPosition`. Add `resolveTextBoxBounds` helper. | Helper unit tests (8 cases: anchor/width/height matrix). |
+| C2 | Renderer wiring: 3 paths consume `resolveTextBoxBounds`. Behavior unchanged for legacy slides (height undefined). | Parity test asserts byte-identical PNG for v2.9 baseline. |
+| C3 | Editor: flip `enableResizing` to all 8 handles; extend `handleSizeChange` to dispatch height. Add `onSizeChange` callback. | Editor test: drag bottom-right handle → text_boxes[hook].position.height updates; undo/redo round-trips. |
+| C4 | (Optional) Font-scale-with-box on corner-drag with shift modifier. Right-rail "Reset size" button (clears explicit height). | UX test for shift behavior. |
 
-1. **First bottleneck:** sharp CPU at generation time. Generation is already bounded by Gemini latency (~5-10s for 7 slides); adding 50ms × 7 = 350ms of sharp work is noise. No action needed pre-PMF.
-2. **Second bottleneck:** Storage bandwidth for treated PNGs. Mitigation: aggressive WebP fallback, but only if FEATURES research shows that's a real cost. Defer.
-3. **Third bottleneck (long-tail):** The font-loading path fetches 5+ Google Fonts variants per slide render. Already cached in-process. If render volume spikes, add a Storage-backed font cache. Not a v2.9 concern.
+C4 can be cut if scope tightens. C1-C3 ship the core affordance.
 
 ---
 
-## Sources
+## Build order
 
-- [Vercel Satori README on GitHub](https://github.com/vercel/satori/blob/main/README.md) — confirmed `filter` listed as supported, but no enumeration of which filter functions; explicit limitations listed include no z-index, no calc, no 3D transforms (HIGH confidence)
-- [vercel/satori#573 — `filter: blur(...)` doesn't work as expected with Satori + resvg-js](https://github.com/vercel/satori/issues/573) — confirms filter properties fail in resvg-js rasterization path (HIGH confidence; this is the single most important finding driving Pattern 1 above)
-- [Context7: /vercel/satori library docs](https://context7.com/vercel/satori/llms.txt) — flexbox, transforms, gradients (linear+radial), text-shadow, border-radius all confirmed; conic-gradient and backdrop-filter not listed; mask-image listed (HIGH confidence)
-- [vercel/satori#41 — Throw an error when CSS property or Tailwind API is not supported](https://github.com/vercel/satori/issues/41) — discussion enumerates many unsupported properties including backdrop-filter (MEDIUM confidence — issue thread, not authoritative)
-- [resvg/resvg CHANGELOG](https://github.com/strigeus/resvg_srv/blob/master/CHANGELOG.md) — resvg supports SVG primitives `<feGaussianBlur>` and `<feColorMatrix>` natively; the gap is between Satori's CSS-filter emission and what resvg expects in SVG (MEDIUM confidence)
-- Existing codebase inspection (HIGH confidence): `src/lib/render/resolve-overlay.ts` (parity-critical resolver), `src/lib/render/render-slide-satori.tsx` (server path), `src/components/slides/slide-preview.tsx` (client path), `src/lib/render/templates/{index,validate,magazine-bold}.ts`, `src/lib/render/load-font.ts`, `src/lib/types/slide.ts`, `src/lib/ai/{generate-slides,schemas,match-photos-to-slides}.ts`, `src/lib/imagen/{generate-image,stylize-image}.ts`
-- [.planning/PROJECT.md](file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.planning/PROJECT.md) — current state: v2.8 shipped, v2.9 research-driven, parked experiments listed, sunset deferred (HIGH confidence)
-- [.planning/research/archive-pre-v2.9/ARCHITECTURE.md](file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.planning/research/archive-pre-v2.9/ARCHITECTURE.md) — prior MCP-server architecture research; informed the "service layer + adapter" pattern reused above (HIGH confidence)
+```
+1. Schema patch (slide.ts)
+       ↓ unblocks
+2. New helper resolveTextBoxBounds (resolve-overlay.ts)
+       ↓ unblocks parallel
+3a. render-slide-satori.tsx — consume helper for hook/body/custom
+3b. render-slide.ts        — consume helper for hook/body/custom
+3c. slide-preview.tsx      — consume helper for hook/body/custom (both branches)
+       ↓ TPLREND-05 parity tests pass at this gate
+4. Editor surface
+   - slide-preview.tsx: enableResizing + new resize-handle styles + onSizeChange
+   - slide-editor.tsx:  handleSizeChange + dispatch wiring
+   - editor-reducer.ts: NO change (UPDATE_TEXT_BOX already accepts position.height)
+       ↓ undo/redo + dual-write tests pass
+5. Right-rail UX polish (ActiveTextBoxCard or new size widget)
+   - Reset-size button → dispatch UPDATE_TEXT_BOX with position.height = undefined
+6. Optional font-scaling layer
+```
+
+**Critical-path bottleneck:** step 3c. Parity tests can't pass until ALL three renderers consume the helper, because the helper is the only place where `width` defaults are computed. If renderer A uses the helper and renderer B keeps the old inline math, the two render slightly differently (rounding, default-width fallback paths) and parity breaks.
 
 ---
-*Architecture research for: v2.9 Viral Visual Quality integration*
-*Researched: 2026-05-01*
+
+## Files touched
+
+| File | New / Modified | LoC est. | Risk | Notes |
+|---|---|---|---|---|
+| `src/lib/types/slide.ts` | Modified | +5 | LOW | Add `height?: number` to `TextBoxPosition` (line 87 area). |
+| `src/lib/render/resolve-overlay.ts` | Modified (additive) | +30-40 | LOW | New `resolveTextBoxBounds` export + `ResolvedTextBoxBounds` interface. Pure function. |
+| `src/lib/render/render-slide-satori.tsx` | Modified | ~±20 | MEDIUM | Replace inline width/x/y math at lines 166-175, 196-208, 224-236, 453-477 with helper calls. Risk = Satori's quirky support for explicit `height` on absolute boxes; mitigated by `bottom-card` precedent at line 298 already proving this works. |
+| `src/lib/render/render-slide.ts` | Modified | ~±15 | LOW | Same swap at lines 154-166, 230-258. CSS rules accept `height: X%` trivially. |
+| `src/components/slides/slide-preview.tsx` | Modified | ~±50 | MEDIUM | Three call-sites (lines 860, 935, 1023) gain `top: true / bottom: true / topLeft: true / topRight: true / bottomLeft: true / bottomRight: true` plus extended resize-handle styles + extended `onResizeStop` to dispatch height + (optionally) font_size. Risk = drag UX feels wrong on text boxes; mitigated by referencing custom-image branch (line 1156) which already does this. |
+| `src/components/editor/slide-editor.tsx` | Modified | ~±30 | LOW | Extend `handleWidthChange` (line 433) to `handleSizeChange`; wire `onSizeChange` prop through `slide-canvas.tsx`. |
+| `src/components/editor/slide-canvas.tsx` | Modified | ~±5 | LOW | Pass-through `onSizeChange` prop. |
+| `src/components/editor/text-rail/ActiveTextBoxCard.tsx` | Modified | ~±20 | LOW | (Optional) "Reset size" button. |
+| `src/lib/editor/editor-reducer.ts` | **No change** | 0 | n/a | `UPDATE_TEXT_BOX` already accepts `Partial<TextBox>` including position. `applyDualWrite` already mirrors width to legacy. |
+| `src/lib/editor/text-box-adapter.ts` | **No change** | 0 | n/a | Absence-of-height is the migration story. |
+| `src/lib/editor/editor-actions.ts` | **No change** | 0 | n/a | Existing action shape already covers this. |
+| `src/lib/render/__tests__/parity.test.tsx` | Modified | +30-50 | LOW | Add 2-3 cases: explicit height, undefined height (regression for legacy), round-trip. |
+| `src/components/slides/__tests__/slide-preview.test.tsx` | Modified | +20-30 | LOW | Drag test for corner / bottom handle. |
+
+**Total estimated LoC:** ~250-300 net new + modifications across ~9 files. Net-new files: 0 (everything fits into existing files).
+
+---
+
+## Cross-references with `hook_width` / `body_width`
+
+### Are they still in use?
+
+**Yes — but as a derived mirror, not a canonical store.**
+
+Trace:
+
+1. **Canonical write:** editor dispatches `UPDATE_SLIDE` with `text_boxes[i].position.width` and `style_overrides.hook_width` together (`slide-editor.tsx:439-453`).
+2. **Reducer dual-write:** `applyDualWrite` (`editor-reducer.ts:22-55`) calls `textBoxesToLegacy(nextTextBoxes)` and merges the resulting `style_overrides_patch` (which contains `hook_width`/`body_width`) into `slide.style_overrides`.
+3. **Renderer reads:** all 3 renderers currently read `overrides.hook_width` / `overrides.body_width` (e.g. `render-slide.ts:165, render-slide-satori.tsx:172, slide-preview.tsx:368`) — NOT `text_boxes[i].position.width`.
+
+So the renderer read path is still legacy-shape. The `text_boxes[].position.width` field is the **canonical write**, but `style_overrides.hook_width`/`body_width` is the **canonical read** as of v2.9.
+
+### Should we add `hook_height` / `body_height` to `SlideStyleOverrides`?
+
+**NO for v2.10. Reasoning:**
+
+- `hook_height` / `body_height` would only make sense as a legacy mirror — but no legacy reader exists. The whole point of legacy fields was that v1.0-v2.7 code paths already read them. v2.10's height feature is brand-new; nothing in the legacy world ever read a height field for text boxes.
+
+- The renderer migration story (already locked in MIGRATION-NOTES.md) says: in v2.9 sunset (post-PMF), all 3 renderers will be rewritten to read directly from `text_boxes[]`. Adding `hook_height`/`body_height` now creates *new* legacy fields that the future sunset would also have to remove — net-negative.
+
+- Renderers in v2.10 should read `box.position.height` directly via the new `resolveTextBoxBounds` helper. This means `hook_height`/`body_height` is the FIRST text-box positioning field that breaks the "render reads legacy, write goes through dual-write" pattern. That's fine — it's the seed of the v3.0+ sunset path. v2.10 effectively prototypes the read-from-text_boxes pattern for one field; the rest can follow when the milestone is right.
+
+- This means `applyDualWrite` does NOT need an update: the legacy slice it produces (via `textBoxesToLegacy`) doesn't include height, and we don't want it to.
+
+### Specifically what NOT to do
+
+1. **Don't** add `hook_height?` / `body_height?` to `SlideStyleOverrides`.
+2. **Don't** extend `LegacySlice.style_overrides_patch` to carry height.
+3. **Don't** update `text-box-adapter.ts` to read/write height.
+
+These are all green flags that the new field is correctly scoped to `text_boxes[]` only.
+
+### MIGRATION-NOTES.md update
+
+Add a short note to `.planning/MIGRATION-NOTES.md` under the "v2.9 Sunset Checklist" section:
+
+> **v2.10 — first read-from-text_boxes field.** `position.height` is intentionally not mirrored to `SlideStyleOverrides`. All 3 renderers read it directly via `resolveTextBoxBounds`. When the v2.9 sunset eventually lands, this is the pattern to apply to `position.width`, `position.x`, `position.y` — direct read from `text_boxes[]`, eliminate the legacy mirror.
+
+---
+
+## Data-flow diagram (Rnd drag → reducer → renderer)
+
+```
+USER DRAGS BOTTOM-RIGHT CORNER OF HOOK BOX
+                    │
+                    ▼
+┌────────────────────────────────────────────────────────┐
+│  <Rnd>  (slide-preview.tsx:860)                        │
+│  enableResizing.bottomRight = true ◄── v2.10 flip      │
+│  onResizeStop fires with ref.style.{width,height}      │
+└────────────────────────────────────────────────────────┘
+                    │
+                    │ width: '420px', height: '180px', position: {x: 120, y: 250}
+                    ▼
+┌────────────────────────────────────────────────────────┐
+│  Resize handler in slide-preview.tsx:889 (modified)    │
+│  - Convert px → percent of REF_WIDTH/REF_HEIGHT        │
+│  - Clamp to [5, 100]                                   │
+│  - onSizeChange?.('hook', {width: 39, height: 9})      │
+│  - onPositionChange?.('hook', {x: 11, y: 13})          │
+└────────────────────────────────────────────────────────┘
+                    │
+                    │ two callbacks (Edit 2 above) — could be one
+                    ▼
+┌────────────────────────────────────────────────────────┐
+│  handleSizeChange (slide-editor.tsx:433, modified)     │
+│  - Build updatedTextBoxes with position.{width,height} │
+│  - dispatch UPDATE_SLIDE { text_boxes, style_overrides:│
+│      { hook_width: 39 } }   // no hook_height          │
+└────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────────────────┐
+│  editorReducer (editor-reducer.ts:141, UPDATE_SLIDE)   │
+│  - Merge updates into slide                            │
+│  - Note: applyDualWrite is NOT invoked here — that fires│
+│    only for ADD/UPDATE/REMOVE_TEXT_BOX. UPDATE_SLIDE   │
+│    expects callers to maintain text_boxes themselves   │
+│    (which slide-editor.tsx does, line 411-422 pattern).│
+│  - pushHistory → adds one undo step                    │
+└────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+        Slide state updated; React re-renders
+                    │
+                    ├─────────────────────────────────────┐
+                    ▼                                     ▼
+┌───────────────────────────────┐   ┌────────────────────────────────┐
+│  SlidePreview (live preview)  │   │  /api/render → buildSlideElement│
+│  reads:                       │   │  reads:                         │
+│  - resolveTextBoxBounds(hook) │   │  - resolveTextBoxBounds(hook)   │
+│    → {width:39, height:9}     │   │    → same                       │
+│  - applies as % CSS           │   │  - applies as Satori px         │
+└───────────────────────────────┘   └────────────────────────────────┘
+                    │
+                    ▼
+        TPLREND-05 parity: byte-identical
+        (asserted by parity.test.tsx, v2.10 cases)
+```
+
+Note that `UPDATE_SLIDE` does **not** fire `applyDualWrite` — that helper only runs in `ADD/UPDATE/REMOVE_TEXT_BOX` cases (`editor-reducer.ts:265, 276, 287`). The `slide-editor.tsx:handleWidthChange` handler at line 433 already keeps both shapes in sync manually by including both `text_boxes` and `style_overrides` in the same dispatch. We follow the same pattern in `handleSizeChange` — minimum surprise, mirrors the existing path.
+
+For the `UPDATE_TEXT_BOX` path used by custom-text resize (slide-preview.tsx:1062 → slide-editor.tsx:handleCustomTextWidthChange — though current code dispatches `UPDATE_CUSTOM_TEXT` not `UPDATE_TEXT_BOX`; see open question below), `applyDualWrite` does fire and mirrors `position.width` to legacy. It does NOT mirror height, intentionally.
+
+---
+
+## Open questions for roadmapper
+
+1. **Vertical alignment within the box.** When `position.height` is explicit, where does the text sit vertically? Top-aligned (current default — text starts at the top edge), center-aligned (CSS `align-items: center` on a flex column), or user-controlled? **Recommend center-aligned default** with optional override field on `TextBox` (e.g. `vertical_align?: 'top' | 'center' | 'bottom'`). Defer the override field to v2.11 unless user testing shows it's needed.
+
+2. **Custom-text resize path inconsistency.** `slide-preview.tsx:1062` (custom-text `onResizeStop`) calls `onCustomTextWidthChange?.(...)` which dispatches `UPDATE_CUSTOM_TEXT` (not `UPDATE_TEXT_BOX`). The custom-text resize handler should arguably dispatch `UPDATE_TEXT_BOX` directly so it consistently flows through the unified path. **Recommend this is a 5-line cleanup commit inside v2.10**, since we're already touching the resize handlers. Low risk because `applyDualWrite` (currently invoked by `UPDATE_TEXT_BOX`) will derive the legacy `custom_texts` slice via `textBoxesToLegacy`. But it's a behavior change — verify with a test.
+
+3. **Font-scaling UX call.** Three options for v2.10:
+   - **(a) Box-only resize, font_size unchanged.** Simpler. Matches Figma default.
+   - **(b) Corner = scale font; sides = resize box only.** Matches Canva.
+   - **(c) Shift+corner = scale font; corner = resize box.** Matches Photoshop / Figma's "scale" tool.
+   Pre-PMF, **recommend (a)** — ship the affordance, get user feedback, layer (c) in v2.11 if requested. Avoids upfront UX bikeshedding.
+
+4. **Min-size clamps.** `slide-preview.tsx:890` currently clamps width to `[20, 100]`. Custom images at line 1215 clamp to `[5, 100]`. For text-box height, what's the floor? **Recommend `[5, 100]`** (custom-image precedent). 5% of 1920 = 96px — below that the text overflows pretty much any font_size, and we want users to be able to resize-without-losing-text via the "Reset size" button.
+
+5. **Reset-size affordance.** When a user has explicitly resized and wants to revert to auto-fit, they need a UX path. **Recommend** a button in `ActiveTextBoxCard` (`src/components/editor/text-rail/ActiveTextBoxCard.tsx`) that dispatches `UPDATE_TEXT_BOX` with `position.height: undefined`. Single click, instant revert. Surface near the existing position controls.
+
+6. **AI ingest boundary.** `legacyToTextBoxes` runs in `generate-slides.ts` post-Zod-parse (Phase 51). Newly-generated slides will have undefined `height` ⇒ auto-fit. Confirm with a test that AI generation doesn't accidentally synthesize a height value. (No code change expected; just regression coverage.)
+
+7. **Optional companion: aspect-ratio lock.** Photoshop / Figma offer shift-corner-drag to maintain aspect ratio. react-rnd supports `lockAspectRatio={true}` (already used at `slide-preview.tsx:1162` for custom-images). For text boxes, aspect-lock is less natural (text reflows), but worth considering as a power-user feature. **Recommend defer to user feedback.**
