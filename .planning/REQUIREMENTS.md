@@ -27,20 +27,20 @@
 
 ## TREAT — Photo treatment pipeline
 
-- [ ] **TREAT-01** — `src/lib/photo-treatment/treat.ts` exposes `treatPhoto(sourceUrl, spec)` returning `{ url, palette }`. Uses sharp for transforms; idempotent via SHA-256 cache key of `(sourceUrl + spec)`. Supports presets: `bw`, `duotone-cream`, `duotone-cobalt`, `contrast-bump`.
-- [ ] **TREAT-02** — Treated assets stored in new public Supabase Storage bucket `slide-backgrounds-treated`. Cache hit returns existing URL without re-processing.
-- [ ] **TREAT-03** — Sharp module config locked: `sharp.cache(false)` and `sharp.concurrency(1)` set at module load to prevent serverless memory fragmentation.
-- [ ] **TREAT-04** — Generation pipeline writes `treatedUrl` to `slide.background_url` and the original Pexels/Imagen URL to new field `slide.original_source_url`. Re-treating starts from `original_source_url`, never compounds.
-- [ ] **TREAT-05** — Pure unit tests for treatment functions (no DB) verify byte-identical output for the same `(sourceUrl, spec)` pair across two invocations.
-- [ ] **TREAT-06** — `slide-backgrounds-treated` bucket has 7-day retention policy on assets without an associated project (intermediate cache cleanup).
+- [x] **TREAT-01** — `src/lib/photo-treatment/treat.ts` exposes `treatPhoto(sourceUrl, spec)` returning `{ url, palette }`. Uses sharp for transforms; idempotent via SHA-256 cache key of `(sourceUrl + spec)`. Supports presets: `bw`, `duotone-cream`, `duotone-cobalt`, `contrast-bump`.
+- [x] **TREAT-02** — Treated assets stored in new public Supabase Storage bucket `slide-backgrounds-treated`. Cache hit returns existing URL without re-processing.
+- [x] **TREAT-03** — Sharp module config locked: `sharp.cache(false)` and `sharp.concurrency(1)` set at module load to prevent serverless memory fragmentation.
+- [x] **TREAT-04** — Generation pipeline writes `treatedUrl` to `slide.background_url` and the original Pexels/Imagen URL to new field `slide.original_source_url`. Re-treating starts from `original_source_url`, never compounds.
+- [x] **TREAT-05** — Pure unit tests for treatment functions (no DB) verify byte-identical output for the same `(sourceUrl, spec)` pair across two invocations.
+- [x] **TREAT-06** — `slide-backgrounds-treated` bucket has 7-day retention policy on assets without an associated project (intermediate cache cleanup).
 
 ## SLOP — AI-slop guardrails
 
-- [ ] **SLOP-01** — Imagen prompt mandatory addendum: "Do not generate gradient backgrounds. Do not generate glossy 3D objects or abstract color blobs. Generate documentary-style photographs with naturalistic lighting." Applied at every Imagen call site.
-- [ ] **SLOP-02** — Pexels query addendum: append "natural lighting, candid, editorial, portrait" and exclude terms `meeting, office, team, smiling, diverse group` from the search query string before hitting Pexels API.
+- [x] **SLOP-01** — Imagen prompt mandatory addendum: "Do not generate gradient backgrounds. Do not generate glossy 3D objects or abstract color blobs. Generate documentary-style photographs with naturalistic lighting." Applied at every Imagen call site.
+- [x] **SLOP-02** — Pexels query addendum: append "natural lighting, candid, editorial, portrait" and exclude terms `meeting, office, team, smiling, diverse group` from the search query string before hitting Pexels API.
 - [ ] **SLOP-03** — Template validator requires `bodyFontFamily: string` as non-nullable on every premium-tier template. Inter-as-default falls through is impossible by construction; templates must declare a body font explicitly.
-- [ ] **SLOP-04** — AI hook generation system-prompt addendum: "Do not start hooks with 'In a world where', 'Did you know', 'Imagine if'. Vary hook openings across slides in the same carousel."
-- [ ] **SLOP-05** — Existing 8 templates audited: any template defaulting to Inter as `bodyFontFamily` updated to declare a non-Inter font (Plus Jakarta Sans, Manrope, or Geist as alternates).
+- [x] **SLOP-04** — AI hook generation system-prompt addendum: "Do not start hooks with 'In a world where', 'Did you know', 'Imagine if'. Vary hook openings across slides in the same carousel."
+- [x] **SLOP-05** — Existing 8 templates audited: any template defaulting to Inter as `bodyFontFamily` updated to declare a non-Inter font (Plus Jakarta Sans, Manrope, or Geist as alternates).
 
 ## AIROLE — Slide-role-aware AI generation
 
@@ -104,9 +104,9 @@
 
 ## METRIC — Success metric tracking
 
-- [ ] **METRIC-01** — `download_zip` event tracked per project (one event per ZIP download). Event payload includes `project_id`, `slide_count`, `template_id`, `user_tier`.
-- [ ] **METRIC-02** — Dashboard query returns `zip_download_rate = downloads / created` for any time window. Surfaced in admin/analytics view (not user-facing).
-- [ ] **METRIC-03** — Baseline captured at v2.9 milestone start (last 30 days pre-Phase-54 = baseline). Phase 58 ship gate references this baseline; success = post-launch rate ≥ baseline.
+- [x] **METRIC-01** — `download_zip` event tracked per project (one event per ZIP download). Event payload includes `project_id`, `slide_count`, `template_id`, `user_tier`.
+- [x] **METRIC-02** — Dashboard query returns `zip_download_rate = downloads / created` for any time window. Surfaced in admin/analytics view (not user-facing).
+- [x] **METRIC-03** — Baseline captured at v2.9 milestone start (last 30 days pre-Phase-54 = baseline). Phase 58 ship gate references this baseline; success = post-launch rate ≥ baseline.
 
 ---
 
@@ -146,17 +146,17 @@ Roadmap approved 2026-05-01. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |---|---|---|
-| TREAT-01 | Phase 54 | Pending |
-| TREAT-02 | Phase 54 | Pending |
-| TREAT-03 | Phase 54 | Pending |
-| TREAT-04 | Phase 54 | Pending |
-| TREAT-05 | Phase 54 | Pending |
-| TREAT-06 | Phase 54 | Pending |
-| SLOP-01 | Phase 54 | Pending |
-| SLOP-02 | Phase 54 | Pending |
+| TREAT-01 | Phase 54 | Complete |
+| TREAT-02 | Phase 54 | Complete |
+| TREAT-03 | Phase 54 | Complete |
+| TREAT-04 | Phase 54 | Complete |
+| TREAT-05 | Phase 54 | Complete |
+| TREAT-06 | Phase 54 | Complete |
+| SLOP-01 | Phase 54 | Complete |
+| SLOP-02 | Phase 54 | Complete |
 | SLOP-03 | Phase 55 | Pending |
-| SLOP-04 | Phase 54 | Pending |
-| SLOP-05 | Phase 54 | Pending |
+| SLOP-04 | Phase 54 | Complete |
+| SLOP-05 | Phase 54 | Complete |
 | AIROLE-01 | Phase 58 | Pending |
 | AIROLE-02 | Phase 58 | Pending |
 | AIROLE-03 | Phase 58 | Pending |
@@ -196,9 +196,9 @@ Roadmap approved 2026-05-01. Each requirement maps to exactly one phase.
 | PARITY-04 | Phase 58 | Pending |
 | PARITY-05 | Phase 58 | Pending |
 | PARITY-06 | Phase 58 | Pending |
-| METRIC-01 | Phase 54 | Pending |
-| METRIC-02 | Phase 54 | Pending |
-| METRIC-03 | Phase 54 | Pending |
+| METRIC-01 | Phase 54 | Complete |
+| METRIC-02 | Phase 54 | Complete |
+| METRIC-03 | Phase 54 | Complete |
 
 **Coverage:** 53 / 53 requirements mapped (100%). No orphans, no duplicates.
 

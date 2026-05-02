@@ -970,7 +970,7 @@ v2.7 phases execute in numeric order: 44 -> 45 -> 46 -> 47 -> 48
 | 51. AI Prompt Rewrite | v2.8 | 1/1 | Complete | 2026-04-30 |
 | 52. Canvas Selection Improvements | v2.8 | 1/1 | Complete | 2026-04-30 |
 | 53. Migration & QA Polish | v2.8 | 1/1 | Complete | 2026-04-30 |
-| 54. Infrastructure Foundation | v2.9 | 2/2 | Complete   | 2026-05-02 |
+| 54. Infrastructure Foundation | v2.9 | 2/2 | Complete    | 2026-05-02 |
 | 55. Schema + Renderer Extensions | v2.9 | 0/0 | Not started | - |
 | 56. New Templates + Decorative Library | v2.9 | 0/0 | Not started | - |
 | 57. Editor Controls + Palette Extraction | v2.9 | 0/0 | Not started | - |
