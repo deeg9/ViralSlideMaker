@@ -308,6 +308,12 @@ export function SlidePreview({
   const hookRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const customTextRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  // phase-59-01: capture pre-drag width+fontSize on resize start so 59-02 can
+  // compute widthRatio = newWidthPx / oldWidthPx in onResizeStop. Per-role
+  // refs prevent cross-talk when multiple boxes coexist on a slide.
+  const hookResizeStartRef = useRef<{ widthPx: number; fontSize: number } | null>(null)
+  const bodyResizeStartRef = useRef<{ widthPx: number; fontSize: number } | null>(null)
+  const customTextResizeStartRefs = useRef<Record<string, { widthPx: number; fontSize: number } | null>>({})
   const { calculateSnap, activeGuides, clearGuides } = useAlignmentGuides()
   const overrides = slide.style_overrides ?? {}
 
@@ -956,6 +962,13 @@ export function SlidePreview({
             const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
             onPositionChange('hook', { x: percentX, y: percentY })
           }}
+          onResizeStart={() => {
+            // phase-59-01: snapshot pre-drag values for 59-02 widthRatio math.
+            hookResizeStartRef.current = {
+              widthPx: hookWidthPx,
+              fontSize: hookFontSize,
+            }
+          }}
           onResizeStop={(_e, _dir, ref, _delta, position) => {
             const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
             onWidthChange?.('hook', Math.round(newWidthPct))
@@ -1030,6 +1043,13 @@ export function SlidePreview({
               const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
               const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
               onPositionChange('body', { x: percentX, y: percentY })
+            }}
+            onResizeStart={() => {
+              // phase-59-01: snapshot pre-drag values for 59-02 widthRatio math.
+              bodyResizeStartRef.current = {
+                widthPx: bodyWidthPx,
+                fontSize: bodyFontSize,
+              }
             }}
             onResizeStop={(_e, _dir, ref, _delta, position) => {
               const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
@@ -1128,6 +1148,14 @@ export function SlidePreview({
                 const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
                 const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
                 onCustomTextPositionChange?.(ct.id, { x: percentX, y: percentY })
+              }}
+              onResizeStart={() => {
+                // phase-59-01: snapshot pre-drag values per custom-text id for 59-02.
+                // ct.font_size has the default 48 fallback used at the inner div style.
+                customTextResizeStartRefs.current[ct.id] = {
+                  widthPx: ctWidthPx,
+                  fontSize: ct.font_size ?? 48,
+                }
               }}
               onResizeStop={(_e, _dir, ref, _delta, position) => {
                 const newWidthPct = Math.max(20, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
