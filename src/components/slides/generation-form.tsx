@@ -7,6 +7,7 @@ import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
 import { Icon } from '@/components/ui/icon'
+import TetrisLoading from '@/components/ui/tetris-loading'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
@@ -162,8 +163,26 @@ export function GenerationForm({
     })
   }
 
+  const loadingMessage = uploading
+    ? `Uploading ${selectedFiles.length} photo${selectedFiles.length === 1 ? '' : 's'}...`
+    : imageSource === 'ai'
+      ? 'Generating with AI images (~30s)...'
+      : 'Building your slides...'
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+    <>
+      {busy && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#fff8f7]/95 backdrop-blur-sm p-4"
+        >
+          <TetrisLoading size="lg" speed="normal" loadingText={loadingMessage} />
+          <p className="mt-3 text-xs text-[#7d6161] tracking-wide">Hang tight — this usually takes 10–30 seconds.</p>
+        </div>
+      )}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       {/* Textarea */}
       <div>
         <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-3 ml-1">
@@ -512,5 +531,6 @@ export function GenerationForm({
         )}
       </div>
     </form>
+    </>
   )
 }
