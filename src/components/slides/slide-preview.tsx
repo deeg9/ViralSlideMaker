@@ -260,13 +260,13 @@ const cornerHandleHitStyle: React.CSSProperties = {
 // to role bounds. widthRatio = newWidthPx / oldWidthPx. Past-cap (FONTSCALE-02):
 // box keeps growing freely (caller writes width unchanged), font caps at role_max.
 // Bounds match the right-rail slider min/max at ActiveTextBoxCard.tsx:256-257.
-const ROLE_FONT_BOUNDS: Record<'hook' | 'body' | 'custom', { min: number; max: number }> = {
+export const ROLE_FONT_BOUNDS: Record<'hook' | 'body' | 'custom', { min: number; max: number }> = {
   hook:   { min: 16, max: 240 },
   body:   { min: 14, max: 120 },
   custom: { min: 14, max: 120 },
 }
 
-function scaleFontSizeOnCorner(
+export function scaleFontSizeOnCorner(
   oldFontSize: number,
   oldWidthPx: number,
   newWidthPx: number,
