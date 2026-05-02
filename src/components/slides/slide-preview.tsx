@@ -1010,15 +1010,19 @@ export function SlidePreview({
               fontSize: hookFontSize,
             }
           }}
-          onResizeStop={(_e, dir, ref, _delta, position) => {
+          onResizeStop={(e, dir, ref, _delta, position) => {
             // phase-59-02: branch on dir. Corner = scale font + width; side = width
             // only. Width clamp [20%,100%] is independent of the font clamp so the
             // box keeps growing past the font cap (FONTSCALE-02 forgiving past-cap).
+            // phase-59-04 (RESIZE-04): Shift+corner = width-only escape. When Shift
+            // is held during a corner gesture, skip the font_size dispatch and
+            // behave like a side handle (matches Figma/Canva muscle memory).
+            // TouchEvent has no shiftKey so this is no-op on touch.
             const newWidthPx = parseInt(ref.style.width)
             const newWidthPct = Math.max(20, Math.min(100, (newWidthPx / REF_WIDTH) * 100))
             const isCorner = isCornerDir(dir as RndDir)
             let newFontSize: number | undefined = undefined
-            if (isCorner && hookResizeStartRef.current) {
+            if (isCorner && !(e as MouseEvent).shiftKey && hookResizeStartRef.current) {
               newFontSize = scaleFontSizeOnCorner(
                 hookResizeStartRef.current.fontSize,
                 hookResizeStartRef.current.widthPx,
@@ -1116,13 +1120,14 @@ export function SlidePreview({
                 fontSize: bodyFontSize,
               }
             }}
-            onResizeStop={(_e, dir, ref, _delta, position) => {
+            onResizeStop={(e, dir, ref, _delta, position) => {
               // phase-59-02: branch on dir. Corner = scale font + width; side = width only.
+              // phase-59-04 (RESIZE-04): Shift+corner = width-only escape (see hook handler above).
               const newWidthPx = parseInt(ref.style.width)
               const newWidthPct = Math.max(20, Math.min(100, (newWidthPx / REF_WIDTH) * 100))
               const isCorner = isCornerDir(dir as RndDir)
               let newFontSize: number | undefined = undefined
-              if (isCorner && bodyResizeStartRef.current) {
+              if (isCorner && !(e as MouseEvent).shiftKey && bodyResizeStartRef.current) {
                 newFontSize = scaleFontSizeOnCorner(
                   bodyResizeStartRef.current.fontSize,
                   bodyResizeStartRef.current.widthPx,
@@ -1242,17 +1247,18 @@ export function SlidePreview({
                   fontSize: ct.font_size ?? 48,
                 }
               }}
-              onResizeStop={(_e, dir, ref, _delta, position) => {
+              onResizeStop={(e, dir, ref, _delta, position) => {
                 // phase-59-02: branch on dir. Corner = scale font + width; side = width only.
                 // Custom-text path goes through onCustomTextSizeChange so the dispatch
                 // routes through UPDATE_TEXT_BOX (applyDualWrite mirrors text_boxes
                 // back to legacy slide.custom_texts in the same reducer step).
+                // phase-59-04 (RESIZE-04): Shift+corner = width-only escape (see hook handler above).
                 const newWidthPx = parseInt(ref.style.width)
                 const newWidthPct = Math.max(20, Math.min(100, (newWidthPx / REF_WIDTH) * 100))
                 const isCorner = isCornerDir(dir as RndDir)
                 const startSnap = customTextResizeStartRefs.current[ct.id]
                 let newFontSize: number | undefined = undefined
-                if (isCorner && startSnap) {
+                if (isCorner && !(e as MouseEvent).shiftKey && startSnap) {
                   newFontSize = scaleFontSizeOnCorner(
                     startSnap.fontSize,
                     startSnap.widthPx,
