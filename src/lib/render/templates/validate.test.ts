@@ -87,3 +87,74 @@ describe('validateTemplateRegistry', () => {
     expect(() => validateTemplateRegistry(ok as never)).not.toThrow()
   })
 })
+
+describe('Phase 55 (SLOP-03): premium-tier bodyFontFamily requirement', () => {
+  const baseValidPremiumTemplate = {
+    id: 'magazine-bold',
+    name: 'Test',
+    thumbnail: '/test.png',
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    hookFontSize: '120px',
+    bodyFontSize: '32px',
+    textColor: '#fff',
+    backgroundColor: '#000',
+    overlayColor: '#000',
+    overlayOpacity: 0.15,
+    textAlign: 'left' as const,
+    textPosition: 'bottom' as const,
+    hookStyle: 'uppercase' as const,
+    bodyFontFamily: "'Plus Jakarta Sans', sans-serif",
+  }
+
+  it('passes when premium template declares non-empty bodyFontFamily', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    expect(() => validateTemplateRegistry([baseValidPremiumTemplate])).not.toThrow()
+  })
+
+  it('throws when premium template (magazine-bold) is missing bodyFontFamily', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const invalid = { ...baseValidPremiumTemplate }
+    delete (invalid as { bodyFontFamily?: string }).bodyFontFamily
+    expect(() => validateTemplateRegistry([invalid])).toThrow(
+      /Template 'magazine-bold' is premium-tier but missing required 'bodyFontFamily' field/
+    )
+  })
+
+  it('throws when premium template (tr3nding-news) has empty-string bodyFontFamily', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const invalid = { ...baseValidPremiumTemplate, id: 'tr3nding-news', bodyFontFamily: '' }
+    expect(() => validateTemplateRegistry([invalid])).toThrow(
+      /Template 'tr3nding-news' is premium-tier but missing required 'bodyFontFamily' field/
+    )
+  })
+
+  it('throws when premium template (documentary) has missing bodyFontFamily', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const invalid = { ...baseValidPremiumTemplate, id: 'documentary' }
+    delete (invalid as { bodyFontFamily?: string }).bodyFontFamily
+    expect(() => validateTemplateRegistry([invalid])).toThrow(
+      /Template 'documentary' is premium-tier but missing required 'bodyFontFamily' field/
+    )
+  })
+
+  it('does NOT throw when LEGACY template (highlight-bar) is missing bodyFontFamily', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const legacyTemplate = { ...baseValidPremiumTemplate, id: 'highlight-bar' }
+    delete (legacyTemplate as { bodyFontFamily?: string }).bodyFontFamily
+    expect(() => validateTemplateRegistry([legacyTemplate])).not.toThrow()
+  })
+
+  it('does NOT throw when LEGACY template (news-drop) has empty-string bodyFontFamily', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const legacyTemplate = { ...baseValidPremiumTemplate, id: 'news-drop', bodyFontFamily: '' }
+    expect(() => validateTemplateRegistry([legacyTemplate])).not.toThrow()
+  })
+
+  it('all 3 PREMIUM_TEMPLATE_IDS are recognized by validator (positive: live registry passes)', async () => {
+    const { validateTemplateRegistry } = await import('@/lib/render/templates/validate')
+    const { templates } = await import('@/lib/render/templates/index')
+    // Regression guard against accidentally removing bodyFontFamily from a real
+    // premium template — Phase 55 declared it on all 3, validator must agree.
+    expect(() => validateTemplateRegistry(templates)).not.toThrow()
+  })
+})

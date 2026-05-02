@@ -173,6 +173,33 @@ export const FONT_CATALOG: FontEntry[] = [
       { weight: 800, style: 'italic' },
     ],
   },
+  // Phase 55 (TYPO-01, D-15): v2.9 display-sans additions for premium templates.
+  {
+    family: 'Archivo Black',
+    category: 'sans-serif',
+    variants: [
+      { weight: 400, style: 'normal' },
+    ],
+  },
+  {
+    family: 'Space Grotesk',
+    category: 'sans-serif',
+    variants: [
+      { weight: 300, style: 'normal' }, { weight: 400, style: 'normal' },
+      { weight: 500, style: 'normal' }, { weight: 600, style: 'normal' },
+      { weight: 700, style: 'normal' },
+    ],
+  },
+  {
+    family: 'Manrope',
+    category: 'sans-serif',
+    variants: [
+      { weight: 200, style: 'normal' }, { weight: 300, style: 'normal' },
+      { weight: 400, style: 'normal' }, { weight: 500, style: 'normal' },
+      { weight: 600, style: 'normal' }, { weight: 700, style: 'normal' },
+      { weight: 800, style: 'normal' },
+    ],
+  },
   // Serif
   {
     family: 'Playfair Display',
@@ -235,6 +262,15 @@ export const FONT_CATALOG: FontEntry[] = [
     category: 'serif',
     variants: [
       { weight: 400, style: 'normal' }, { weight: 700, style: 'normal' },
+      { weight: 400, style: 'italic' },
+    ],
+  },
+  // Phase 55 (TYPO-02, D-15): v2.9 sharp-modern serif addition for editorial-serif (Phase 56).
+  {
+    family: 'DM Serif Display',
+    category: 'serif',
+    variants: [
+      { weight: 400, style: 'normal' },
       { weight: 400, style: 'italic' },
     ],
   },

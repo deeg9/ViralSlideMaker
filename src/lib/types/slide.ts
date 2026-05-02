@@ -125,6 +125,16 @@ export interface SlideStyleOverrides {
   layout?: 'cover' | 'body'
   // Per-slide watermark hide toggle (260427-hut)
   hide_watermark?: boolean
+  // Phase 55 (D-08): v2.9 visual quality additions.
+  /** v2.9: dominant + cluster colors derived from the treated background photo
+      (hex strings). Populated at generation time + on treatment override
+      (Phase 56). Consumed by templates with paletteMode: 'palette-dominant'
+      (Phase 57). */
+  derived_palette?: string[]
+  /** v2.9: descriptor of the treatment currently baked into background_url
+      (preset descriptor or SHA-256 cache-key suffix). Editor surfaces in
+      Phase 57 so users can see what's applied. */
+  treatment_applied?: string
 }
 
 export interface Slide {
@@ -146,6 +156,16 @@ export interface Slide {
   custom_images?: CustomImage[]
   /** Phase 49: Unified text-box array. When absent, derived from legacy fields on load. */
   text_boxes?: TextBox[]
+  // Phase 55 (D-08): v2.9 visual quality additions.
+  /** v2.9: untreated source photo URL (Pexels/Imagen). Populated by Phase 56
+      generation pipeline; consumed by treatment-override re-treat path so we
+      never compound treatments on already-treated output. */
+  original_source_url?: string
+  /** v2.9: per-slide template override. When set, the renderer uses
+      getTemplate(template_id_override) instead of project.template_id.
+      Closed-enum at runtime via validateAndRepair (Phase 58 wires AI to
+      populate); Phase 55 only declares the slot. */
+  template_id_override?: string
 }
 
 export type SlideData = Slide[]

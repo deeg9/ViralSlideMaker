@@ -14,9 +14,14 @@ export const tr3ndingNews: SlideTemplate = {
   id: 'tr3nding-news',
   name: 'Tr3nding News',
   thumbnail: '/templates/tr3nding-news.png',
-  fontFamily: "'Inter', sans-serif",
+  // Phase 55 (D-23, SLOP-05 carry-forward): Inter → Plus Jakarta Sans to align with
+  // magazine-bold + documentary (Phase 54 SLOP-05 covered only those two; Phase 55
+  // completes the audit). Plus Jakarta Sans matches sibling premium aesthetic.
+  fontFamily: "'Plus Jakarta Sans', sans-serif",
   headingFontFamily: "'Anton', sans-serif",
-  hookFontSize: '72px',
+  // Phase 55 (D-18, TYPO-03): premium hook size raised to 120px (mid-range of 110-130
+  // per-template band; sibling cohesion with magazine-bold also at 120px).
+  hookFontSize: '120px',
   bodyFontSize: '32px',
   textColor: '#ffffff',
   backgroundColor: '#000000',
@@ -25,6 +30,9 @@ export const tr3ndingNews: SlideTemplate = {
   textAlign: 'left',
   textPosition: 'bottom',
   hookStyle: 'uppercase',
+  // Phase 55 (D-22, SLOP-03): explicit body font declaration required by
+  // validateTemplateRegistry on every premium-tier template.
+  bodyFontFamily: "'Plus Jakarta Sans', sans-serif",
   accentColor: '#A8E0B0',
   backgroundMode: 'image-with-bottom-card',
   aiVoiceNote: 'Write in viral-news pitch: shocking specifics, breakout moments, money/time/scale numbers prominent. Tone is breaking-news energy.',

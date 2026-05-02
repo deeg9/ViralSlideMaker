@@ -31,7 +31,14 @@ export const documentary: SlideTemplate = {
   // typeface across the slide; preserving that constraint with Plus Jakarta.
   fontFamily: "'Plus Jakarta Sans', sans-serif",
   headingFontFamily: "'Plus Jakarta Sans', sans-serif",
-  hookFontSize: '56px',
+  // Phase 55 (D-22, SLOP-03): explicit body font declaration required by
+  // validateTemplateRegistry on every premium-tier template. Aliases existing
+  // fontFamily so render output stays consistent.
+  bodyFontFamily: "'Plus Jakarta Sans', sans-serif",
+  // Phase 55 (D-18, TYPO-03): premium hook size raised to 110px (lower bound of
+  // 110-130 per-template band; documentary's minimal aesthetic targets the smallest
+  // of the 3 premium templates while still satisfying TYPO-03 ≥110px floor).
+  hookFontSize: '110px',
   bodyFontSize: '32px',
   textColor: '#ffffff',
   backgroundColor: '#000000',

@@ -1,4 +1,5 @@
 import type { SlideTemplate, OverlaySlot, OverlayContent, TemplateOverlay } from './index'
+import { PREMIUM_TEMPLATE_IDS } from './premium-tier'
 
 // Phase 44: registry validator. Runs at module load via a top-level call in
 // templates/index.ts so dev, npm run build, vitest, and the first prod request
@@ -50,8 +51,25 @@ function validateOverlay(templateId: string, i: number, overlay: TemplateOverlay
   validateContent(templateId, i, overlay.content)
 }
 
+/**
+ * Phase 55 (D-20, SLOP-03): premium-tier bodyFontFamily requirement.
+ * Every template whose id is in PREMIUM_TEMPLATE_IDS MUST declare a non-empty
+ * bodyFontFamily string. The Inter-as-default fallthrough that produced
+ * "AI slop" body text in v2.7-v2.8 is now impossible by construction.
+ */
+function validatePremiumBodyFont(template: SlideTemplate): void {
+  if (!(PREMIUM_TEMPLATE_IDS as readonly string[]).includes(template.id)) return
+  if (typeof template.bodyFontFamily !== 'string' || template.bodyFontFamily.length === 0) {
+    throw new Error(
+      `[template-registry] Template '${template.id}' is premium-tier but missing required 'bodyFontFamily' field`
+    )
+  }
+}
+
 export function validateTemplateRegistry(registry: ReadonlyArray<SlideTemplate>): void {
   for (const template of registry) {
+    validatePremiumBodyFont(template)   // Phase 55 (D-20, SLOP-03)
+
     const overlays = template.overlays
     if (!overlays || overlays.length === 0) continue
 

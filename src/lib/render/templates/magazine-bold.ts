@@ -21,7 +21,13 @@ export const magazineBold: SlideTemplate = {
   // (v2.7 PROJECT.md). If aesthetic regresses, see D-15 for revert procedure.
   fontFamily: "'Plus Jakarta Sans', sans-serif",
   headingFontFamily: "'Anton', sans-serif",
-  hookFontSize: '72px',
+  // Phase 55 (D-22, SLOP-03): explicit body font declaration required by
+  // validateTemplateRegistry on every premium-tier template. Aliases existing
+  // fontFamily so render output stays consistent.
+  bodyFontFamily: "'Plus Jakarta Sans', sans-serif",
+  // Phase 55 (D-18, TYPO-03): premium hook size raised to 120px (mid-range of
+  // 110-130 per-template band; matches Murphy reference target for large hook type).
+  hookFontSize: '120px',
   bodyFontSize: '32px',
   textColor: '#ffffff',
   backgroundColor: '#000000',

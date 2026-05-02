@@ -78,7 +78,51 @@ export interface SlideTemplate {
   // legacy templates leave this undefined (no behavior change). NEWS_TEMPLATES
   // newsDropAddendum stays as-is — the two systems coexist.
   aiVoiceNote?: string
+
+  // ====== Phase 55 v2.9 schema additions ======
+  // All new fields are OPTIONAL on the type. bodyFontFamily is RUNTIME-REQUIRED
+  // on premium-tier templates via validateTemplateRegistry (SLOP-03).
+
+  /** SLOP-03: explicit body font for premium-tier templates. Optional on the type;
+      runtime-required for any template in PREMIUM_TEMPLATE_IDS via the validator.
+      Legacy 5 templates leave this undefined (their single fontFamily covers body). */
+  bodyFontFamily?: string
+
+  /** TPL-06 schema slot (Phase 56 consumes): per-template cover-slide layout overrides.
+      Renderer applies these only when slideIndex === 0. Existing 8 templates leave
+      undefined → cover slide uses default layout (zero behavior change). */
+  coverLayout?: {
+    textPosition?: 'top' | 'center' | 'bottom'
+    textAlign?: 'left' | 'center' | 'right'
+    hookFontSize?: string
+    hookStyle?: 'uppercase' | 'normal' | 'italic'
+  }
+
+  /** v2.9 visual layer 1.5 (Phase 56 templates consume): grain/noise overlay.
+      Resolver helper renderGrain(intensity) returns an <img> pointing to
+      /textures/grain-${intensity}.png. Existing 8 templates leave undefined. */
+  grainMode?: 'subtle' | 'medium' | 'heavy' | 'paper' | 'xerox'
+
+  /** v2.9 visual layer 2.5 (Phase 56 templates consume): radial vignette.
+      Resolver helper renderVignette(strength) returns a div with radial-gradient.
+      strength is 0-1 (0 = off). Existing 8 templates leave undefined. */
+  vignette?: { strength: number }
+
+  /** v2.9 photo-treatment declaration (Phase 56 generation pipeline maps to TreatmentPreset).
+      Closed-enum string deliberately — typing as TreatmentPreset would import sharp into
+      the client bundle (Pitfall #5). Existing 8 templates leave undefined. */
+  photoTreatment?: 'bw' | 'duotone-cream' | 'duotone-cobalt' | 'contrast-bump'
+
+  /** v2.9 palette mode (Phase 57 consumer logic ships):
+      'fixed' = use template.accentColor verbatim (default behavior when undefined);
+      'palette-dominant' = pick from slide.style_overrides.derived_palette. */
+  paletteMode?: 'fixed' | 'palette-dominant'
 }
+
+// Phase 55 (D-21, SLOP-03): PREMIUM_TEMPLATE_IDS lives in `./premium-tier` (leaf
+// module) to avoid the validate.ts ↔ index.ts import cycle. Re-exported here for
+// public-API stability — external consumers can keep importing from `@/lib/render/templates`.
+export { PREMIUM_TEMPLATE_IDS, type PremiumTemplateId } from './premium-tier'
 
 // highlight-bar leads the list so it serves as the default fallback for any
 // legacy template_id values from before the v2.5 trim.
