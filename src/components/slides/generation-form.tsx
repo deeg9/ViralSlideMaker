@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
-export type ImageSource = 'stock' | 'ai'
+export type ImageSource = 'stock' | 'ai' | 'none'
 
 const FREE_TIER_MAX_SLIDES = 3
 const MAX_UPLOADS = 20
@@ -277,7 +277,7 @@ export function GenerationForm({
                 const remaining = slides - photos
                 return (
                   <p className="basis-full text-[10px] text-[#7d6161] mt-1">
-                    {photos} photo{photos === 1 ? '' : 's'} will be placed on the most relevant slide{photos === 1 ? '' : 's'}; the remaining {remaining} will use {imageSource === 'ai' ? 'AI' : 'stock'}.
+                    {photos} photo{photos === 1 ? '' : 's'} will be placed on the most relevant slide{photos === 1 ? '' : 's'}; the remaining {remaining} will {imageSource === 'none' ? 'be text-only on the template background' : `use ${imageSource === 'ai' ? 'AI' : 'stock'}`}.
                   </p>
                 )
               }
@@ -342,7 +342,7 @@ export function GenerationForm({
         <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1">
           Background Images
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <button
             type="button"
             onClick={() => setImageSource('stock')}
@@ -383,10 +383,35 @@ export function GenerationForm({
               {isPaidUser ? '1 credit per slide' : 'Hobbyist / Creator only'}
             </span>
           </button>
+          {/* No-Photos: text-only slides on the template's flat background.
+              Pairs best with color-only templates like Paper Essay or
+              Brutalist Grid; on photo-designed templates the slide falls
+              back to the template's solid backgroundColor. */}
+          <button
+            type="button"
+            onClick={() => setImageSource('none')}
+            disabled={isPending}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+              imageSource === 'none'
+                ? 'border-[#3d0000] bg-[#fff0f0]'
+                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+            } disabled:opacity-50`}
+          >
+            <Icon name="text_fields" size="lg" className={imageSource === 'none' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+            <span className={`text-sm font-semibold ${imageSource === 'none' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+              No Photos
+            </span>
+            <span className="text-[10px] text-[#7d6161]">Text only</span>
+          </button>
         </div>
         {imageSource === 'ai' && (
           <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
             Uses ~{slideCount} credits for AI backgrounds. Takes ~{Math.ceil(slideCount / 2) * 10}-{Math.ceil(slideCount / 2) * 15}s. Slides that fail will use stock photos instead.
+          </p>
+        )}
+        {imageSource === 'none' && (
+          <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
+            Pure typography on the template&apos;s flat background. Pairs best with Paper Essay, Brutalist Grid, or Editorial Serif.
           </p>
         )}
       </div>

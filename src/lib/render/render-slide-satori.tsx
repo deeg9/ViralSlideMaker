@@ -120,8 +120,21 @@ export function buildSlideElement(
     slide,
   }
 
-  const textColor = overrides.text_color ?? template.textColor
-  const textAlign = overrides.text_align ?? template.textAlign
+  // Color-only templates force template.textColor (kill-switch: stale
+  // hook_text_color/body_text_color/text_color from a prior photo template
+  // don't leak through). Mirrors the resolve-styles.ts gate.
+  const textColor = template.backgroundMode === 'color'
+    ? template.textColor
+    : overrides.text_color ?? template.textColor
+  // Per-text-box alignment (modern path). Each text_boxes entry can carry its
+  // own text_align; fallback chain: per-box → slide-level overrides → template.
+  const hookBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')?.text_align
+  const bodyBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')?.text_align
+  const slideAlign = overrides.text_align ?? template.textAlign
+  const hookTextAlign = hookBoxAlign ?? slideAlign
+  const bodyTextAlign = bodyBoxAlign ?? slideAlign
+  // Kept for unrelated callers below (custom-text path uses its own ct.text_align).
+  const textAlign = slideAlign
   // Templates with a hook-fit registry entry auto-shrink hook size for long
   // headlines. Manual override always wins.
   const baseHookSizePx = parseInt(template.hookFontSize, 10) || 64
@@ -148,8 +161,16 @@ export function buildSlideElement(
   // leave backgroundMode undefined → newsZone path runs unchanged.
   const isTemplateBgMode =
     template.backgroundMode != null && template.backgroundMode !== 'color'
+  // backgroundMode: 'color' is a hard kill-switch — the template promises a
+  // pure-typography canvas, so any persisted `slide.background_url` (from a
+  // previous template, AI generation, or manual upload) must be ignored. This
+  // also forces newsZone off so legacy `style_overrides.layout` can't sneak
+  // a constrained-image zone back in.
+  const isColorOnlyTemplate = template.backgroundMode === 'color'
   const newsZone =
-    !isTemplateBgMode && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+    !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
+      ? NEWS_LAYOUT[overrides.layout]
+      : null
   const useBgMode = isTemplateBgMode
   const useBottomCard =
     useBgMode && template.backgroundMode === 'image-with-bottom-card'
@@ -159,9 +180,15 @@ export function buildSlideElement(
   const defaults = newsZone ?? SAFE[posPreset] ?? SAFE.center
   const defaultX = SAFE.x
 
-  const overlayOpacity = overrides.overlay_opacity != null
-    ? overrides.overlay_opacity / 100
-    : template.overlayOpacity
+  // Color-only templates suppress the slide-wide darkening overlay regardless
+  // of any persisted style_overrides.overlay_opacity (the user-reported bug:
+  // a deck switched from bold-minimal → paper-essay had a 45% black scrim
+  // baked into every slide from the original generation defaults).
+  const overlayOpacity = isColorOnlyTemplate
+    ? 0
+    : overrides.overlay_opacity != null
+      ? overrides.overlay_opacity / 100
+      : template.overlayOpacity
 
   const hookX = overrides.hook_position?.x ?? defaultX
   const hookY = overrides.hook_position?.y ?? defaults.hookY
@@ -186,7 +213,9 @@ export function buildSlideElement(
   }
 
   // News layouts always paint a solid background — the image renders as a constrained <img>.
-  if (!slide.background_url || newsZone) {
+  // Color-only templates always paint a solid background regardless of any
+  // persisted slide.background_url (the photo is suppressed below).
+  if (!slide.background_url || newsZone || isColorOnlyTemplate) {
     rootStyle.backgroundColor = template.backgroundColor
   }
 
@@ -200,7 +229,7 @@ export function buildSlideElement(
     width: hookTextWidth,
     display: 'flex',
     flexWrap: 'wrap',
-    textAlign,
+    textAlign: hookTextAlign,
     fontSize: hookFontSize,
     fontWeight: 900,
     lineHeight: 1.1,
@@ -228,7 +257,7 @@ export function buildSlideElement(
     width: bodyTextWidth,
     display: 'flex',
     flexWrap: 'wrap',
-    textAlign,
+    textAlign: bodyTextAlign,
     fontSize: bodyFontSize,
     fontWeight: 400,
     lineHeight: 1.5,
@@ -260,7 +289,7 @@ export function buildSlideElement(
           News layouts confine the image to a zone (top half / bottom half) instead of full-bleed.
           Phase 45: when useBgMode is active, the same image renders full-bleed
           (1080×1920 cover) — required NUMERIC pixel sizes per RESEARCH.md Pitfall 3. */}
-      {slide.background_url && (
+      {slide.background_url && !isColorOnlyTemplate && (
         <img
           src={slide.background_url}
           style={{
@@ -400,7 +429,7 @@ export function buildSlideElement(
         {renderSegmentChildren(
           slide.hook_text,
           slide.hook_segments,
-          overrides.hook_text_color ?? textColor,
+          isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
           accentColor,
         )}
       </div>
@@ -409,7 +438,7 @@ export function buildSlideElement(
         {renderSegmentChildren(
           slide.body_text,
           slide.body_segments,
-          overrides.body_text_color ?? textColor,
+          isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
           accentColor,
         )}
       </div>

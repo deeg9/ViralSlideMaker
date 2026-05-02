@@ -35,4 +35,30 @@ describe('SlidePreview', () => {
     expect(style).toMatch(/color:\s*rgb\(/)
     expect(style).toContain('Inter')
   })
+
+  it('paper-essay (backgroundMode: color) ignores persisted slide.background_url', () => {
+    const template = getTemplate('paper-essay')
+    // Slide carries a stale Pexels URL from a previous template — paper-essay
+    // must NOT render it as a backgroundImage. The bedroom-photo bug from the
+    // user-reported issue (260502): switching template_id alone left photos
+    // visible until this kill-switch landed in slide-preview.
+    const { container } = render(<SlidePreview slide={mockSlide} template={template} index={0} />)
+    const inner = container.querySelector('[data-testid="slide-preview"]')?.firstElementChild as HTMLElement | null
+    expect(inner).toBeTruthy()
+    const inlineStyle = inner?.getAttribute('style') || ''
+    expect(inlineStyle).not.toContain('example.com/photo.jpg')
+    expect(inlineStyle).not.toContain('background-image')
+    // No <img data-testid="bg-bleed"> either.
+    expect(container.querySelector('[data-testid="bg-bleed"]')).toBeNull()
+  })
+
+  it('legacy templates with a slide.background_url still paint the photo', () => {
+    // Sanity check: kill-switch is paper-essay-specific, doesn't regress
+    // existing behavior on the default template.
+    const template = getTemplate('highlight-bar')
+    const { container } = render(<SlidePreview slide={mockSlide} template={template} index={0} />)
+    const inner = container.querySelector('[data-testid="slide-preview"]')?.firstElementChild as HTMLElement | null
+    const inlineStyle = inner?.getAttribute('style') || ''
+    expect(inlineStyle).toContain('example.com/photo.jpg')
+  })
 })

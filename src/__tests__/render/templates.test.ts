@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 
 describe('templates', () => {
-  it('templates array has exactly 11 entries (5 legacy + 3 Phase 46 premium + 3 Phase 56 free)', async () => {
+  it('templates array has exactly 12 entries (5 legacy + 3 Phase 46 premium + 3 Phase 56 free + paper-essay)', async () => {
     const { templates } = await import('@/lib/render/templates/index')
-    expect(templates).toHaveLength(11)
+    expect(templates).toHaveLength(12)
   })
 
   it('each template has all required SlideTemplate fields', async () => {
@@ -35,14 +35,14 @@ describe('templates', () => {
     expect(template.id).toBe('highlight-bar')
   })
 
-  it('module-load validator passes for the live registry (legacy 5 + Phase 46 premium 3 + Phase 56 free 3)', async () => {
+  it('module-load validator passes for the live registry (legacy 5 + Phase 46 premium 3 + Phase 56 free 3 + paper-essay)', async () => {
     const mod = await import('@/lib/render/templates/index')
     // If validateTemplateRegistry threw at load, this import would have rejected.
-    expect(mod.templates).toHaveLength(11)
+    expect(mod.templates).toHaveLength(12)
 
     const legacyIds = new Set(['highlight-bar', 'news-drop', 'news-cyan', 'y2k-pop', 'bold-yellow'])
     const premiumIds = new Set(['magazine-bold', 'tr3nding-news', 'documentary'])
-    const phase56FreeIds = new Set(['editorial-serif', 'notes-app-chic', 'brutalist-grid'])
+    const freeOverlayIds = new Set(['editorial-serif', 'notes-app-chic', 'brutalist-grid', 'paper-essay'])
 
     for (const t of mod.templates) {
       if (legacyIds.has(t.id)) {
@@ -50,10 +50,10 @@ describe('templates', () => {
       } else if (premiumIds.has(t.id)) {
         expect(Array.isArray(t.overlays)).toBe(true)
         expect((t.overlays ?? []).length).toBeGreaterThan(0)
-      } else if (phase56FreeIds.has(t.id)) {
-        // Phase 56 free templates declare overlays (page counter / topic label
-        // / decorative). brutalist-grid has 2; notes-app-chic has 4; editorial
-        // -serif has 1. All should have at least one overlay.
+      } else if (freeOverlayIds.has(t.id)) {
+        // Free-tier overlay-using templates: page counter and/or decorative.
+        // brutalist-grid has 2; notes-app-chic has 4; editorial-serif has 1;
+        // paper-essay has 1. All should have at least one overlay.
         expect(Array.isArray(t.overlays)).toBe(true)
         expect((t.overlays ?? []).length).toBeGreaterThan(0)
       } else {
@@ -122,5 +122,98 @@ describe('buildSlideHtml', () => {
 
     expect(html).toContain(template.overlayColor)
     expect(html).toContain(String(template.overlayOpacity))
+  })
+
+  it('renders paper-essay with cream background, warm-dark text, and serif body font', async () => {
+    const { buildSlideHtml } = await import('@/lib/render/render-slide')
+    const { getTemplate } = await import('@/lib/render/templates/index')
+
+    const template = getTemplate('paper-essay')
+    const html = buildSlideHtml(
+      {
+        hook_text: 'leaving a good person',
+        body_text: "here's the psychology",
+        image_query: 'test',
+        is_cta: false,
+        background_url: null,
+        pexels_photo_id: null,
+      },
+      template,
+    )
+
+    // Visual contract — these are what reach the rendered page on the legacy
+    // hook_text path. headingFontFamily ('Playfair Display') is only emitted
+    // via the text_boxes renderer path; this path inherits template.fontFamily.
+    expect(template.id).toBe('paper-essay')
+    expect(html).toContain('#F2EBDA') // paper cream bg
+    expect(html).toContain('#1F1F1F') // warm-dark text
+    expect(html).toContain('Lora') // body font (also inherited by hook on legacy path)
+
+    // page-counter overlay is declared on the template but rendered via
+    // resolveOverlayContent which needs slide context (current/total) — not
+    // exercised by buildSlideHtml in isolation. Confirm declarative wiring
+    // by finding the page-counter overlay regardless of array position
+    // (other decorative overlays — paper-frame, rule-thin — share the array).
+    const pageCounterOverlay = template.overlays?.find(
+      (o) => o.content.type === 'page-counter',
+    )
+    expect(pageCounterOverlay).toBeDefined()
+    expect(pageCounterOverlay?.style?.color).toBe('#6B6354')
+
+    // Brittany "mindful by b" signature look: hairline frame + rule-thin
+    // separator should both be declared as decorative overlays.
+    const decorativeAssets = (template.overlays ?? [])
+      .filter((o) => o.content.type === 'decorative')
+      .map((o) => (o.content.type === 'decorative' ? o.content.asset : null))
+    expect(decorativeAssets).toContain('paper-frame')
+    expect(decorativeAssets).toContain('rule-thin')
+  })
+
+  it('paper-essay (backgroundMode: color) suppresses persisted slide.background_url', async () => {
+    const { buildSlideHtml } = await import('@/lib/render/render-slide')
+    const { getTemplate } = await import('@/lib/render/templates/index')
+
+    // Slide carries a Pexels URL from a prior template — paper-essay should
+    // ignore it entirely and paint the template's solid cream background.
+    const html = buildSlideHtml(
+      {
+        hook_text: 'staying is the default',
+        body_text: 'doing nothing = you stayed',
+        image_query: 'mindfulness',
+        is_cta: false,
+        background_url: 'https://images.pexels.com/photos/12345/should-not-render.jpg',
+        pexels_photo_id: 12345,
+      },
+      getTemplate('paper-essay'),
+    )
+
+    // Hard kill-switch: the photo URL must NOT appear in the output, and the
+    // page must paint the template's cream background instead.
+    expect(html).not.toContain('should-not-render.jpg')
+    expect(html).not.toContain('background-image')
+    expect(html).toContain('background-color: #F2EBDA')
+  })
+
+  it('legacy image-bleed templates still honor slide.background_url', async () => {
+    const { buildSlideHtml } = await import('@/lib/render/render-slide')
+    const { getTemplate } = await import('@/lib/render/templates/index')
+
+    // Sanity check: backgroundMode kill-switch is paper-essay-specific. The
+    // legacy default (highlight-bar) and image-bleed templates must keep
+    // rendering background_url unchanged.
+    const html = buildSlideHtml(
+      {
+        hook_text: 'Hook',
+        body_text: 'Body',
+        image_query: 'test',
+        is_cta: false,
+        background_url: 'https://example.com/photo.jpg',
+        pexels_photo_id: 1,
+      },
+      getTemplate('highlight-bar'),
+    )
+
+    expect(html).toContain("https://example.com/photo.jpg")
+    expect(html).toContain('background-image')
   })
 })

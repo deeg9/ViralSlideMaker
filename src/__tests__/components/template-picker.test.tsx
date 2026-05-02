@@ -17,7 +17,7 @@ import type { BrandKit } from '@/lib/types/brand-kit'
  */
 
 describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
-  it('renders exactly 11 SlidePreview tiles for the templates list when brandKit is null', () => {
+  it('renders exactly 12 SlidePreview tiles for the templates list when brandKit is null', () => {
     render(
       <TemplatePicker
         selectedId="bold-yellow"
@@ -26,14 +26,14 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
       />,
     )
     // brandKit=null -> empty-state link in slot 0 (NOT a SlidePreview).
-    // Templates iteration -> exactly 11 SlidePreview instances after Phase 56
-    // (8 existing + editorial-serif + notes-app-chic + brutalist-grid).
+    // Templates iteration -> exactly 12 SlidePreview instances after paper-essay
+    // (8 existing + editorial-serif + notes-app-chic + brutalist-grid + paper-essay).
     const previews = screen.getAllByTestId('slide-preview')
     expect(previews.length).toBe(templates.length)
-    expect(templates.length).toBe(11) // Phase 56: schema invariant — was 8 before
+    expect(templates.length).toBe(12) // schema invariant — was 11 before paper-essay
   })
 
-  it('renders exactly 12 SlidePreview tiles when brandKit is configured (11 templates + brand-kit tile)', () => {
+  it('renders exactly 13 SlidePreview tiles when brandKit is configured (12 templates + brand-kit tile)', () => {
     const configuredBrandKit: BrandKit = {
       // Minimum fields for isBrandKitConfigured() to return true:
       //   hasColors -> background_color + text_color, OR
@@ -94,9 +94,9 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
         brandKit={null}
       />,
     )
-    // Confirm 11 tiles rendered (8 existing + 3 Phase 56).
+    // Confirm 12 tiles rendered (8 existing + 3 Phase 56 + paper-essay).
     const previews = screen.getAllByTestId('slide-preview')
-    expect(previews.length).toBe(11)
+    expect(previews.length).toBe(12)
 
     // For each Phase 56 template, find its tile by display name. The picker
     // tile renders the template's `name` field as visible text — confirms

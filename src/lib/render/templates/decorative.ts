@@ -17,6 +17,8 @@ export type DecorativeAsset =
   | 'arrow-up' | 'arrow-down' | 'arrow-left' | 'arrow-right'
   | 'polaroid-frame'
   | 'paper-torn-edge'
+  | 'rule-thin'  // Editorial divider — paper-essay places one between hook and body.
+  | 'paper-frame'  // Inset hairline rectangle — paper-essay's "card-within-a-card" frame.
 
 export const DECORATIVE_ASSETS: ReadonlyArray<DecorativeAsset> = [
   'tape-strip-1', 'tape-strip-2', 'tape-strip-3',
@@ -26,4 +28,6 @@ export const DECORATIVE_ASSETS: ReadonlyArray<DecorativeAsset> = [
   'arrow-up', 'arrow-down', 'arrow-left', 'arrow-right',
   'polaroid-frame',
   'paper-torn-edge',
+  'rule-thin',
+  'paper-frame',
 ] as const
