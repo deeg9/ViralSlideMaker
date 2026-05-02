@@ -850,7 +850,13 @@ Upgrade the visual output of AI-generated carousel slides so they look like what
   4. Imagen calls in `src/lib/imagen/generate-image.ts` use `imagen-4.0-fast-generate-001`; Imagen prompts include the mandatory addendum forbidding gradient backgrounds / glossy 3D / abstract blobs; Pexels query helper appends "natural lighting, candid, editorial, portrait" and excludes `meeting, office, team, smiling, diverse group`
   5. Existing 8 templates audited: every premium-tier template declares an explicit non-Inter `bodyFontFamily` (Plus Jakarta Sans / Manrope / Geist); AI hook system-prompt forbids "In a world where" / "Did you know" / "Imagine if" openings and instructs cross-slide variety
   6. `download_zip` event tracked per project download (payload: `project_id`, `slide_count`, `template_id`, `user_tier`); admin/analytics query `zip_download_rate = downloads / created` works for any time window; baseline captured for the 30 days preceding Phase 54 start and recorded in `.planning/milestones/v2.9-METRIC-BASELINE.md`
-**Plans**: 2-3 plans (TBD via /gsd-plan-phase)
+**Plans**: 2 plans
+- [ ] `54-01-PLAN.md` — Treatment foundation: sharp install + sharp-config + treat.ts (4 presets, SHA-256 cache) + pure unit tests + slide-backgrounds-treated bucket migration + 7-day retention pg_cron *(Wave 1)*
+- [ ] `54-02-PLAN.md` — Guardrails + metric: slop-guardrails.ts module + 4 call-site integrations (Imagen/Pexels/AI hook) + Inter→Plus Jakarta Sans swap on magazine-bold/documentary + Imagen 4 Fast verification audit + carousel_events extension + v_zip_download_rate view + track-download endpoint + capture-zip-baseline script *(Wave 2, depends on 54-01)*
+
+**Cross-cutting constraints:**
+- D-08 / D-21: Phase 54 does NOT add `slide.original_source_url` (deferred to Phase 55); generation pipeline still writes treated URL to `slide.background_url` directly. Acceptable per pre-PMF discipline since no user-driven re-treatment exists yet.
+- D-15: post-font-swap, the v2.7 audit baseline must remain green; if any test breaks, revert affected template to Inter and document as follow-up rather than block the phase.
 
 ### Phase 55: Schema + Renderer Extensions
 **Goal**: SlideTemplate and Slide schemas gain the additive optional fields the new templates will consume; resolve-overlay.ts gets `renderGrain` / `renderVignette` helpers consumed by BOTH renderers; font catalog expands; existing 8 templates remain byte-identical
