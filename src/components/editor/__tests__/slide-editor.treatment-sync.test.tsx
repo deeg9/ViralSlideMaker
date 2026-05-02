@@ -44,7 +44,7 @@ vi.mock('@/app/(dashboard)/project/[id]/editor-actions', () => ({
   regenerateSlideText: vi.fn(),
   regenerateSlideImageQuery: vi.fn(),
   updateSlideTreatment: (...args: unknown[]) => updateSlideTreatmentMock(...args),
-  updateSlideWatermark: vi.fn(async () => ({ success: true })),
+  updateProjectWatermark: vi.fn(async () => ({ success: true, slides: [] })),
   createUploadUrl: vi.fn(async () => ({
     signedUrl: 'https://x.test/sig',
     publicUrl: 'https://x.test/pub.png',

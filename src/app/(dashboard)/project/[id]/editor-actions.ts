@@ -347,23 +347,26 @@ export async function updateSlideTreatment(
   }
 }
 
-// --- quick-260502-er5: per-slide watermark ---
+// --- quick-260502-er5 (extended by quick-260502-ik8): project-wide watermark ---
 
 export type WatermarkSpec = NonNullable<SlideStyleOverrides['watermark']>
 
 /**
- * Apply a watermark spec patch to a single slide.
- * Server-side tier enforcement (defense in depth — UI gates first):
- *   - free tier: rejected when attempting to set `enabled: false` or
- *     `customLogoUrl`. Position changes also rejected.
- *   - paid tier: all fields honored, customLogoUrl validated as a URL we
- *     trust (Supabase Storage public URL).
+ * Apply a watermark spec patch to EVERY slide in the project (broadcast).
+ * The watermark is conceptually a project-level setting; per-slide JSONB
+ * is preserved as the storage shape only because that's what the renderer
+ * already reads. Server-side tier enforcement (defense in depth — UI gates
+ * first):
+ *   - free tier: rejected outright (UI disables the controls; defensive).
+ *   - paid tier: all fields honored on every slide.
+ *
+ * Returns the full new slides array on success so the client can sync
+ * without a refetch.
  */
-export async function updateSlideWatermark(
+export async function updateProjectWatermark(
   projectId: string,
-  slideIndex: number,
   patch: WatermarkSpec,
-): Promise<{ success: true; slide: Slide } | { success: false; error: string }> {
+): Promise<{ success: true; slides: Slide[] } | { success: false; error: string }> {
   try {
     const supabase = await createClient()
     const {
@@ -374,9 +377,6 @@ export async function updateSlideWatermark(
     const tier = await getUserTier(user.id)
     const isPaid = tier === 'plus' || tier === 'pro'
     if (!isPaid) {
-      // Free tier cannot toggle off, set custom logo, or change position.
-      // The UI prevents these, but defense in depth ensures the API can't be
-      // bypassed by a crafted client request.
       return { success: false, error: 'paid tier required to customize watermark' }
     }
 
@@ -393,24 +393,25 @@ export async function updateSlideWatermark(
     }
 
     const slides = ((project.slide_data ?? []) as unknown) as Slide[]
-    const slide = slides[slideIndex]
-    if (!slide) return { success: false, error: 'slide index out of range' }
-
-    const existing = slide.style_overrides?.watermark ?? {}
-    slide.style_overrides = {
-      ...(slide.style_overrides ?? {}),
-      watermark: { ...existing, ...patch },
-    }
-    slides[slideIndex] = slide
+    const next: Slide[] = slides.map((slide) => {
+      const existing = slide.style_overrides?.watermark ?? {}
+      return {
+        ...slide,
+        style_overrides: {
+          ...(slide.style_overrides ?? {}),
+          watermark: { ...existing, ...patch },
+        },
+      }
+    })
 
     const { error: saveError } = await supabase
       .from('projects')
-      .update({ slide_data: slides as unknown as Record<string, unknown>[] })
+      .update({ slide_data: next as unknown as Record<string, unknown>[] })
       .eq('id', projectId)
     if (saveError) return { success: false, error: saveError.message }
 
     revalidatePath(`/project/${projectId}`)
-    return { success: true, slide }
+    return { success: true, slides: next }
   } catch (err) {
     return { success: false, error: (err as Error).message }
   }
