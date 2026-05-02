@@ -17,7 +17,7 @@ import type { BrandKit } from '@/lib/types/brand-kit'
  */
 
 describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
-  it('renders exactly 8 SlidePreview tiles for the templates list when brandKit is null', () => {
+  it('renders exactly 11 SlidePreview tiles for the templates list when brandKit is null', () => {
     render(
       <TemplatePicker
         selectedId="bold-yellow"
@@ -26,13 +26,14 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
       />,
     )
     // brandKit=null -> empty-state link in slot 0 (NOT a SlidePreview).
-    // Templates iteration -> exactly 8 SlidePreview instances.
+    // Templates iteration -> exactly 11 SlidePreview instances after Phase 56
+    // (8 existing + editorial-serif + notes-app-chic + brutalist-grid).
     const previews = screen.getAllByTestId('slide-preview')
     expect(previews.length).toBe(templates.length)
-    expect(templates.length).toBe(8) // schema invariant - guards against future drift
+    expect(templates.length).toBe(11) // Phase 56: schema invariant — was 8 before
   })
 
-  it('renders exactly 9 SlidePreview tiles when brandKit is configured (8 templates + brand-kit tile)', () => {
+  it('renders exactly 12 SlidePreview tiles when brandKit is configured (11 templates + brand-kit tile)', () => {
     const configuredBrandKit: BrandKit = {
       // Minimum fields for isBrandKitConfigured() to return true:
       //   hasColors -> background_color + text_color, OR
@@ -83,5 +84,30 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     )
     // At least one tile must be in the Selected state.
     expect(screen.getAllByText(/Selected/i).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders Phase 56 templates (editorial-serif, notes-app-chic, brutalist-grid) as SlidePreview tiles, not swatch fallback', () => {
+    render(
+      <TemplatePicker
+        selectedId="bold-yellow"
+        onSelect={vi.fn()}
+        brandKit={null}
+      />,
+    )
+    // Confirm 11 tiles rendered (8 existing + 3 Phase 56).
+    const previews = screen.getAllByTestId('slide-preview')
+    expect(previews.length).toBe(11)
+
+    // For each Phase 56 template, find its tile by display name. The picker
+    // tile renders the template's `name` field as visible text — confirms
+    // the tile rendered (NOT a swatch fallback that omits the name).
+    const phase56Templates = [
+      { id: 'editorial-serif', name: 'Editorial Serif' },
+      { id: 'notes-app-chic', name: 'Notes App Chic' },
+      { id: 'brutalist-grid', name: 'Brutalist Grid' },
+    ]
+    for (const tpl of phase56Templates) {
+      expect(screen.getByText(tpl.name)).toBeInTheDocument()
+    }
   })
 })
