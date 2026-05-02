@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <defs>
+    <filter id="ssh-b" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="4" dy="8" stdDeviation="4" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <rect x="10" y="10" width="220" height="220" fill="#A4D4F4" filter="url(#ssh-b)"/>
+  <path d="M 10 10 L 230 10 L 230 24 L 10 24 Z" fill="#86B8D9" opacity="0.20"/>
+</svg>
