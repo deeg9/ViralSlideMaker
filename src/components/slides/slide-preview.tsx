@@ -376,7 +376,19 @@ export function SlidePreview({
   const bodyTextColor = isColorOnlyTpl
     ? template.textColor
     : overrides.body_text_color ?? textColor
-  const textAlign = overrides.text_align ?? template.textAlign
+  // Per-text-box alignment (modern path). Each text_boxes entry can carry
+  // its own text_align — hook reads from the hook box, body reads from the
+  // body box. Falls back to slide-level overrides.text_align (legacy path),
+  // then template.textAlign. Fixes the bug where pressing Center on the
+  // hook forced body to also center, and where body alignment buttons were
+  // silently overridden by hook's value via the dual-write adapter.
+  const hookBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')?.text_align
+  const bodyBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')?.text_align
+  const slideAlign = overrides.text_align ?? template.textAlign
+  const hookTextAlign = hookBoxAlign ?? slideAlign
+  const bodyTextAlign = bodyBoxAlign ?? slideAlign
+  // Kept for callers that haven't been split yet (custom-text fallback below).
+  const textAlign = slideAlign
   // Templates with a hook-fit registry entry auto-shrink the hook size for long
   // headlines so multi-line hooks don't overflow the reserved hook zone.
   // Templates not in the registry keep their declared hookFontSize unchanged.
@@ -678,7 +690,7 @@ export function SlidePreview({
             top: `${resolvedHookY}%`,
             width: `${hookWidth}%`,
             zIndex: 10,
-            textAlign,
+            textAlign: hookTextAlign,
             ...(resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'full'
               ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
               : {}),
@@ -698,7 +710,7 @@ export function SlidePreview({
               top: `${resolvedBodyY}%`,
               width: `${bodyWidth}%`,
               zIndex: 10,
-              textAlign,
+              textAlign: bodyTextAlign,
               ...(resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'full'
                 ? { backgroundColor: resolved.bodyEffects.highlight.color, padding: `${resolved.bodyEffects.highlight.padding}px` }
                 : {}),
@@ -1068,7 +1080,7 @@ export function SlidePreview({
               cursor: 'grab',
               padding: '4px 8px',
               borderRadius: '4px',
-              textAlign,
+              textAlign: hookTextAlign,
               ...(resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'full'
                 ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
                 : {}),
@@ -1170,7 +1182,7 @@ export function SlidePreview({
                 cursor: 'grab',
                 padding: '4px 8px',
                 borderRadius: '4px',
-                textAlign,
+                textAlign: bodyTextAlign,
                 ...(resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'full'
                   ? { backgroundColor: resolved.bodyEffects.highlight.color, padding: `${resolved.bodyEffects.highlight.padding}px` }
                   : {}),

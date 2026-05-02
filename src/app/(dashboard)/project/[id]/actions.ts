@@ -24,7 +24,7 @@ export async function generateCarousel(
   projectId: string,
   topic: string,
   templateId: string,
-  imageSource: 'stock' | 'ai' = 'stock',
+  imageSource: 'stock' | 'ai' | 'none' = 'stock',
   slideCount: number = 7,
   advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string; uploadedImageUrls?: string[] }
 ): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
@@ -106,7 +106,20 @@ export async function generateCarousel(
         : rest
     })
 
-    if (imageSource === 'ai') {
+    // "No Photos" mode: skip Pexels/Imagen entirely. Same end-state as
+     // generating on a color-only template — slide ships with null bg, the
+    // renderer paints the template's flat backgroundColor. Section 2c below
+    // also branches on this so default shadows/overlay don't get baked in
+    // (those are photo-readability defaults that look gross on a flat canvas).
+    const wantsNoPhotos = imageSource === 'none'
+
+    if (wantsNoPhotos) {
+      slides = aiSlides.map((slide) => ({
+        ...slide,
+        background_url: null,
+        pexels_photo_id: null,
+      })) as Slide[]
+    } else if (imageSource === 'ai') {
       // Generate a master visual style first so all slides look cohesive
       const masterStyle = await generateCarouselStyle(topic)
 
@@ -280,7 +293,11 @@ export async function generateCarousel(
     // 2c. Apply default text effects for readability (shadow + overlay).
     // News Drop / News Cyan run on a solid dark canvas with constrained images
     // — the readability shadows and overlay would just dirty the image zone, so skip them.
-    if (!NEWS_TEMPLATES.has(templateId)) {
+    // "No Photos" / color-only templates also skip these defaults — black drop
+    // shadows + 45% darkening overlay are pure photo-readability artifacts and
+    // look gross on a flat-color canvas.
+    const isColorOnlyTemplate = getTemplate(templateId).backgroundMode === 'color'
+    if (!NEWS_TEMPLATES.has(templateId) && !wantsNoPhotos && !isColorOnlyTemplate) {
       slides = slides.map(slide => ({
         ...slide,
         style_overrides: {

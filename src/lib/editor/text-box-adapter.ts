@@ -250,9 +250,28 @@ export function textBoxesToLegacy(boxes: TextBox[]): LegacySlice {
     }
   }
 
-  // text_align: hook and body share a single legacy field. Prefer hook's value, fall back to body.
-  const textAlign = hookBox?.text_align ?? bodyBox?.text_align
-  if (textAlign !== undefined) patch.text_align = textAlign
+  // text_align: the legacy schema had a single slide-level field. The modern
+  // text_boxes model has per-box alignment, so we only emit slide-level when
+  // hook and body actually match — otherwise hook's value would clobber body's
+  // (the user-reported bug: hook.center forced body to also center, and
+  // body.right was silently overridden by an existing hook value). When the
+  // boxes diverge, the renderers fall back to per-box text_align (hook reads
+  // hookBox.text_align, body reads bodyBox.text_align, both with the
+  // overrides.text_align → template.textAlign chain as final fallback).
+  if (
+    hookBox?.text_align !== undefined &&
+    hookBox.text_align === bodyBox?.text_align
+  ) {
+    patch.text_align = hookBox.text_align
+  } else if (hookBox === undefined && bodyBox?.text_align !== undefined) {
+    // Legacy compat: a slide with only a body box (no hook box) keeps the
+    // historical behavior of writing body's alignment to slide-level so the
+    // renderer's slide-level fallback picks it up.
+    patch.text_align = bodyBox.text_align
+  } else if (bodyBox === undefined && hookBox?.text_align !== undefined) {
+    // Mirror of the above: hook-only slides keep emitting slide-level.
+    patch.text_align = hookBox.text_align
+  }
 
   // text_position: a single slide-level legacy field constrained to 'top'|'center'|'bottom'.
   // Round-trip safety: only emit `text_position` when hook and body share the same non-custom

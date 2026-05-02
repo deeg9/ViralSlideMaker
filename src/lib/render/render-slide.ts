@@ -119,8 +119,22 @@ export function buildSlideHtml(
   const overrides = slide.style_overrides ?? {}
   const resolved = resolveSlideStyles(slide, template)
 
-  const textColor = overrides.text_color ?? template.textColor
-  const textAlign = overrides.text_align ?? template.textAlign
+  // Color-only kill-switch (mirrors resolve-styles.ts and slide-preview.tsx):
+  // ignore stale per-slide color overrides on Paper Essay / Brutalist Grid.
+  const textColor = template.backgroundMode === 'color'
+    ? template.textColor
+    : overrides.text_color ?? template.textColor
+  // Per-text-box alignment (modern path). Mirrors render-slide-satori.tsx +
+  // slide-preview.tsx. The legacy adapter in text-box-adapter.ts only writes
+  // slide-level overrides.text_align when hook and body share the same value,
+  // so the per-box read here is the source of truth on diverged decks.
+  const hookBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')?.text_align
+  const bodyBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')?.text_align
+  const slideAlign = overrides.text_align ?? template.textAlign
+  const hookTextAlign = hookBoxAlign ?? slideAlign
+  const bodyTextAlign = bodyBoxAlign ?? slideAlign
+  // Kept as the default for callers below that don't yet differentiate.
+  const textAlign = slideAlign
   // Templates with a hook-fit registry entry auto-shrink hook size for long
   // headlines. Manual override always wins.
   const baseHookSizePx = parseInt(template.hookFontSize, 10) || 64
@@ -135,21 +149,33 @@ export function buildSlideHtml(
       : template.hookFontSize
   const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
 
-  const overlayOpacity = overrides.overlay_opacity != null
-    ? overrides.overlay_opacity / 100
-    : template.overlayOpacity
-
   const accentColor = template.accentColor ?? template.textColor
 
   // News-carousel layouts (cover/body) put the background image in a constrained zone
   // and force a solid page background — overriding the full-bleed default.
-  const newsZone = overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+  // backgroundMode: 'color' is a hard kill-switch that ignores any persisted
+  // slide.background_url and forces the template's solid background — both
+  // the page paint AND the constrained <img> below.
+  const isColorOnlyTemplate = template.backgroundMode === 'color'
 
-  const backgroundCss = newsZone
+  // Color-only templates suppress the slide-wide darkening overlay regardless
+  // of any persisted style_overrides.overlay_opacity — same kill-switch as
+  // text-shadow/highlight stripping in resolve-styles.ts.
+  const overlayOpacity = isColorOnlyTemplate
+    ? 0
+    : overrides.overlay_opacity != null
+      ? overrides.overlay_opacity / 100
+      : template.overlayOpacity
+  const newsZone =
+    !isColorOnlyTemplate && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+
+  const backgroundCss = isColorOnlyTemplate
     ? `background-color: ${template.backgroundColor};`
-    : slide.background_url
-      ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
-      : `background-color: ${template.backgroundColor};`
+    : newsZone
+      ? `background-color: ${template.backgroundColor};`
+      : slide.background_url
+        ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
+        : `background-color: ${template.backgroundColor};`
 
   // Resolve text positions: news layouts override Y defaults; user-supplied positions still win.
   const posPreset = overrides.text_position ?? template.textPosition
@@ -167,7 +193,9 @@ export function buildSlideHtml(
 
   // News-layout background image: rendered as a constrained <img> in the image zone
   // (instead of full-bleed). Sits at z-index:0 so text/customs stack above.
-  const newsBgImageHtml = newsZone && slide.background_url
+  // Suppressed entirely on color-only templates (newsZone is already null above
+  // for that case, but guarding here too makes the intent explicit).
+  const newsBgImageHtml = newsZone && slide.background_url && !isColorOnlyTemplate
     ? `<img src="${slide.background_url}" style="position:absolute; left:0; top:${newsZone.imageTop}%; width:100%; height:${newsZone.imageHeight}%; object-fit:cover; z-index:0;" />`
     : ''
 
@@ -232,7 +260,7 @@ export function buildSlideHtml(
       left: ${hookX}%;
       top: ${hookY}%;
       width: ${hookWidth}%;
-      text-align: ${textAlign};
+      text-align: ${hookTextAlign};
       z-index: 1;
       font-size: ${hookFontSize};
       font-weight: 900;
@@ -247,7 +275,7 @@ export function buildSlideHtml(
       left: ${bodyX}%;
       top: ${bodyY}%;
       width: ${bodyWidth}%;
-      text-align: ${textAlign};
+      text-align: ${bodyTextAlign};
       z-index: 1;
       font-size: ${bodyFontSize};
       font-weight: 400;
@@ -263,7 +291,9 @@ export function buildSlideHtml(
   <div class="overlay"></div>
   <div class="hook">${(() => {
     const hookHL = highlightCSS(resolved.hookEffects, 'native')
-    const hookBase = overrides.hook_text_color ?? textColor
+    const hookBase = isColorOnlyTemplate
+      ? textColor
+      : overrides.hook_text_color ?? textColor
     const hookInner = renderSegments(slide.hook_text, slide.hook_segments, hookBase, accentColor)
     return hookHL.spanWrap
       ? `<span style="${hookHL.spanCSS}">${hookInner}</span>`
@@ -271,7 +301,9 @@ export function buildSlideHtml(
   })()}</div>
   <div class="body">${(() => {
     const bodyHL = highlightCSS(resolved.bodyEffects, 'native')
-    const bodyBase = overrides.body_text_color ?? textColor
+    const bodyBase = isColorOnlyTemplate
+      ? textColor
+      : overrides.body_text_color ?? textColor
     const bodyInner = renderSegments(slide.body_text, slide.body_segments, bodyBase, accentColor)
     return bodyHL.spanWrap
       ? `<span style="${bodyHL.spanCSS}">${bodyInner}</span>`

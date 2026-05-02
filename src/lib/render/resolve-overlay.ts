@@ -352,25 +352,61 @@ export function renderDecorativeOverlay(
   const src = `/overlays/${asset}.${ext}`
   const rotation = options?.rotation ?? 0
   const scale = options?.scale ?? 1
-  const transform =
-    rotation !== 0 || scale !== 1 ? `rotate(${rotation}deg) scale(${scale})` : undefined
   // Phase 57 (D-15): tintColor injects via CSS `color` so SVGs that use
   // fill="currentColor" pick up the dynamic accent. PNG assets ignore tintColor
   // (raster — recoloring would require a CSS filter, which is banned).
+  // Satori is strict about `transform: undefined` (throws "Invalid transform
+  // value") so we omit the key entirely when no transform is needed instead
+  // of letting it serialize as undefined.
+  // Explicit `width`/`height` on the <img> are required because Satori does
+  // NOT read intrinsic dimensions from inlined SVG data URIs reliably (the
+  // thumbnail-generation pipeline base64-encodes the asset). Falling back to
+  // a sensible asset-specific default keeps notes-app-chic etc. unchanged
+  // while letting new assets like rule-thin render at all.
+  const dims = ASSET_DIMENSIONS[asset] ?? { width: 240, height: 60 }
+  const style: Record<string, string | number | undefined> = {
+    position: 'absolute',
+    top: position.y,
+    left: position.x,
+    width: dims.width,
+    height: dims.height,
+    opacity: options?.opacity ?? 1,
+    color: options?.tintColor,
+    pointerEvents: 'none',
+  }
+  if (rotation !== 0 || scale !== 1) {
+    style.transform = `rotate(${rotation}deg) scale(${scale})`
+  }
   return React.createElement('img', {
     'data-layer': 'decorative',
     'data-asset': asset,
     src,
-    style: {
-      position: 'absolute',
-      top: position.y,
-      left: position.x,
-      transform,
-      opacity: options?.opacity ?? 1,
-      color: options?.tintColor,
-      pointerEvents: 'none',
-    },
+    style,
   })
+}
+
+// Intrinsic dimensions for each decorative asset, in CSS pixels. Used by the
+// renderer above so Satori (and the live preview) place the asset at its
+// designed size on the 1080×1920 canvas. Update whenever a new asset is added
+// — the validator at templates/validate.ts will catch unknown asset ids.
+const ASSET_DIMENSIONS: Partial<Record<DecorativeAsset, { width: number; height: number }>> = {
+  'tape-strip-1': { width: 240, height: 60 },
+  'tape-strip-2': { width: 240, height: 60 },
+  'tape-strip-3': { width: 240, height: 60 },
+  'sticky-note-yellow': { width: 200, height: 200 },
+  'sticky-note-pink': { width: 200, height: 200 },
+  'sticky-note-blue': { width: 200, height: 200 },
+  'sticky-note-accent': { width: 200, height: 200 },
+  'halftone-dots-light': { width: 400, height: 400 },
+  'halftone-dots-dense': { width: 400, height: 400 },
+  'arrow-up': { width: 80, height: 80 },
+  'arrow-down': { width: 80, height: 80 },
+  'arrow-left': { width: 80, height: 80 },
+  'arrow-right': { width: 80, height: 80 },
+  'polaroid-frame': { width: 300, height: 360 },
+  'paper-torn-edge': { width: 1080, height: 40 },
+  'rule-thin': { width: 200, height: 6 },
+  'paper-frame': { width: 1080, height: 1920 },
 }
 
 // =====================================================================

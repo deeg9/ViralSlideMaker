@@ -202,16 +202,17 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     }
 
     case 'ADD_CUSTOM_IMAGE': {
+      const init = action.initial
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
         const newImage = {
           id: crypto.randomUUID(),
           url: action.url,
-          x: 20,
-          y: 30,
-          width: 40,
-          height: 40,
-          opacity: 100,
+          x: init?.x ?? 20,
+          y: init?.y ?? 30,
+          width: init?.width ?? 40,
+          height: init?.height ?? 40,
+          opacity: init?.opacity ?? 100,
         }
         return {
           ...slide,

@@ -12,6 +12,7 @@ import { documentary } from './documentary'
 import { editorialSerif } from './editorial-serif'
 import { notesAppChic } from './notes-app-chic'
 import { brutalistGrid } from './brutalist-grid'
+import { paperEssay } from './paper-essay'
 import { validateTemplateRegistry } from './validate'
 
 // Phase 44: overlay-zone schema. Named-slot positions map to fixed CSS layout in
@@ -159,6 +160,8 @@ export const templates: SlideTemplate[] = [
   editorialSerif,
   notesAppChic,
   brutalistGrid,
+  // Pure-typography editorial cream — no photo, restrained mindful-essay vibe.
+  paperEssay,
 ]
 
 // Phase 44: fail fast at module load if any registered template is misconfigured.

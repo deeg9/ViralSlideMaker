@@ -37,8 +37,8 @@ export const POST = withApiAuth(async (req, ctx) => {
 
   // Validate optional fields
   const validImageSource = imageSource === undefined ? 'stock' : imageSource
-  if (validImageSource !== 'stock' && validImageSource !== 'ai') {
-    return apiError('VALIDATION_ERROR', 'imageSource must be "stock" or "ai"', 400)
+  if (validImageSource !== 'stock' && validImageSource !== 'ai' && validImageSource !== 'none') {
+    return apiError('VALIDATION_ERROR', 'imageSource must be "stock", "ai", or "none"', 400)
   }
 
   const validSlideCount = slideCount === undefined ? 7 : Number(slideCount)
@@ -93,7 +93,7 @@ export const POST = withApiAuth(async (req, ctx) => {
       topic,
       templateId,
       slideCount: validSlideCount,
-      imageSource: validImageSource as 'stock' | 'ai',
+      imageSource: validImageSource as 'stock' | 'ai' | 'none',
       advancedOptions: advancedOptions as { font?: string; fontColor?: string; imagePrompt?: string } | undefined,
     })
 

@@ -140,7 +140,7 @@ export function registerTools(server: McpServer): void {
         'Create a new carousel from a topic. Generates AI text content + background images and saves a project.',
         'Costs 1 credit (matches POST /api/v1/carousel exactly). Returns { projectId, slideCount, dashboardUrl } so the user can immediately open the result in their browser.',
         'PREREQUISITE: call list_templates first and pass a valid templateId — there is no default (the v2.5 trim removed bold-minimal).',
-        'Optional slideCount (3-10, default 7; free tier is capped at 3). Optional imageSource: "stock" (Pexels, fast) or "ai" (Imagen, slower, no extra credit cost).',
+        'Optional slideCount (3-10, default 7; free tier is capped at 3). Optional imageSource: "stock" (Pexels, fast), "ai" (Imagen, slower, no extra credit cost), or "none" (text-only slides on the template\'s flat background — no photos fetched).',
         'On insufficient credits, returns INSUFFICIENT_CREDITS as an in-band isError content block (NOT a thrown exception). On generation failure, the credit is automatically refunded.',
       ].join(' '),
       inputSchema: {
@@ -161,9 +161,9 @@ export function registerTools(server: McpServer): void {
           .optional()
           .describe('Slide count 3-10. Default 7. Free plan capped at 3.'),
         imageSource: z
-          .enum(['stock', 'ai'])
+          .enum(['stock', 'ai', 'none'])
           .optional()
-          .describe('"stock" = Pexels (free, fast). "ai" = Imagen (slower, higher visual quality). Default "stock".'),
+          .describe('"stock" = Pexels (free, fast). "ai" = Imagen (slower, higher visual quality). "none" = text-only slides on the template\'s flat background — no photos fetched. Default "stock".'),
       },
     },
     async (args, extra) => {
@@ -174,7 +174,7 @@ export function registerTools(server: McpServer): void {
         topic: string
         templateId: string
         slideCount?: number
-        imageSource?: 'stock' | 'ai'
+        imageSource?: 'stock' | 'ai' | 'none'
       }
       const supabase = createAdminClient()
       const validSlideCount = slideCount ?? 7

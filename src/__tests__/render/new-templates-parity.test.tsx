@@ -198,8 +198,8 @@ describe('Phase 56: editorial-serif treatment + grain (TPL-01)', () => {
 })
 
 describe('Phase 56: registry length invariant', () => {
-  it('templates array contains exactly 11 entries (8 existing + 3 new)', () => {
-    expect(templates.length).toBe(11)
+  it('templates array contains exactly 12 entries (8 existing + 3 Phase 56 + paper-essay)', () => {
+    expect(templates.length).toBe(12)
   })
 
   it('each new template has a sample.hook_text and sample.body_text', () => {

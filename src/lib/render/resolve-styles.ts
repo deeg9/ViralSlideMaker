@@ -108,9 +108,22 @@ export function resolveSlideStyles(
         }
       : template
 
-  const textColor = overrides.text_color ?? effectiveTemplate.textColor
-  const hookTextColor = overrides.hook_text_color ?? textColor
-  const bodyTextColor = overrides.body_text_color ?? textColor
+  // Color-only templates force the template's textColor on hook + body so
+  // stale per-slide color overrides (e.g. the white text_color baked into
+  // every slide when the deck was generated on bold-minimal for photo
+  // legibility) don't leak through and break consistency. Same kill-switch
+  // pattern as overlay_opacity / hook_text_effects below — see
+  // template.backgroundMode === 'color' kill-switch chain.
+  const isColorOnlyTemplate = template.backgroundMode === 'color'
+  const textColor = isColorOnlyTemplate
+    ? effectiveTemplate.textColor
+    : overrides.text_color ?? effectiveTemplate.textColor
+  const hookTextColor = isColorOnlyTemplate
+    ? effectiveTemplate.textColor
+    : overrides.hook_text_color ?? textColor
+  const bodyTextColor = isColorOnlyTemplate
+    ? effectiveTemplate.textColor
+    : overrides.body_text_color ?? textColor
   const textAlign = overrides.text_align ?? effectiveTemplate.textAlign
   const hookFontSize = overrides.hook_font_size ?? (parseInt(effectiveTemplate.hookFontSize, 10) || 64)
   const bodyFontSize = overrides.body_font_size ?? (parseInt(effectiveTemplate.bodyFontSize, 10) || 32)
@@ -136,9 +149,19 @@ export function resolveSlideStyles(
   const hookFontFamily = hookEntry ? `'${hookEntry.family}', ${getCssFallback(hookEntry.category)}` : `'${hookFontRaw}', sans-serif`
   const bodyFontFamily = bodyEntry ? `'${bodyEntry.family}', ${getCssFallback(bodyEntry.category)}` : `'${bodyFontRaw}', sans-serif`
 
-  const overlayOpacity = overrides.overlay_opacity != null
-    ? overrides.overlay_opacity / 100
-    : effectiveTemplate.overlayOpacity
+  // Color-only templates (paper-essay, brutalist-grid) promise a clean
+  // typographic canvas — drop shadows, text outlines, highlight pills, and
+  // the slide-wide darkening overlay are all photo-readability defaults that
+  // become visual noise on cream paper. Suppress them regardless of what
+  // got persisted from a previous template's generation defaults (the bug
+  // the user hit when switching `bold-minimal` → `paper-essay`: leftover
+  // dark-shadow + 45% overlay made headlines look like dark backplates).
+  // `isColorOnlyTemplate` is declared above where text colors are gated.
+  const overlayOpacity = isColorOnlyTemplate
+    ? 0
+    : overrides.overlay_opacity != null
+      ? overrides.overlay_opacity / 100
+      : effectiveTemplate.overlayOpacity
 
   const posPreset = overrides.text_position ?? effectiveTemplate.textPosition
   const defaults = SAFE_ZONE[posPreset] ?? SAFE_ZONE.center
@@ -173,9 +196,13 @@ export function resolveSlideStyles(
     }
   })
 
-  // Phase 19: Resolve text effects for hook and body
-  const hookEffects = resolveTextEffects(overrides.hook_text_effects)
-  const bodyEffects = resolveTextEffects(overrides.body_text_effects)
+  // Phase 19: Resolve text effects for hook and body.
+  // Color-only-template kill-switch: strip shadows, outlines, and highlight
+  // pills (all photo-readability artifacts) to keep the canvas clean.
+  const hookEffectsRaw = resolveTextEffects(overrides.hook_text_effects)
+  const bodyEffectsRaw = resolveTextEffects(overrides.body_text_effects)
+  const hookEffects = isColorOnlyTemplate ? {} : hookEffectsRaw
+  const bodyEffects = isColorOnlyTemplate ? {} : bodyEffectsRaw
 
   return {
     textColor,

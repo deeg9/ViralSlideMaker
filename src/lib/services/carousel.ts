@@ -4,6 +4,7 @@ import { searchPhotos } from '@/lib/pexels/search-photos'
 import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createProjectService, updateProjectService } from '@/lib/services/projects'
+import { getTemplate } from '@/lib/render/templates/index'
 import type { Slide } from '@/lib/types/slide'
 
 // Templates that share the news-carousel skip-default-effects behavior.
@@ -14,7 +15,7 @@ interface CarouselInput {
   topic: string
   templateId: string
   slideCount?: number
-  imageSource?: 'stock' | 'ai'
+  imageSource?: 'stock' | 'ai' | 'none'
   advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string }
 }
 
@@ -67,7 +68,23 @@ export async function generateCarousel(
         : rest
     })
 
-    if (imageSource === 'ai') {
+    // backgroundMode: 'color' templates (paper-essay, brutalist-grid) are
+    // pure-typography by design — skip the Pexels/Imagen fetch entirely so the
+    // slide is never tagged with a background_url that the renderer would have
+    // to suppress later. The same "no photos" outcome can also be opted into
+    // explicitly via imageSource === 'none' on any template — the user picks
+    // text-only output regardless of template's photoMode design.
+    const isColorOnlyTemplate =
+      getTemplate(templateId).backgroundMode === 'color'
+    const wantsNoPhotos = imageSource === 'none' || isColorOnlyTemplate
+
+    if (wantsNoPhotos) {
+      slides = aiSlides.map((slide) => ({
+        ...slide,
+        background_url: null,
+        pexels_photo_id: null,
+      })) as Slide[]
+    } else if (imageSource === 'ai') {
       // Generate a master visual style first so all slides look cohesive
       const masterStyle = await generateCarouselStyle(topic)
 
@@ -144,7 +161,10 @@ export async function generateCarousel(
     // 2c. Apply default text effects for readability (shadow + overlay).
     // News Drop / News Cyan run on a solid dark canvas with constrained images
     // — defaults would dirty the image zone, so skip them.
-    if (!NEWS_TEMPLATES.has(templateId)) {
+    // No-photos paths (color-only template OR imageSource === 'none') are pure
+    // typography on a styled background — black drop shadows + 45% darkening
+    // overlay would muddy the canvas, so skip them too.
+    if (!NEWS_TEMPLATES.has(templateId) && !wantsNoPhotos) {
       slides = slides.map((slide) => ({
         ...slide,
         style_overrides: {
