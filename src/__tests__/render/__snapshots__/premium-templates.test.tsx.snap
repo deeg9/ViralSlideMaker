@@ -6,7 +6,7 @@ exports[`Phase 46 premium templates — Satori snapshots > documentary: renders 
     {
       "color": "#ffffff",
       "display": "flex",
-      "fontFamily": "'Inter', sans-serif",
+      "fontFamily": "'Plus Jakarta Sans', sans-serif",
       "height": 1920,
       "overflow": "hidden",
       "position": "relative",
@@ -80,7 +80,7 @@ exports[`Phase 46 premium templates — Satori snapshots > documentary: renders 
       {
         "display": "flex",
         "flexWrap": "wrap",
-        "fontFamily": "'Inter', sans-serif",
+        "fontFamily": "'Plus Jakarta Sans', sans-serif",
         "fontSize": 56,
         "fontWeight": 900,
         "left": 119,
@@ -122,7 +122,7 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
     {
       "color": "#ffffff",
       "display": "flex",
-      "fontFamily": "'Inter', sans-serif",
+      "fontFamily": "'Plus Jakarta Sans', sans-serif",
       "height": 1920,
       "overflow": "hidden",
       "position": "relative",

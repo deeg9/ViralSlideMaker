@@ -16,7 +16,10 @@ export const magazineBold: SlideTemplate = {
   id: 'magazine-bold',
   name: 'Magazine Bold',
   thumbnail: '/templates/magazine-bold.png',
-  fontFamily: "'Inter', sans-serif",
+  // Phase 54 (SLOP-05, D-13/D-14): Plus Jakarta Sans replaces Inter to escape
+  // the v2.5+-AI-default-font tell. Visual reference: Murphy Campbell carousel
+  // (v2.7 PROJECT.md). If aesthetic regresses, see D-15 for revert procedure.
+  fontFamily: "'Plus Jakarta Sans', sans-serif",
   headingFontFamily: "'Anton', sans-serif",
   hookFontSize: '72px',
   bodyFontSize: '32px',

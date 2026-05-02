@@ -26,8 +26,11 @@ export const documentary: SlideTemplate = {
   id: 'documentary',
   name: 'Documentary',
   thumbnail: '/templates/documentary.png',
-  fontFamily: "'Inter', sans-serif",
-  headingFontFamily: "'Inter', sans-serif",
+  // Phase 54 (SLOP-05, D-13/D-14): Plus Jakarta Sans replaces Inter on both
+  // body and heading slots. Documentary's minimal aesthetic targets a single
+  // typeface across the slide; preserving that constraint with Plus Jakarta.
+  fontFamily: "'Plus Jakarta Sans', sans-serif",
+  headingFontFamily: "'Plus Jakarta Sans', sans-serif",
   hookFontSize: '56px',
   bodyFontSize: '32px',
   textColor: '#ffffff',
