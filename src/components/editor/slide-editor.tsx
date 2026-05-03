@@ -927,30 +927,32 @@ export function SlideEditor({
                     primary: selection.primary,
                   }}
                   onBulkDelete={(ids) => {
-                    // Phase 60 minimal: route through existing per-id remove
-                    // helpers. Custom text_boxes go via removeTextBox; custom
-                    // images via the existing handler. Hook/body and watermark
-                    // are silently skipped (non-deletable in Phase 60 — Plan-
-                    // Checker risk #2 noted; full bulk-delete reducer arrives
-                    // in Phase 64).
-                    for (const id of ids) {
-                      const tb = (currentSlide?.text_boxes ?? []).find(
-                        (t) => t.id === id,
-                      )
-                      if (tb?.role === 'custom') {
-                        removeTextBox(selectedIndex, id)
-                        continue
-                      }
-                      const ci = (currentSlide?.custom_images ?? []).find(
-                        (c) => c.id === id,
-                      )
-                      if (ci) {
-                        handleRemoveCustomImage(id)
-                        continue
-                      }
+                    // Phase 60 (HIGH-1 review-fix): single dispatch per gesture
+                    // so a 5-element bulk delete is one Cmd+Z, not five. The
+                    // BULK_DELETE reducer mirrors the per-id loop's policy
+                    // (skip hook/body, skip locked, never touch watermark) so
+                    // user-visible behavior is unchanged — only history depth.
+                    dispatch({
+                      type: 'BULK_DELETE',
+                      slideIndex: selectedIndex,
+                      ids,
+                    })
+                    // Clear legacy single-id slots if they pointed at a deleted
+                    // element (the per-id removeTextBox / handleRemoveCustomImage
+                    // helpers used to do this internally; with one dispatch we
+                    // mirror that cleanup here at the call site).
+                    const idSet = new Set(ids)
+                    if (selectedTextBoxId && idSet.has(selectedTextBoxId)) {
+                      setSelectedTextBoxId(null)
                     }
-                    // After bulk delete, clear the selection model so the ring
-                    // and TYPE BAR collapse on the next render.
+                    if (selectedCustomTextId && idSet.has(selectedCustomTextId)) {
+                      setSelectedCustomTextId(null)
+                    }
+                    if (selectedCustomImageId && idSet.has(selectedCustomImageId)) {
+                      setSelectedCustomImageId(null)
+                    }
+                    // Clear the selection model so the ring and TYPE BAR
+                    // collapse on the next render.
                     selection.clear()
                   }}
                 />

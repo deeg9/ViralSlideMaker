@@ -49,5 +49,19 @@ export type EditorAction =
       deltaX: number     // % of canvas width (0-100 reference)
       deltaY: number     // % of canvas height (0-100 reference)
     }
+  // Phase 60 (HIGH-1 review-fix): bulk delete. Single dispatch per gesture
+  // (one pushHistory call) so a 5-element bulk delete is one Cmd+Z, not five.
+  // Mirrors BULK_TRANSLATE shape. Reducer skips:
+  //   - locked elements (Phase 64 honor; matches BULK_TRANSLATE),
+  //   - text_boxes with role !== 'custom' (hook/body are not deletable —
+  //     matches the existing per-id `removeTextBox` policy in slide-editor.tsx
+  //     onBulkDelete loop pre-fix),
+  //   - watermark (lives on slide.watermark, not in text_boxes/custom_images;
+  //     never deleted by this action — matches v2.10 behavior).
+  | {
+      type: 'BULK_DELETE'
+      slideIndex: number
+      ids: string[]      // text_boxes ∪ custom_images ids (watermark never deleted)
+    }
   | { type: 'UNDO' }
   | { type: 'REDO' }
