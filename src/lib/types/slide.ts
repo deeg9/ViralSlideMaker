@@ -66,6 +66,11 @@ export interface CustomImage {
   groupId?: string
   locked?: boolean
   hidden?: boolean
+  /** Phase 65 Plan 01 (LAYERS-04): user-supplied label override for the
+      LEFT-rail layers panel. Optional, additive — when set, the layers
+      panel displays this string instead of the URL-derived filename.
+      Never required; renderers ignore this field. */
+  name?: string
 }
 
 // Phase 19: Text effects
@@ -133,6 +138,11 @@ export interface TextBox {
   /** quick-260502-pw8: paragraph-level indent level (0..2 inclusive). Each
       level adds 32px paddingLeft at the 1080×1920 reference size. */
   list_indent?: number
+  /** Phase 65 Plan 01 (LAYERS-04): user-supplied label override for the
+      LEFT-rail layers panel. Optional, additive — when set, the layers
+      panel displays this string instead of the role/text-derived label.
+      Never required; renderers ignore this field. */
+  name?: string
 }
 
 export interface SlideStyleOverrides {

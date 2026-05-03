@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { Slide, TextBox, CustomImage, Watermark } from '@/lib/types/slide'
 import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
-import { Icon } from '@/components/ui/icon'
 import { GroupRow } from './group-row'
+import { LayerChip } from './layer-chip'
 import type {
   LayerChipRow,
   LayerElementType,
@@ -182,99 +182,6 @@ function computeAllHidden(slide: Slide, ids: string[]): boolean {
   return true
 }
 
-// ───── inline-chip render helper (placeholder; Task 3 swaps in
-//        memoized LayerChip) ──────────────────────────────────────────
-
-interface InlineChipProps {
-  row: LayerChipRow
-  selected: boolean
-  primary: boolean
-  isEditing: boolean
-  onSelect: (mode: 'replace' | 'toggle') => void
-  onStartRename: () => void
-  onCommitRename: (newName: string) => void
-  onCancelRename: () => void
-}
-
-function elementTypeIcon(type: LayerElementType): string {
-  if (type === 'text') return 'text_fields'
-  if (type === 'image') return 'image'
-  return 'branding_watermark'
-}
-
-function InlineChip({
-  row,
-  selected,
-  primary,
-  isEditing,
-  onSelect,
-  onStartRename,
-  onCommitRename,
-  onCancelRename,
-}: InlineChipProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null)
-
-  return (
-    <div
-      data-testid="layer-chip"
-      data-chip-id={row.id}
-      data-element-type={row.elementType}
-      data-selected={selected ? 'true' : 'false'}
-      data-primary={primary ? 'true' : 'false'}
-      data-locked={row.locked ? 'true' : 'false'}
-      data-hidden={row.hidden ? 'true' : 'false'}
-      onClick={(e) => {
-        e.stopPropagation()
-        onSelect(e.shiftKey ? 'toggle' : 'replace')
-      }}
-      className={[
-        'flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer transition-colors w-full',
-        selected ? 'bg-[#fadbdb]' : 'hover:bg-[#fadbdb]/40',
-        primary ? 'ring-1 ring-[#3d0000]' : '',
-        row.groupId ? 'pl-6' : '',
-      ].join(' ')}
-    >
-      <Icon name={elementTypeIcon(row.elementType)} size="sm" className="text-[#795e5e]" />
-      {isEditing ? (
-        <input
-          ref={inputRef}
-          type="text"
-          defaultValue={row.label}
-          autoFocus
-          onClick={(e) => e.stopPropagation()}
-          onBlur={(e) => {
-            onCommitRename(e.currentTarget.value)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              ;(e.target as HTMLInputElement).blur()
-            } else if (e.key === 'Escape') {
-              e.preventDefault()
-              onCancelRename()
-            }
-          }}
-          className="flex-1 min-w-0 bg-white border border-[#3d0000]/30 rounded px-1 py-0.5 text-xs text-[#3d0000] focus:outline-none focus:border-[#3d0000]"
-        />
-      ) : (
-        <span
-          data-testid="chip-label"
-          onDoubleClick={(e) => {
-            e.stopPropagation()
-            onStartRename()
-          }}
-          className="flex-1 min-w-0 truncate text-[#3d0000]"
-        >
-          {row.label}
-        </span>
-      )}
-      <div data-testid="chip-lock-slot" className="w-5 h-5" />
-      <div data-testid="chip-vis-slot" className="w-5 h-5" />
-      <div data-testid="chip-reorder-slot" className="w-5 h-5" />
-    </div>
-  )
-}
-
 // ───── LayersPanel ──────────────────────────────────────────────────
 
 export default function LayersPanel({ slide, selection, onRename }: LayersPanelProps) {
@@ -376,7 +283,7 @@ export default function LayersPanel({ slide, selection, onRename }: LayersPanelP
             const primary = selection.primary === row.id
             const isEditing = editingId === row.id
             return (
-              <InlineChip
+              <LayerChip
                 key={`chip-${row.id}-${idx}`}
                 row={row}
                 selected={selected}
