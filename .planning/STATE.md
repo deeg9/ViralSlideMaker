@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
-status: completed
-stopped_at: "Plan 64-03 complete (Phase 64 final wave — Z-Order). Phase 64 fully shipped (3/3 plans; LOCK-01..08 + ZORDER-01..07 = all 15 reqs). Ready for Phase 65 (Layers Panel + TPLREND-05 audit). Phase 65 inherits the established 64-cluster patterns: single-dispatch-on-element-set + ref-equal short-circuit + applyDualWrite for text_boxes routing. Layers panel UI dispatches Z_ORDER (drag-to-reorder) + SET_LOCKED (lock toggle) + SET_HIDDEN (visibility toggle) — all 3 reducer cases reusable; both renderers already honor hidden + locked semantics."
-last_updated: "2026-05-03T06:36:31Z"
-last_activity: "2026-05-03 — Plan 64-03 ships Z-Order: pure transform `applyZOrderToArray` (src/lib/editor/transforms/z-order.ts; 109 LOC) + Z_ORDER EditorAction variant + reducer case (per-scope routing across text_boxes ∪ custom_images; watermark single-slot handled implicitly via no-op short-circuit) + 4 tinykeys bindings ($mod+] / $mod+[ / $mod+Alt+] / $mod+Alt+[) all dispatching the single Z_ORDER action with op-discriminator. Figma multi-selection model with adjacent-selected guard (PITFALL-6.3 — selected windows at edges stay intact); DESC sort for forward/front, ASC for backward/back. ZORDER-05 array-splice invariant pinned by purity grep gate (zero CSS layering references in z-order.ts AND editor-reducer.ts; documentary phrasing rephrases the prohibition as 'the CSS layering property' so strict literal grep returns 0). 33 new tests (16 ZA pure transform + 1 ZOrderOp probe + 8 ZR reducer + 8 KZ keyboard) + KL6 grep gate bumped 25→29 (4 new firewall sites). 817/817 plan-spec tests green; tsc baseline 17 preserved. 6 atomic TDD commits `5be61eb` / `def0cff` / `c266d7a` / `ec3b240` / `4c26dd0` / `aae7e2c`. Phase 64 COMPLETE — all 15 reqs (LOCK-01..08 + ZORDER-01..07) closed."
+status: verifying
+stopped_at: "Plan 63-04 complete (Wave 2 — Wave B integration). Phase 63 4/5 plans shipped. Ready for Plan 63-05 (polish — PARITY-03 multi-element fixture extension + perf budget verification + locked-elements-participate-in-bounds completion). Plan 63-05 inherits stable seams: smart-guide-overlay testid in PARITY-01 chrome-leak regex; runSnapForDrag closure pattern; detectEqualSpacing helper; persistent-pool overlay component reusable from any future drag-time chrome surface."
+last_updated: "2026-05-03T07:11:40.876Z"
+last_activity: "2026-05-03 — Plan 63-05 ships final-wave polish: 8 new PARITY-03 tests (PT-03A..H) extending parity.test.tsx (28→36 tests; +309 LOC) — every v2.11 editor-only chrome surface (multi-selection-ring + group-bounding-ring + marquee-overlay + floating-alignment-toolbar + smart-guide-overlay-{root,x,y,equal}) confirmed structurally absent in editable={false}; PT-03G kitchen-sink + PT-03H positive control pair prevents false-negative class. 5 new ALIGN-10 integration tests (AL1-AL5; align-locked-bounds.test.ts +199 LOC) confirming locked-include-bounds-not-move + watermark-contributes-not-moves + DISTRIBUTE locked-skip + single pushHistory invariant via reducer dispatch. 5 new PERF-05 integration tests (PI1-PI3 + DEP1/DEP2; snap-index-perf.test.ts +288 LOC) — PI1 mirrors slide-preview's runSnapForDrag closure (modifier check + 3 X-snaps + 3 Y-snaps + 2 detectEqualSpacing) at N=30, median <2ms; PI2 Hold-Cmd path <0.1ms; PI3 max<3×median consistency floor; DEP1/DEP2 grep gates pin legacy hook deprecation. src/hooks/use-alignment-guides.ts +19 LOC — file-header @deprecated JSDoc + per-export @deprecated tag + dev-mode console.warn shim; runtime hook behavior unchanged (Phase 66 deletion target). 745/745 editor + slides + render full regression green (+18 vs Plan 63-04's 727); tsc baseline 17 preserved. 3 atomic commits `dffd68f` / `dfb0e07` / `28132d3`."
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_plans: 21
+  completed_plans: 19
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
+Phase: 65 — Layers Panel + TPLREND-05 Audit (1/3 plans shipped — Plan 65-01 closes 7 of 15 reqs)
+Plan: 65-01 SHIPPED (Wave 1 — Layers Panel structure: vanilla flat list, no react-arborist / virtualization / dnd library per CONTEXT D-01). LEFT-rail panel mounted under SlideList in slide-editor.tsx; reads canonical SelectionModel from props (PITFALL-7.2 single-source-of-truth). synthesizeRows pure helper walks text_boxes ∪ custom_images ∪ watermark and emits LayerRow[] with synthesized group-header rows once per groupId via Set<string> emit-guard. LayerChip wrapped in React.memo with custom areEqual gating on row.id/label/locked/hidden/elementType/groupId/selected/primary/isEditing — function refs intentionally excluded (parent useCallback handles stability). LM1..LM3 render-count tests prove selection-id flips re-render only the formerly/newly-primary chips (not all N). Schema-additive optional name?: string field on TextBox + CustomImage (Watermark intentionally excluded — singleton; label derives from customText). Inline rename via <input> element — existing isEditingTarget guard fires automatically (count UNCHANGED at 29). Closes LAYERS-01..04, LAYERS-08, LAYERS-09, LAYERS-10. ~1242 LOC (~571 production + ~671 tests). 18/18 layers-panel + 45/45 slide-editor.shortcuts + 132/132 editor components + 86/86 reducer + 42/42 parity all green; tsc baseline 17 preserved; zero drag-library imports verified. 3 atomic commits `f2ede67` / `fd61deb` / `8fd259e`.
+Status: Plan 65-01 ships LEFT-rail panel structure. Ready for Plan 65-02 (lock/visibility/z-order toggles wired to Plan 64 reducer actions — fills the chip-lock-slot / chip-vis-slot / chip-reorder-slot empty-div placeholders + group-lock-slot / group-vis-slot in GroupRow; LayerGroupHeaderRow.allLocked / allHidden already pre-computed by synthesizeRows; React.memo's areEqual already gates on row.locked/hidden so toggle dispatches will isolate re-renders correctly). Plan 65-03 owns TPLREND-05 audit suite (PARITY-02 + PARITY-04 + PARITY-05 + PERF-04 verification linkage).
+
+### Phase 64 carry-over
+
 Phase: 64 — Lock / Hide + Z-Order **COMPLETE** (3/3 plans shipped — all 15 phase reqs closed)
 Plan: 64-01 SHIPPED (LOCK reducer + Cmd+Shift+L + 4-Rnd-site drag/resize prevention + marquee skip-locked + 12×12 lock-icon overlay; closes LOCK-01..06; ~600 LOC incl. tests; 6 atomic commits `a881982` / `5196e98` / `0f4c7ea` / `27e62ba` / `181e804` / `421659a`).
 Plan: 64-02 SHIPPED (HIDDEN reducer + both-renderer hidden filter + selection-bounds hidden-skip + Fork RPC strip-locked migration; closes LOCK-07 + LOCK-08; ~500 LOC incl. tests; 5 atomic commits `bbd5cb2` / `3f2ec3f` / `5fd2763` / `329e964` / `0fa44bb`; post-merge action: `npx supabase db push`).
 Plan: 64-03 SHIPPED (Z_ORDER reducer + 4 tinykeys bindings + applyZOrderToArray pure transform with Figma multi-selection model + adjacent-selected guard + ZORDER-05 array-splice invariant; closes ZORDER-01..07; ~500 LOC incl. tests; 6 atomic commits `5be61eb` / `def0cff` / `c266d7a` / `ec3b240` / `4c26dd0` / `aae7e2c`; isEditingTarget grep count 25→29).
-Status: Phase 64 COMPLETE; ALL 15 Phase 64 reqs marked complete in REQUIREMENTS.md (LOCK-01..08 + ZORDER-01..07). Ready for Phase 65 (layers panel — drag-to-reorder UI dispatches Z_ORDER + lock/hide-toggle UI dispatches SET_LOCKED/SET_HIDDEN; reducer + transform reusable). Phase 65 inherits the established 64-cluster patterns: single-dispatch-on-element-set + ref-equal short-circuit + applyDualWrite for text_boxes routing.
+Phase 64 status: COMPLETE; ALL 15 Phase 64 reqs marked complete in REQUIREMENTS.md (LOCK-01..08 + ZORDER-01..07).
 
 ### Earlier in v2.11
 
@@ -196,6 +202,10 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 - [Phase ?]: Plan 64-01: BULK_DELETE ref-equal short-circuit added (SL8b — closes all-locked pollution path)
 - [Phase ?]: Plan 64-01: data-locked='true' Rnd outer-node marker chosen for react-rnd test observability
 - [Phase ?]: Plan 64-01: Lock-icon = lock emoji (🔒) — no SVG asset; structurally gated to editable=true (TPLREND-05)
+- [Phase ?]: Plan 65-01 (CONTEXT D-01): Vanilla layers panel — NO react-arborist / virtualization / dnd library. ≤30 elements per slide; drag-to-reorder deferred to v2.12.
+- [Phase ?]: Plan 65-01 (PITFALL-7.2): Selection sync READ-ONLY in panel — panel takes SelectionModel as prop; never calls useSelectionModel internally. Single source of truth; no two-way binding.
+- [Phase ?]: Plan 65-01 (LAYERS-09 / PERF-04): React.memo areEqual intentionally excludes function refs — parent useCallback handles ref stability; LM1..LM3 render-count tests prove the contract.
+- [Phase ?]: Plan 65-01 (Schema additive): name?: string optional field on TextBox + CustomImage; Watermark intentionally excluded (singleton; label derives from customText).
 
 ### Pending Todos
 
@@ -226,6 +236,7 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 (prior history truncated — latest before this: 260502-er5 watermark right-rail UI on 2026-05-02)
 | Phase 64 P01 | 32min | 3 tasks | 8 files |
+| Phase 65 P01 | 9min | 3 tasks | 8 files |
 
 ## Session Continuity
 
