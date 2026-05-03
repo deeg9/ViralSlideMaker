@@ -116,3 +116,15 @@ describe('Phase 65 Plan 02 (LAYERS-05/06 group-scope): GroupRow toggle slots', (
     expect(onGroupVisibilityToggle).toHaveBeenCalledTimes(1)
   })
 })
+
+// Phase 66 Plan 02 (KBD-08): tooltip shortcut on group-lock button mirrors
+// the chip-lock pattern from Plan 65-02 (`title="Lock layer (⌘⇧L)"`).
+describe('Phase 66 Plan 02 (KBD-08): GroupRow lock tooltip shortcut', () => {
+  it('GR-T-LOCK: group-lock button title includes Cmd+Shift+L shortcut (symbol or literal form accepted)', () => {
+    const props = makeProps()
+    render(<GroupRow {...props} />)
+    const btn = screen.getByTestId('group-lock-button')
+    const title = btn.getAttribute('title') ?? ''
+    expect(title).toMatch(/⌘⇧L|Cmd\+Shift\+L/)
+  })
+})

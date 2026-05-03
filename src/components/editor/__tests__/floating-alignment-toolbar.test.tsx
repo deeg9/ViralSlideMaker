@@ -348,3 +348,148 @@ describe('FloatingAlignmentToolbar — positioning', () => {
     expect(tb.style.left).toBe('70%')
   })
 })
+
+// Phase 66 Plan 02 (KBD-08): tooltip shortcuts. Each align/distribute button's
+// `title` attribute embeds the matching keyboard shortcut so power users
+// discover it on hover. ARIA labels are unchanged (screen readers don't read
+// the keystroke twice). When a distribute button is disabled, the tooltip
+// embeds BOTH the shortcut AND the disabled hint.
+describe('FloatingAlignmentToolbar — KBD-08 tooltip shortcuts', () => {
+  it('FT-T1: align-left button title contains "Alt+A"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    expect(screen.getByTestId('align-left').getAttribute('title')).toMatch(/Alt\+A/i)
+  })
+
+  it('FT-T2: align-center-h button title contains "Alt+H"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    expect(screen.getByTestId('align-center-h').getAttribute('title')).toMatch(/Alt\+H/i)
+  })
+
+  it('FT-T3: align-right button title contains "Alt+D"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    expect(screen.getByTestId('align-right').getAttribute('title')).toMatch(/Alt\+D/i)
+  })
+
+  it('FT-T4: align-top button title contains "Alt+W"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    expect(screen.getByTestId('align-top').getAttribute('title')).toMatch(/Alt\+W/i)
+  })
+
+  it('FT-T5: align-center-v button title contains "Alt+V"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    expect(screen.getByTestId('align-center-v').getAttribute('title')).toMatch(/Alt\+V/i)
+  })
+
+  it('FT-T6: align-bottom button title contains "Alt+S"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    expect(screen.getByTestId('align-bottom').getAttribute('title')).toMatch(/Alt\+S/i)
+  })
+
+  it('FT-T7: distribute-horizontal title contains "Cmd+Alt+H"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={3}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    const title = screen.getByTestId('distribute-horizontal').getAttribute('title') ?? ''
+    expect(title).toMatch(/Cmd\+Alt\+H|⌘\+Alt\+H|⌘⌥H/i)
+  })
+
+  it('FT-T8: distribute-vertical title contains "Cmd+Alt+V"', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={3}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    const title = screen.getByTestId('distribute-vertical').getAttribute('title') ?? ''
+    expect(title).toMatch(/Cmd\+Alt\+V|⌘\+Alt\+V|⌘⌥V/i)
+  })
+
+  it('FT-T-DISABLED: when distribute is disabled (N=2), title still embeds shortcut PLUS disabled hint', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    const title = screen.getByTestId('distribute-horizontal').getAttribute('title') ?? ''
+    // Both substrings present so power users learn the shortcut even while
+    // the button is currently unavailable.
+    expect(title).toMatch(/Cmd\+Alt\+H|⌘\+Alt\+H/i)
+    expect(title).toMatch(/Select 3\+ elements to distribute/)
+  })
+
+  it('FT-T-ARIA: aria-label is unchanged (no shortcut embedded — screen readers)', () => {
+    render(
+      <FloatingAlignmentToolbar
+        selectionCount={2}
+        bounds={baseBounds}
+        onAction={vi.fn()}
+        canvasWidthPct={100}
+        canvasHeightPct={100}
+      />,
+    )
+    expect(screen.getByTestId('align-left').getAttribute('aria-label')).toBe('Align left')
+    expect(screen.getByTestId('align-right').getAttribute('aria-label')).toBe('Align right')
+    expect(screen.getByTestId('align-top').getAttribute('aria-label')).toBe('Align top')
+  })
+})

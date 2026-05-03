@@ -73,30 +73,43 @@ export interface FloatingAlignmentToolbarProps {
 const TOOLBAR_WIDTH_PCT = 30
 const TOOLBAR_HEIGHT_PCT = 4
 
+// Phase 66 Plan 02 (KBD-08): tooltip shortcut hints. Each align/distribute
+// button's `title` attribute embeds the matching keyboard shortcut so power
+// users discover it on hover. We use the LITERAL spelling ("Alt+A",
+// "Cmd+Alt+H") rather than the ⌘ / ⌥ symbols to match the alignment
+// shortcut research literature (Figma + Canva docs use literal in
+// tooltips; symbol form is for menu bars). The layers panel uses the
+// symbol form (⌘⇧L) — documented divergence; both styles are valid and
+// tests accept either via a regex gate.
+// aria-label is UNCHANGED (no shortcut embedded) so screen readers don't
+// read the keystroke twice.
+
 interface AlignButtonSpec {
   axis: AlignAxis
   label: string
+  shortcut: string
   Icon: typeof AlignLeft
 }
 
 const ALIGN_BUTTONS: AlignButtonSpec[] = [
-  { axis: 'left', label: 'Align left', Icon: AlignLeft },
-  { axis: 'center-h', label: 'Align horizontal center', Icon: AlignCenterHorizontal },
-  { axis: 'right', label: 'Align right', Icon: AlignRight },
-  { axis: 'top', label: 'Align top', Icon: AlignStartHorizontal },
-  { axis: 'center-v', label: 'Align vertical center', Icon: AlignCenterVertical },
-  { axis: 'bottom', label: 'Align bottom', Icon: AlignEndHorizontal },
+  { axis: 'left', label: 'Align left', shortcut: 'Alt+A', Icon: AlignLeft },
+  { axis: 'center-h', label: 'Align horizontal center', shortcut: 'Alt+H', Icon: AlignCenterHorizontal },
+  { axis: 'right', label: 'Align right', shortcut: 'Alt+D', Icon: AlignRight },
+  { axis: 'top', label: 'Align top', shortcut: 'Alt+W', Icon: AlignStartHorizontal },
+  { axis: 'center-v', label: 'Align vertical center', shortcut: 'Alt+V', Icon: AlignCenterVertical },
+  { axis: 'bottom', label: 'Align bottom', shortcut: 'Alt+S', Icon: AlignEndHorizontal },
 ]
 
 interface DistributeButtonSpec {
   axis: DistributeAxis
   label: string
+  shortcut: string
   Icon: typeof AlignHorizontalDistributeCenter
 }
 
 const DISTRIBUTE_BUTTONS: DistributeButtonSpec[] = [
-  { axis: 'horizontal', label: 'Distribute horizontally', Icon: AlignHorizontalDistributeCenter },
-  { axis: 'vertical', label: 'Distribute vertically', Icon: AlignVerticalDistributeCenter },
+  { axis: 'horizontal', label: 'Distribute horizontally', shortcut: 'Cmd+Alt+H', Icon: AlignHorizontalDistributeCenter },
+  { axis: 'vertical', label: 'Distribute vertically', shortcut: 'Cmd+Alt+V', Icon: AlignVerticalDistributeCenter },
 ]
 
 const DISTRIBUTE_DISABLED_HINT = 'Select 3+ elements to distribute'
@@ -157,13 +170,13 @@ export function FloatingAlignmentToolbar({
         // transform on the parent shrinks/grows them with the rest of the chrome.
       }}
     >
-      {ALIGN_BUTTONS.map(({ axis, label, Icon }) => (
+      {ALIGN_BUTTONS.map(({ axis, label, shortcut, Icon }) => (
         <button
           key={`align-${axis}`}
           type="button"
           data-testid={`align-${axis}`}
           aria-label={label}
-          title={label}
+          title={`${label} (${shortcut})`}
           onClick={() => onAction({ kind: 'align', axis })}
           style={{
             flex: '1 1 auto',
@@ -191,14 +204,21 @@ export function FloatingAlignmentToolbar({
         }}
       />
 
-      {DISTRIBUTE_BUTTONS.map(({ axis, label, Icon }) => {
-        const tooltip = distributeDisabled ? DISTRIBUTE_DISABLED_HINT : label
+      {DISTRIBUTE_BUTTONS.map(({ axis, label, shortcut, Icon }) => {
+        // KBD-08: tooltip embeds shortcut even when disabled, so power users
+        // still learn the keystroke. aria-label keeps the disabled hint as
+        // its primary content (screen-reader friendly state announcement)
+        // while sighted users see the shortcut in the title popover.
+        const baseTip = `${label} (${shortcut})`
+        const tooltip = distributeDisabled
+          ? `${baseTip} — ${DISTRIBUTE_DISABLED_HINT}`
+          : baseTip
         return (
           <button
             key={`distribute-${axis}`}
             type="button"
             data-testid={`distribute-${axis}`}
-            aria-label={tooltip}
+            aria-label={distributeDisabled ? DISTRIBUTE_DISABLED_HINT : label}
             title={tooltip}
             disabled={distributeDisabled}
             onClick={() => onAction({ kind: 'distribute', axis })}
