@@ -180,10 +180,10 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   4. All 11 existing templates render byte-identical pre/post v2.11 across both renderers; v2.9 + v2.10 audits re-run with zero parity regressions; `parity.test.tsx` extended with multi-element fixtures (selection ring, group bbox, marquee active, smart guides active)
   5. Regression test walks the `editable={false}` render tree and asserts ZERO DOM nodes match `*selection*` / `*marquee*` / `*guide*` / `*layer-overlay*` class patterns (PARITY-02 — TPLREND-05 leak guard for the entire v2.11 surface)
 
-**Plans**: 3 plans (1/3 shipped)
+**Plans**: 3 plans (2/3 shipped)
 - [x] 65-01-PLAN.md — Vanilla layers panel structure (LayersPanel + LayerChip + GroupRow) + LEFT rail mount + React.memo + selection sync (LAYERS-01..04, LAYERS-08, LAYERS-09, LAYERS-10) — SHIPPED 2026-05-03 `f2ede67` / `fd61deb` / `8fd259e`
-- [ ] 65-02-PLAN.md — Lock + visibility + z-order toggles wired to Plan 64 reducer actions (LAYERS-05..07, PERF-02 trivially satisfied via no-drag scope)
-- [ ] 65-03-PLAN.md — TPLREND-05 comprehensive audit suite (PARITY-02 chrome-leak scan + PARITY-04 11-template fingerprint + PARITY-05 v2.9/v2.10 regression sweep + PERF-04 verification linkage)
+- [x] 65-02-PLAN.md — Lock + visibility + z-order toggles wired to Plan 64 reducer actions (LAYERS-05..07, PERF-02 trivially satisfied via no-drag scope) — SHIPPED 2026-05-03 `88253b1` / `4e7eaaa` / `6524237` / `ea1cec8` / `29c23b9`
+- [ ] 65-03-PLAN.md — TPLREND-05 comprehensive audit suite (PARITY-02 chrome-leak scan + PARITY-04 12-template fingerprint + PARITY-05 v2.9/v2.10 regression sweep + PERF-04 verification linkage) — partially in-flight: parallel-wave commits `32cdfbc` (PCL1..PCL10 chrome-leak) + `cfe6a78` (PTF1..PTF12 template-fingerprint) already landed
 **UI hint**: yes
 
 ---
