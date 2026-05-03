@@ -346,6 +346,11 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     // Mirror of the marquee-overlay scan above — the testid must NEVER
     // appear in the editable={false} render tree.
     expect(html).not.toMatch(/data-testid="[^"]*group-bounding-ring[^"]*"/)
+    // Phase 63 Plan 02 (ALIGN-07): floating-alignment-toolbar testid scan.
+    // Plan 63-02 lands the fourth concrete chrome — same shape as the marquee
+    // and group-ring scans above. The structural gate is the line-665 early
+    // return for editable=false (toolbar mount lives downstream of it).
+    expect(html).not.toMatch(/data-testid="[^"]*floating-alignment-toolbar[^"]*"/)
   })
 
   it('PARITY-01 (Plan 60-05, SEL-13): editable={false} renders no multi-selection-ring even with N>=2 selection passed', () => {
@@ -496,6 +501,62 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
       locked.querySelector('[data-testid="group-bounding-ring"]'),
     ).toBeNull()
     expect(locked.innerHTML).not.toMatch(/group-bounding-ring/)
+  })
+
+  it('PARITY-01 PT-FT (Plan 63-02, ALIGN-07): editable={false} renders no floating-alignment-toolbar even with N=5 selection + onAlign', () => {
+    // Plan 63-02 lands the fourth concrete chrome that PARITY-01 gates
+    // against: the floating alignment toolbar (Figma-style above-bounds bar
+    // with 6 align + 2 distribute buttons). The structural gate is the
+    // line-665 early return for editable=false — the toolbar JSX lives
+    // downstream of that return alongside the multi-selection-ring,
+    // marquee-overlay, and group-bounding-ring chrome.
+    const slide: Slide = {
+      hook_text: 'STOP', body_text: 'Body', image_query: 'q', is_cta: false,
+      background_url: null, pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 15, height: 15 },
+        { id: 'img-b', url: 'data:,', x: 30, y: 10, width: 15, height: 15 },
+        { id: 'img-c', url: 'data:,', x: 50, y: 10, width: 15, height: 15 },
+        { id: 'img-d', url: 'data:,', x: 70, y: 10, width: 15, height: 15 },
+        { id: 'img-e', url: 'data:,', x: 10, y: 50, width: 15, height: 15 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const selection = {
+      ids: ['img-a', 'img-b', 'img-c', 'img-d', 'img-e'],
+      primary: 'img-e',
+    }
+
+    // editable={false}: structurally absent, even when N=5 + onAlign provided.
+    const { container: locked } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={selection}
+        onAlign={() => {}}
+      />,
+    )
+    expect(
+      locked.querySelector('[data-testid="floating-alignment-toolbar"]'),
+    ).toBeNull()
+    expect(locked.innerHTML).not.toMatch(/floating-alignment-toolbar/)
+
+    // editable={true}: positive control — toolbar IS present for N>=2 + onAlign.
+    const { container: editable } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={selection}
+        onAlign={() => {}}
+      />,
+    )
+    expect(
+      editable.querySelector('[data-testid="floating-alignment-toolbar"]'),
+    ).not.toBeNull()
   })
 
   it('PARITY-01 (Plan 62-02, GROUP-06): editable={true} renders no group-bounding-ring with empty selection', () => {
