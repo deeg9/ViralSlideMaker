@@ -1,4 +1,9 @@
 import type { Slide, CustomText, CustomImage, TextBox, TextBoxRole } from '@/lib/types/slide'
+import type {
+  AlignAxis,
+  AlignTarget,
+  DistributeAxis,
+} from '@/lib/editor/transforms/align'
 
 export type EditorAction =
   | { type: 'ADD_SLIDE'; index: number }
@@ -107,6 +112,36 @@ export type EditorAction =
       type: 'UNGROUP'
       slideIndex: number
       ids: string[]      // members to clear; caller may pass full group or subset
+    }
+  // Phase 63 (ALIGN-03..05, ALIGN-08, ALIGN-09, ALIGN-10): single-dispatch
+  // ALIGN action. The pure align.ts module computes integer-rounded patches
+  // (Math.round at the boundary; ALIGN-09) and pre-filters out locked +
+  // watermark + structural-anchor TextBoxes (ALIGN-10 move-side). The
+  // reducer:
+  //   - applies patches to text_boxes / custom_images,
+  //   - routes text_boxes mutations through applyDualWrite (BL-01),
+  //   - calls pushHistory exactly once per dispatch (ALIGN-08 = PERF-01),
+  //   - short-circuits ref-equal when no candidates produced patches (empty
+  //     ids, all-locked selection, only-watermark selection — Test AR7/AR7b).
+  // Locked + watermark are INCLUDED in the union AABB read at align.ts via
+  // computeSelectionBounds (Phase 63 D-01 closes the Plan 60-05 read-side gap).
+  | {
+      type: 'ALIGN'
+      slideIndex: number
+      ids: string[]
+      axis: AlignAxis
+      target: AlignTarget
+    }
+  // Phase 63 (ALIGN-04, ALIGN-05, ALIGN-08, ALIGN-09, ALIGN-10): single-
+  // dispatch DISTRIBUTE action. The pure align.ts module enforces the
+  // N>=3 gate (returns [] when N<3 — ALIGN-06 conservative pure-fn
+  // enforcement, with the toolbar disabling the button at N<3 in Plan
+  // 63-02). Same single-pushHistory + applyDualWrite contract as ALIGN.
+  | {
+      type: 'DISTRIBUTE'
+      slideIndex: number
+      ids: string[]
+      axis: DistributeAxis
     }
   | { type: 'UNDO' }
   | { type: 'REDO' }
