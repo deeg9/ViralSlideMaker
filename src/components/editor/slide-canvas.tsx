@@ -55,6 +55,16 @@ interface SlideCanvasProps {
   currentlyInsideGroup?: string | null
   onEnterGroup?: GroupEnterFn
   onExitGroup?: GroupExitFn
+  // Phase 62 (GROUP-09, KBD-09): group drag fan-out callback. Forwarded to
+  // SlidePreview's onDragStop branch. slide-editor.tsx wires this to
+  // dispatch({ type: 'BULK_TRANSLATE', ... }) so the gesture lands as one
+  // history entry (KBD-09).
+  onGroupDrag?: (payload: {
+    slideIndex: number
+    ids: string[]
+    deltaX: number
+    deltaY: number
+  }) => void
 }
 
 export function SlideCanvas({
@@ -87,6 +97,7 @@ export function SlideCanvas({
   currentlyInsideGroup,
   onEnterGroup,
   onExitGroup,
+  onGroupDrag,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   // Phase 57 (EDITOR-03, D-21): IG feed crop preview toggle. Component-local
@@ -136,6 +147,7 @@ export function SlideCanvas({
             currentlyInsideGroup={currentlyInsideGroup}
             onEnterGroup={onEnterGroup}
             onExitGroup={onExitGroup}
+            onGroupDrag={onGroupDrag}
           />
           {/* Phase 57 (EDITOR-03, D-20, D-23): IG feed safe-zone overlay.
               CSS outline (not border) so layout is unaffected. Top-aligned —

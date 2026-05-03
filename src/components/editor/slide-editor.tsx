@@ -921,6 +921,12 @@ export function SlideEditor({
           currentlyInsideGroup={selection.currentlyInsideGroup}
           onEnterGroup={selection.enterGroup}
           onExitGroup={selection.exitGroup}
+          // Phase 62 (GROUP-09, KBD-09): group drag fan-out. The onDragStop
+          // branch in slide-preview.tsx dispatches this when the drag matches
+          // a single-group selection; we forward the payload to BULK_TRANSLATE
+          // so the gesture lands as one history entry. Reducer skips locked +
+          // watermark + structural-anchor (Plan 60-03 contract carry-forward).
+          onGroupDrag={(payload) => dispatch({ type: 'BULK_TRANSLATE', ...payload })}
         />
 
         {/* Right panel: Editor controls */}
