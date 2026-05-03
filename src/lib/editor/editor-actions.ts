@@ -34,5 +34,20 @@ export type EditorAction =
     }
   | { type: 'UPDATE_TEXT_BOX'; slideIndex: number; textBoxId: string; updates: Partial<TextBox> }
   | { type: 'REMOVE_TEXT_BOX'; slideIndex: number; textBoxId: string }
+  // Phase 60 (PERF-01): bulk multi-element translate. Single dispatch on
+  // onDragStop only — never per-tick onDrag (carry-forward of v2.10
+  // onResizeStop precedent at editor-reducer.test.ts:486-532). Phase 60
+  // declares the action; group drag handlers wire it in Phase 62.
+  // Reducer skips: locked elements (Phase 64 honor), TextBoxes with
+  // anchor !== 'custom' (no x/y to translate), and watermark (enum-only
+  // position; freeform translation requires future schema extension —
+  // Phase 62/63 may revisit).
+  | {
+      type: 'BULK_TRANSLATE'
+      slideIndex: number
+      ids: string[]      // text_boxes ∪ custom_images ∪ watermark ids
+      deltaX: number     // % of canvas width (0-100 reference)
+      deltaY: number     // % of canvas height (0-100 reference)
+    }
   | { type: 'UNDO' }
   | { type: 'REDO' }
