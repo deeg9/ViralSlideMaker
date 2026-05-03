@@ -202,7 +202,9 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   3. Floating alignment toolbar buttons + layer-chip controls expose keyboard-shortcut hints in tooltips (e.g. "Align Left ⌥A", "Lock ⌘⇧L", "Bring Forward ⌘]"); final keyboard sweep verifies every new shortcut calls `e.preventDefault()` (prevents Cmd+G Chrome Find Next conflict and similar) and respects `isEditing` guard
   4. Manual smoke test of all v2.11 features end-to-end on a single project: multi-select via marquee + Shift-click, group/ungroup, align/distribute, snap during drag, lock + hide via panel, z-order via shortcuts, Alt-drag duplicate, layers panel reorder — every feature works without regressions to v2.10 corner-resize handles or v2.8 single-element selection
 
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 66-01-PLAN.md — Arrow nudge bindings (KBD-05, KBD-06) + lastMoveDeltaRef + Cmd+D smart offset (DIFF-02)
+- [ ] 66-02-PLAN.md — Alt+drag duplicate reducer + wiring (DIFF-01) + KBD-08 tooltip shortcuts on alignment toolbar + group-row lock + final keyboard sweep verification
 
 ---
 
@@ -216,7 +218,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 | 63. Alignment / Distribute + Smart Guides | 4/5 | In Progress|  |
 | 64. Lock / Hide + Z-Order | 3/3 | Complete   | 2026-05-03 |
 | 65. Layers Panel + TPLREND-05 Audit | 1/3 | In Progress|  |
-| 66. Power-User Differentiators + Polish | 0/0 | Not started | - |
+| 66. Power-User Differentiators + Polish | 0/2 | Planned     | - |
 
 ---
 
