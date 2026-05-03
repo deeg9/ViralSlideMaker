@@ -50,11 +50,11 @@
 - [x] **GROUP-03**: User can press Cmd+Shift+G to ungroup (clears `groupId` field on each member; absolute positions preserved automatically by flat schema)
 - [x] **GROUP-04**: Cmd+G with N=0 or N=1 is a no-op (early return; matches Figma)
 - [x] **GROUP-05**: Cmd+G on a subset of an existing group dissolves prior group memberships and forms a new flat group (no nested groups in v2.11)
-- [ ] **GROUP-06**: Group bounding box ring renders around member AABB when group is selected (`editable={true}` gated)
-- [ ] **GROUP-07**: User can double-click a group member to enter the group (focuses leaf element; right-rail shows leaf properties)
-- [ ] **GROUP-08**: User can press Esc or click outside the group to exit it
+- [x] **GROUP-06**: Group bounding box ring renders around member AABB when group is selected (`editable={true}` gated)
+- [x] **GROUP-07**: User can double-click a group member to enter the group (focuses leaf element; right-rail shows leaf properties)
+- [x] **GROUP-08**: User can press Esc or click outside the group to exit it
 - [ ] **GROUP-09**: Group drag iterates members and applies same delta to each member's absolute position (skips locked members)
-- [ ] **GROUP-10**: Selecting any single member while NOT inside the group selects the entire group (Figma "select group" model)
+- [x] **GROUP-10**: Selecting any single member while NOT inside the group selects the entire group (Figma "select group" model)
 
 ### Smart Guides + Snapping (SNAP)
 
@@ -218,11 +218,11 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | GROUP-03 | Phase 62 | Complete |
 | GROUP-04 | Phase 62 | Complete |
 | GROUP-05 | Phase 62 | Complete |
-| GROUP-06 | Phase 62 | Pending |
-| GROUP-07 | Phase 62 | Pending |
-| GROUP-08 | Phase 62 | Pending |
+| GROUP-06 | Phase 62 | Complete |
+| GROUP-07 | Phase 62 | Complete |
+| GROUP-08 | Phase 62 | Complete |
 | GROUP-09 | Phase 62 | Pending |
-| GROUP-10 | Phase 62 | Pending |
+| GROUP-10 | Phase 62 | Complete |
 | SNAP-01 | Phase 63 | Pending |
 | SNAP-02 | Phase 63 | Pending |
 | SNAP-03 | Phase 63 | Pending |
