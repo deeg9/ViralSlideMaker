@@ -6,6 +6,7 @@ import {
   distributeElements,
   type AlignPatch,
 } from '@/lib/editor/transforms/align'
+import { applyZOrderToArray } from '@/lib/editor/transforms/z-order'
 
 const MAX_HISTORY = 50
 
@@ -863,6 +864,78 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       })
       if (slides.every((s, i) => s === state.present[i])) return state
       return pushHistory(state, slides)  // ALIGN-08: exactly one pushHistory
+    }
+
+    // Phase 64 Plan 03 (ZORDER-01..07, KBD-09): single Z_ORDER action routes
+    // per-scope internally. The pure transform `applyZOrderToArray` operates
+    // within ONE element-type array (text_boxes OR custom_images); the reducer
+    // calls it once per scope and merges the results into the slide. Watermark
+    // is a single slot — `applyZOrderToArray` on a length-1 implicit scope is
+    // always a ref-equal no-op (ZR7), so we skip watermark handling entirely.
+    //
+    // Contract:
+    //   - Empty ids → ref-equal short-circuit (ZR6).
+    //   - Cross-scope multi-selection → both arrays mutate, ONE pushHistory
+    //     entry (ZR3 / KBD-09 / PERF-01).
+    //   - text_boxes mutations route through applyDualWrite (BL-01) so the
+    //     legacy custom_texts mirror reflects the new array order (ZR5).
+    //   - No-op when no array changed (unknown ids, watermark-only ids,
+    //     adjacent-edge selections — ZR7 / ZR8).
+    //
+    // ZORDER-05 (Satori parity invariant) is enforced inside
+    // `applyZOrderToArray` — array splice ONLY, never CSS layering. The pure
+    // transform's grep gate confirms zero references to that property in
+    // its source.
+    case 'Z_ORDER': {
+      if (action.ids.length === 0) return state // ZR6 ref-equal
+      const idSet = new Set(action.ids)
+      let anyChange = false
+
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+
+        let nextTextBoxes = slide.text_boxes
+        let textBoxesChanged = false
+        if (slide.text_boxes) {
+          const candidate = applyZOrderToArray(slide.text_boxes, idSet, action.op)
+          if (candidate !== slide.text_boxes) {
+            nextTextBoxes = candidate
+            textBoxesChanged = true
+          }
+        }
+
+        let nextCustomImages = slide.custom_images
+        let customImagesChanged = false
+        if (slide.custom_images) {
+          const candidate = applyZOrderToArray(slide.custom_images, idSet, action.op)
+          if (candidate !== slide.custom_images) {
+            nextCustomImages = candidate
+            customImagesChanged = true
+          }
+        }
+
+        // Watermark: single slot. applyZOrderToArray on a length-1 implicit
+        // scope is a ref-equal no-op (the algorithm short-circuits when no
+        // swap is possible at array bounds). We don't construct the array;
+        // the watermark id simply matches no scope and the reducer no-ops.
+
+        if (!textBoxesChanged && !customImagesChanged) {
+          return slide
+        }
+        anyChange = true
+
+        let next: Slide = slide
+        if (textBoxesChanged && nextTextBoxes !== undefined) {
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (customImagesChanged) {
+          next = { ...next, custom_images: nextCustomImages }
+        }
+        return next
+      })
+
+      if (!anyChange) return state // ZR7 / ZR8 ref-equal short-circuit
+      return pushHistory(state, slides) // KBD-09: exactly one pushHistory
     }
 
     case 'UNDO': {
