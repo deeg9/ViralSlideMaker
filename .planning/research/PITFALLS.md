@@ -1,314 +1,492 @@
-# Pitfalls — v2.10 Text Box Resize Handles
+# v2.11 Full Editor Parity — PITFALLS
 
-**Domain:** Adding corner + top/bottom resize handles to text boxes in an existing slide editor
 **Researched:** 2026-05-02
-**Stack in play:** Next.js 15.5 + React 19, react-rnd 10.5.3, Satori (via `next/og` ImageResponse) for PNG export, CSS-transform-scaled 1080×1920 canvas, three render paths required to stay byte-identical (TPLREND-05)
-**Confidence:** HIGH on react-rnd / Satori facts (verified against GitHub issues, library README, and the in-repo source). MEDIUM on UX recommendations (Canva/Figma behaviour observed and cited but design decisions are pre-PMF judgement calls).
+**Mode:** Pitfalls — common mistakes when adding multi-select / groups / alignment / smart-guides / layers panel to a React + react-rnd + Satori editor
+**Overall confidence:** MEDIUM-HIGH (sources are real GitHub issues, official Figma/Canva help docs, fabric.js issue tracker, and confirmed web reports; some inferences from training data are flagged LOW)
 
-> **Read this before any other research file in `.planning/research/`.** The other files (STACK / FEATURES / ARCHITECTURE / SUMMARY) describe what to build; this file describes the specific code paths that will silently corrupt state, drift the editor away from the export, or feel jittery to users if the executor doesn't pre-mitigate them.
->
-> Each pitfall has: **failure mode**, **prevention**, **owner phase / file**. Pitfalls are split into "in scope, must address" (the executor cannot ship without a defensible answer for each) and "out of scope, worth noting" (defer with a one-line rationale).
-
----
-
-## In-scope (must address)
-
-### 1. CSS-transform scale + react-rnd handle math
-
-**Failure mode:** The slide canvas is rendered at REF_WIDTH=1080 / REF_HEIGHT=1920 and CSS-scaled to fit the viewport with `transform: scale(${scale})` on the inner wrapper (`slide-preview.tsx` line ~469). react-rnd's drag and resize math is computed in raw client pixels by default. Without correction, dragging a corner handle by 100 viewport pixels would resize the box by 100/scale canvas pixels — at scale=0.4 (typical for the editor) the box would grow ~250 canvas pixels for every 100 px of mouse travel, giving a "runaway" / "1.5×-too-fast" feel. This is documented in [react-rnd issue #110](https://github.com/bokuweb/react-rnd/issues/110) ("the problem when using transform: scale()") and [#766](https://github.com/bokuweb/react-rnd/issues/766) ("Rnd Components rerender will has wrong position when use scale").
-
-**Prevention:** The fix is the `scale` prop on `<Rnd>`. Per the [react-rnd README](https://github.com/bokuweb/react-rnd): *"Specifies the scale of the canvas your are resizing and dragging this element on. This allows you to, for example, get the correct resize and drag deltas while you are zoomed in or out via a transform or matrix in the parent of this element."* This codebase **already** passes `scale={scale}` on every existing `<Rnd>` (slide-preview.tsx lines 862, 939, 1027, 1160). The executor must:
-
-  1. **Preserve `scale={scale}` on every new Rnd instance and on every resize-related code path.** Do not introduce an "uncorrected" branch.
-  2. Never mix `transform: scale` with manual `e.clientX` math — the `scale` prop only patches the values that pass through `onDrag`/`onResize` data parameters. If the executor reaches into raw mouse events, they re-introduce the bug.
-  3. The reference dimensions (REF_WIDTH/REF_HEIGHT) are constants at the top of `slide-preview.tsx` — keep all percent ↔ pixel conversions in canvas units, not client units. The pattern `(data.x / REF_WIDTH) * 100` is the canonical conversion in this file; reuse it.
-  4. Test by recording: drag a corner handle 200 px in the viewport at ~30% canvas scale; assert that `text_boxes[i].position.width` changes by ~62% (200 / (REF_WIDTH * 0.3) * 100), not 18% or 200%.
-
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (the new `<Rnd enableResizing={{ topLeft: true, topRight: true, bottomLeft: true, bottomRight: true, top: true, bottom: true, ...}} />` block on the hook/body/custom branches).
+**Carry-forward warnings (do NOT re-research; already-known from v2.9/v2.10):**
+- CSS filters (`filter`, `backdrop-filter`, `mix-blend-mode`) silently break Satori PNG export — vercel/satori#573
+- Variable fonts unsupported by Satori — vercel/satori#162, #712
+- react-rnd dispatch on every onDrag/onResize tick pollutes undo history — must dispatch on `onDragStop` / `onResizeStop` only (already enforced at `slide-preview.tsx:996/1011/1106/1121/1225/1241/1410/1426`)
+- `hook-fit` auto-shrink at slide-preview.tsx:313 conflicts with explicit font-size overrides — v2.10 routes through `style_overrides.{hook,body}_font_size`
 
 ---
 
-### 2. Satori export drift (resize handles must not leak into the PNG)
+## CATEGORY 1 — Multi-select state pitfalls
 
-**Failure mode:** Satori does not understand `outline`, custom resize-handle DOM, hover/selection rings, or `react-rnd`'s injected `transform: translate(...)` wrapper styles. If the resize-handle JSX leaks into the non-editable branch (`editable={false}`), one of three things happens: (a) Satori crashes on an unsupported style and the PNG export 500s for the affected slide, (b) Satori silently ignores the styles and the export looks identical but the React preview now has visible resize handles drawn on top — instant TPLREND-05 parity violation, or (c) `react-rnd`'s outer `<div>` injects a `transform: translate(...)` that Satori either ignores (drift) or partially honours (worse drift, since [Satori has limited transform support](https://github.com/vercel/satori) and `display: flex` is mandatory on most parents).
+### 1.1 Stale ID references in selection set after element delete
+- **Symptom:** User deletes a text box; selection still includes its id; next "align" or "delete" tries to operate on a non-existent element and either crashes or silently drops 1 of N.
+- **Root cause:** `selectedIds` is a `Set<string>` decoupled from `slide.text_boxes / custom_texts / custom_images` arrays. Reducer mutates the arrays but does not prune the selection set in the same dispatch.
+- **Prevention rule:** Every reducer action that REMOVES an element MUST also filter `selectedIds` in the same step (reducer-level cross-update). For v2.11, fold this into the existing `applyDualWrite` pattern at `editor-reducer.ts:22` — add `applySelectionPrune(slide, selectedIds)`. Mirror in `REMOVE_TEXT_BOX`, `REMOVE_CUSTOM_TEXT`, `REMOVE_CUSTOM_IMAGE`, `REMOVE_SLIDE`, `DUPLICATE_SLIDE` (id regen at lines 121-128 already changes ids).
+- **Source:** Pattern matches the v2.8 BL-01 dual-write fix (live-preview reverted on save because reducer didn't atomically update both shapes — same class of bug). Internal reference: `editor-reducer.ts:7-21` BL-01 comment block.
+- **Phase:** **Phase 60 — Multi-select state design**
 
-**Prevention:** The codebase already enforces a hard branch split: `slide-preview.tsx` has a `if (!editable) { return <non-rnd JSX>; }` block (line 553) that runs *before* any `<Rnd>` is mounted. Every existing react-rnd-related affordance — selection rings, hover outlines, trash zone, alignment guides, double-click-to-edit — sits behind that gate. The new resize handles MUST follow the same pattern:
+### 1.2 Selection persisting across slide-switch
+- **Symptom:** User multi-selects 3 elements on slide 2, switches to slide 3, the right-rail still shows the slide-2 ids; align/distribute then targets ghosts.
+- **Root cause:** `selectedIds` lives at `SlideEditor` level (top-level `useState`); `selectedIndex` change does not clear it. Today's `selectedTextBoxId` in `useSlideEditor` already clears on slide change — multi-select state must inherit this contract.
+- **Prevention rule:** Selection state MUST be slide-scoped or cleared in a `useEffect` keyed on `selectedIndex`. If keeping it slide-scoped, store as `Map<slideIndex, Set<id>>`. Recommended: clear on slide change to mirror Figma's per-page selection model.
+- **Source:** Figma's selection model — selection state is tab/page-scoped per the [Figma layer-selection docs](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects).
+- **Phase:** **Phase 60 — Multi-select state design**
 
-  1. **Add resize handles only inside the editable branch.** Do not touch the non-editable JSX. The non-editable branch already renders hook/body/custom_text as plain absolute-positioned `<div>`s with `left: ${x}%; top: ${y}%; width: ${w}%`; these are what Satori reads (via `render-slide-satori.tsx`, which mirrors that DOM shape). If the schema gains a `height` field, the non-editable branch must also render `height: ${h}%` — and `render-slide-satori.tsx` + `render-slide.ts` (HTML) must be updated **in the same commit** or the byte-identity contract breaks.
-  2. **Never add `outline` / `box-shadow` selection rings to the schema.** Phase 52 specifically chose `outline` (not `border`) because Satori ignores it and CSS-outline doesn't reflow. If the executor stores selection state in the slide record (e.g. `slide.text_boxes[i].selected = true`), it will leak. Selection state lives in the React component's local state only.
-  3. **Test:** add a parity test in `src/__tests__/render` (alongside the existing `parity.test.tsx`) that renders the same slide with `editable={true}` then `editable={false}` and asserts no `[data-rnd]` / `<Rnd>` DOM survives the second pass. Also add a Satori snapshot test that renders the slide with the new schema fields populated and asserts the PNG byte hash matches a fixture.
-  4. **Three-renderer audit before PR merge:** open `slide-preview.tsx`, `render-slide.ts`, `render-slide-satori.tsx` side-by-side. Any new style key (`height`, `min-height`, etc.) must appear in all three or in none. v2.7 Phase 48 commit `e96fd3a` is the precedent — a Satori `display: flex` bug was hidden for an entire phase because only one renderer was audited.
+### 1.3 "Primary" element confusion in right-rail (last-clicked vs first-clicked)
+- **Symptom:** Multi-select 3 text boxes via marquee. Right-rail shows properties of "the one you clicked first" or "the highest in z-order" or "nothing at all" — three competing UX models, all defensible, all confusing if inconsistent.
+- **Root cause:** No locked decision on what "primary" means.
+- **Survey of leading tools:**
+  - **Figma:** Last-clicked layer becomes the "primary"; the right rail shows mixed/multi-value indicators (per [Figma multi-edit docs](https://medium.com/@joeyabanks/everything-to-know-about-multi-editing-in-figma-edd58369fd20)). Multi-edit applies typed values to ALL selected.
+  - **Canva:** Right rail collapses to a shared toolbar (font, color, align). No "primary" concept exposed to user.
+  - **Sketch:** Inspector shows mixed values as `–`; selection bounds drive transforms; no primary.
+  - **Adobe Illustrator:** Has explicit "key object" concept that you click again to set as the alignment anchor; this is documented as a UX gotcha (must set BEFORE opening Align panel — see [Illustrator UserVoice issue #39372850](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a)).
+- **Prevention rule:** Pick Canva's model — NO "primary" concept. The right-rail in multi-select shows a TYPE BAR (text-only ops, image-only ops, mixed ops) and applies edits to all. This avoids the Illustrator key-object UX trap entirely.
+- **Source:** [Figma multi-edit forum thread](https://forum.figma.com/ask-the-community-7/multi-selection-doesn-t-work-anymore-ever-since-the-multi-edit-update-was-released-11042) (LOW confidence on exact "last clicked" mechanic — Figma doesn't formally document the last-vs-first rule; verified empirically by community), [Illustrator key-object bug](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a).
+- **Phase:** **Phase 60 — Multi-select state design** (decision); **Phase 65 — Right-rail multi-select UX**
 
-**Owner:** Phase 1 / Phase 2 — `src/components/slides/slide-preview.tsx` (editable branch), `src/lib/render/render-slide-satori.tsx`, `src/lib/render/render-slide.ts`. Phase-end gate: add a parity test pin.
-
----
-
-### 3. Auto-fit vs explicit height (schema decision drives every other pitfall)
-
-**Failure mode:** The current `TextBoxPosition` has only `x`, `y`, `width` — no `height`. Three viable schema choices, each with distinct failure modes:
-
-  - **(A) Stay auto-fit (no `height` field).** Box height is determined by content. Resize-handle drag on the bottom edge resizes *width* only (rejected because the user dragged a vertical handle and saw nothing happen — feels broken). Top/bottom corner-drags either map to font-size (next pitfall) or are disabled.
-  - **(B) Add explicit `height` field.** User can drag bottom handle and the box height changes. **But** if content > height, what happens? Three sub-failure-modes:
-    - `overflow: hidden` → text gets silently clipped mid-letter — looks like a render bug, especially in the Satori PNG where the user can't even see the cursor to know they're editing.
-    - `overflow: visible` → text spills outside the box, defeating the purpose of having a height.
-    - Auto-shrink font-size to fit → fights with the existing `news-hook-fit.ts` registry (pitfall 9), and font-size slider in the right rail goes out of sync with the visual (pitfall 4).
-  - **(C) Auto-fit with min-height.** Box auto-grows to content, but the user can drag a `min_height` floor so an empty box stays a fixed visual size. This matches Figma's "Auto Height" mode ([Figma docs](https://help.figma.com/hc/en-us/articles/27378154668951-Adjust-text-dimensions-and-resizing): "Auto Height — the height of the text layer will grow and shrink depending on its contents"). Avoids clipping entirely.
-
-**Prevention:** Pick **(C) auto-fit with optional min-height** as the default for hook/body and use **(B) explicit height with `overflow: hidden` + visible end-of-line indicator** for custom text boxes only if a strong UX case emerges. Rationale:
-
-  1. Hook/body currently auto-fit and have a `news-hook-fit.ts` shrink curve that the renderer parity tests pin. Switching to explicit-height would invalidate every existing slide. (C) preserves those slides byte-identical.
-  2. Auto-fit + min-height matches Figma's "Auto Height" — proven design-tool pattern.
-  3. Explicit height with clipping is a Canva-style ([Canva Help — Resize designs](https://www.canva.com/help/resize/)) trap: users routinely complain content gets cut off when they don't realize they're editing inside a fixed-height box.
-  4. Schema: add `position.min_height?: number` (optional, percent of canvas). When present and content height < min_height, box renders at min_height. When absent, fully auto-fit. Top/bottom resize handles set `min_height`. Corner resize on hook/body still scales font (pitfall 4) but only after the user opts in via a modifier (Shift) — see pitfall 4.
-  5. **Do not change the existing `TextBox.position` storage shape for legacy slides** — the `min_height` field is optional and back-compat. Renderer parity is preserved when the field is absent.
-
-**Owner:** Phase 0 (schema) / `src/lib/types/slide.ts`. Decision must be made before any `<Rnd>` props are touched in Phase 1.
-
----
-
-### 4. Font-scaling on corner drag
-
-**Failure mode:** If corner-drag scales the font (the "Canva text-box" feel), four bugs cluster:
-
-  1. **Linear coupling looks broken at extremes.** A 1px / 1px coupling means dragging a corner 200px shrinks a 120px font to 120 - 200 = -80 (clamped to a min, but the box looks empty). A `0.5×` coupling looks unresponsive.
-  2. **Aspect-ratio coupled to width-only feels right but breaks on tall slides.** New font_size = base * (newWidth / oldWidth) is the Canva model. But hooks tend to wrap, so widening 50% rarely needs a 50% font bump.
-  3. **The font-size slider in the right rail goes out of sync.** The user drags a corner, font becomes 96px, but the slider still says 120px. Then they bump the slider to 130px and the box "snaps back" — they lost their corner-drag state.
-  4. **Undo/redo loses the relationship.** Each pointermove fires `UPDATE_TEXT_BOX`, history fills, and undo unwinds size + font in lockstep but at the granularity of pointer ticks (pitfall 8).
-
-**Prevention:**
-
-  1. **Default: corner drag resizes the box only (width + height/min-height).** No automatic font-scaling. This matches every modern tool's default (Figma, Sketch, Adobe XD all separate text-box-resize from text-scale).
-  2. **Opt-in font scaling via `Shift+corner-drag` (Canva precedent).** When Shift is held during a corner drag, scale `font_size` proportionally to `Math.sqrt((newWidth * newHeight) / (oldWidth * oldHeight))` (sqrt-of-area, so a 2× area increase = 1.41× font, intuitive for "zoom" mental model). Update `font_size` AND `position.width` in the same `UPDATE_TEXT_BOX` action so they round-trip.
-  3. **Single source of truth.** The right-rail font-size slider reads from `text_boxes[i].font.size` — which is the same field the corner drag writes. After corner drag completes, the slider re-renders to the new value automatically. Never store font-size in two places.
-  4. **Clamp aggressively.** `font.size` is clamped to `[12, 320]` in the reducer (similar to existing custom-text font-size clamps in `editor-reducer.ts`). Out-of-bounds drags are silently clamped, not rejected.
-  5. **Snapshot test:** Shift+drag from corner with mocked pointer-event sequence, assert final `font.size` matches sqrt-of-area formula within ±1px tolerance.
-
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` `onResize` callback + `src/lib/editor/editor-reducer.ts` `UPDATE_TEXT_BOX` clamp.
+### 1.4 Set vs Array mutation — React refs not updating because reducer didn't return a NEW Set
+- **Symptom:** User Shift-clicks to add to selection; canvas shows the new element selected but right-rail doesn't update; or vice-versa.
+- **Root cause:** `selectedIds` is a `Set`; `selectedIds.add(id); return state` mutates in place; React `===` ref check fails to detect change; downstream `useMemo`/`React.memo` consumers skip re-render.
+- **Prevention rule:** ALWAYS construct a new Set: `return new Set([...prev, id])` or use `Set` reducer functions that produce new instances. Confirm via a test: `expect(next).not.toBe(prev)`. Same lesson as `editor-reducer.ts:148` style_overrides spread.
+- **Source:** General React state-immutability rule — see [React docs on updating state](https://react.dev/learn/updating-objects-in-state). Same class of bug repeatedly seen in the existing `editor-reducer.ts` shape (always uses spread).
+- **Phase:** **Phase 60 — Multi-select state design**
 
 ---
 
-### 5. Snap-to-grid / alignment guides — already shipped, preserve don't break
+## CATEGORY 2 — Marquee selection pitfalls
 
-**Failure mode:** The codebase already has snap/alignment guides (`src/hooks/use-alignment-guides.ts`, integrated in `slide-preview.tsx` lines 877-881, 942-955). They run on `onDrag`. If the executor naively wires resize callbacks without including snap, two things happen:
+### 2.1 Pointer-events going to elements instead of canvas root
+- **Symptom:** User mouse-downs on canvas whitespace to start a marquee; the drag never starts because the click was captured by an absolutely-positioned text box wrapper sitting at z-index 0 over the entire canvas.
+- **Root cause:** react-rnd places its `position: absolute` wrapper covering the box; if any prop blocks event bubbling or the wrapper has padding that extends past the visible glyphs, the marquee never receives `pointerdown`.
+- **Prevention rule:** Marquee handler must attach to the `editable={true}` canvas-root `div` and use `e.target === e.currentTarget` to skip when click originated on a child. Also: `pointer-events: none` on selection rings and smart-guide overlays. Sibling pattern: `slide-preview.tsx` already uses click-on-wrapper for `onTextBoxSelect` — marquee MUST run on a STRICTLY OUTER wrapper that is below those handlers.
+- **Source:** [react-rnd issue #609 — pointerEvents being triggered when dragging over iframe](https://github.com/bokuweb/react-rnd/issues/609) (same root cause, different surface). General guidance from [Pointer Events MDN](https://javascript.info/pointer-events).
+- **Phase:** **Phase 61 — Marquee selection**
 
-  1. Resizing a box near a centre-line drifts off-centre by 1-3 px because the snap only fires on drag, not resize.
-  2. After resize, the *position* of the box is changed by react-rnd (resizing from top-left moves the bottom-right anchor) and bypasses the snap calculator entirely, so a user resizing-then-stopping next to an aligned-element ends up off-grid even though they were in the snap zone.
+### 2.2 Marquee on top of locked elements — should still select?
+- **Symptom:** User marquees the canvas; locked watermark IS or ISN'T included — three tools disagree.
+- **Survey:**
+  - **Figma:** Locked elements are EXCLUDED from marquee selection unless you explicitly target them. Click-to-select still works on them.
+  - **Canva:** Locked elements are EXCLUDED from marquee.
+  - **Photoshop:** Locked layers ARE selectable but not movable.
+- **Prevention rule:** Pick Figma's model — locked elements are visually indicated but excluded from marquee. Reasoning: matches Canva, matches the dominant carousel-tool reference.
+- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions) confirm locked elements participate in alignment math but lock prevents move; [Photoshop community thread](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508) confirms Photoshop selects through locked groups (anti-pattern).
+- **Phase:** **Phase 61 — Marquee selection** + **Phase 64 — Lock/hide**
 
-**Prevention:**
+### 2.3 Marquee rect normalization (drag bottom-right → top-left = negative width)
+- **Symptom:** User drags the marquee from bottom-right corner up to top-left; nothing inside is selected because the rect has `width: -200, height: -150` and intersection check `x >= rect.x && x <= rect.x + rect.width` evaluates falsy.
+- **Root cause:** Untreated negative dimensions in the rect.
+- **Prevention rule:** Normalize before intersection: `const rect = { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2-x1), h: Math.abs(y2-y1) }`. Centralize in a `normalizeRect()` helper. Add a unit test with all 4 drag directions.
+- **Source:** Classic geometry bug; see general DOM bounding-rect guidance and [Aseprite marquee-grid bug discussion](https://community.aseprite.org/t/grid-and-rectangular-marquee-tool-bug/10718) (rectangle-tool edge-cases tracked in real shipped apps).
+- **Phase:** **Phase 61 — Marquee selection**
 
-  1. **Add snap to the resize callbacks too.** In `onResize` (during, not stop), call `calculateSnap()` with the dragging box's bounds AND apply the result by adjusting BOTH `data.x/y` AND `ref.style.width/height` so the snap holds at all four edges. Pattern: snap edge-by-edge — if resizing from `bottomRight`, snap the right edge to the nearest vertical guide and snap the bottom edge to the nearest horizontal guide independently.
-  2. **Clear guides in `onResizeStop` and `onResizeEnd`** — the existing `clearGuides()` is called on `onDragStop` only. Mirror that for resize.
-  3. **Don't snap in two axes when the user is only dragging one handle.** A `top-only` handle drag should never adjust `x` or `width`. The existing `enableResizing` map (`{ top: true, bottom: true, ... }`) controls which axes are mutable; respect that in the snap math.
+### 2.4 touchstart vs pointerdown — react-rnd touch handlers swallowing marquee
+- **Symptom:** On iPad/iPhone Safari, touch-drag on canvas whitespace either does nothing (event captured by react-rnd wrappers) or drags a random element instead of starting a marquee.
+- **Root cause:** react-rnd attaches both touch and mouse listeners; on touch devices, event order is `touchstart → mousedown` and react-rnd's wrappers capture first. Documented in [react-rnd issue #58 — touch problems to resize elements](https://github.com/bokuweb/react-rnd/issues/58).
+- **Prevention rule:** Use `pointerdown` (unified) on the canvas root, not `mousedown`. Stop propagation in react-rnd's bound `onMouseDown`/`onTouchStart` for ITEMS (already gated). For marquee start, check `e.target === e.currentTarget` (rule 2.1). Carry forward v2.10's iPhone Safari touch QA gate to v2.11 — A11Y-01 still deferred.
+- **Source:** [react-rnd issue #58](https://github.com/bokuweb/react-rnd/issues/58); v2.10 audit (A11Y-01 still pending, MILESTONES.md:42).
+- **Phase:** **Phase 61 — Marquee selection**
 
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` `onResize` (new) + `src/hooks/use-alignment-guides.ts` (no change unless an axis-restricted snap is needed).
-
----
-
-### 6. Multiple text boxes overlapping during resize
-
-**Failure mode:** When user resizes a box and it grows over another text box, what's the policy? Three options observed in design tools:
-
-  - **Push** (CSS auto-layout in Figma): the other box gets shoved aside. **But:** [Figma's auto-layout containers refuse to overlap](https://forum.figma.com/ask-the-community-7/overlap-elements-in-auto-layout-39792) — overlap is only allowed in non-auto-layout free-position frames. This codebase is non-auto-layout (free positioning by `x/y` percentage), so push is wrong.
-  - **Allow overlap** (Figma free-position frames, Canva default): the boxes just overlap, z-index decides what's on top. The user can adjust manually after.
-  - **Block resize** (none of the major tools): forbid the resize that would cause overlap. Feels broken — the user wonders why the handle stopped moving.
-
-**Prevention:**
-
-  1. **Allow overlap by default.** Match Canva/Figma free-position behaviour. The slide canvas is creative-tool territory, not a layout-engine container — overlap is a feature, not a bug (e.g. text on top of an image).
-  2. **z-index: hook = 10, body = 10, custom_texts = 15, custom_images = 12, watermark = 18-19.** This is already established in `slide-preview.tsx`. New resize handles must not change these.
-  3. **Do not auto-deduplicate / collision-resolve in the reducer.** Storing a box with overlapping bounds is fine; the renderer handles z-index.
-  4. **No additional warnings or modals.** Overlap is intentional. Users who don't want it will adjust manually.
-
-**Owner:** Phase 1 / no code change required, but document this decision in the phase plan so a future engineer doesn't add a "fix" for overlap.
-
----
-
-### 7. Mobile/touch — react-rnd works but handles need bigger hit targets
-
-**Failure mode:** react-rnd 10.5.3 supports touch events by default (it wraps `react-draggable` which has touch support). However, the existing image-resize handles in `slide-preview.tsx` are **8×8 px visual size with a 1px border** (lines 1147-1153) — well below the [WCAG 2.5.8 minimum target size of 24×24 CSS pixels](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html). On touch, users will need 3-5 attempts to grab the handle, especially at the editor's typical 30-40% canvas scale where the visual hit area shrinks further to ~3px on screen.
-
-**Prevention:**
-
-  1. **Visual size: 12×12 px (or 4×40 for top/bottom edge bars, matching the existing `resizeHandleStyle`).** Visual matches Figma's small handle aesthetic.
-  2. **Hit area: 24×24 px minimum, 32×32 px preferred.** Pad the handle with an invisible `::before` pseudo-element or a wrapper `<div>` with `position: absolute; inset: -10px;` to extend the hit zone without enlarging the visual. WCAG 2.5.8 AA = 24×24, AAA = 44×44 ([Smashing Magazine](https://www.smashingmagazine.com/2023/04/accessible-tap-target-sizes-rage-taps-clicks/)).
-  3. **Account for the canvas scale.** At canvas scale=0.4, a 24px-CSS hit area renders at 60px on the editor canvas (24 / 0.4). Accept this — bigger is better on mobile, and it doesn't show in the export because it's on the editor-only DOM.
-  4. **Test on iOS Safari touch.** The user explicitly noted "TikTok creators commonly post-from-mobile." Run a manual touch QA on the deployed preview.
-  5. **Don't rely on hover.** The `hover:outline` selection ring in `slide-preview.tsx` (line 909) does not fire on touch. Selection ring must show on `focus` / `active` / `selectedTextBoxId == box.id` — the existing dashed ring already does this.
-
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (resize handle styles + invisible hit-area wrappers). Phase-end gate: manual touch test on iPhone Safari.
+### 2.5 Marquee accidentally triggered while clicking on a deeply-nested child
+- **Symptom:** User clicks on an SVG icon inside a custom_image overlay; marquee starts; user thinks the click did nothing.
+- **Root cause:** Click handler doesn't check `e.target === e.currentTarget` strict equality — `target` is the deep child, `currentTarget` is the canvas, but the equality check at the canvas-root level is satisfied unless we explicitly stop propagation at element level.
+- **Prevention rule:** EVERY interactive child must `stopPropagation()` on `pointerdown` to prevent marquee from initiating. Confirm in Storybook: marquee MUST NOT start when clicking inside ANY text box, image, watermark, smart-guide overlay.
+- **Source:** Inferred from the slide-preview.tsx click-routing pattern lines 877-886 (selection ring conditionals). LOW confidence (general React DOM handling).
+- **Phase:** **Phase 61 — Marquee selection**
 
 ---
 
-### 8. Undo/redo correctness — every resize tick must NOT push history
+## CATEGORY 3 — Group pitfalls (THE LANDMINE)
 
-**Failure mode:** Look at `src/lib/editor/editor-reducer.ts` line 270 — `case 'UPDATE_TEXT_BOX': ... return pushHistory(state, slides)`. Every `UPDATE_TEXT_BOX` action pushes a new entry to the undo stack. react-rnd fires `onResize` on every pointer move (~60 fps). A 1-second drag = ~60 history entries. After 5 drags, undo'ing once feels like "nothing happened" — the user has to mash Cmd+Z 60+ times to go back one resize. `MAX_HISTORY` (in editor-reducer.ts) caps the stack but the symptom remains: 60 ticks of one drag flush legitimate prior history off the back.
+### 3.1 Group transform compounding — mutate children OR add a group transform?
+- **Symptom:** User groups 3 elements with absolute positions, drags the group 100px right; on save, individual element positions are mutated 100px AND a group offset of 100px is also stored — children visually jump 200px.
+- **Root cause:** Two competing mental models combined: (a) flat schema where group is just a logical wrapper and drag mutates each child, (b) tree schema where group has its own transform and children are relative. Combining both = double translation.
+- **Prevention rule for v2.11:** **Pick FLAT schema.** No group transform on the saved model. Reasoning: TPLREND-05 — Satori's `render-slide-satori.tsx` walks `text_boxes / custom_images` arrays with absolute positions; introducing a group-transform layer would force a Satori-compatible group renderer (which Satori only partially supports, see vercel/satori on transforms), breaking the byte-identical contract.
+- **Implementation:** Group is a UI-only construct. Schema gets `group_id?: string` on each element. Drag-on-group iterates children and applies the same delta to each child's `position.x/y` — saved as flat. UNGROUP just clears `group_id` field. Editor's group bounding-box is computed in the editor only.
+- **Source:** [react-moveable groupable docs](https://github.com/daybrush/moveable/blob/master/packages/react-moveable/groupable.md) — explicit warning: "If the transform overlaps from the root element to the parent element, the distance it moves is not equal to the amount actually moved." This is the exact compounding hazard. [fabric.js issue #4163 — Grouping & Active Selection Position Bug](https://github.com/fabricjs/fabric.js/issues/4163) shows real-world bug from this pattern. [fabric.js issue #1798 — Ungrouping items changes the original position](https://github.com/fabricjs/fabric.js/issues/1798) shows the symmetric ungroup hazard.
+- **Phase:** **Phase 62 — Group/Ungroup design** (schema decision); **Phase 67 — TPLREND-05 parity audit**
 
-**Prevention:**
+### 3.2 Ungroup losing positions because rotation/skew didn't compose
+- **Symptom:** User rotates a group, then ungroups — children end up axis-aligned instead of preserving their visual rotated positions.
+- **Root cause:** Group has rotation; children's rotation isn't multiplied through correctly on ungroup.
+- **Prevention rule:** v2.11 explicitly DOES NOT support rotation (carried forward from v2.10 deferred ROTATE-01). Group rotation = out of scope. If user rotates a non-grouped element later (v3.0+), revisit this. For now: groups have NO rotation, NO skew, NO scale — only logical id binding.
+- **Source:** [fabric.js issue #4392 — flipX-rotation interaction](https://github.com/fabricjs/fabric.js/issues/4392), [fabric.js #6315 — ungroupOnCanvas does not restore object state correctly](https://github.com/fabricjs/fabric.js/issues/6315), [fabric.js #1798 — Ungrouping items changes the original position](https://github.com/fabricjs/fabric.js/issues/1798).
+- **Phase:** **Phase 62 — Group/Ungroup design**
 
-  1. **Use `onResizeStop` (and `onDragStop`) for the history-pushing dispatch, not `onResize`.** This is exactly the pattern react-rnd documents — `onResizeStop` fires once at the end of the gesture. The codebase already does this for the existing `onPositionChange`/`onWidthChange` calls (lines 882, 957, etc.). Mirror the pattern.
-  2. **For live preview during drag, use a non-history-pushing channel.** Two options:
-     - **Local state only:** during drag, react-rnd renders from its own internal state and the slide store is not touched. On `onResizeStop`, dispatch `UPDATE_TEXT_BOX`. This is what the existing code does for position drag and it's correct.
-     - **Add a `UPDATE_TEXT_BOX_TRANSIENT` action** that mutates `state.present` without calling `pushHistory()`, used during drag, and a finalising `UPDATE_TEXT_BOX` on stop. Only needed if other components must reactively re-render mid-drag (currently they don't).
-  3. **Single history entry per gesture.** Test: start with stack length 0, drag a corner from 100×100 to 200×200 in 30 ticks, assert stack length is 1 (not 30) after `onResizeStop`. Add the test to `src/lib/editor/__tests__/editor-reducer.test.ts`.
-  4. **Don't try to "merge" consecutive history entries by timestamp.** It's brittle — pure stop-event dispatch is correct.
+### 3.3 Nested groups — Cmd+G inside a group
+- **Symptom:** User has 3 elements grouped (group A); shift-clicks 2 of them and presses Cmd+G — does it (a) create a NEW group containing those 2 inside A, or (b) flatten — extract those 2 from A into a new group, or (c) wrap all 3 plus a new dimension?
+- **Survey:** Figma supports nested groups (creates inner group inside the outer). Canva does not — it auto-flattens.
+- **Prevention rule for v2.11:** **No nested groups in v2.11.** Pick Canva's flatten model. Reasoning: pre-PMF, nesting adds significant schema complexity (`group_id` becomes `group_path: string[]`); ungroup walk becomes recursive; layers panel needs tree rendering. Defer to v3.0+. If user Cmd+G's a subset already inside a group, the action is a no-op or "remove from existing group + form new group" — pick the latter to avoid silent failures.
+- **Source:** Figma's nested-group docs ([layer-selection help](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects)); [react-moveable issue #947 — Group and Ungroup Custom Ables](https://github.com/daybrush/moveable/issues/947) (community asking for explicit grouping API — confirms libs don't ship this primitive turnkey).
+- **Phase:** **Phase 62 — Group/Ungroup design**
 
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (`onResize` is local-only, `onResizeStop` dispatches). Phase-end test: history-stack-size assertion.
+### 3.4 Empty groups — Cmd+G with 0 selected
+- **Symptom:** User presses Cmd+G with nothing selected; some implementations crash, some silently create an empty group node, some do nothing.
+- **Prevention rule:** Cmd+G with `selectedIds.size === 0` MUST be a no-op (early return in handler). Cmd+G with size 1 — pick: NO-OP (Figma — single elements ARE already a group of 1) OR allow (Adobe — group-of-one is a structural wrapper). Recommend NO-OP for v2.11 to match Figma + simplicity.
+- **Source:** Inferred from Figma/Canva behavior; LOW confidence on definitive doc.
+- **Phase:** **Phase 62 — Group/Ungroup design**
 
----
+### 3.5 Group containing locked + unlocked children — drag behavior?
+- **Symptom:** User groups 3 elements where 1 is locked (e.g., watermark); drags the group; the locked one moves anyway.
+- **Prevention rule:** Group drag MUST iterate children and skip those with `locked=true`. Visual: the group-bounding-box drag still works for the unlocked 2; the locked watermark stays put. Document this. If the group ends up "broken apart" visually, that's the user's signal that they have a locked child.
+- **Source:** Inferred from Figma's lock-prevents-move behavior; [Sketch alignment docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/) — locked layers can be alignment anchors but won't move. LOW confidence.
+- **Phase:** **Phase 62 — Group/Ungroup design** + **Phase 64 — Lock/hide**
 
-### 9. Auto-shrink interaction with `news-hook-fit.ts`
-
-**Failure mode:** `src/lib/render/hook-fit.ts` (the file is `hook-fit.ts`, not `news-hook-fit.ts`) is a per-template registry that returns a smaller `hookFontSize` when `slide.hook_text` is long (lines 15-118). It runs in BOTH renderers (`slide-preview.tsx` line 309 and the Satori path) so the hook auto-shrinks on long text. Three failure modes if v2.10 isn't careful:
-
-  1. **Manual `font_size` set via corner drag is silently overridden by the auto-fit.** User Shift+corner-drags hook from 110px to 80px on the `news-drop` template. The renderer hits `hook-fit.ts`, sees a 14-char hook, applies the `scale: 1` step → renders at 110px. User's drag is invisible. (This bug already exists for the right-rail font-size slider but is hidden because the slider only operates on `style_overrides.hook_font_size`.)
-  2. **Conversely:** if v2.10 adds an explicit `text_boxes[i].font.size` and routes it through `style_overrides.hook_font_size` (the existing override field), then the registry's auto-fit is bypassed (line 310: `overrides.hook_font_size == null && hasHookFit(template.id)`) — which is correct. But if the executor adds a NEW field (e.g. `text_boxes[i].font.size_override`) that the registry doesn't check, the auto-fit fights the user's drag.
-  3. **Corner-drag width affects character-count threshold indirectly.** The registry uses `hookText.length` (line 127) to pick a step. It does not consider box width. If the executor "fixes" this by feeding box width into the registry, every existing slide gets a different render = TPLREND-05 violation, every parity test fails.
-
-**Prevention:**
-
-  1. **Route v2.10 corner-drag font-size through the existing `style_overrides.hook_font_size` field, not a new field.** Line 313 (`const hookFontSize = overrides.hook_font_size ?? autoFitHookSize ?? baseHookSize`) already prioritises explicit override > auto-fit > template default. v2.10 just sets `overrides.hook_font_size` and the precedence works.
-  2. **Body and custom_text don't have auto-fit.** No interaction — straightforward.
-  3. **Do NOT modify `hook-fit.ts`.** Adding a width parameter to the registry would invalidate every legacy slide. If the executor needs width-aware shrink, add a SEPARATE width-aware path that runs only for slides with `text_boxes[i].position.height` set (i.e. v2.10 schema). Legacy slides (no height) keep using the registry unchanged.
-  4. **Test:** create a slide with `template_id='news-drop'`, hook 14-char (would naturally fit at 110px), set `style_overrides.hook_font_size = 80`. Assert renderer uses 80px, not 110px. Then unset the override; assert renderer uses 110px. This test already exists in spirit in `slide-preview.test.tsx` — extend if needed.
-
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (don't touch hook-fit.ts; just route through existing override).
-
----
-
-### 10. Performance — re-render on every pointermove
-
-**Failure mode:** `<SlidePreview>` is a 1400-line component with many derived values (`resolveSlideStyles`, `resolveOverlayContent`, `resolveWatermark`, `resolveForcedWatermark`, `buildOthersForSnap`). On a drag, react-rnd causes the wrapper `<Rnd>` to update its internal state ~60×/second. If the executor wires `onResize` to `setState` on the parent (slide store), every tick re-runs all of those resolvers. On a low-end laptop, the editor drops to 20-30fps mid-drag.
-
-**Prevention:**
-
-  1. **Don't lift drag state up.** During a drag/resize, react-rnd manages its own visual state internally — the parent only needs to know the final value on `onResizeStop`. The existing code does this correctly for position/width — preserve the pattern.
-  2. **Use refs (not state) for transient drag values.** If the executor needs to expose mid-drag values (e.g. live position display in the right rail), use a ref + `requestAnimationFrame` to throttle to 1× per frame max.
-  3. **Memoise the expensive derivations.** `resolved = resolveSlideStyles(slide, template)` (line 372) re-runs on every render. It's pure — wrap in `useMemo([slide, template])`. Same for `buildOthersForSnap` (already wrapped at line 538 with `useCallback`, but its deps include `slide.custom_texts` which changes by reference on every store mutation — consider `useMemo` over deep-equal once if drag perf is an issue).
-  4. **Profile before optimising.** Add a v2.10 perf gate: run the editor in Chrome devtools Performance, drag a corner for 2 seconds, assert frame rate stays ≥ 55fps. If it drops, profile and memoise specifically; do not preemptively memoise everything.
-
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (drag state stays in react-rnd, dispatch on stop). Phase-end perf gate is optional — only add if a manual smoke test feels jittery.
+### 3.6 Schema migration trauma
+- **Symptom:** v2.11 ships with `group_id?: string` field on text_boxes/custom_texts/custom_images; existing 53 projects have undefined group_id; all group operations must reconcile.
+- **Root cause:** Adding nullable field across 3 element types = no migration needed BUT every group operation must handle undefined-as-no-group.
+- **Prevention rule:** Match the v2.8 unification pattern — group_id defaults to undefined, treated as "ungrouped"; reducer never assumes presence. Add an adapter `getGroupBounds(elements: Element[], groupId: string)`. NO Supabase migration needed (additive nullable). Mirror v2.8 deferred-sunset reasoning.
+- **Source:** v2.8 schema migration playbook (MILESTONES.md:104-127); v2.8 `text_boxes?:` field was additive nullable, no migration.
+- **Phase:** **Phase 62 — Group/Ungroup design**
 
 ---
 
-### 11. `lockAspectRatio` trap on text boxes
+## CATEGORY 4 — Alignment / distribute pitfalls
 
-**Failure mode:** The image-resize block in `slide-preview.tsx` uses `lockAspectRatio={true}` (line 1162). This is correct for images. If the executor copy-pastes that block as the starting point for text-box resize handles, they inherit `lockAspectRatio` — but text boxes shouldn't lock aspect ratio. A locked aspect ratio means dragging the right edge also moves the bottom edge, which is wrong for text (you usually want narrow + tall, or wide + short, not proportional both).
+### 4.1 Align with N=1 selected
+- **Symptom:** User selects 1 element, clicks "Align Center"; Figma aligns to canvas; Canva does the same; some homegrown tools no-op.
+- **Survey:**
+  - Figma: With N=1, default is align-to-FRAME (parent canvas). [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions) confirm.
+  - Sketch: With N=1 outside a frame, alignment is DISABLED. [Sketch docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/) confirm.
+- **Prevention rule:** Pick Figma's model — N=1 aligns to canvas (1080×1920). Don't disable buttons; users find that infuriating.
+- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions); [Sketch alignment docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/).
+- **Phase:** **Phase 63 — Align/Distribute**
 
-**Prevention:**
+### 4.2 Distribute with N=2
+- **Symptom:** User selects 2 elements, clicks "Distribute Horizontally"; expected: aligns to selection extents (essentially align-equal); some tools no-op.
+- **Survey:**
+  - Figma: distribute with N=2 is a no-op visually but doesn't error.
+  - GIMP: distribute requires MINIMUM 3 selected (reported in [GIMP docs](https://docs.gimp.org/3.0/en/gimp-tool-align.html)).
+- **Prevention rule:** Disable distribute buttons when N < 3 (matches GIMP, semantically clean — "distributing 2 things" is meaningless). Show tooltip: "Select 3+ elements to distribute."
+- **Source:** [GIMP align docs](https://docs.gimp.org/3.0/en/gimp-tool-align.html) explicit.
+- **Phase:** **Phase 63 — Align/Distribute**
 
-  1. **Explicit `lockAspectRatio={false}` on text-box `<Rnd>` instances.** Default react-rnd is unlocked, but if Shift-modifier-during-drag is supposed to enable temporary lock (Figma pattern), the executor must implement the modifier explicitly because react-rnd's `lockAspectRatio` is a static prop, not a runtime modifier.
-  2. **Shift = font-scale (per pitfall 4), not aspect-lock.** Pick one Shift behaviour. Don't overload.
+### 4.3 Align-to-canvas vs align-to-selection — toggle UX confusion
+- **Symptom:** User multi-selects 3 elements, clicks "Align Left" — expects them to all snap to the leftmost selected, not the canvas edge. Or vice-versa.
+- **Survey:** Figma default: with N≥2 → align to selection bounds; with N=1 → align to parent. With explicit "Align to canvas" toggle in some flows. Canva: same default.
+- **Prevention rule:** Align-to-SELECTION is default for N≥2; align-to-CANVAS for N=1. Add a small toggle (icon-button, "Align to: Canvas | Selection") in the alignment menu so power users can override. Default per common pattern; document in tooltip.
+- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions).
+- **Phase:** **Phase 63 — Align/Distribute**
 
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (text-box `<Rnd>` props).
+### 4.4 Floating-point creep — repeatedly aligning then nudging accumulates rounding errors
+- **Symptom:** User aligns 3 boxes left, nudges them with arrow keys, aligns again — left edge values drift to e.g. 47.9999999999.
+- **Root cause:** `Math.min(...edges)` + arithmetic over multiple rounds produces non-integer pixel values; on save the schema stores them; on next align the input is non-integer.
+- **Prevention rule:** ROUND on dispatch — every alignment dispatch wraps positions in `Math.round()`. Schema is integer pixels; serializer enforces. Add a unit test: `align → nudge → align → values are integers`.
+- **Source:** General floating-point hazard; reflects fabric.js position-restoration bugs ([issue #1798](https://github.com/fabricjs/fabric.js/issues/1798)).
+- **Phase:** **Phase 63 — Align/Distribute**
 
----
+### 4.5 Alignment after rotation — does "left" mean bounding-box-left or pre-rotation-left?
+- **Symptom:** Element rotated 30°; user clicks "Align Left" — expects bounding-box left (post-rotation) but gets pre-rotation left.
+- **Prevention rule:** v2.11 has NO rotation (carry-forward from v2.10). Skip this pitfall for now. If rotation lands in v3.0+, MUST use bounding-box-left (matches Figma/Sketch).
+- **Source:** Inferred; deferred per v2.10 ROTATE-01 deferral.
+- **Phase:** Defer to v3.0+ rotation milestone
 
-### 12. Reducer integrity — `UPDATE_TEXT_BOX` schema and dual-write
+### 4.6 Distribute by edges vs by gaps vs by centers
+- **Symptom:** User clicks "Distribute Horizontally" — three valid math operations (equal-edge-spacing, equal-gap, equal-center) yield different results. User expects one but gets another.
+- **Survey:** Figma default = equal SPACING between elements (gap-based). Illustrator default = equal CENTERS. Sketch = equal SPACING.
+- **Prevention rule:** Pick equal SPACING (gap-based) — matches Figma + Sketch + Canva. Don't expose the three-mode toggle in v2.11 (Adobe pattern is the noisier UX).
+- **Source:** [Sketch align docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/), [Figma align docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions).
+- **Phase:** **Phase 63 — Align/Distribute**
 
-**Failure mode:** v2.8 introduced the `applyDualWrite` reducer pattern (BL-01 in v2.8 Phase 50): every TextBox edit also writes the legacy `hook_text` / `body_text` / `custom_texts` fields so the renderer (which still reads legacy on some paths) stays in sync. If v2.10 adds new fields to `TextBox.position` (e.g. `height`, `min_height`) and the dual-write path doesn't propagate them to a legacy-equivalent field, the live preview can diverge silently from the saved state — same class of bug as BL-01.
-
-**Prevention:**
-
-  1. **Audit `text-box-adapter.ts` (`legacyToTextBoxes` / `textBoxesToLegacy`).** Any new schema field must round-trip. If there's no legacy equivalent for `position.height` (likely — legacy didn't have height), the adapter just ignores the field on the legacy side. That's fine, but document it: "v2.10 fields are TextBox-only; they will be lost if a slide is round-tripped through legacy fields and the legacy fields are written-back as the source of truth."
-  2. **`applyDualWrite` reducer must include the new fields.** Open `editor-reducer.ts` around line 270 (`case 'UPDATE_TEXT_BOX'`) and confirm the dual-write path covers position changes. If it currently only dual-writes text+font properties and not position, v2.10 width/height/min-height changes will not show up in the renderer. Test path: edit a text box's `min_height`, save, reload, assert min_height persists AND legacy `custom_texts[i].height` is in sync (or document the divergence).
-  3. **MIGRATION-NOTES.md.** v2.8 already deferred legacy-schema sunset to v3.0+. v2.10 should add a one-liner: "v2.10 added `position.height` / `position.min_height`. Legacy fields not affected. Sunset of legacy fields (v3.0+) will drop the v2.8 `applyDualWrite` path entirely."
-
-**Owner:** Phase 0 (schema) / `src/lib/types/slide.ts`, `src/lib/editor/text-box-adapter.ts`, `src/lib/editor/editor-reducer.ts`. Phase-end test: round-trip integration test in `src/lib/editor/__tests__/text-box-adapter.integration.test.ts`.
-
----
-
-### 13. Three-renderer parity (TPLREND-05) on the new schema fields
-
-**Failure mode:** The v2.9 audit established TPLREND-05: `slide-preview.tsx`, `render-slide.ts` (HTML), and `render-slide-satori.tsx` (PNG export) must produce byte-identical output for any given slide. v2.7 commit `e96fd3a` is precedent for what happens when this is violated — a Satori `display: flex` bug shipped silently because only the React preview was tested. If v2.10 adds `position.height` and only updates `slide-preview.tsx`, the Satori PNG export uses the old auto-fit and the user's resized box looks fine in the editor but exports at the original size.
-
-**Prevention:**
-
-  1. **Three-file commit rule.** Any new schema field that affects layout must be applied in all three renderers in the same commit. A pre-merge checklist item: "search for `position.width` in the codebase; for every match, the new field appears (or is intentionally absent with a comment)."
-  2. **Parity tests.** Extend `src/__tests__/render/parity.test.tsx` to include the new fields. The existing 10 cases assert resolver-singleton identity for the existing fields — add 3-5 cases for height/min-height (typical slide, edge-case empty box, max-height clamp).
-  3. **Satori `display: flex` requirement.** Any new wrapper `<div>` that holds the resized text MUST have `display: 'flex'` (or be an absolute-positioned single element with no children that need flex layout). Per [Satori's README and issue #325](https://github.com/vercel/satori/issues/325), Satori only supports `display: flex` and `display: none`. If the executor adds a `<div style={{ height: '20%', overflow: 'hidden' }}>` without `display: flex`, Satori will crash or produce unexpected layout.
-  4. **`overflow-wrap` not `word-break`.** This codebase already has a fix for the `word-break: break-word` deprecated alias bug (quick-260502-j14). Stick to `overflowWrap: 'break-word'` and `whiteSpace: 'normal'` — both Satori-supported. Do not add `word-break` to any new style block.
-
-**Owner:** Phase 1 / Phase 2 — all three renderer files, plus `src/__tests__/render/parity.test.tsx`. Pre-merge: grep audit + parity test diff.
-
----
-
-### 14. Cursor affordance and "what does this handle do?"
-
-**Failure mode:** A user sees a corner handle and doesn't know if it resizes the box, scales the font, rotates, or all three. Without explicit affordances, the v2.10 corner-drag feature feels like a guess. Worse, if the cursor doesn't change on hover, users miss the handle entirely.
-
-**Prevention:**
-
-  1. **Cursor: `nwse-resize` / `nesw-resize` for corners, `ew-resize` for left/right, `ns-resize` for top/bottom.** react-rnd sets these by default but the existing code overrides with `cursor: 'grab'` on the inner div (line 916) — make sure the resize-handle wrapper's cursor takes precedence (z-index higher OR avoid setting cursor on the handle's parent).
-  2. **Tooltip on first hover.** Show "Drag to resize. Shift+drag to scale text." for the first 3 hovers in a session, then suppress (use localStorage). This matches Figma's onboarding tooltips. Pre-PMF: a single one-time toast on first selection of a text box is enough — don't over-engineer.
-  3. **Don't show corner handles on every text box at once.** Show handles only on the selected box (already the pattern from v2.8 Phase 52 — `selectedTextBoxId` gates the dashed ring). Extend: handles render only when the box is the active selection. Other boxes get the hover-only outline.
-
-**Owner:** Phase 1 / `src/components/slides/slide-preview.tsx` (cursor styles, conditional handle rendering on selection).
-
----
-
-## Out of scope (worth noting)
-
-### 15. Rotation handle
-
-Figma and Canva both have a top-centre rotation handle in addition to corner-resize. **Defer.** Rotation requires `transform: rotate(...)` which Satori has limited support for (the [Satori README](https://github.com/vercel/satori) lists rotation under "limited" CSS support), and would force a width-aware text-fit pass. v2.10 is "smallest thing that makes the affordance feel right" — rotation belongs in a v2.11+ iteration once basic resize is validated.
-
-### 16. Multi-select resize
-
-Selecting two text boxes at once and resizing them together (Figma pattern). **Defer.** Pre-PMF, single-element editing is the dominant flow per v2.8 right-rail design. Adds combinatorial complexity (which anchor? proportional?) for a workflow most users don't do on a 5-9 slide carousel.
-
-### 17. Pixel-precise input fields
-
-A "W: 540 H: 200" numeric input pair next to the box (Figma's design panel). **Defer.** The right rail already shows font-size as a slider; width/height as numeric inputs is incremental UX polish. v2.10 ships if drag + value-displayed-in-right-rail works.
-
-### 18. Aspect-ratio lock toggle button
-
-A UI toggle in the right rail for "lock aspect ratio while resizing" (separate from Shift modifier). **Defer.** Modifier-key-only is the convention in pro design tools (Photoshop, Figma, Sketch). UI toggle is a polish item.
-
-### 19. Text-fitting font-size auto-shrink (Canva "Magic Resize")
-
-When the user resizes a box to be smaller, automatically shrink the font to fit (the inverse of `news-hook-fit.ts` but per-box, not per-template). **Defer to a separate research doc.** This is a real feature but it interacts with auto-fit, the registry, and per-segment font-family overrides in non-trivial ways. v2.10 ships with: corner-drag changes box size (and optionally font on Shift), nothing else automatic.
-
-### 20. Undo for accidental delete-via-resize
-
-If the user resizes a box to width=0 / height=0 (a UI bug), the box becomes invisible but is not deleted. **Mitigate via clamps, do not add a dedicated undo path.** Reducer clamps width to ≥ 5% and height to ≥ a min based on `font_size` (e.g. `1.2 * font_size`) so the box is always visible. The existing `Math.max(20, ...)` clamp pattern at line 890 is the precedent — apply to height too.
+### 4.7 Locked elements participate in alignment math?
+- **Symptom:** User multi-selects [unlocked text, locked watermark, unlocked image]; aligns left. Watermark moves (bug) or watermark anchors the alignment (correct).
+- **Prevention rule:** Locked elements participate in selection BOUNDS computation but DO NOT MOVE. So aligning to "selection-left" includes the watermark in the bounds calc; the watermark stays put; the others align to the resulting left edge. Matches Sketch + Photoshop.
+- **Source:** [Sketch alignment docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/) explicit; [Photoshop locked-layer thread](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508).
+- **Phase:** **Phase 63 — Align/Distribute** + **Phase 64 — Lock/hide**
 
 ---
 
-## Citations
+## CATEGORY 5 — Smart-guides / snapping pitfalls
 
-### react-rnd
+### 5.1 Frame-rate collapse from O(N²) edge comparisons
+- **Symptom:** With 50+ elements on a slide, drag becomes laggy (each pointer-move computes 50×50×6 edge-pair comparisons).
+- **Root cause:** `useAlignmentGuides.calculateSnap` at `src/hooks/use-alignment-guides.ts:67` builds `xSources/ySources` from ALL `others`. Today this scales with elements per slide.
+- **Prevention rule:** v2.11 element count per slide is realistically ≤20 (text_boxes ≤3, custom_texts ≤5, custom_images ≤5, watermarks ≤2, decorative overlays ≤5). 20² × 6 = 2,400 comparisons/frame is fine. BUT for safety: (a) pre-compute `xSources/ySources` outside the pointer-move callback (do it on drag-START); (b) only re-compute when others array changes; (c) cap at 100 elements with an early return.
+- **Source:** Existing code at `src/hooks/use-alignment-guides.ts:81-94` already does it inline-per-call; current N is small so it works, but a 100-element threshold guard is cheap insurance.
+- **Phase:** **Phase 66 — Smart-guides + snapping**
 
-- [GitHub repo bokuweb/react-rnd](https://github.com/bokuweb/react-rnd) — `scale` prop docs in README ("Specifies the scale of the canvas... allows you to get the correct resize and drag deltas while you are zoomed in or out via a transform or matrix in the parent")
-- [Issue #110 — the problem when using transform: scale()](https://github.com/bokuweb/react-rnd/issues/110) — the canonical bug-report that prompted the `scale` prop
-- [Issue #766 — Rnd Components rerender will has wrong position when use scale](https://github.com/bokuweb/react-rnd/issues/766) — late-breaking re-render edge case (verify before shipping)
-- [Issue #732 — Ability to override or disable 'transform' property](https://github.com/bokuweb/react-rnd/issues/732) — react-rnd injects `transform: translate(...)` on the wrapper which is occasionally annoying for parity with Satori
-- [Issue #185 — Overriding or adding transform property](https://github.com/bokuweb/react-rnd/issues/185)
-- [npm page for react-rnd](https://www.npmjs.com/package/react-rnd) — version 10.5.3 confirmed in `package.json` line 49
+### 5.2 Guide flicker from threshold hysteresis
+- **Symptom:** Element snaps to a guide; user moves mouse 1 pixel; guide disappears; user moves another pixel; guide re-appears. Visual flicker.
+- **Root cause:** Symmetric threshold — `delta <= 10px` to enter snap, AND `delta <= 10px` to remain snapped. As the mouse drifts at exactly 10px boundary, snap toggles every frame.
+- **Prevention rule:** Asymmetric thresholds — enter snap at `delta <= 10px`, exit at `delta > 14px` (deadband). Add a state ref `wasSnappedToGuide: number | null`. The current implementation at `src/hooks/use-alignment-guides.ts:5` uses single `SNAP_THRESHOLD = 10` — needs upgrade.
+- **Source:** General hysteresis pattern; standard for snap-to-grid systems. LOW confidence (no specific documented Figma/Canva spec).
+- **Phase:** **Phase 66 — Smart-guides + snapping**
 
-### Satori
+### 5.3 Guide rendering inside a CSS transform parent — coordinates wrong
+- **Symptom:** Slide preview is `transform: scale(0.4)` (zoomed-out preview). Smart guides render at the WRONG screen position because guide overlay is a child of the scaled wrapper but uses absolute pixel coordinates.
+- **Root cause:** Guide overlay coordinates are in REFERENCE pixels (1080×1920) but rendered into a scaled container; CSS transforms compound.
+- **Prevention rule:** Guide overlay MUST live INSIDE the scaled container so it scales with everything else. Today's `slide-preview.tsx` is the scaled container; guides should render as siblings of text-boxes inside that. Confirm by visually testing at 0.4× zoom (production scale) AND 1.0× zoom.
+- **Source:** Inferred from existing slide-preview.tsx coordinate system (CANVAS = 1080×1920 ref pixels).
+- **Phase:** **Phase 66 — Smart-guides + snapping** + **Phase 67 — TPLREND-05 parity audit**
 
-- [vercel/satori](https://github.com/vercel/satori) README — supported CSS subset, `display: flex` requirement
-- [Issue #325 — Rendering inline elements](https://github.com/vercel/satori/issues/325) — flex-only support
-- [Issue #573 — CSS filter behaviour](https://github.com/vercel/satori/issues/573) — referenced by v2.9 photo-treatment baking decision (cited in PROJECT.md)
-- [Issue #393 — Text layout can be wider than node's width](https://github.com/vercel/satori/issues/393) — relevant when adding `position.height` since text can overflow
+### 5.4 Guides showing during single-element drag vs multi-element ops
+- **Survey:** Figma shows guides ALWAYS during drag (1 or N elements). Canva shows guides ALWAYS.
+- **Prevention rule:** Show guides for both single AND multi drag — matches Figma + Canva. Implementation: same `useAlignmentGuides` hook; multi-drag uses the bounding-box of the multi-selection as the "dragging" element edges.
+- **Source:** [Canva snapping help](https://www.canva.com/en_in/help/canva-lagging-slow/) (general behavior), [Figma snap forum thread](https://forum.figma.com/t/snapping-to-guides-not-working/5112).
+- **Phase:** **Phase 66 — Smart-guides + snapping**
 
-### Figma / Canva (UX precedent)
+### 5.5 Hold-Cmd-to-disable: missed key-up event leaves snap permanently disabled
+- **Symptom:** User holds Cmd while dragging to bypass snap; switches tab while still holding; `keyup` event never fires; snap is now permanently off until user presses+releases Cmd again.
+- **Root cause:** `keydown`/`keyup` are sticky to the focused window. `blur`/`visibilitychange` events should also clear modifier state.
+- **Prevention rule:** On `window.blur` or `document.visibilitychange`, reset all modifier-key tracking state to `false`. Pattern: `useEffect(() => { const reset = () => setModifiers({}); window.addEventListener('blur', reset); document.addEventListener('visibilitychange', reset); return cleanup; }, [])`.
+- **Source:** General browser-event hazard; well-documented in modifier-tracking SO threads. LOW confidence on definitive single source.
+- **Phase:** **Phase 66 — Smart-guides + snapping** + **Phase 68 — Keyboard handling**
 
-- [Figma — Adjust text dimensions and resizing](https://help.figma.com/hc/en-us/articles/27378154668951-Adjust-text-dimensions-and-resizing) — Auto Width / Auto Height / Fixed Size taxonomy used in Pitfall 3
-- [Figma `textAutoResize` plugin API](https://www.figma.com/plugin-docs/api/properties/TextNode-textautoresize/) — confirms the three modes are actual property values
-- [Figma forum — Overlap elements in Auto layout](https://forum.figma.com/ask-the-community-7/overlap-elements-in-auto-layout-39792) — overlap allowed only outside auto-layout; basis for Pitfall 6 "allow overlap" recommendation
-- [Canva Help — Resize designs and size limits](https://www.canva.com/help/resize/)
+---
 
-### Accessibility / touch
+## CATEGORY 6 — Z-order pitfalls
 
-- [WCAG 2.5.8 Target Size (Minimum) — W3C](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) — 24×24 CSS pixel minimum (AA), basis for Pitfall 7
-- [Smashing Magazine — Accessible Target Sizes Cheatsheet](https://www.smashingmagazine.com/2023/04/accessible-tap-target-sizes-rage-taps-clicks/) — 44×44 best practice
+### 6.1 Using `z-index` CSS for editor preview but array-order for Satori — drift
+- **Symptom:** Editor shows watermark above body text; exported PNG shows body text above watermark.
+- **Root cause:** Editor uses CSS `z-index` to override DOM order; Satori (the [vercel/satori library](https://github.com/vercel/satori)) ignores `z-index` per its limited CSS support docs; Satori draws in array-order.
+- **Prevention rule:** **Z-order MUST be array-order, not CSS z-index.** Bring-forward = swap with `array[i+1]`. Render engines (both editor preview AND Satori) iterate the array in order. NEVER set `z-index` on element wrappers in the editable `slide-preview.tsx`. This is identical to TPLREND-05's existing parity contract — `resolve-overlay.ts` resolves overlay layers in a fixed order documented at lines 17-28.
+- **Source:** [vercel/satori issue #41 — Throw an error when CSS property not supported](https://github.com/vercel/satori/issues/41) confirms Satori's limited CSS subset.
+- **Phase:** **Phase 67 — TPLREND-05 parity audit** + **Phase 69 — Z-order controls**
 
-### In-codebase precedent (already-shipped patterns to preserve)
+### 6.2 Bring-forward swapping with adjacent index — different element type
+- **Symptom:** User clicks "Bring Forward" on a text box; the next element is a custom_image — does the text move ABOVE that image, or are they in different arrays and the operation is a no-op?
+- **Root cause:** Today, `text_boxes`, `custom_texts`, `custom_images` are SEPARATE arrays in the schema. Z-order is implicit in render order: image-tint → bottom-card → grain → vignette → hook → body → custom_images → watermarks (per `resolve-overlay.ts:17-28`). Within a single array, swap is fine; ACROSS arrays, no-op makes the user feel the button is broken.
+- **Prevention rule:** v2.11 z-order operates WITHIN each array independently. Document in tooltip ("Reorder within text/images/etc"). For cross-array reorder, defer to v3.0+ or introduce a unified `slide.elements: Element[]` array (a v3.0+ schema rewrite — out of scope for v2.11). Layers panel will visually show the categorical separation.
+- **Source:** Existing schema at `editor-reducer.ts` ADD_TEXT_BOX, ADD_CUSTOM_IMAGE — separate arrays. Confirmed by `resolve-overlay.ts:17-28` layer-order contract.
+- **Phase:** **Phase 69 — Z-order controls**
 
-- `src/components/slides/slide-preview.tsx` lines 553 (editable branch gate), 862 (`scale={scale}` on Rnd), 882 (onDragStop dispatches, onDrag does not), 1162 (`lockAspectRatio={true}` is image-only)
-- `src/lib/editor/editor-reducer.ts` lines 91 (`pushHistory`), 270 (`UPDATE_TEXT_BOX`)
-- `src/lib/render/hook-fit.ts` lines 120-132 (registry lookup; explicit override wins on line 313 of slide-preview.tsx)
-- `.planning/MILESTONES.md` v2.7 commit `e96fd3a` (Satori `display: flex` parity bug — precedent for three-renderer audit rule)
-- `.planning/MILESTONES.md` v2.8 BL-01 (`applyDualWrite` reducer dual-write — precedent for Pitfall 12)
-- `.planning/quick/260502-j14-fix-ai-text-mid-word-break-remove-deprec` (`word-break: break-word` deprecated alias — Pitfall 13 #4)
+### 6.3 Z-order operating on a multi-selection
+- **Symptom:** User multi-selects 3 elements at indices [2, 5, 7] in `text_boxes`; clicks "Bring Forward"; expectation 1: each moves +1 individually → [3, 6, 8]; expectation 2: the group moves as a unit → all stay relative.
+- **Survey:** Figma: each moves +1 individually but boundary-clamped — if [5, 6, 7] are selected, "bring forward" only moves the topmost.
+- **Prevention rule:** Pick Figma's model — iterate selection, apply +1 to each, clamp at array length. Add a unit test: `[2, 5, 7] → bring-forward → [3, 6, 8]`; `[5, 6, 7] of len 8 → bring-forward → [5, 6, 7]` (no-op, already at top relative to itself).
+- **Source:** Inferred from Figma's z-order behavior; LOW confidence on definitive doc.
+- **Phase:** **Phase 69 — Z-order controls**
+
+---
+
+## CATEGORY 7 — Layers panel pitfalls
+
+### 7.1 Drag-reorder triggering re-render of ENTIRE slide preview
+- **Symptom:** User drags a layer in the layers panel; the slide preview also re-renders 60 times during the drag; perf collapses.
+- **Root cause:** Layers panel and slide preview consume the same `slides` state; any state update fires both.
+- **Prevention rule:** Use ONE layer-reorder dispatch on `dragEnd` only (NOT during drag). This mirrors react-rnd's `onDragStop` pattern already enforced in v2.10 (carry-forward rule). During the drag, the layers panel uses LOCAL `useState` to show the visual reorder; only on drop does it dispatch to the reducer.
+- **Source:** [react-beautiful-dnd 60fps optimization](https://medium.com/@alexandereardon/dragging-react-performance-forward-688b30d40a33), v2.10 onDragStop contract from MILESTONES.md.
+- **Phase:** **Phase 70 — Layers panel**
+
+### 7.2 Selection sync — infinite loop if both dispatch on selection-change
+- **Symptom:** Click an element in canvas → fires `setSelectedIds(['x'])` → layers panel `useEffect` sees change → dispatches `scroll into view` → triggers a `focus` event on the layer chip → fires another `setSelectedIds(['x'])` → infinite loop.
+- **Root cause:** Two-way binding without source-of-truth.
+- **Prevention rule:** Layer panel READS selection state, NEVER writes (except on direct user click on the panel). Canvas READS selection state, NEVER writes (except on direct user click on canvas). Both use the same reducer dispatch with action types `SELECT_FROM_CANVAS` / `SELECT_FROM_PANEL` — reducer can disambiguate to suppress feedback.
+- **Source:** General React anti-pattern; widely documented (e.g. [React useState pattern](https://react.dev/reference/react/useState)). LOW confidence on a single canonical source.
+- **Phase:** **Phase 70 — Layers panel**
+
+### 7.3 Inline rename collision with keyboard shortcuts
+- **Symptom:** User clicks a layer in panel to rename; types "Hook 1"; presses Backspace; the entire layer is DELETED because the global `Delete`-key handler fires (`slide-editor.tsx:373`).
+- **Root cause:** The Delete-key handler in `slide-editor.tsx:340-393` already has `isEditing` guard checking `tag === 'input' || textarea || isContentEditable`. v2.11 layers panel must use one of these tag types, NOT a `<div>` with `onKeyDown`.
+- **Prevention rule:** Inline-rename input in layers panel MUST use `<input>` or `contentEditable` element so existing isEditing-guard at `slide-editor.tsx:344-348` skips the handler. Add a unit test that verifies typing in rename input does NOT dispatch DELETE.
+- **Source:** Existing code `slide-editor.tsx:340-393`. Existing pattern is correct; just enforce that v2.11 follows it.
+- **Phase:** **Phase 70 — Layers panel** + **Phase 68 — Keyboard handling**
+
+### 7.4 Virtualization vs not — Figma virtualizes; what's our threshold?
+- **Symptom:** 100+ layer chips render every selection change → laggy.
+- **Prevention rule:** v2.11 max realistic layer count per slide is ≤20 (table-stakes carousel). Don't virtualize. Add a guard: if a slide ever exceeds 50 elements, log a warning. If we ever ship a per-PROJECT layers panel showing all elements across all slides (50 slides × 20 elements = 1,000 chips), virtualize then.
+- **Source:** [react-window perf guide](https://blogs.purecode.ai/blogs/react-window) confirms virtualization breakeven ~100-300 items.
+- **Phase:** **Phase 70 — Layers panel**
+
+---
+
+## CATEGORY 8 — Lock / hide pitfalls
+
+### 8.1 Lock should prevent SELECTION? (Figma yes; Photoshop no)
+- **Survey:**
+  - Figma: Locked elements CAN be clicked-to-select but cannot be moved/edited.
+  - Photoshop: Locked elements CAN be selected; lock affects specific operations (move, transparency, position) per the lock type.
+  - Canva: Same as Figma.
+- **Prevention rule for v2.11:** Pick Figma's model — locked element is selectable (so user can unlock it), but resize/drag/delete/edit are blocked. Marquee skips locked (per rule 2.2). Layers panel chip shows lock icon; click on chip selects but doesn't allow drag.
+- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions), [Photoshop locked-layer thread](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508).
+- **Phase:** **Phase 64 — Lock/hide**
+
+### 8.2 Hidden element still affecting alignment math?
+- **Survey:**
+  - Figma: hidden elements are EXCLUDED from selection bounds.
+  - Sketch: same.
+- **Prevention rule:** Hidden = excluded from alignment bounds, excluded from rendering. Today's render path doesn't have hidden support; Satori output must skip elements with `hidden: true`. Add this to `render-slide-satori.tsx` as a pre-filter. Editor preview ALSO skips them (with a "hidden" placeholder in layers panel).
+- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions); [Sketch align docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/).
+- **Phase:** **Phase 64 — Lock/hide** + **Phase 67 — TPLREND-05 parity audit**
+
+### 8.3 Persisting lock through fork (Explore copy-as-template)
+- **Symptom:** User publishes a carousel with a locked watermark; another user forks it (`fork_published_carousel` RPC); on fork, is the lock preserved? Forker can't move the watermark = bad UX. Lock is dropped = original creator's intent lost.
+- **Prevention rule:** **Drop lock on fork.** Forker takes ownership and can edit anything. This matches the v2.4 fork RPC's existing semantics — strips `brand_kit_id`, defaults to `bold-minimal` per MILESTONES.md:194. Adding lock-strip to that RPC is a one-line addition.
+- **Source:** v2.4 fork RPC contract (MILESTONES.md:194-196). LOW confidence (no community precedent — this is product UX).
+- **Phase:** **Phase 64 — Lock/hide**
+
+### 8.4 Marquee can't escape locked elements stacked at top of z-order
+- **Symptom:** Whole canvas covered by a locked decorative overlay at top of z-order; user marquee-selects under it; nothing happens because pointer-events are captured by the overlay div.
+- **Prevention rule:** Locked elements set `pointer-events: none` on their wrapper (so marquee passes through). Click-to-select on a locked element STILL works because the editor's canvas root handler does intersection-test in JS, not via DOM bubbling. This requires moving from "click the wrapper" to "track pointerdown on canvas root + intersection test" for locked elements specifically.
+- **Source:** Inferred from rule 2.1 + rule 8.1.
+- **Phase:** **Phase 64 — Lock/hide** + **Phase 61 — Marquee selection**
+
+---
+
+## CATEGORY 9 — Keyboard handling pitfalls
+
+### 9.1 Cmd+A inside text-edit input vs in canvas
+- **Symptom:** User is editing text in a text box (input has focus); presses Cmd+A; expects "select all text" inside the input but gets "select all elements on canvas."
+- **Root cause:** Global `keydown` handler intercepts Cmd+A regardless of focus.
+- **Prevention rule:** Existing isEditing-guard at `slide-editor.tsx:344-348` handles this for `Delete`/`Cmd+1-3`/`Cmd+D`. Extend the same guard for `Cmd+A` (multi-select all) — when input/textarea/contentEditable is focused, browser default fires (select-all-text); when canvas is focused, our handler fires (select-all-elements).
+- **Source:** Existing `slide-editor.tsx:340-393` pattern.
+- **Phase:** **Phase 68 — Keyboard handling**
+
+### 9.2 Arrow nudge while text input focused
+- **Symptom:** User is editing text; presses arrow key; expected: cursor moves within text. Got: element nudges 1px in canvas.
+- **Prevention rule:** Same isEditing guard as 9.1. Arrow keys for nudge: ONLY when canvas-root or layer-chip has focus.
+- **Source:** Existing pattern at `slide-editor.tsx:340-393`.
+- **Phase:** **Phase 68 — Keyboard handling**
+
+### 9.3 Cmd+G conflicts with browser's "Find Next" (Chrome)
+- **Symptom:** User presses Cmd+G to group; Chrome opens "find next" dialog or cycles to the next find match.
+- **Root cause:** Cmd+G is Chrome's "Find Next" shortcut. Confirmed Figma issue. ([Figma forum thread on Cmd+G conflict](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312)).
+- **Prevention rule:** `e.preventDefault()` in the keydown handler — but ONLY when canvas/layers-panel is focused (otherwise we break Find-Next when user expects it). The existing `slide-editor.tsx:357/361` already follows this pattern. Cmd+Shift+G (ungroup) ALSO needs preventDefault.
+- **Source:** [Figma keyboard shortcut conflict thread](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312); confirmed Chrome behavior.
+- **Phase:** **Phase 68 — Keyboard handling**
+
+### 9.4 Hold-modifier sticky on tab-blur
+- **Symptom:** Same as 5.5 — user holds Shift while marqueeing to add-to-selection; Cmd-Tabs away; comes back; modifier state stuck.
+- **Prevention rule:** Same blur/visibilitychange listener as 5.5.
+- **Source:** Same as 5.5.
+- **Phase:** **Phase 68 — Keyboard handling**
+
+---
+
+## CATEGORY 10 — Render parity pitfalls (TPLREND-05 specific)
+
+### 10.1 Group bounding box must NOT appear in Satori output
+- **Symptom:** PNG export shows the editor's group selection rectangle as a real element.
+- **Root cause:** If group bounding-box rendered in `slide-preview.tsx` shared component is unconditional, Satori's mirror at `render-slide-satori.tsx` will pick it up.
+- **Prevention rule:** Group bounding box renders ONLY when `editable={true}` (already the gate for selection rings, dashed selection outline at line 877+). Add a single `if (!editable) return null` guard at the top of any new GroupBoundingBox component. Verify with the existing `parity.test.tsx` (10 cases — extend with group cases).
+- **Source:** Existing `editable={true}` gate at `slide-preview.tsx:304`, `parity.test.tsx` invariant from v2.9 Phase 58.
+- **Phase:** **Phase 67 — TPLREND-05 parity audit**
+
+### 10.2 Selection rings, marquee rect, smart guides, layers-panel-induced ordering must NOT leak
+- **Symptom:** PNG export shows the dashed `#3d0000` selection ring.
+- **Prevention rule:** Already handled — selection ring uses CSS `outline` which Satori ignores per v2.8 Phase 52 design (MILESTONES.md:111). Extend the same pattern: marquee rect, smart guides, group box ALL use CSS that Satori-doesn't-render OR live behind `editable={true}` guards. Add a regression test that walks the rendered tree of `editable={false}` and asserts NO node with class `*selection*`, `*marquee*`, `*guide*`, `*layer-overlay*`.
+- **Source:** v2.8 Phase 52 selection-ring design (MILESTONES.md:111); v2.9 Phase 58 `no-css-filter.test.ts` extended pattern (MILESTONES.md:66).
+- **Phase:** **Phase 67 — TPLREND-05 parity audit**
+
+### 10.3 Lock/hidden state — Satori respects `hidden=true` (skip) but ignores `locked` (editor-only)
+- **Symptom:** Hidden element renders in PNG (bug); locked element doesn't render in PNG (different bug — locked should render).
+- **Prevention rule:** `render-slide-satori.tsx` filter: `elements.filter(e => !e.hidden)`. NEVER filter on `locked`. Add a unit test: `slide with locked watermark renders identically to slide without lock`. Add a unit test: `slide with hidden element renders without that element`.
+- **Source:** Inferred from rule 8.1 + 8.2.
+- **Phase:** **Phase 67 — TPLREND-05 parity audit**
+
+---
+
+## CATEGORY 11 — Performance pitfalls
+
+### 11.1 Multi-drag of N elements at 60Hz dispatching reducer on every frame
+- **Symptom:** Multi-drag of 10 elements; reducer dispatches 600 times/second; undo history fills with 600 entries; lag.
+- **Root cause:** Multi-drag fires N×60 dispatches/sec if onDrag is wired (instead of onDragStop).
+- **Prevention rule:** **STRICT carry-forward of v2.10's onDragStop rule.** Multi-drag uses ONE local `useState({deltaX, deltaY})` during drag (no reducer); slide-preview reads delta + applies as visual offset; only on `onDragStop` does it dispatch a SINGLE batched action `MOVE_MULTI(slideIndex, ids, delta)`. Single undo entry per gesture.
+- **Source:** v2.10 onDragStop pattern (MILESTONES.md:17 — "Single undo entry per gesture (dispatch on `onResizeStop` only)"). [react-beautiful-dnd 60fps perf](https://medium.com/@alexandereardon/dragging-react-performance-forward-688b30d40a33).
+- **Phase:** **Phase 71 — Multi-drag perf**
+
+### 11.2 Smart-guide overlay re-rendering on every mouse-move
+- **Symptom:** Smart-guide DOM nodes re-create every pointer-move; layout thrashing.
+- **Prevention rule:** Smart-guide overlay = single `<div>` per guide line, persistently mounted, position updated via `transform: translate3d(x, 0, 0)` (GPU-composited, no reflow). Use `pointer-events: none` so it doesn't block clicks. Render outside React's reconciliation if needed (refs + direct style set in a RAF callback).
+- **Source:** [React 60fps perf guide](https://g3f4.github.io/react-at-60-fps/) — transform3d is the canonical pattern.
+- **Phase:** **Phase 66 — Smart-guides + snapping**
+
+### 11.3 Layers panel rendering full tree on every selection change
+- **Symptom:** 20 layer chips re-render every selection click.
+- **Prevention rule:** Wrap each `LayerChip` in `React.memo` with custom equality. Use `useMemo` for the chips array. Selection-state is read inside the chip via context or a per-id selector hook. NOT virtualization (too few elements).
+- **Source:** [React.memo pattern](https://react.dev/reference/react/memo); v2.8 Phase 50 LayerStrip pattern (MILESTONES.md:109) — same concept extended.
+- **Phase:** **Phase 70 — Layers panel**
+
+---
+
+## CATEGORY 12 — UX pitfalls (Figma/Canva post-mortems)
+
+### 12.1 Canva's #1 complaint: "What took minutes now takes hours"
+- **Pitfall:** Multi-step flows that USED to be one-click become click-click-click. E.g. "to align 3 elements I now have to: click each, open right rail, scroll to align, click."
+- **Prevention rule:** Alignment toolbar surfaces in the canvas (floating mini-toolbar above multi-selection bounds), NOT buried in right rail. Matches Figma's floating-toolbar pattern.
+- **Source:** [Canva October 2025 redesign complaints — substack post-mortem](https://soloshannon.substack.com/p/canva-is-broken-and-i-almost-lost), [Canva user threads](https://www.threads.com/@dmccullum/post/C7h_aVYPbXD).
+- **Phase:** **Phase 65 — Right-rail multi-select UX**
+
+### 12.2 Figma's #1 mobile complaint: shortcuts conflict with browser
+- **Pitfall:** Cmd+G / Cmd+] / Cmd+/ all conflict with Chrome shortcuts; sometimes work, sometimes don't, depends on focus state.
+- **Prevention rule:** Use `e.preventDefault()` in handlers AND show keyboard shortcut hints in tooltips so users know there's a shortcut. Add a `?` help overlay listing shortcuts (Figma pattern).
+- **Source:** [Figma keyboard shortcut conflict thread](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312), [Figma sidebar focus thread](https://forum.figma.com/archive-21/bug-investigating-some-keyboard-commands-no-longer-work-with-objects-in-layers-panel-chrome-25632).
+- **Phase:** **Phase 68 — Keyboard handling**
+
+### 12.3 Adobe's classic "key object" trap
+- **Pitfall:** Adobe Illustrator requires you to set the key object BEFORE opening the Align panel; if you set it after, the distribute-spacing field is greyed out forever.
+- **Prevention rule:** No "key object" / "primary" concept in v2.11 (per rule 1.3). Avoid this entire UX trap.
+- **Source:** [Illustrator UserVoice issue #39372850](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a).
+- **Phase:** **Phase 60 — Multi-select state design**
+
+---
+
+## Phase Mapping Summary
+
+| v2.11 Phase | Pitfalls addressed |
+|---|---|
+| **Phase 60 — Multi-select state design** | 1.1, 1.2, 1.3, 1.4, 12.3 |
+| **Phase 61 — Marquee selection** | 2.1, 2.2, 2.3, 2.4, 2.5, 8.4 |
+| **Phase 62 — Group/Ungroup design** | 3.1, 3.2, 3.3, 3.4, 3.5, 3.6 |
+| **Phase 63 — Align/Distribute** | 4.1, 4.2, 4.3, 4.4, 4.6, 4.7 |
+| **Phase 64 — Lock/hide** | 2.2, 3.5, 4.7, 8.1, 8.2, 8.3, 8.4 |
+| **Phase 65 — Right-rail multi-select UX** | 1.3, 12.1 |
+| **Phase 66 — Smart-guides + snapping** | 5.1, 5.2, 5.3, 5.4, 5.5, 11.2 |
+| **Phase 67 — TPLREND-05 parity audit** | 3.1, 5.3, 6.1, 8.2, 10.1, 10.2, 10.3 |
+| **Phase 68 — Keyboard handling** | 5.5, 7.3, 9.1, 9.2, 9.3, 9.4, 12.2 |
+| **Phase 69 — Z-order controls** | 6.1, 6.2, 6.3 |
+| **Phase 70 — Layers panel** | 7.1, 7.2, 7.3, 7.4, 11.3 |
+| **Phase 71 — Multi-drag perf** | 11.1 |
+| **Deferred to v3.0+** | 4.5 (rotation alignment) |
+
+---
+
+## Top "Watch Out For" (synthesizer should bubble these)
+
+1. **Group transform compounding** (3.1) — pick FLAT schema; group is a UI-only `group_id` field. Most consequential decision in v2.11. Wrong choice = TPLREND-05 break + schema migration nightmare.
+2. **TPLREND-05 leak** (10.1, 10.2, 10.3) — every editor-only feature (selection rings, marquee, smart guides, group box) must gate behind `editable={true}` and verify via parity tests. v2.10 already enforced this pattern; v2.11 must extend test coverage.
+3. **Z-order MUST be array-order, not CSS z-index** (6.1) — Satori ignores z-index. Same lesson as v2.9's CSS-filter ban (vercel/satori#573).
+4. **onDragStop strict carry-forward for multi-drag** (11.1) — single batched dispatch per gesture; matches v2.10's resize pattern.
+5. **No "primary" element concept** (1.3, 12.3) — pick Canva's TYPE BAR model; avoids Illustrator key-object UX trap.
+6. **No nested groups, no rotation in v2.11** (3.3, 3.2, 4.5) — defers complexity, keeps schema flat, matches Canva.
+7. **isEditing guard at `slide-editor.tsx:344-348` is the keyboard-shortcut firewall** (7.3, 9.1, 9.2) — every new shortcut must respect it.
+8. **Window-blur + visibilitychange resets modifier state** (5.5, 9.4) — prevents stuck-Cmd / stuck-Shift bugs.
+
+---
+
+## Open Questions for Roadmap Phase
+
+1. **What max element count per slide are we designing for?** v2.11 perf guards depend on this. Recommend ≤30 per slide (3 text_boxes + 5 custom_texts + 5 custom_images + 2 watermarks + 5 decorative + headroom).
+2. **Floating multi-select toolbar location** — above selection bounds (Figma) or fixed top of canvas (Canva)? Figma's is more discoverable for keyboard users; Canva's is simpler.
+3. **Should "duplicate while dragging" (Alt+drag) be in scope?** Standard Figma feature, would slot under Phase 71. Out of mandatory scope but worth surfacing.
+
+---
+
+## Sources
+
+- [vercel/satori issue #573 — filter blur doesn't work](https://github.com/vercel/satori/issues/573)
+- [vercel/satori issue #41 — Throw error when CSS not supported](https://github.com/vercel/satori/issues/41)
+- [vercel/satori issue #162](https://github.com/vercel/satori/issues/162) (variable fonts — carry-forward)
+- [vercel/satori issue #712](https://github.com/vercel/satori/issues/712) (variable fonts — carry-forward)
+- [react-rnd issue #58 — touch problems to resize elements](https://github.com/bokuweb/react-rnd/issues/58)
+- [react-rnd issue #609 — pointerEvents triggered when dragging over iframe](https://github.com/bokuweb/react-rnd/issues/609)
+- [react-rnd issue #724 — initial bounds](https://github.com/bokuweb/react-rnd/issues/724)
+- [fabric.js issue #4163 — Grouping & Active Selection Position Bug](https://github.com/fabricjs/fabric.js/issues/4163)
+- [fabric.js issue #6315 — ungroupOnCanvas does not restore object state](https://github.com/fabricjs/fabric.js/issues/6315)
+- [fabric.js issue #1798 — Ungrouping items changes the original position](https://github.com/fabricjs/fabric.js/issues/1798)
+- [fabric.js issue #4392 — flipX rotation interaction](https://github.com/fabricjs/fabric.js/issues/4392)
+- [fabric.js issue #3830 — Possible Problem Ungrouping Objects](https://github.com/fabricjs/fabric.js/issues/3830)
+- [fabric.js issue #3616 — Group rotation originX/originY](https://github.com/fabricjs/fabric.js/issues/3616)
+- [react-moveable groupable handbook](https://github.com/daybrush/moveable/blob/master/packages/react-moveable/groupable.md)
+- [react-moveable issue #947 — Group/Ungroup Custom Ables](https://github.com/daybrush/moveable/issues/947)
+- [Figma Select layers and objects](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects)
+- [Figma Adjust alignment, rotation, position, and dimensions](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions)
+- [Figma multi-edit Medium article](https://medium.com/@joeyabanks/everything-to-know-about-multi-editing-in-figma-edd58369fd20)
+- [Figma forum: Cmd+G keyboard conflict](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312)
+- [Figma forum: layers panel keyboard bug Chrome](https://forum.figma.com/archive-21/bug-investigating-some-keyboard-commands-no-longer-work-with-objects-in-layers-panel-chrome-25632)
+- [Figma forum: Disable snap to smart guides](https://forum.figma.com/t/disable-snap-to-smart-guides/13000)
+- [Sketch Aligning layers docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/)
+- [Photoshop locked-layer auto-select bug](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508)
+- [Illustrator UserVoice — Distribute Spacing field disabled if key object set before Align panel](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a)
+- [GIMP Align tool docs (3 minimum for distribute)](https://docs.gimp.org/3.0/en/gimp-tool-align.html)
+- [Canva Oct 2025 substack post-mortem](https://soloshannon.substack.com/p/canva-is-broken-and-i-almost-lost)
+- [Canva slowness Threads post](https://www.threads.com/@dmccullum/post/C7h_aVYPbXD)
+- [react-beautiful-dnd 60fps optimization article](https://medium.com/@alexandereardon/dragging-react-performance-forward-688b30d40a33)
+- [React at 60 FPS perf guide](https://g3f4.github.io/react-at-60-fps/)
+- [react-window perf guide](https://blogs.purecode.ai/blogs/react-window)
+- [Aseprite marquee-grid bug](https://community.aseprite.org/t/grid-and-rectangular-marquee-tool-bug/10718)
