@@ -69,6 +69,35 @@ export type EditorAction =
       slideIndex: number
       ids: string[]      // text_boxes ∪ custom_images ids (watermark never deleted)
     }
+  // Phase 66 Plan 02 (DIFF-01, KBD-09, PERF-01): Alt+drag duplicate. Holding
+  // Alt during a multi-element drag produces COPIES at the drag-end position
+  // while leaving the originals at their start positions (Figma model — see
+  // RESEARCH F39). The reducer:
+  //   - For each id in `ids`, deep-copies the matching text_box / custom_image
+  //     into a new entry with a freshly-generated id.
+  //   - Applies (deltaX, deltaY) to the copy's position (same percentage units
+  //     as BULK_TRANSLATE).
+  //   - Optionally assigns `newGroupId` to every copy (so the duplicate set
+  //     forms a NEW group when the originals shared a single groupId — caller
+  //     decides; reducer trusts the boolean).
+  //   - Originals are NEVER mutated — Alt+drag does NOT translate the source.
+  //   - Skips locked elements (Phase 64 honor; matches BULK_TRANSLATE).
+  //   - Skips text_boxes with role !== 'custom' (structural; matches the
+  //     BULK_DELETE skip-set).
+  //   - Skips text_boxes with anchor !== 'custom' (no x/y to translate;
+  //     matches BULK_TRANSLATE).
+  //   - Skips watermark (lives on slide.watermark — enum-only position; same
+  //     gap as BULK_TRANSLATE; documented in CONTEXT).
+  //   - text_boxes mutations route through applyDualWrite (BL-01).
+  //   - Single pushHistory per dispatch (KBD-09 / PERF-01).
+  | {
+      type: 'DUPLICATE_ELEMENTS_AT'
+      slideIndex: number
+      ids: string[]      // text_boxes ∪ custom_images ids (watermark skipped silently)
+      deltaX: number     // % of canvas width
+      deltaY: number     // % of canvas height
+      newGroupId?: string // optional — when set, every copy receives this groupId
+    }
   // Phase 62 (GROUP-02, GROUP-04, GROUP-05, KBD-09): assign a shared groupId
   // to every id in `ids` in a single dispatch. Behavior contract (locked
   // decisions in 62-CONTEXT.md):
