@@ -28,6 +28,7 @@ import {
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { useSelectionModel } from '@/lib/editor/use-selection-model'
 import { isEditingTarget } from '@/lib/editor/keyboard-utils'
+import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
 import { tinykeys } from 'tinykeys'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
@@ -341,10 +342,25 @@ export function SlideEditor({
   //   Cmd/Ctrl+1, +2, +3 → select Nth text box on current slide
   //   Cmd/Ctrl+D         → add a new custom text box and auto-select it
   //   Cmd/Ctrl+A         → select ALL elements on the current slide (SEL-07)
-  //   Escape             → clear selection (SEL-08; Phase 62 will add
-  //                        group-aware double-press)
+  //   Escape             → group-aware: first press exits group when
+  //                        currentlyInsideGroup !== null (Phase 62 GROUP-08);
+  //                        otherwise clears selection (Plan 60-04 SEL-08)
   //   Delete / Backspace → remove the selected CUSTOM text box (hook/body are
   //                        structural and silently ignored)
+  //
+  // Phase 62 (62-03, GROUP-02..05, GROUP-08, KBD-09):
+  //   Cmd/Ctrl+G         → form a group from the current selection when N>=2
+  //                        (silent no-op when N<=1; preventDefault always to
+  //                        suppress Chrome Find Next per PITFALL-9.3)
+  //   Cmd/Ctrl+Shift+G   → ungroup all selected elements that carry a groupId
+  //                        (silent no-op when no grouped element is selected)
+  //
+  // The Escape handler reads selection.currentlyInsideGroup to branch first-
+  // press exit vs clear. The selection model object identity is stable across
+  // renders unless one of its dependent fields changes (currentlyInsideGroup
+  // is in the useMemo deps post-Plan 62-01), so the existing `selection`
+  // entry in the useEffect deps is sufficient — we don't add a separate
+  // entry for currentlyInsideGroup.
   //
   // Migrated from a hand-rolled meta/ctrl-key switch to a declarative
   // `tinykeys(window, {...})` map. The `$mod` token cross-resolves to Meta on
@@ -414,11 +430,78 @@ export function SlideEditor({
         if (currentSlide) selection.selectAll(currentSlide)
       },
 
-      // Phase 60 SEL-08: single-press clear. Phase 62 will layer group-aware
-      // double-press (first Esc = exit group; second Esc = clear).
+      // Phase 62 GROUP-02 / GROUP-04 / GROUP-05 / KBD-09: form a group from
+      // the current selection. N<=1 is a silent no-op (no dispatch) — but we
+      // still preventDefault to suppress Chrome Find Next (PITFALL-9.3).
+      // groupId format = `g_${slideIndex}_${Date.now-base36}` per CONTEXT
+      // D-01 (nanoid is NOT a dep). Selection.ids stays the same — the
+      // elements just gain a groupId; the group ring (Plan 62-02) picks
+      // up the new groupId on the next render via getGroupMembers reads.
+      '$mod+g': (e) => {
+        if (isEditingTarget(e.target)) return
+        // N<=1 → silent no-op (PITFALL-3.4) but still preventDefault so
+        // Chrome's Find Next dialog doesn't pop up over our canvas.
+        if (selection.ids.length < 2) {
+          e.preventDefault()
+          return
+        }
+        e.preventDefault()
+        const groupId = `g_${selectedIndex}_${Date.now().toString(36)}`
+        dispatch({
+          type: 'GROUP',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          groupId,
+        })
+      },
+
+      // Phase 62 GROUP-03 / KBD-09: ungroup. Walks the current slide for
+      // selected elements with a groupId, then dispatches UNGROUP with the
+      // UNION of every member of every distinct groupId in the selection
+      // (so partial-group selections still ungroup the whole group). When
+      // no selected element carries a groupId, returns BEFORE preventDefault
+      // — Cmd+Shift+G with nothing-to-ungroup is a true no-op (no Chrome
+      // Find Previous suppression needed since our handler did not claim
+      // the binding).
+      '$mod+Shift+g': (e) => {
+        if (isEditingTarget(e.target)) return
+        if (!currentSlide) return
+        if (selection.ids.length === 0) return
+        const allElements = [
+          ...(currentSlide.text_boxes ?? []),
+          ...(currentSlide.custom_images ?? []),
+          ...(currentSlide.watermark ? [currentSlide.watermark] : []),
+        ]
+        const selectedSet = new Set(selection.ids)
+        const groupIds = new Set<string>()
+        for (const el of allElements) {
+          if (selectedSet.has(el.id) && el.groupId) groupIds.add(el.groupId)
+        }
+        if (groupIds.size === 0) return // no-op (no preventDefault)
+        const idsToUngroup: string[] = []
+        for (const gid of groupIds) {
+          idsToUngroup.push(...getGroupMembers(currentSlide, gid))
+        }
+        e.preventDefault()
+        dispatch({
+          type: 'UNGROUP',
+          slideIndex: selectedIndex,
+          ids: idsToUngroup,
+        })
+      },
+
+      // Phase 62 GROUP-08: group-aware Escape. First press exits the group
+      // if currentlyInsideGroup !== null (Plan 62-01 selection-model state).
+      // Second press clears selection (Plan 60-04 SEL-08 behavior). Single
+      // user gesture → single observable behavior. Mirrors Plan 62-02's
+      // canvas-empty exitGroup-then-clear two-step semantics.
       'Escape': (e) => {
         if (isEditingTarget(e.target)) return
         e.preventDefault()
+        if (selection.currentlyInsideGroup !== null) {
+          selection.exitGroup()
+          return
+        }
         selection.clear()
         setSelectedTextBoxId(null)
       },
