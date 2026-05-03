@@ -23,7 +23,12 @@ import { templates } from '@/lib/render/templates'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import { getTemplate } from '@/lib/render/templates/index'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
-import type { Slide } from '@/lib/types/slide'
+import {
+  legacyWatermarkToElement,
+  elementToLegacyWatermark,
+} from '@/lib/editor/watermark-adapter'
+import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
+import type { Slide, Watermark } from '@/lib/types/slide'
 
 describe('Phase 58 (PARITY-01, PARITY-02): renderer parity for new templates', () => {
   it('PARITY-02: renderGrain is the singleton export from resolve-overlay', () => {
@@ -206,5 +211,167 @@ describe('Phase 59 (PARITY-01, PARITY-02): corner-resize parity invariants', () 
 
     // Editable branch DOES carry hook-text-wrapper.
     expect(container.querySelector('[data-testid="hook-text-wrapper"]')).not.toBeNull()
+  })
+})
+
+// Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity gate.
+//
+// The byte-identity invariant: every render path that previously read
+// `slide.style_overrides.watermark` must continue producing identical output
+// after the schema lift adds `slide.watermark`. The lazy initializer in
+// use-slide-editor.ts mirrors slide.watermark <- style_overrides.watermark
+// on load (one-way) but RETAINS the legacy slot populated. resolveWatermark
+// and resolveForcedWatermark continue to read from the legacy slot, so the
+// PNG/preview output is unchanged by construction. Test 1 + Test 5 enforce
+// this. Tests 2-3 enforce the adapter's round-trip + idempotency contract.
+// Test 4 SEEDS the editor-only chrome regression scan that Phases 61/63/65
+// will extend (selection / marquee / guide className must NEVER appear in
+// the editable={false} render tree — this is the gate Plan 60-05 must respect).
+describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity', () => {
+  it('legacy slot AND unified element produce identical render', () => {
+    // Two slides — one with only the legacy slot, one with both — must
+    // produce identical resolveForcedWatermark output (the legacy resolver
+    // is the byte-identity anchor).
+    const legacyOnly: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: {
+        watermark: { enabled: true, customText: 'Brand', position: 'bottom-right' },
+      },
+    }
+    const lifted: Slide = {
+      ...legacyOnly,
+      watermark: legacyWatermarkToElement(legacyOnly, 0)!,
+    }
+    const a = resolveForcedWatermark('free', { width: 1080, height: 1920 }, legacyOnly)
+    const b = resolveForcedWatermark('free', { width: 1080, height: 1920 }, lifted)
+    expect(a).not.toBeNull()
+    expect(b).not.toBeNull()
+    expect(b).toEqual(a)
+  })
+
+  it('adapter is idempotent: legacyWatermarkToElement(legacyWatermarkToElement(slide))', () => {
+    // Calling the adapter twice on the same slide+index produces equal
+    // Watermark values — including stable id. The mirror is one-way and
+    // re-deriving from the same legacy slot must yield the same element.
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: {
+        watermark: { enabled: true, customLogoUrl: 'https://x/y.png', position: 'top-left' },
+      },
+    }
+    const a = legacyWatermarkToElement(slide, 5)
+    const b = legacyWatermarkToElement(slide, 5)
+    expect(a).not.toBeNull()
+    expect(b).toEqual(a)
+    expect(a?.id).toBe('w_5')
+  })
+
+  it('round-trip: element → legacy → element preserves all fields', () => {
+    const original: Watermark = {
+      id: 'w_2',
+      enabled: true,
+      customLogoUrl: 'https://cdn.example.com/logo.png',
+      customText: 'Acme',
+      position: 'bottom-left',
+    }
+    const slice = elementToLegacyWatermark(original)
+    expect(slice.watermark_patch).toBeDefined()
+    // Reconstruct a slide whose legacy slot equals the slice, then re-derive.
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: { watermark: slice.watermark_patch },
+    }
+    const round = legacyWatermarkToElement(slide, 2)
+    expect(round).not.toBeNull()
+    expect(round?.id).toBe('w_2')
+    expect(round?.enabled).toBe(original.enabled)
+    expect(round?.customLogoUrl).toBe(original.customLogoUrl)
+    expect(round?.customText).toBe(original.customText)
+    expect(round?.position).toBe(original.position)
+  })
+
+  it('PARITY-01: SlidePreview editable={false} renders zero multi-selection chrome', () => {
+    // The editor-chrome regression scan SEED. Every later phase that adds
+    // selection ring / marquee / smart-guide DOM must keep its className
+    // OUT of the editable={false} branch. This is enforced via four
+    // whole-word regex checks against the rendered HTML.
+    const slide: Slide = {
+      hook_text: 'STOP SCROLLING',
+      body_text: 'Body text here',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: { hook_font_size: 60, hook_width: 100 },
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    const html = container.innerHTML
+    // No multi-selection-ring helper class anywhere.
+    expect(html).not.toMatch(/multi-selection-ring/)
+    // Whole-word matches only — substrings inside other words are fine.
+    expect(html).not.toMatch(/class="[^"]*\bselection\b[^"]*"/)
+    expect(html).not.toMatch(/class="[^"]*\bmarquee\b[^"]*"/)
+    expect(html).not.toMatch(/class="[^"]*\bguide\b[^"]*"/)
+  })
+
+  it('Phase 60 (WMARK-04, WMARK-05): free-tier enabled=false STILL renders post-unification', () => {
+    // Free-tier opt-out is locked by spec — `enabled: false` MUST still
+    // render the ViralSlideMaker mark. The lazy initializer adds
+    // slide.watermark but RETAINS the legacy slot, so resolveForcedWatermark
+    // (which reads the legacy slot) continues to enforce the lock.
+    const legacy: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: { watermark: { enabled: false } },
+    }
+    // Simulate the lazy-initializer mirror: derive watermark element while
+    // KEEPING the legacy slot populated (the production path does not
+    // delete style_overrides.watermark).
+    const lifted: Slide = {
+      ...legacy,
+      watermark: legacyWatermarkToElement(legacy, 0)!,
+    }
+    const forcedLegacy = resolveForcedWatermark(
+      'free',
+      { width: 1080, height: 1920 },
+      legacy,
+    )
+    const forcedLifted = resolveForcedWatermark(
+      'free',
+      { width: 1080, height: 1920 },
+      lifted,
+    )
+    // Both paths must STILL render (free opt-out is locked) AND produce
+    // identical output (byte-identity invariant).
+    expect(forcedLegacy).not.toBeNull()
+    expect(forcedLifted).not.toBeNull()
+    expect(forcedLifted).toEqual(forcedLegacy)
   })
 })
