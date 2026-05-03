@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
-status: roadmap_approved
-last_updated: "2026-05-02T23:55:00.000Z"
-last_activity: 2026-05-02
+status: Phase 60 in progress (Plan 01/05 complete — schema foundation landed)
+stopped_at: Plan 60-01 complete — schema foundation shipped; Wave 2 (Plans 60-02 + 60-03) ready to execute in parallel.
+last_updated: "2026-05-03T01:12:00.000Z"
+last_activity: 2026-05-02 — Plan 60-01 schema foundation: groupId/locked/hidden fields + Watermark interface (commit 1164c73)
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 5
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
@@ -25,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
-Phase: Not started — Phase 60 (Multi-Select Foundation + Watermark Schema Lift) ready to plan
-Plan: —
-Status: Roadmap approved; awaiting `/gsd-plan-phase 60`
-Last activity: 2026-05-02 — Roadmap created (7 phases 60–66, 97 reqs mapped, 100% coverage)
+Phase: 60 — Multi-Select Foundation + Watermark Schema Lift (Wave 1 of 4 complete)
+Plan: 60-01 SHIPPED (schema foundation: 39 LOC, 1 commit `1164c73`); 60-02 + 60-03 ready (parallel-safe Wave 2)
+Status: Phase 60 in progress; WMARK-01 marked complete in REQUIREMENTS.md
+Last activity: 2026-05-02 — Plan 60-01 schema foundation: groupId/locked/hidden fields + Watermark interface
 
 ## v2.11 Phase Map
 
@@ -126,6 +127,6 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ## Session Continuity
 
-Last activity: 2026-05-03 — Completed quick task 260502-oim: dashboard thumbnails now render first slide + inline slide-navigation arrows.
-Stopped at: Roadmap approved; ready to plan Phase 60.
-Next: `/gsd-plan-phase 60` to decompose Phase 60 (Multi-Select Foundation + Watermark Schema Lift) into executable plans.
+Last activity: 2026-05-02 — Plan 60-01 schema foundation shipped (commit `1164c73`): TextBox + CustomImage gain `groupId?` / `locked?` / `hidden?`; new `Watermark` interface; `Slide.watermark?` slot. 39 LOC, additive only, zero behavior changes, all 356 src/lib/ tests pass.
+Stopped at: Plan 60-01 complete; Wave 2 ready (60-02 watermark adapter + parity gate; 60-03 useSelectionModel + BULK_TRANSLATE). 60-02 and 60-03 are parallel-safe — zero file overlap.
+Next: Execute Plan 60-02 (Wave 2 — PARITY GATE) and Plan 60-03 (Wave 2 — selection model) in parallel.
