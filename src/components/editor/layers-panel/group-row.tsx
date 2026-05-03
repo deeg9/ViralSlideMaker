@@ -57,7 +57,7 @@ export function GroupRow({
         type="button"
         data-testid="group-lock-button"
         data-pressed={row.allLocked ? 'true' : 'false'}
-        title="Lock group"
+        title="Lock group (⌘⇧L)"
         aria-label={row.allLocked ? 'Unlock group' : 'Lock group'}
         aria-pressed={row.allLocked}
         onClick={(e) => {
