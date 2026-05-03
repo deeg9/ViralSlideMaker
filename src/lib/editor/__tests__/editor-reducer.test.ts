@@ -846,3 +846,504 @@ describe('editorReducer — Phase 60 (PERF-01): BULK_TRANSLATE single-dispatch c
     expect(next.present[1].text_boxes![0].position.y).toBe(20)
   })
 })
+
+// Phase 62 (GROUP-02..05, KBD-09): GROUP + UNGROUP single-dispatch contract.
+// GROUP assigns a shared groupId to all listed ids in one pushHistory; N<=1
+// is a silent no-op; subset-of-existing-group dissolves the prior group
+// entirely (flat schema only — PITFALL-3.3). UNGROUP clears groupId on listed
+// ids in one pushHistory; idempotent on already-ungrouped ids; lossless
+// across unlimited cycles (Test U3). Both route text_boxes mutations through
+// applyDualWrite (BL-01).
+describe('editorReducer — Phase 62 (GROUP-02..05, KBD-09): GROUP', () => {
+  test('Test G1 (KBD-09 / GROUP-02): GROUP with 3 ids → all 3 carry the new groupId; past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+        custom_images: [
+          {
+            id: 'ci1',
+            url: 'https://example.com/x.png',
+            x: 30,
+            y: 30,
+            width: 20,
+            height: 20,
+          },
+        ],
+      }),
+    ])
+    expect(initial.past.length).toBe(0)
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'tb2', 'ci1'],
+      groupId: 'g_new',
+    })
+    expect(next.past.length).toBe(1)   // exactly one pushHistory
+    expect(next.future.length).toBe(0)
+    expect(next.present[0].text_boxes![0].groupId).toBe('g_new')
+    expect(next.present[0].text_boxes![1].groupId).toBe('g_new')
+    expect(next.present[0].custom_images![0].groupId).toBe('g_new')
+  })
+
+  test('Test G2 (GROUP-04): GROUP with ids=[] → state ref unchanged; past.length unchanged (silent no-op)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: [],
+      groupId: 'g_new',
+    })
+    expect(next).toBe(initial) // same reference — no pushHistory
+    expect(next.past.length).toBe(0)
+  })
+
+  test('Test G3 (GROUP-04 / PITFALL-3.4): GROUP with ids=[singleId] → state ref unchanged; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1'],
+      groupId: 'g_new',
+    })
+    expect(next).toBe(initial) // N<=1 → no-op; same ref
+    expect(next.past.length).toBe(0)
+  })
+
+  test('Test G4 (GROUP-05 / PITFALL-3.3): subset of existing group dissolves prior group entirely', () => {
+    // Slide has 3 text_boxes already sharing groupId='g_old' + 1 unrelated.
+    // GROUP with ids=[2 of the 3 'g_old' members + the unrelated]:
+    //   - the 2 selected 'g_old' members AND the unrelated all get 'g_new'
+    //   - the 1 NON-selected 'g_old' member gets groupId cleared (NOT 'g_old')
+    //   - past.length grows by 1.
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            groupId: 'g_old',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            groupId: 'g_old',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+          {
+            id: 'tb3',
+            role: 'custom',
+            text: 'C',
+            groupId: 'g_old',
+            position: { anchor: 'custom', x: 30, y: 30, width: 50 },
+          },
+          {
+            id: 'tb4',
+            role: 'custom',
+            text: 'D',
+            // no groupId
+            position: { anchor: 'custom', x: 40, y: 40, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'tb2', 'tb4'], // pick 2 of 3 old + the unrelated
+      groupId: 'g_new',
+    })
+    expect(next.past.length).toBe(1)
+    const tbs = next.present[0].text_boxes!
+    const byId = (id: string) => tbs.find((t) => t.id === id)!
+    // Selected: all carry 'g_new'
+    expect(byId('tb1').groupId).toBe('g_new')
+    expect(byId('tb2').groupId).toBe('g_new')
+    expect(byId('tb4').groupId).toBe('g_new')
+    // Unselected old-group member: groupId cleared (old group dissolved)
+    expect(byId('tb3').groupId).toBeUndefined()
+  })
+
+  test('Test G5 (mixed types): GROUP across 1 text_box + 1 custom_image + 1 watermark — all 3 get the new groupId; positions unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+        custom_images: [
+          {
+            id: 'ci1',
+            url: 'https://example.com/x.png',
+            x: 30,
+            y: 30,
+            width: 20,
+            height: 20,
+          },
+        ],
+        watermark: {
+          id: 'w0',
+          enabled: true,
+          position: 'bottom-right',
+        },
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'ci1', 'w0'],
+      groupId: 'g_mixed',
+    })
+    expect(next.present[0].text_boxes![0].groupId).toBe('g_mixed')
+    expect(next.present[0].custom_images![0].groupId).toBe('g_mixed')
+    expect(next.present[0].watermark!.groupId).toBe('g_mixed')
+    // Positions unchanged
+    expect(next.present[0].text_boxes![0].position.x).toBe(10)
+    expect(next.present[0].text_boxes![0].position.y).toBe(10)
+    expect(next.present[0].custom_images![0].x).toBe(30)
+    expect(next.present[0].custom_images![0].y).toBe(30)
+    expect(next.present[0].watermark!.position).toBe('bottom-right')
+  })
+
+  test('Test G6 (BL-01): GROUP that mutates a custom-role text_box fires applyDualWrite — legacy custom_texts mirror reflects the now-grouped box', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-c1',
+            role: 'custom',
+            text: 'CT1',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb-c2',
+            role: 'custom',
+            text: 'CT2',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb-c1', 'tb-c2'],
+      groupId: 'g_custom',
+    })
+    // hook_text / body_text untouched (proves dual-write ran end-to-end)
+    expect(next.present[0].hook_text).toBe('Hook')
+    expect(next.present[0].body_text).toBe('Body')
+    // custom_texts mirror is regenerated; groupId is not part of the legacy
+    // projection so the dual-write slice for the two custom rows still has
+    // their text + position intact.
+    expect(next.present[0].custom_texts).toBeDefined()
+    expect(next.present[0].custom_texts!.length).toBe(2)
+    expect(next.present[0].custom_texts!.map((c) => c.text).sort()).toEqual([
+      'CT1',
+      'CT2',
+    ])
+  })
+
+  test('Test G7 (slide isolation): GROUP on slideIndex=1 leaves slideIndex=0 + slideIndex=2 byte-identical references', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'tb-a', role: 'custom', text: 'A', position: { anchor: 'custom', x: 0, y: 0, width: 50 } },
+        ],
+      }),
+      makeSlide({
+        text_boxes: [
+          { id: 'tb-b1', role: 'custom', text: 'B1', position: { anchor: 'custom', x: 10, y: 10, width: 50 } },
+          { id: 'tb-b2', role: 'custom', text: 'B2', position: { anchor: 'custom', x: 20, y: 20, width: 50 } },
+        ],
+      }),
+      makeSlide({
+        text_boxes: [
+          { id: 'tb-c', role: 'custom', text: 'C', position: { anchor: 'custom', x: 0, y: 0, width: 50 } },
+        ],
+      }),
+    ])
+    const before0 = initial.present[0]
+    const before2 = initial.present[2]
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 1,
+      ids: ['tb-b1', 'tb-b2'],
+      groupId: 'g_b',
+    })
+    expect(next.present[0]).toBe(before0) // ref-equal
+    expect(next.present[2]).toBe(before2) // ref-equal
+    expect(next.present[1].text_boxes![0].groupId).toBe('g_b')
+    expect(next.present[1].text_boxes![1].groupId).toBe('g_b')
+  })
+})
+
+describe('editorReducer — Phase 62 (GROUP-03, KBD-09): UNGROUP', () => {
+  test('Test U1 (KBD-09 / GROUP-03): UNGROUP with 3 ids sharing groupId → all 3 cleared; past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+        custom_images: [
+          {
+            id: 'ci1',
+            url: 'https://example.com/x.png',
+            x: 30,
+            y: 30,
+            width: 20,
+            height: 20,
+            groupId: 'g_x',
+          },
+        ],
+      }),
+    ])
+    expect(initial.past.length).toBe(0)
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'tb2', 'ci1'],
+    })
+    expect(next.past.length).toBe(1) // exactly one pushHistory
+    expect(next.present[0].text_boxes![0].groupId).toBeUndefined()
+    expect(next.present[0].text_boxes![1].groupId).toBeUndefined()
+    expect(next.present[0].custom_images![0].groupId).toBeUndefined()
+  })
+
+  test('Test U2 (subset shrink): UNGROUP with subset → unlisted members keep groupId; past.length grows by 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+          {
+            id: 'tb3',
+            role: 'custom',
+            text: 'C',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 30, y: 30, width: 50 },
+          },
+          {
+            id: 'tb4',
+            role: 'custom',
+            text: 'D',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 40, y: 40, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'tb2'], // remove only 2 of 4
+    })
+    expect(next.past.length).toBe(1)
+    const tbs = next.present[0].text_boxes!
+    const byId = (id: string) => tbs.find((t) => t.id === id)!
+    expect(byId('tb1').groupId).toBeUndefined()
+    expect(byId('tb2').groupId).toBeUndefined()
+    expect(byId('tb3').groupId).toBe('g_x') // group "shrinks" but doesn't dissolve
+    expect(byId('tb4').groupId).toBe('g_x')
+  })
+
+  test('Test U3 (lossless round-trip 3 cycles): positions byte-identical across group/ungroup/group/ungroup/group/ungroup', () => {
+    const start = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 15, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 25, y: 35, width: 50 },
+          },
+          {
+            id: 'tb3',
+            role: 'custom',
+            text: 'C',
+            position: { anchor: 'custom', x: 40, y: 55, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const ids = ['tb1', 'tb2', 'tb3']
+    const startPositions = start.present[0].text_boxes!.map((tb) => ({ ...tb.position }))
+
+    let s: EditorHistory = start
+    for (let cycle = 0; cycle < 3; cycle++) {
+      s = editorReducer(s, {
+        type: 'GROUP',
+        slideIndex: 0,
+        ids,
+        groupId: `g_cycle_${cycle}`,
+      })
+      // Verify all carry the new groupId mid-cycle
+      for (const tb of s.present[0].text_boxes!) {
+        expect(tb.groupId).toBe(`g_cycle_${cycle}`)
+      }
+      s = editorReducer(s, {
+        type: 'UNGROUP',
+        slideIndex: 0,
+        ids,
+      })
+      // Verify all cleared mid-cycle
+      for (const tb of s.present[0].text_boxes!) {
+        expect(tb.groupId).toBeUndefined()
+      }
+    }
+
+    // Positions byte-identical to start
+    const endPositions = s.present[0].text_boxes!.map((tb) => ({ ...tb.position }))
+    expect(endPositions).toEqual(startPositions)
+  })
+
+  test('Test U4 (idempotent on already-ungrouped): UNGROUP with ids that have no groupId → state ref unchanged; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            // no groupId
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            // no groupId
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'tb2'],
+    })
+    expect(next).toBe(initial) // ref-equal — no pushHistory
+    expect(next.past.length).toBe(0)
+  })
+
+  test('Test U5 (BL-01): UNGROUP that touches a custom-role text_box fires applyDualWrite — legacy custom_texts mirror still well-formed', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-c1',
+            role: 'custom',
+            text: 'CT1',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb-c2',
+            role: 'custom',
+            text: 'CT2',
+            groupId: 'g_x',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['tb-c1', 'tb-c2'],
+    })
+    expect(next.past.length).toBe(1)
+    // hook_text / body_text untouched (dual-write ran end-to-end)
+    expect(next.present[0].hook_text).toBe('Hook')
+    expect(next.present[0].body_text).toBe('Body')
+    // custom_texts mirror still well-formed; groupId is not in the legacy
+    // projection so output equals pre-group state for the dual-write slice.
+    expect(next.present[0].custom_texts).toBeDefined()
+    expect(next.present[0].custom_texts!.length).toBe(2)
+    expect(next.present[0].custom_texts!.map((c) => c.text).sort()).toEqual([
+      'CT1',
+      'CT2',
+    ])
+  })
+})
