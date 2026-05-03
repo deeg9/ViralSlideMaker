@@ -451,11 +451,49 @@ export function SlideEditor({
         // ADD_TEXT_BOX from Phase 50 MR-01) so we can immediately auto-select
         // the new custom box. Reducer reads `defaults.id` if present.
         const newId = crypto.randomUUID()
+        // Phase 66 Plan 01 (DIFF-02): smart offset.
+        //   - When lastMoveDeltaRef.current is non-null, use { x, y } as the
+        //     duplicate offset (Figma "rapid grid via Cmd+D" pattern —
+        //     RESEARCH FEATURES G41).
+        //   - When null (no prior move this session), fall back to
+        //     DEFAULT_DUPLICATE_OFFSET_* (~20 ref-px right + down — matches
+        //     Figma's default duplicate offset).
+        // Source position resolution (Plan 66-01 D-DIFF-02):
+        //   - When selection.primary points to a custom-anchor TextBox →
+        //     read its position.x / position.y as the source.
+        //   - Otherwise (primary null OR primary is a structural-anchor
+        //     TextBox like hook/body) → fall back to (0, 0). Stale primary
+        //     ids resolve to undefined via .find() and route through this
+        //     same fallback (T-66-01-06 mitigation).
+        // Width inherits the primary's width when known (Figma duplicate-
+        // preserves-shape model); falls back to defaultPositionForRole's
+        // width literal (60%) since the reducer doesn't merge defaults when
+        // an explicit position is passed.
+        const offset = lastMoveDeltaRef.current ?? {
+          x: DEFAULT_DUPLICATE_OFFSET_X_PCT,
+          y: DEFAULT_DUPLICATE_OFFSET_Y_PCT,
+        }
+        const primaryId = selection.primary
+        const primaryBox = primaryId
+          ? (currentSlide?.text_boxes ?? []).find((tb) => tb.id === primaryId)
+          : null
+        const sourceIsCustom = primaryBox?.position.anchor === 'custom'
+        const sourceX = sourceIsCustom ? (primaryBox?.position.x ?? 0) : 0
+        const sourceY = sourceIsCustom ? (primaryBox?.position.y ?? 0) : 0
+        const sourceWidth = sourceIsCustom ? primaryBox?.position.width : undefined
         dispatch({
           type: 'ADD_TEXT_BOX',
           slideIndex: selectedIndex,
           role: 'custom',
-          defaults: { id: newId },
+          defaults: {
+            id: newId,
+            position: {
+              anchor: 'custom',
+              x: sourceX + offset.x,
+              y: sourceY + offset.y,
+              width: sourceWidth ?? 60, // mirrors defaultPositionForRole('custom') width
+            },
+          },
         })
         selection.replaceWith([newId])
         setSelectedTextBoxId(newId)
