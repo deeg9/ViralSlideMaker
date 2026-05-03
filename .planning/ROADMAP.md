@@ -108,7 +108,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   4. Dragging a group iterates each member and applies the same delta to each member's absolute position (locked members are skipped — see Phase 64); the entire group operation dispatches a single `pushHistory` so one Cmd+Z reverses it; alignment, distribute, z-order on a multi-selection containing groups behave identically (groups treated as single units for bounding-box math)
 
 **Plans (3)**:
-- [ ] 62-01-PLAN.md — Data layer: getGroupMembers pure helper + GROUP/UNGROUP reducer actions (single pushHistory; subset-dissolve cascade) + useSelectionModel currentlyInsideGroup/enterGroup/exitGroup extension (GROUP-01..05, KBD-09 — also seeds GROUP-07/08 selection-model surface)
+- [x] 62-01-PLAN.md — Data layer: getGroupMembers pure helper + GROUP/UNGROUP reducer actions (single pushHistory; subset-dissolve cascade) + useSelectionModel currentlyInsideGroup/enterGroup/exitGroup extension (GROUP-01..05, KBD-09 — also seeds GROUP-07/08 selection-model surface)
 - [ ] 62-02-PLAN.md — UI surface: group-bounding ring (editable=true; dotted-vs-solid for entered state) + group-aware click handlers + double-click enter + click-outside-exit on 4 wrappers + PARITY-01 group gate extension (GROUP-06, GROUP-07, GROUP-08, GROUP-10)
 - [ ] 62-03-PLAN.md — Integration: Cmd+G/Cmd+Shift+G tinykeys bindings + group-aware Esc + shouldGroupDrag pure helper + group drag onDragStop → BULK_TRANSLATE single dispatch + round-trip parity tests (GROUP-02..05, GROUP-08, GROUP-09, KBD-09)
 **UI hint**: yes
@@ -204,7 +204,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 |-------|----------------|--------|-----------|
 | 60. Multi-Select Foundation + Watermark Schema Lift | 4/5 | In Progress|  |
 | 61. Marquee Selection | 2/2 | Complete | 2026-05-02 |
-| 62. Group / Ungroup | 0/0 | Not started | - |
+| 62. Group / Ungroup | 1/3 | In Progress|  |
 | 63. Alignment / Distribute + Smart Guides | 0/0 | Not started | - |
 | 64. Lock / Hide + Z-Order | 0/0 | Not started | - |
 | 65. Layers Panel + TPLREND-05 Audit | 0/0 | Not started | - |
