@@ -180,7 +180,10 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   4. All 11 existing templates render byte-identical pre/post v2.11 across both renderers; v2.9 + v2.10 audits re-run with zero parity regressions; `parity.test.tsx` extended with multi-element fixtures (selection ring, group bbox, marquee active, smart guides active)
   5. Regression test walks the `editable={false}` render tree and asserts ZERO DOM nodes match `*selection*` / `*marquee*` / `*guide*` / `*layer-overlay*` class patterns (PARITY-02 — TPLREND-05 leak guard for the entire v2.11 surface)
 
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 65-01-PLAN.md — Vanilla layers panel structure (LayersPanel + LayerChip + GroupRow) + LEFT rail mount + React.memo + selection sync (LAYERS-01..04, LAYERS-08, LAYERS-09, LAYERS-10)
+- [ ] 65-02-PLAN.md — Lock + visibility + z-order toggles wired to Plan 64 reducer actions (LAYERS-05..07, PERF-02 trivially satisfied via no-drag scope)
+- [ ] 65-03-PLAN.md — TPLREND-05 comprehensive audit suite (PARITY-02 chrome-leak scan + PARITY-04 11-template fingerprint + PARITY-05 v2.9/v2.10 regression sweep + PERF-04 verification linkage)
 **UI hint**: yes
 
 ---
@@ -212,7 +215,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 | 62. Group / Ungroup | 3/3 | Complete | 2026-05-03 |
 | 63. Alignment / Distribute + Smart Guides | 4/5 | In Progress|  |
 | 64. Lock / Hide + Z-Order | 3/3 | Complete   | 2026-05-03 |
-| 65. Layers Panel + TPLREND-05 Audit | 0/0 | Not started | - |
+| 65. Layers Panel + TPLREND-05 Audit | 0/3 | Not started | - |
 | 66. Power-User Differentiators + Polish | 0/0 | Not started | - |
 
 ---
