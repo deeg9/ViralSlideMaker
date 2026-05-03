@@ -2129,3 +2129,141 @@ describe('editorReducer — Phase 64 Plan 01 (LOCK-03): SET_LOCKED single-dispat
     expect(next.past.length).toBe(before)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 64 Plan 02 (LOCK-07, KBD-09): SET_HIDDEN single-dispatch contract.
+//
+// SET_HIDDEN toggles `hidden` on every listed id across text_boxes ∪
+// custom_images ∪ watermark in a single dispatch + single pushHistory.
+// Behavior IDENTICAL to SET_LOCKED (locked → hidden field swap). Empty ids
+// OR all-no-op returns the prior state ref unchanged. Routes text_boxes
+// mutations through applyDualWrite (BL-01).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('editorReducer — Phase 64 Plan 02 (LOCK-07): SET_HIDDEN single-dispatch contract', () => {
+  test('Test SH1: SET_HIDDEN with [tb1, ci1] → both elements have hidden: true; past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+        custom_images: [
+          { id: 'ci1', url: 'https://example.com/x.png', x: 30, y: 30, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['tb1', 'ci1'],
+      hidden: true,
+    })
+    expect(next.present[0].text_boxes![0].hidden).toBe(true)
+    expect(next.present[0].custom_images![0].hidden).toBe(true)
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test SH2: SET_HIDDEN { ids: [tb1], hidden: false } when tb1.hidden is undefined → ref-equal short-circuit; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['tb1'],
+      hidden: false,
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+
+  test('Test SH3: SET_HIDDEN on watermark id → watermark.hidden toggled; past.length grows by 1', () => {
+    const initial = makeState([
+      makeSlide({
+        watermark: { id: 'w0', enabled: true, position: 'bottom-right' },
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['w0'],
+      hidden: true,
+    })
+    expect(next.present[0].watermark!.hidden).toBe(true)
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test SH4 (BL-01): SET_HIDDEN routes text_boxes through applyDualWrite — legacy hook_text + custom_texts mirror unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-c1',
+            role: 'custom',
+            text: 'CT1',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['tb-c1'],
+      hidden: true,
+    })
+    // hook_text / body_text untouched (proves dual-write ran end-to-end)
+    expect(next.present[0].hook_text).toBe('Hook')
+    expect(next.present[0].body_text).toBe('Body')
+    // custom_texts mirror exists for the hidden custom row.
+    expect(next.present[0].custom_texts).toBeDefined()
+    expect(next.present[0].custom_texts!.length).toBe(1)
+    expect(next.present[0].custom_texts![0].text).toBe('CT1')
+    // The hidden field landed on the canonical text_boxes mirror.
+    expect(next.present[0].text_boxes!.find((t) => t.id === 'tb-c1')!.hidden).toBe(true)
+  })
+
+  test('Test SH5: SET_HIDDEN with empty ids → ref-equal short-circuit; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: [],
+      hidden: true,
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+})

@@ -159,5 +159,19 @@ export type EditorAction =
       ids: string[]      // text_boxes ∪ custom_images ∪ watermark ids
       locked: boolean
     }
+  // Phase 64 Plan 02 (LOCK-07, KBD-09): toggle `hidden` on every listed id in
+  // a single dispatch. Behavior identical to SET_LOCKED. The `hidden` field is
+  // honored by BOTH renderers (slide-preview + render-slide-satori) starting
+  // in this same plan — TPLREND-05 byte-identity preserved.
+  //   - Single pushHistory per dispatch.
+  //   - text_boxes mutations route through applyDualWrite (BL-01).
+  //   - Used by Phase 65 layers panel "visibility toggle"; Phase 64 ships
+  //     the action contract + renderer support, no user-facing keybinding.
+  | {
+      type: 'SET_HIDDEN'
+      slideIndex: number
+      ids: string[]      // text_boxes ∪ custom_images ∪ watermark ids
+      hidden: boolean
+    }
   | { type: 'UNDO' }
   | { type: 'REDO' }
