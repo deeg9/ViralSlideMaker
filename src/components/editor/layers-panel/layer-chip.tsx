@@ -8,17 +8,32 @@ import type { LayerChipProps, LayerElementType } from './types'
  * Phase 65 Plan 01 (LAYERS-09 / PERF-04): individual layer chip wrapped
  * in React.memo with custom equality.
  *
+ * Phase 65 Plan 02 (LAYERS-05/06/07): three button slots filled —
+ *   - Lock button (data-testid="chip-lock-button") → onLockToggle
+ *     dispatches SET_LOCKED via Plan 64-01.
+ *   - Visibility button (data-testid="chip-vis-button") → onVisibilityToggle
+ *     dispatches SET_HIDDEN via Plan 64-02.
+ *   - Up/down z-order arrows (data-testid="chip-reorder-up" /
+ *     "chip-reorder-down") → onReorder dispatches Z_ORDER 'forward' /
+ *     'backward' via Plan 64-03. Watermark chip wires the buttons too;
+ *     reducer silently absorbs single-slot scope no-op (Plan 64-03 D-03).
+ *
+ * Each toggle button calls `e.stopPropagation()` so clicks don't bubble
+ * up to the chip's outer onClick (which would change selection — LT8
+ * pins this).
+ *
  * areEqual checks:
  *   - row.id (stable across re-renders unless slide ids regenerate)
  *   - row.label (changes when user renames OR underlying text changes)
- *   - row.locked / row.hidden (Plan 65-02 toggles will mutate)
+ *   - row.locked / row.hidden (Plan 65-02 toggles mutate these)
  *   - selected / primary (selection-id change isolates re-render to the
  *     formerly-primary chip + the newly-primary chip; LM1 pins this)
  *   - isEditing (single inline-rename slot — flips on dblclick)
  *
  * Function-prop refs (onSelect / onStartRename / onCommitRename /
- * onCancelRename) MUST be wrapped in useCallback at the parent
- * (LayersPanel does this — verified by LM1..LM3 render-count tests).
+ * onCancelRename / onLockToggle / onVisibilityToggle / onReorder) MUST
+ * be wrapped in useCallback at the parent (LayersPanel does this —
+ * verified by LM1..LM3 render-count tests).
  *
  * Also exports `LayerChipImpl` as a named export so memo render-count
  * tests can wrap it via vi.fn() and read mockFn.mock.calls.length.
@@ -39,6 +54,9 @@ export function LayerChipImpl({
   onStartRename,
   onCommitRename,
   onCancelRename,
+  onLockToggle,
+  onVisibilityToggle,
+  onReorder,
 }: LayerChipProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -103,9 +121,75 @@ export function LayerChipImpl({
           {row.label}
         </span>
       )}
-      <div data-testid="chip-lock-slot" className="w-5 h-5" />
-      <div data-testid="chip-vis-slot" className="w-5 h-5" />
-      <div data-testid="chip-reorder-slot" className="w-5 h-5" />
+      {/* chip-lock-slot filled by Plan 65-02 — LAYERS-05 */}
+      <button
+        type="button"
+        data-testid="chip-lock-button"
+        data-pressed={row.locked ? 'true' : 'false'}
+        title="Lock layer (⌘⇧L)"
+        aria-label={row.locked ? 'Unlock layer' : 'Lock layer'}
+        aria-pressed={row.locked}
+        onClick={(e) => {
+          e.stopPropagation()
+          onLockToggle([row.id], !row.locked)
+        }}
+        className={[
+          'w-5 h-5 flex items-center justify-center rounded transition-colors focus:outline-none',
+          row.locked
+            ? 'bg-[#3d0000] text-white'
+            : 'text-[#795e5e] hover:bg-[#fadbdb]',
+        ].join(' ')}
+      >
+        <Icon name={row.locked ? 'lock' : 'lock_open'} size="sm" />
+      </button>
+      {/* chip-vis-slot filled by Plan 65-02 — LAYERS-06 */}
+      <button
+        type="button"
+        data-testid="chip-vis-button"
+        data-pressed={row.hidden ? 'true' : 'false'}
+        title="Toggle visibility"
+        aria-label={row.hidden ? 'Show layer' : 'Hide layer'}
+        aria-pressed={row.hidden}
+        onClick={(e) => {
+          e.stopPropagation()
+          onVisibilityToggle([row.id], !row.hidden)
+        }}
+        className={[
+          'w-5 h-5 flex items-center justify-center rounded transition-colors focus:outline-none',
+          row.hidden
+            ? 'bg-[#3d0000] text-white'
+            : 'text-[#795e5e] hover:bg-[#fadbdb]',
+        ].join(' ')}
+      >
+        <Icon name={row.hidden ? 'visibility_off' : 'visibility'} size="sm" />
+      </button>
+      {/* chip-reorder-slot filled by Plan 65-02 — LAYERS-07 (split into up + down) */}
+      <button
+        type="button"
+        data-testid="chip-reorder-up"
+        title="Bring forward (⌘])"
+        aria-label="Bring layer forward"
+        onClick={(e) => {
+          e.stopPropagation()
+          onReorder(row.id, 'forward')
+        }}
+        className="w-5 h-5 flex items-center justify-center rounded text-[#795e5e] hover:bg-[#fadbdb] transition-colors focus:outline-none"
+      >
+        <Icon name="arrow_upward" size="sm" />
+      </button>
+      <button
+        type="button"
+        data-testid="chip-reorder-down"
+        title="Send backward (⌘[)"
+        aria-label="Send layer backward"
+        onClick={(e) => {
+          e.stopPropagation()
+          onReorder(row.id, 'backward')
+        }}
+        className="w-5 h-5 flex items-center justify-center rounded text-[#795e5e] hover:bg-[#fadbdb] transition-colors focus:outline-none"
+      >
+        <Icon name="arrow_downward" size="sm" />
+      </button>
     </div>
   )
 }
