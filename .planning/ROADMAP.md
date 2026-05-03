@@ -33,7 +33,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 ## Phases
 
 - [x] **Phase 60: Multi-Select Foundation + Watermark Schema Lift** — Unified `Selection { ids, primary }` model + flat-schema `groupId?` / `locked?` / `hidden?` field definitions + watermark unification + Shift/Cmd-click + Cmd+A / Esc + selection ring + tinykeys install + modifier-blur reset (5/5 plans complete 2026-05-03)
-- [ ] **Phase 61: Marquee Selection** — `selecto@1.26.3` rubber-band marquee on canvas whitespace; intersect mode (Figma); Shift-additive; rect normalization for all 4 drag directions; pointer-events seam
+- [ ] **Phase 61: Marquee Selection** — `selecto@1.26.3` rubber-band marquee on canvas whitespace; intersect mode (Figma); Shift-additive; rect normalization for all 4 drag directions; pointer-events seam (1/2 plans complete: 61-01 SHIPPED 2026-05-02 — pure helpers + MarqueeOverlay + selecto install)
 - [ ] **Phase 62: Group / Ungroup** — `groupId?` semantics live; Cmd+G / Cmd+Shift+G; group bounding box visualization; double-click enter / Esc exit; group drag fans out delta to members; first multi-element reducer action with single `pushHistory`
 - [ ] **Phase 63: Alignment / Distribute + Smart Guides (Wave A + Wave B)** — 6-axis align + H/V distribute + floating Figma toolbar (Wave A); sorted-edge-array snap index + 5px threshold + canvas-edge targets + equal-spacing "==" guide + asymmetric hysteresis (Wave B); both ship together (snap engine shared)
 - [ ] **Phase 64: Lock / Hide + Z-Order** — `locked?` + `hidden?` semantics live; Cmd+Shift+L lock toggle; lock blocks drag/resize/edit but allows select; hidden skipped by both renderers; Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ z-order via array splice; lock stripped on fork
@@ -85,8 +85,8 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   3. Holding Shift during marquee adds the marqueed elements to existing selection rather than replacing it; `selecto`'s `setScale(x, y)` is wired correctly so marquee coordinates account for the canvas's scaled wrapper at every zoom level
   4. Marquee overlay renders only when `editable={true}` — Satori PNG export tree contains zero marquee DOM nodes (verified via `editable={false}` regression scan); holding Shift during element drag constrains motion to the dominant axis (X or Y based on which delta is larger)
 
-**Plans:** 2 plans
-- [ ] 61-01-PLAN.md — Pure helpers (normalizeRect, elementsInRect) + selecto@1.26.3 install + render-only MarqueeOverlay component (29 tests; SEL-14)
+**Plans:** 2 plans (1/2 complete)
+- [x] 61-01-PLAN.md — Pure helpers (normalizeRect, elementsInRect) + selecto@1.26.3 install + render-only MarqueeOverlay component (29 tests; SEL-14) — SHIPPED `66513d6` / `7db9555` / `099eda0` / `9c9caa3` / `61c65c7` / `7bce1e3` / `cae384f`
 - [ ] 61-02-PLAN.md — Wire marquee state machine + onPointerDown seam swap on canvas root + KBD-07 axis-constrain in 4 element onDrag handlers + PARITY-01 test extension (SEL-05, SEL-06, KBD-07)
 
 **UI hint**: yes
