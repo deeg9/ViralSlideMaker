@@ -18,6 +18,12 @@ export interface TextSegment {
       fontFamily when undefined. The font loader walks all referenced
       segment fontFamily values and registers them with Satori at render time. */
   fontFamily?: string
+  /** quick-260502-pw8: per-segment bold mark (Word/Figma "select word, click B").
+      When true, the segment renders at fontWeight 700 regardless of the parent
+      text-box's font_weight. Toggled via the BoldWordsDisclosure chip wall in
+      the right-rail Inspector. Renderers honor this via inline fontWeight on
+      the segment's <span>. */
+  bold?: boolean
 }
 
 export interface CustomText {
@@ -34,6 +40,16 @@ export interface CustomText {
   text_align?: 'left' | 'center' | 'right'
   text_effects?: TextEffects
   segments?: TextSegment[]
+  /** quick-260502-pw8: paragraph-level list type. Each line of `text`
+      (\n-separated) becomes a list item with a literal-text marker prefix
+      ("1. " for numbered, "• " for bulleted). Omit for plain text.
+      Per-segment styling within list items is a v2 follow-up — list-mode
+      renders each line as plain text. */
+  list_type?: 'numbered' | 'bulleted'
+  /** quick-260502-pw8: paragraph-level indent level (0..2 inclusive). Each
+      level adds 32px paddingLeft at the 1080×1920 reference size. Renderer
+      clamps; UI buttons enforce 0..2 at edit time. */
+  list_indent?: number
 }
 
 export interface CustomImage {
@@ -110,6 +126,13 @@ export interface TextBox {
   locked?: boolean
   hidden?: boolean
   position: TextBoxPosition
+  /** quick-260502-pw8: paragraph-level list type. Each line of `text`
+      (\n-separated) becomes a list item with a literal-text marker prefix
+      ("1. " for numbered, "• " for bulleted). Omit for plain text. */
+  list_type?: 'numbered' | 'bulleted'
+  /** quick-260502-pw8: paragraph-level indent level (0..2 inclusive). Each
+      level adds 32px paddingLeft at the 1080×1920 reference size. */
+  list_indent?: number
 }
 
 export interface SlideStyleOverrides {
