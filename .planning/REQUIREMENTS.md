@@ -117,7 +117,7 @@
 
 ### Watermark Integration (WMARK)
 
-- [ ] **WMARK-01**: Watermark lifted from `style_overrides.watermark` into a unified addressable element with stable `id` + `groupId?` + `locked?` + `hidden?` fields (additive — old field path retained for back-compat)
+- [x] **WMARK-01**: Watermark lifted from `style_overrides.watermark` into a unified addressable element with stable `id` + `groupId?` + `locked?` + `hidden?` fields (additive — old field path retained for back-compat)
 - [ ] **WMARK-02**: Watermark participates in multi-select, marquee, alignment, distribute, group, z-order operations identically to text_boxes / custom_images
 - [ ] **WMARK-03**: Schema migration adapter `legacyWatermarkToElement` runs at slide-load boundary (mirrors v2.8 `legacyToTextBoxes` pattern)
 - [ ] **WMARK-04**: Both renderers (React preview + Satori PNG) consume watermark from the unified path with byte-identical output (TPLREND-05 parity preserved)
@@ -267,7 +267,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | KBD-07 | Phase 61 | Pending |
 | KBD-08 | Phase 66 | Pending |
 | KBD-09 | Phase 62 | Pending |
-| WMARK-01 | Phase 60 | Pending |
+| WMARK-01 | Phase 60 | Complete |
 | WMARK-02 | Phase 60 | Pending |
 | WMARK-03 | Phase 60 | Pending |
 | WMARK-04 | Phase 60 | Pending |
