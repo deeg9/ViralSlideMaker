@@ -272,6 +272,13 @@ export function buildSlideElement(
 
   // Brand watermark layer (260427-hut). Satori has no z-index — placement after
   // custom_images in JSX order makes it sit on top.
+  //
+  // Phase 60 (WMARK-04): the lazy initializer in use-slide-editor.ts mirrors
+  // slide.watermark ↔ slide.style_overrides.watermark via watermark-adapter.ts.
+  // resolveWatermark reads from the legacy slot — the mirror keeps both in sync,
+  // so byte-identical output is preserved across the schema lift. Replacing
+  // resolveWatermark wholesale belongs to a later phase; Phase 60 only adds the
+  // unified element while preserving the resolver contract (RESEARCH Q1 + Q10).
   const watermark = resolveWatermark(brandKit ?? null, slide, { width: W, height: H })
 
   // Forced free-tier watermark (260427-wmk). Rendered last in JSX so it sits on top.
