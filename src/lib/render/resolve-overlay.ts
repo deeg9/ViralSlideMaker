@@ -175,6 +175,10 @@ export function renderSegments(
     // (notes-app-chic). Falls back to the parent text container's fontFamily when
     // undefined — zero behavior change for legacy segments.
     const segmentFontFamily: React.CSSProperties = seg.fontFamily ? { fontFamily: seg.fontFamily } : {}
+    // quick-260502-pw8: per-segment bold mark. Inline fontWeight wins over
+    // the parent text-box's font_weight (Word/Figma semantics). Falls back to
+    // undefined when not set so the parent's weight cascades through.
+    const segmentBoldStyle: React.CSSProperties = seg.bold ? { fontWeight: 700 } : {}
     if (seg.highlightColor) {
       const isPill = (seg.highlightStyle ?? 'pill') === 'pill'
       const pillTextColor = pickContrastColor(seg.highlightColor, baseSegmentColor)
@@ -193,6 +197,7 @@ export function renderSegments(
         maxWidth: '100%',
         overflowWrap: 'break-word',
         ...segmentFontFamily,
+        ...segmentBoldStyle,
       }
       return React.createElement('span', { key: `${i}-${seg.text.slice(0, 20)}`, style: pillStyle }, seg.text)
     }
@@ -217,11 +222,84 @@ export function renderSegments(
           maxWidth: '100%',
           overflowWrap: 'break-word',
           ...segmentFontFamily,
+          ...segmentBoldStyle,
         },
       },
       children,
     )
   })
+}
+
+/**
+ * quick-260502-pw8: paragraph-level text renderer with optional list-marker
+ * prefixes and indent. The canonical Satori workaround for `<ol>/<ul>` —
+ * which Satori's CSS subset does NOT support — is a `flex-direction: column`
+ * container with one child `<div>` per line and a literal text marker
+ * ("1. " / "• ") prepended inline to each line.
+ *
+ * Fast path: when both `listType` and `listIndent` are falsy, returns
+ * `renderSegments(...)` UNCHANGED so legacy text boxes / non-list slides
+ * stay byte-identical (TPLREND-05 parity invariant — every slide that
+ * doesn't opt into lists pre-/post- this helper produces identical Satori
+ * SVG output and identical browser-preview DOM).
+ *
+ * v1 limitation (documented): when listType is set, each line renders as
+ * plain text — per-segment bold/accent/highlight inside list items is a
+ * v2 follow-up. Per-segment styling outside list mode is unaffected.
+ */
+export function renderTextBlock(
+  text: string,
+  segments: TextSegment[] | undefined,
+  listType: 'numbered' | 'bulleted' | undefined,
+  listIndent: number | undefined,
+  baseColor: string,
+  accentColor: string,
+): React.ReactNode {
+  // Fast path — preserves byte-identity for every slide that hasn't opted
+  // into lists/indents. Critical for TPLREND-05 parity.
+  if (!listType && !listIndent) {
+    return renderSegments(text, segments, baseColor, accentColor)
+  }
+
+  const indentPx = Math.max(0, Math.min(2, Math.floor(listIndent ?? 0))) * 32
+  const lines = text.split('\n')
+
+  return React.createElement(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        gap: 8,
+      },
+    },
+    lines.map((line, lineIdx) => {
+      const marker =
+        listType === 'numbered'
+          ? `${lineIdx + 1}. `
+          : listType === 'bulleted'
+            ? '•  '
+            : ''
+      // Each line is its own div so flex-column produces a real line break.
+      // Text wrapping inside the line is handled by the parent container's
+      // width constraint (hook/body/custom_text caller passes width).
+      return React.createElement(
+        'div',
+        {
+          key: `line-${lineIdx}`,
+          style: {
+            display: 'flex',
+            paddingLeft: indentPx,
+            color: baseColor,
+            maxWidth: '100%',
+            overflowWrap: 'break-word',
+          },
+        },
+        `${marker}${line}`,
+      )
+    }),
+  )
 }
 
 /**

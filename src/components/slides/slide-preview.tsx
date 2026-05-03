@@ -23,6 +23,7 @@ import {
   resolveOverlayContent,
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
+  renderTextBlock,
   bottomCardBackground,
   renderGrain,
   renderVignette,
@@ -395,11 +396,20 @@ export function SlidePreview({
   // then template.textAlign. Fixes the bug where pressing Center on the
   // hook forced body to also center, and where body alignment buttons were
   // silently overridden by hook's value via the dual-write adapter.
-  const hookBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')?.text_align
-  const bodyBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')?.text_align
+  const hookTextBox = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')
+  const bodyTextBox = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')
+  const hookBoxAlign = hookTextBox?.text_align
+  const bodyBoxAlign = bodyTextBox?.text_align
   const slideAlign = overrides.text_align ?? template.textAlign
   const hookTextAlign = hookBoxAlign ?? slideAlign
   const bodyTextAlign = bodyBoxAlign ?? slideAlign
+  // quick-260502-pw8: per-text-box list_type / list_indent reads. Mirrors
+  // text_align lookup. Legacy slides without text_boxes leave both undefined,
+  // which routes renderTextBlock through its byte-identical fast path.
+  const hookListType = hookTextBox?.list_type
+  const hookListIndent = hookTextBox?.list_indent
+  const bodyListType = bodyTextBox?.list_type
+  const bodyListIndent = bodyTextBox?.list_indent
   // Kept for callers that haven't been split yet (custom-text fallback below).
   const textAlign = slideAlign
   // Templates with a hook-fit registry entry auto-shrink the hook size for long
@@ -710,8 +720,8 @@ export function SlidePreview({
           }}>
             <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}</span>
-                : renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}
+                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
+                : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
             </p>
           </div>
 
@@ -730,8 +740,8 @@ export function SlidePreview({
             }}>
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}</span>
-                  : renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}
+                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}</span>
+                  : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}
               </p>
             </div>
           )}
@@ -861,8 +871,8 @@ export function SlidePreview({
                 }}
               >
                 {ctHighlight?.enabled && ctHighlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)}</span>
-                  : renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)}
+                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}</span>
+                  : renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}
               </div>
             )
           })}
@@ -1130,8 +1140,8 @@ export function SlidePreview({
           >
             <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}</span>
-                : renderSegments(slide.hook_text, slide.hook_segments, hookTextColor, accentColor)}
+                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
+                : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
             </p>
           </div>
         </Rnd>
@@ -1246,8 +1256,8 @@ export function SlidePreview({
             >
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}</span>
-                  : renderSegments(slide.body_text, slide.body_segments, bodyTextColor, accentColor)}
+                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}</span>
+                  : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}
               </p>
             </div>
           </Rnd>
@@ -1420,8 +1430,8 @@ export function SlidePreview({
               >
                 {isEditing ? ct.text : (
                   ctHighlight?.enabled && ctHighlight.style === 'tight'
-                    ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)}</span>
-                    : renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)
+                    ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}</span>
+                    : renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)
                 )}
               </div>
             </Rnd>
