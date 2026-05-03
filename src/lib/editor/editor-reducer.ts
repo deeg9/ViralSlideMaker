@@ -290,6 +290,67 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, slides)
     }
 
+    // Phase 60 (PERF-01): single dispatch per drag gesture (onDragStop only —
+    // never per-tick onDrag; matches v2.10 onResizeStop precedent). The
+    // reducer:
+    //   - calls pushHistory() exactly once (PERF-01),
+    //   - routes text_boxes through applyDualWrite() so legacy fields stay
+    //     in lock-step with text_boxes (BL-01),
+    //   - skips locked elements (Phase 64 honor — declared here so Phase 64
+    //     doesn't need to re-touch the reducer),
+    //   - skips text_boxes with anchor !== 'custom' (structural anchors
+    //     don't carry x/y — RESEARCH Q7 conservative choice),
+    //   - skips watermark entirely (Watermark.position is an enum, not a
+    //     freeform x/y — RESEARCH Q7 lines 1249-1254; Phase 62/63 may
+    //     revisit when groups + alignment land).
+    case 'BULK_TRANSLATE': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const idSet = new Set(action.ids)
+
+        // Update text_boxes (custom-anchor only, skip locked).
+        let nextTextBoxes = slide.text_boxes
+        if (slide.text_boxes) {
+          nextTextBoxes = slide.text_boxes.map((tb) => {
+            if (!idSet.has(tb.id)) return tb
+            if (tb.locked === true) return tb              // Phase 64 honor
+            if (tb.position.anchor !== 'custom') return tb // structural anchors skipped
+            return {
+              ...tb,
+              position: {
+                ...tb.position,
+                x: (tb.position.x ?? 0) + action.deltaX,
+                y: (tb.position.y ?? 0) + action.deltaY,
+              },
+            }
+          })
+        }
+
+        // Update custom_images (skip locked).
+        let nextCustomImages = slide.custom_images
+        if (slide.custom_images) {
+          nextCustomImages = slide.custom_images.map((ci) => {
+            if (!idSet.has(ci.id)) return ci
+            if (ci.locked === true) return ci              // Phase 64 honor
+            return { ...ci, x: ci.x + action.deltaX, y: ci.y + action.deltaY }
+          })
+        }
+
+        // Watermark: SKIPPED in Phase 60. Watermark.position is enum-only;
+        // freeform translation requires a future schema extension. Known gap.
+
+        let next: Slide = slide
+        if (nextTextBoxes !== slide.text_boxes && nextTextBoxes !== undefined) {
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (nextCustomImages !== slide.custom_images) {
+          next = { ...next, custom_images: nextCustomImages }
+        }
+        return next
+      })
+      return pushHistory(state, slides)  // PERF-01: exactly one pushHistory
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state
       const previous = state.past[state.past.length - 1]

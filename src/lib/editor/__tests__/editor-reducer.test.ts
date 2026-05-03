@@ -559,3 +559,290 @@ describe('editorReducer — UNDO-01: single history entry per resize gesture', (
     expect(state.present[0].text_boxes![0].position.width).toBe(75)
   })
 })
+
+// Phase 60 (PERF-01): BULK_TRANSLATE single-dispatch contract.
+// onDragStop emits exactly ONE BULK_TRANSLATE per gesture (the action will be
+// triggered from group drag handlers in Phase 62). The reducer MUST call
+// `pushHistory` exactly once per dispatch — never per-tick — and route
+// text_boxes through `applyDualWrite` (BL-01). The reducer ALSO honors:
+//   - locked=true → element silently skipped (Phase 64 will set this)
+//   - text_box.position.anchor !== 'custom' → silently skipped (RESEARCH Q7
+//     conservative choice — structural anchors don't carry x/y to translate)
+//   - watermark id → silently skipped (RESEARCH Q7 lines 1249-1254: enum-only
+//     position; freeform translation requires schema extension. Phase 62/63
+//     will revisit.)
+describe('editorReducer — Phase 60 (PERF-01): BULK_TRANSLATE single-dispatch contract', () => {
+  test('Test 1 (PERF-01): one BULK_TRANSLATE → past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    expect(initial.past.length).toBe(0)
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['tb1'],
+      deltaX: 5,
+      deltaY: 3,
+    })
+    expect(next.past.length).toBe(1)   // exactly one pushHistory call
+    expect(next.future.length).toBe(0)
+  })
+
+  test('Test 2: translates multiple custom-anchor text_boxes by deltaX/deltaY', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 20, y: 30, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['tb1', 'tb2'],
+      deltaX: 10,
+      deltaY: 5,
+    })
+    const tb1 = next.present[0].text_boxes!.find((tb) => tb.id === 'tb1')!
+    const tb2 = next.present[0].text_boxes!.find((tb) => tb.id === 'tb2')!
+    expect(tb1.position.x).toBe(20) // 10 + 10
+    expect(tb1.position.y).toBe(15) // 10 + 5
+    expect(tb2.position.x).toBe(30) // 20 + 10
+    expect(tb2.position.y).toBe(35) // 30 + 5
+  })
+
+  test('Test 3 (Phase 64 honor): locked=true text_box is NOT translated', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb-locked',
+            role: 'custom',
+            text: 'Locked',
+            locked: true,
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['tb-locked'],
+      deltaX: 99,
+      deltaY: 99,
+    })
+    const tb = next.present[0].text_boxes![0]
+    expect(tb.position.x).toBe(10) // unchanged
+    expect(tb.position.y).toBe(10) // unchanged
+  })
+
+  test('Test 4 (RESEARCH Q7): structural-anchor text_box (anchor!==custom) is NOT translated', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['tb-hook', 'tb-body'],
+      deltaX: 50,
+      deltaY: 50,
+    })
+    const hook = next.present[0].text_boxes![0]
+    const body = next.present[0].text_boxes![1]
+    // Structural anchors carry no x/y to translate; positions must be unchanged.
+    expect(hook.position.anchor).toBe('top')
+    expect(hook.position.x).toBeUndefined()
+    expect(hook.position.y).toBeUndefined()
+    expect(body.position.anchor).toBe('bottom')
+    expect(body.position.x).toBeUndefined()
+    expect(body.position.y).toBeUndefined()
+  })
+
+  test('Test 5: custom_image is translated by deltaX/deltaY', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          {
+            id: 'ci1',
+            url: 'https://example.com/x.png',
+            x: 10,
+            y: 20,
+            width: 30,
+            height: 30,
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['ci1'],
+      deltaX: 7,
+      deltaY: 4,
+    })
+    const ci = next.present[0].custom_images![0]
+    expect(ci.x).toBe(17) // 10 + 7
+    expect(ci.y).toBe(24) // 20 + 4
+  })
+
+  test('Test 6: watermark id is SKIPPED (enum-only position; gap documented)', () => {
+    const initial = makeState([
+      makeSlide({
+        watermark: {
+          id: 'w0',
+          enabled: true,
+          position: 'bottom-right',
+        },
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['w0'],
+      deltaX: 10,
+      deltaY: 10,
+    })
+    // Watermark is unchanged: enum-only position never receives freeform delta.
+    expect(next.present[0].watermark).toEqual({
+      id: 'w0',
+      enabled: true,
+      position: 'bottom-right',
+    })
+  })
+
+  test('Test 7: unknown id is silently skipped (no error)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    expect(() =>
+      editorReducer(initial, {
+        type: 'BULK_TRANSLATE',
+        slideIndex: 0,
+        ids: ['does-not-exist'],
+        deltaX: 5,
+        deltaY: 5,
+      }),
+    ).not.toThrow()
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['does-not-exist'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    // No-op for unknown id; tb1 untouched
+    expect(next.present[0].text_boxes![0].position.x).toBe(10)
+  })
+
+  test('Test 8 (BL-01 dual-write): text_box mutation mirrors back to legacy slide fields', () => {
+    // Fixture includes hook + body text_boxes so dual-write can faithfully
+    // mirror back to slide.hook_text / slide.body_text — applyDualWrite
+    // recomputes legacy fields FROM text_boxes, so the legacy fields would
+    // be wiped to '' if no hook/body text_boxes were present.
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-custom',
+            role: 'custom',
+            text: 'CustomText',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['tb-custom'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    // dual-write keeps hook_text / body_text in sync (proves applyDualWrite ran).
+    expect(next.present[0].hook_text).toBe('Hook')
+    expect(next.present[0].body_text).toBe('Body')
+    // custom_texts mirror is regenerated from the post-translate text_boxes
+    // array; the +5 delta is reflected in the legacy custom_texts shape too.
+    expect(next.present[0].custom_texts).toBeDefined()
+    expect(next.present[0].custom_texts!.length).toBe(1)
+    expect(next.present[0].custom_texts![0].text).toBe('CustomText')
+    expect(next.present[0].custom_texts![0].x).toBe(15) // 10 + 5
+    expect(next.present[0].custom_texts![0].y).toBe(15) // 10 + 5
+  })
+
+  test('Test 9: BULK_TRANSLATE on non-matching slideIndex leaves other slides untouched', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb-a',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb-b',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 99,             // out-of-range slide index
+      ids: ['tb-a', 'tb-b'],
+      deltaX: 100,
+      deltaY: 100,
+    })
+    // Slides 0 and 1 unchanged
+    expect(next.present[0].text_boxes![0].position.x).toBe(10)
+    expect(next.present[0].text_boxes![0].position.y).toBe(10)
+    expect(next.present[1].text_boxes![0].position.x).toBe(20)
+    expect(next.present[1].text_boxes![0].position.y).toBe(20)
+  })
+})
