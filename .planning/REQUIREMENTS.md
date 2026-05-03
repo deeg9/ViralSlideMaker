@@ -184,8 +184,123 @@
 
 ## Traceability
 
-(Filled by `/gsd-roadmapper` after roadmap approval. Maps each REQ-ID → Phase number.)
+Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after roadmap approval. Coverage: 97 / 97 (100%).
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| SEL-01 | Phase 60 | Pending |
+| SEL-02 | Phase 60 | Pending |
+| SEL-03 | Phase 60 | Pending |
+| SEL-04 | Phase 60 | Pending |
+| SEL-05 | Phase 61 | Pending |
+| SEL-06 | Phase 61 | Pending |
+| SEL-07 | Phase 60 | Pending |
+| SEL-08 | Phase 60 | Pending |
+| SEL-09 | Phase 60 | Pending |
+| SEL-10 | Phase 60 | Pending |
+| SEL-11 | Phase 60 | Pending |
+| SEL-12 | Phase 60 | Pending |
+| SEL-13 | Phase 60 | Pending |
+| SEL-14 | Phase 61 | Pending |
+| SEL-15 | Phase 60 | Pending |
+| ALIGN-01 | Phase 63 | Pending |
+| ALIGN-02 | Phase 63 | Pending |
+| ALIGN-03 | Phase 63 | Pending |
+| ALIGN-04 | Phase 63 | Pending |
+| ALIGN-05 | Phase 63 | Pending |
+| ALIGN-06 | Phase 63 | Pending |
+| ALIGN-07 | Phase 63 | Pending |
+| ALIGN-08 | Phase 63 | Pending |
+| ALIGN-09 | Phase 63 | Pending |
+| ALIGN-10 | Phase 63 | Pending |
+| GROUP-01 | Phase 62 | Pending |
+| GROUP-02 | Phase 62 | Pending |
+| GROUP-03 | Phase 62 | Pending |
+| GROUP-04 | Phase 62 | Pending |
+| GROUP-05 | Phase 62 | Pending |
+| GROUP-06 | Phase 62 | Pending |
+| GROUP-07 | Phase 62 | Pending |
+| GROUP-08 | Phase 62 | Pending |
+| GROUP-09 | Phase 62 | Pending |
+| GROUP-10 | Phase 62 | Pending |
+| SNAP-01 | Phase 63 | Pending |
+| SNAP-02 | Phase 63 | Pending |
+| SNAP-03 | Phase 63 | Pending |
+| SNAP-04 | Phase 63 | Pending |
+| SNAP-05 | Phase 63 | Pending |
+| SNAP-06 | Phase 63 | Pending |
+| SNAP-07 | Phase 63 | Pending |
+| SNAP-08 | Phase 63 | Pending |
+| SNAP-09 | Phase 63 | Pending |
+| SNAP-10 | Phase 63 | Pending |
+| ZORDER-01 | Phase 64 | Pending |
+| ZORDER-02 | Phase 64 | Pending |
+| ZORDER-03 | Phase 64 | Pending |
+| ZORDER-04 | Phase 64 | Pending |
+| ZORDER-05 | Phase 64 | Pending |
+| ZORDER-06 | Phase 64 | Pending |
+| ZORDER-07 | Phase 64 | Pending |
+| LOCK-01 | Phase 64 | Pending |
+| LOCK-02 | Phase 64 | Pending |
+| LOCK-03 | Phase 64 | Pending |
+| LOCK-04 | Phase 64 | Pending |
+| LOCK-05 | Phase 64 | Pending |
+| LOCK-06 | Phase 64 | Pending |
+| LOCK-07 | Phase 64 | Pending |
+| LOCK-08 | Phase 64 | Pending |
+| LAYERS-01 | Phase 65 | Pending |
+| LAYERS-02 | Phase 65 | Pending |
+| LAYERS-03 | Phase 65 | Pending |
+| LAYERS-04 | Phase 65 | Pending |
+| LAYERS-05 | Phase 65 | Pending |
+| LAYERS-06 | Phase 65 | Pending |
+| LAYERS-07 | Phase 65 | Pending |
+| LAYERS-08 | Phase 65 | Pending |
+| LAYERS-09 | Phase 65 | Pending |
+| LAYERS-10 | Phase 65 | Pending |
+| KBD-01 | Phase 60 | Pending |
+| KBD-02 | Phase 60 | Pending |
+| KBD-03 | Phase 60 | Pending |
+| KBD-04 | Phase 60 | Pending |
+| KBD-05 | Phase 66 | Pending |
+| KBD-06 | Phase 66 | Pending |
+| KBD-07 | Phase 61 | Pending |
+| KBD-08 | Phase 66 | Pending |
+| KBD-09 | Phase 62 | Pending |
+| WMARK-01 | Phase 60 | Pending |
+| WMARK-02 | Phase 60 | Pending |
+| WMARK-03 | Phase 60 | Pending |
+| WMARK-04 | Phase 60 | Pending |
+| WMARK-05 | Phase 60 | Pending |
+| DIFF-01 | Phase 66 | Pending |
+| DIFF-02 | Phase 66 | Pending |
+| DIFF-03 | Phase 63 | Pending |
+| PARITY-01 | Phase 60 | Pending |
+| PARITY-02 | Phase 65 | Pending |
+| PARITY-03 | Phase 63 | Pending |
+| PARITY-04 | Phase 65 | Pending |
+| PARITY-05 | Phase 65 | Pending |
+| PERF-01 | Phase 60 | Pending |
+| PERF-02 | Phase 65 | Pending |
+| PERF-03 | Phase 63 | Pending |
+| PERF-04 | Phase 65 | Pending |
+| PERF-05 | Phase 63 | Pending |
+
+### Per-Phase Summary
+
+| Phase | Name | Req Count | Reqs |
+|-------|------|-----------|------|
+| 60 | Multi-Select Foundation + Watermark Schema Lift | 23 | SEL-01..04, SEL-07..13, SEL-15, WMARK-01..05, KBD-01..04, PARITY-01, PERF-01 |
+| 61 | Marquee Selection | 4 | SEL-05, SEL-06, SEL-14, KBD-07 |
+| 62 | Group / Ungroup | 11 | GROUP-01..10, KBD-09 |
+| 63 | Alignment / Distribute + Smart Guides | 24 | ALIGN-01..10, SNAP-01..10, DIFF-03, PERF-03, PERF-05, PARITY-03 |
+| 64 | Lock / Hide + Z-Order | 15 | LOCK-01..08, ZORDER-01..07 |
+| 65 | Layers Panel + TPLREND-05 Audit | 15 | LAYERS-01..10, PARITY-02, PARITY-04, PARITY-05, PERF-02, PERF-04 |
+| 66 | Power-User Differentiators + Polish | 5 | DIFF-01, DIFF-02, KBD-05, KBD-06, KBD-08 |
+| **Total** | | **97** | |
 
 ---
 
 *Defined: 2026-05-02 — research-grounded across Figma, Canva, Sketch, Keynote, Photoshop, Adobe Express, tldraw, fabric.js, react-moveable. 4 parallel research agents + synthesis. User-confirmed scope: text + custom_images + watermarks; layers panel in left rail; 3 power-user differentiators in scope.*
+
+*Traceability filled: 2026-05-02 — `/gsd-roadmapper` mapped 97/97 requirements to 7 phases (60–66). Coverage 100%.*
