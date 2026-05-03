@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/icon'
 import { FontPicker } from '@/components/editor/font-picker'
 import { EffectRow } from './EffectRow'
 import { AccentWordsDisclosure } from './AccentWordsDisclosure'
+import { BoldWordsDisclosure } from './BoldWordsDisclosure'
 import { COLOR_SWATCHES } from './color-swatches'
 import { splitToSegments } from '@/lib/editor/text-segments'
 
@@ -153,6 +154,28 @@ export function ActiveTextBoxCard({
     onUpdate({ segments: next })
   }
 
+  // quick-260502-pw8: per-segment bold toggle (mirror of toggleAccent).
+  function toggleBold(index: number) {
+    const next = segments.map((s, i) =>
+      i === index ? { ...s, bold: !s.bold } : s,
+    )
+    onUpdate({ segments: next })
+  }
+
+  // quick-260502-pw8: list type + indent helpers. list_type undefined = plain
+  // text; setting clears any indent at level 0 (no-op for the user). Indent
+  // clamps to 0..2 inclusive — enforced both here and at render time.
+  const listType = textBox.list_type
+  const listIndent = Math.max(0, Math.min(2, Math.floor(textBox.list_indent ?? 0)))
+  function setListType(next: 'numbered' | 'bulleted' | undefined) {
+    onUpdate({ list_type: next })
+  }
+  function bumpIndent(delta: 1 | -1) {
+    const nextIndent = Math.max(0, Math.min(2, listIndent + delta))
+    if (nextIndent === listIndent) return
+    onUpdate({ list_indent: nextIndent })
+  }
+
   return (
     <div
       className="bg-white border-2 border-[#3d0000]/20 focus-within:border-[#3d0000] rounded-2xl p-5 space-y-4 transition-colors"
@@ -230,6 +253,92 @@ export function ActiveTextBoxCard({
         </button>
       </div>
 
+      {/* List + Indent row (quick-260502-pw8). Three-way segmented control
+          for list_type + indent decrease/increase buttons. Behaves like Word
+          / Figma / Canva: each line of `text` (\n-separated) becomes a list
+          item with a literal-text marker prefix in both renderers. */}
+      <div className="flex gap-2 items-center flex-wrap">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mr-1">
+          List
+        </span>
+        <button
+          type="button"
+          data-testid="active-text-box-list-none"
+          data-active={!listType ? 'true' : 'false'}
+          onClick={() => setListType(undefined)}
+          className={`p-2 rounded-lg transition-all ${FOCUS_RING} ${
+            !listType
+              ? 'bg-[#3d0000] text-white'
+              : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+          }`}
+          aria-label="No list"
+          aria-pressed={!listType}
+          title="No list"
+        >
+          <Icon name="format_align_left" size="sm" />
+        </button>
+        <button
+          type="button"
+          data-testid="active-text-box-list-numbered"
+          data-active={listType === 'numbered' ? 'true' : 'false'}
+          onClick={() => setListType('numbered')}
+          className={`p-2 rounded-lg transition-all ${FOCUS_RING} ${
+            listType === 'numbered'
+              ? 'bg-[#3d0000] text-white'
+              : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+          }`}
+          aria-label="Numbered list"
+          aria-pressed={listType === 'numbered'}
+          title="Numbered list"
+        >
+          <Icon name="format_list_numbered" size="sm" />
+        </button>
+        <button
+          type="button"
+          data-testid="active-text-box-list-bulleted"
+          data-active={listType === 'bulleted' ? 'true' : 'false'}
+          onClick={() => setListType('bulleted')}
+          className={`p-2 rounded-lg transition-all ${FOCUS_RING} ${
+            listType === 'bulleted'
+              ? 'bg-[#3d0000] text-white'
+              : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+          }`}
+          aria-label="Bulleted list"
+          aria-pressed={listType === 'bulleted'}
+          title="Bulleted list"
+        >
+          <Icon name="format_list_bulleted" size="sm" />
+        </button>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mx-1">
+          Indent
+        </span>
+        <button
+          type="button"
+          data-testid="active-text-box-indent-decrease"
+          onClick={() => bumpIndent(-1)}
+          disabled={listIndent <= 0}
+          className={`p-2 rounded-lg transition-all bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb] disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
+          aria-label="Decrease indent"
+          title="Decrease indent"
+        >
+          <Icon name="format_indent_decrease" size="sm" />
+        </button>
+        <button
+          type="button"
+          data-testid="active-text-box-indent-increase"
+          onClick={() => bumpIndent(1)}
+          disabled={listIndent >= 2}
+          className={`p-2 rounded-lg transition-all bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb] disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
+          aria-label="Increase indent"
+          title="Increase indent"
+        >
+          <Icon name="format_indent_increase" size="sm" />
+        </button>
+        <span className="text-[10px] font-bold text-[#3d0000] tabular-nums" data-testid="active-text-box-indent-level">
+          {listIndent}
+        </span>
+      </div>
+
       {/* Highlight words (collapsed by default) — chips render only when
           there's actual text. Empty text → 0 segments → component skips. */}
       {segments.length > 0 && (
@@ -237,6 +346,14 @@ export function ActiveTextBoxCard({
           segments={segments}
           onToggle={toggleAccent}
           accentColor={accentColor}
+        />
+      )}
+
+      {/* Bold words (quick-260502-pw8) — same chip-toggle UX as accent. */}
+      {segments.length > 0 && (
+        <BoldWordsDisclosure
+          segments={segments}
+          onToggle={toggleBold}
         />
       )}
 

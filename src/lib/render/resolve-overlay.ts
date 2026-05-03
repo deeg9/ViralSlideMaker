@@ -264,8 +264,13 @@ export function renderTextBlock(
   const indentPx = Math.max(0, Math.min(2, Math.floor(listIndent ?? 0))) * 32
   const lines = text.split('\n')
 
+  // <span> + display:flex (not <div>) so the wrapper is HTML-valid inside
+  // the <p> tags slide-preview.tsx wraps hook/body in. Block-level <div>
+  // descendants of <p> trip React's hydration checker; flexed inline
+  // elements stay valid markup AND keep flex behavior in both browsers and
+  // Satori (Satori's CSS subset honors display:flex regardless of tag).
   return React.createElement(
-    'div',
+    'span',
     {
       style: {
         display: 'flex',
@@ -281,11 +286,11 @@ export function renderTextBlock(
           : listType === 'bulleted'
             ? '•  '
             : ''
-      // Each line is its own div so flex-column produces a real line break.
-      // Text wrapping inside the line is handled by the parent container's
-      // width constraint (hook/body/custom_text caller passes width).
+      // Each line is its own flexed <span> so flex-column produces a real
+      // line break. Text wrapping inside the line is handled by the parent
+      // container's width constraint (hook/body/custom_text passes width).
       return React.createElement(
-        'div',
+        'span',
         {
           key: `line-${lineIdx}`,
           style: {
