@@ -45,6 +45,24 @@ import { tinykeys } from 'tinykeys'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 66 Plan 01 (KBD-05 / KBD-06 / DIFF-02): nudge magnitudes in % of
+// canvas. REF_WIDTH=1080 / REF_HEIGHT=1920 are the canonical reference
+// dimensions used by every position field in the schema (slide.text_boxes[]
+// .position.x/y; slide.custom_images[].x/y are also % of REF_WIDTH/HEIGHT).
+//
+// Plain Arrow → 1 ref-px (Figma + Canva default; FEATURES F36/F37).
+// Shift+Arrow → 10 ref-px (10× scale; KBD-06).
+// DIFF-02 default duplicate offset → 20 ref-px right + down (matches Figma's
+// Cmd+D fallback when no prior move-delta has been recorded).
+// ──────────────────────────────────────────────────────────────────────────
+const NUDGE_X_SMALL_PCT = 100 / 1080         // 1 ref-px horizontally  ≈ 0.0926%
+const NUDGE_X_LARGE_PCT = 1000 / 1080        // 10 ref-px horizontally ≈ 0.9259%
+const NUDGE_Y_SMALL_PCT = 100 / 1920         // 1 ref-px vertically    ≈ 0.0521%
+const NUDGE_Y_LARGE_PCT = 1000 / 1920        // 10 ref-px vertically   ≈ 0.5208%
+const DEFAULT_DUPLICATE_OFFSET_X_PCT = 2000 / 1080  // 20 ref-px ≈ 1.852%
+const DEFAULT_DUPLICATE_OFFSET_Y_PCT = 2000 / 1920  // 20 ref-px ≈ 1.042%
+
 export interface InitialPublishedState {
   publishedId: string
   slug: string
@@ -111,6 +129,14 @@ export function SlideEditor({
   // handlers below write to BOTH so the new model and the legacy slot stay
   // in sync until Phase 66 retires the shim.
   const selection = useSelectionModel({ slideIndex: selectedIndex, presentSlides: slides })
+
+  // Phase 66 Plan 01 (DIFF-02): tracks the most recent BULK_TRANSLATE delta
+  // (drag-stop OR arrow-nudge) in % of canvas. Read by the $mod+d (Cmd+D
+  // smart-offset) handler — null on first use; falls back to
+  // DEFAULT_DUPLICATE_OFFSET_*. useRef instead of useState because mutations
+  // must NEVER trigger re-renders (PERF-01 carry-forward — refs for hot-path
+  // state, matching Plan 60-04 useModifierState pattern).
+  const lastMoveDeltaRef = useRef<{ x: number; y: number } | null>(null)
 
   // Phase 57 (D-08): photo-treatment override handling. useTransition keeps
   // the spinner state co-located with the editor; revalidatePath fires from
@@ -689,6 +715,153 @@ export function SlideEditor({
           op: 'back',
         })
       },
+
+      // ────────────────────────────────────────────────────────────────────
+      // Phase 66 Plan 01 (KBD-05, KBD-06, KBD-09, PERF-01): arrow-nudge
+      // bindings. Plain Arrow = ±1 ref-px; Shift+Arrow = ±10 ref-px (Figma
+      // + Canva default — RESEARCH FEATURES F36/F37). Each binding:
+      //   1. Inlined isEditingTarget firewall (PITFALL-9.2 — arrow keys typed
+      //      inside text inputs MUST move the cursor, not nudge canvas
+      //      elements). Returns BEFORE preventDefault so the browser's
+      //      caret-movement default is preserved inside <input>/<textarea>/
+      //      contentEditable.
+      //   2. e.preventDefault() to suppress any browser-default scroll on
+      //      bare Arrow keys when the canvas-root has focus (defensive —
+      //      mirrors the unconditional preventDefault in every other binding
+      //      in this file).
+      //   3. dispatch BULK_TRANSLATE with the matching deltaX/deltaY in %.
+      //      The BULK_TRANSLATE reducer (Plan 60-03) already silently skips
+      //      locked elements + structural-anchor TextBoxes + watermark, so
+      //      the arrow-nudge inherits those filtering contracts for free —
+      //      no reducer change required.
+      //   4. lastMoveDeltaRef.current = { x: deltaX, y: deltaY } so the next
+      //      $mod+d (Cmd+D smart offset — DIFF-02) reuses the most recent
+      //      move direction + magnitude.
+      // Single pushHistory per nudge — BULK_TRANSLATE already provides this
+      // (PERF-01 / KBD-09 carry-forward). The KBD-02 firewall is INLINED at
+      // each binding (not factored into a helper) so the verification grep
+      // count grows by exactly 8 inline call sites.
+      // ────────────────────────────────────────────────────────────────────
+      'ArrowUp': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = 0
+        const deltaY = -NUDGE_Y_SMALL_PCT
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
+      'ArrowDown': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = 0
+        const deltaY = +NUDGE_Y_SMALL_PCT
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
+      'ArrowLeft': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = -NUDGE_X_SMALL_PCT
+        const deltaY = 0
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
+      'ArrowRight': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = +NUDGE_X_SMALL_PCT
+        const deltaY = 0
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
+      'Shift+ArrowUp': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = 0
+        const deltaY = -NUDGE_Y_LARGE_PCT
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
+      'Shift+ArrowDown': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = 0
+        const deltaY = +NUDGE_Y_LARGE_PCT
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
+      'Shift+ArrowLeft': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = -NUDGE_X_LARGE_PCT
+        const deltaY = 0
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
+      'Shift+ArrowRight': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        const deltaX = +NUDGE_X_LARGE_PCT
+        const deltaY = 0
+        lastMoveDeltaRef.current = { x: deltaX, y: deltaY }
+        dispatch({
+          type: 'BULK_TRANSLATE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          deltaX,
+          deltaY,
+        })
+      },
     })
 
     // Phase 63 Plan 02 — closure helpers. Defined INSIDE the useEffect so
@@ -1231,7 +1404,13 @@ export function SlideEditor({
           // a single-group selection; we forward the payload to BULK_TRANSLATE
           // so the gesture lands as one history entry. Reducer skips locked +
           // watermark + structural-anchor (Plan 60-03 contract carry-forward).
-          onGroupDrag={(payload) => dispatch({ type: 'BULK_TRANSLATE', ...payload })}
+          // Phase 66 Plan 01 (DIFF-02): also record the drag delta into
+          // lastMoveDeltaRef so a subsequent Cmd+D reuses the direction +
+          // magnitude (Figma smart-offset pattern — RESEARCH FEATURES G41).
+          onGroupDrag={(payload) => {
+            lastMoveDeltaRef.current = { x: payload.deltaX, y: payload.deltaY }
+            dispatch({ type: 'BULK_TRANSLATE', ...payload })
+          }}
           // Phase 63 Plan 02 (ALIGN-01..05, ALIGN-07): toolbar action callback.
           // SlideCanvas → SlidePreview → FloatingAlignmentToolbar. Click on
           // an align/distribute button calls handleAlign which resolves
