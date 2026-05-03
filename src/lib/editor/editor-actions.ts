@@ -143,5 +143,21 @@ export type EditorAction =
       ids: string[]
       axis: DistributeAxis
     }
+  // Phase 64 Plan 01 (LOCK-03, LOCK-04, KBD-09): toggle `locked` on every listed
+  // id in a single dispatch. Behavior contract (per 64-CONTEXT.md decisions):
+  //   - Sets `locked = action.locked` on every text_box / custom_image /
+  //     watermark id whose locked field would CHANGE; ref-equal short-circuit
+  //     when no change (matches UNGROUP idempotency).
+  //   - Single pushHistory per dispatch (KBD-09 / PERF-01 carry-forward).
+  //   - text_boxes mutations route through applyDualWrite (BL-01).
+  //   - Used by Cmd+Shift+L tinykeys binding in slide-editor.tsx (Plan 64-01).
+  //   - Caller is single-source-of-truth for the toggle math (majority/all-
+  //     locked decision lives in the dispatch site, not the reducer).
+  | {
+      type: 'SET_LOCKED'
+      slideIndex: number
+      ids: string[]      // text_boxes ∪ custom_images ∪ watermark ids
+      locked: boolean
+    }
   | { type: 'UNDO' }
   | { type: 'REDO' }

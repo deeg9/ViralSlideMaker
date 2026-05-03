@@ -308,6 +308,14 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     }
 
     case 'REMOVE_CUSTOM_IMAGE': {
+      // Phase 64 Plan 01 (LOCK-04): if the targeted image is locked,
+      // return state unchanged (no pushHistory; reducers stay pure — the
+      // dispatch site is responsible for any user-visible feedback).
+      const targetSlide = state.present[action.slideIndex]
+      const targetCi = (targetSlide?.custom_images ?? []).find(
+        (ci) => ci.id === action.imageId,
+      )
+      if (targetCi?.locked === true) return state
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
         const custom_images = (slide.custom_images ?? []).filter(
@@ -354,6 +362,13 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     }
 
     case 'REMOVE_TEXT_BOX': {
+      // Phase 64 Plan 01 (LOCK-04): if the targeted text_box is locked,
+      // return state unchanged (no pushHistory; reducers stay pure).
+      const targetSlide = state.present[action.slideIndex]
+      const targetTb = (targetSlide?.text_boxes ?? []).find(
+        (tb) => tb.id === action.textBoxId,
+      )
+      if (targetTb?.locked === true) return state
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
         const nextTextBoxes = (slide.text_boxes ?? []).filter(
@@ -471,6 +486,11 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         return next
       })
+      // Phase 64 Plan 01 (LOCK-04 SL8b): if no slide actually changed —
+      // e.g. every requested id was locked or otherwise non-deletable —
+      // short-circuit ref-equal so the no-op gesture doesn't pollute undo
+      // history. Mirrors the ALIGN/DISTRIBUTE pattern at lines 675/690.
+      if (slides.every((s, i) => s === state.present[i])) return state
       return pushHistory(state, slides)  // PERF-01: exactly one pushHistory
     }
 
@@ -651,6 +671,83 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       })
 
       if (!anyChange) return state // U4 idempotency
+      return pushHistory(state, slides)  // KBD-09: exactly one pushHistory
+    }
+
+    // Phase 64 Plan 01 (LOCK-03, KBD-09, BL-01): SET_LOCKED single-dispatch
+    // contract.
+    //   - ids.length === 0 → ref-equal short-circuit (no pushHistory; matches
+    //     UNGROUP idempotency from Plan 62).
+    //   - For each listed id, set locked = action.locked ONLY when it would
+    //     change (i.e. (existing locked ?? false) !== action.locked). When no
+    //     element actually toggles, return state unchanged (handles SL2/SL9).
+    //   - Single pushHistory per dispatch (KBD-09 / PERF-01).
+    //   - text_boxes mutations route through applyDualWrite (BL-01) so legacy
+    //     hook_text/body_text/custom_texts mirror stays well-formed (SL5).
+    //   - Watermark + custom_images participate via the same idSet walk.
+    //   - Caller is single-source-of-truth for the toggle math. The reducer
+    //     trusts the boolean — toggle math (majority/all-locked decision)
+    //     lives in the dispatch site (slide-editor.tsx Cmd+Shift+L closure).
+    case 'SET_LOCKED': {
+      if (action.ids.length === 0) return state // SL6 ref-equal
+      const idSet = new Set(action.ids)
+      let anyChange = false
+
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+
+        let textBoxesChanged = false
+        let nextTextBoxes = slide.text_boxes
+        if (slide.text_boxes) {
+          nextTextBoxes = slide.text_boxes.map((tb) => {
+            if (!idSet.has(tb.id)) return tb
+            if ((tb.locked ?? false) === action.locked) return tb
+            textBoxesChanged = true
+            return { ...tb, locked: action.locked }
+          })
+        }
+
+        let customImagesChanged = false
+        let nextCustomImages = slide.custom_images
+        if (slide.custom_images) {
+          nextCustomImages = slide.custom_images.map((ci) => {
+            if (!idSet.has(ci.id)) return ci
+            if ((ci.locked ?? false) === action.locked) return ci
+            customImagesChanged = true
+            return { ...ci, locked: action.locked }
+          })
+        }
+
+        let watermarkChanged = false
+        let nextWatermark = slide.watermark
+        if (
+          slide.watermark &&
+          idSet.has(slide.watermark.id) &&
+          (slide.watermark.locked ?? false) !== action.locked
+        ) {
+          watermarkChanged = true
+          nextWatermark = { ...slide.watermark, locked: action.locked }
+        }
+
+        if (!textBoxesChanged && !customImagesChanged && !watermarkChanged) {
+          return slide
+        }
+        anyChange = true
+
+        let next: Slide = slide
+        if (textBoxesChanged && nextTextBoxes !== undefined) {
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (customImagesChanged) {
+          next = { ...next, custom_images: nextCustomImages }
+        }
+        if (watermarkChanged) {
+          next = { ...next, watermark: nextWatermark }
+        }
+        return next
+      })
+
+      if (!anyChange) return state // SL2/SL9 ref-equal
       return pushHistory(state, slides)  // KBD-09: exactly one pushHistory
     }
 
