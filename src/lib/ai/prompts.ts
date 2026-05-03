@@ -1,6 +1,6 @@
 import { getTemplate } from '@/lib/render/templates'
 import { isPremiumTemplate } from './validate-slides'
-import { AI_HOOK_VARIETY_ADDENDUM } from './slop-guardrails'
+import { AI_HOOK_VARIETY_ADDENDUM, AI_SLOP_AVOID_ADDENDUM } from './slop-guardrails'
 
 // Templates that share the news-carousel prompt branch + skip-default-effects
 // behavior. News Cyan reuses the entire News Drop generation flow — only the
@@ -74,13 +74,23 @@ PER-ROLE COPY GUIDANCE — every slide has a role; write each accordingly:
 `
 
   return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}${perRoleGuidance}
-HOOK PATTERNS - Use these proven TikTok hook formulas:
-- Curiosity gaps: "The one thing about X that nobody talks about"
-- Pattern interrupts: "Stop scrolling if you..." / "This changed everything"
-- POV hooks: "POV: you just discovered..."
-- Hot takes: "Unpopular opinion: X is actually..."
-- Lists with stakes: "5 mistakes that are costing you..."
-- Before/after: "I used to think X, then I learned Y"
+HOOK PATTERNS — proven 2025-26 viral carousel formulas. Pick whichever fits the slide's role and the active TEMPLATE VOICE NOTE; vary across slides:
+- Insider / gatekept knowledge: "the strategy viral creators don't tell you" — implies hidden value.
+- Simplicity promise: "the only 3 things you need to [outcome]" — cuts through noise with a small number.
+- Paradox: "why does [thing that seems wrong] actually work?" — the brain wants resolution.
+- Proof-led, not promise-led: "this got me [specific result]" — specific number = credibility. Never fake the number.
+- Contrarian, but grounded: "[take that runs against the consensus]" — must be defensible, not contrarian-for-its-own-sake.
+- Counterintuitive truth: "Staying is the default." / "most people quit before the boring part." — confessional, single sentence, no setup.
+- The silent X: "the silent way burnout starts" / "the quiet reason X stops working" — hints at a hidden process.
+- Micro-story open (3-beat fragment): "I quit my job to sell paintings. 6 months. 47 canvases. One sold yesterday." — setup, count, payoff.
+
+REGISTER — match hook voice to template family:
+- Editorial / quiet templates (paper-essay, editorial-serif, documentary): lowercase serif headlines, restrained declaratives, ONE idea per slide. NO listicle openers, NO hype, NO ALL-CAPS. Short confessional truths read best.
+- Tabloid / news templates (news-drop, news-cyan, magazine-bold, tr3nding-news): ALL-CAPS proper nouns, statistics, action verbs ("FIGHTS BACK", "$50M", "12 MINUTES"). Tabloid headline cadence.
+- Personal / first-person templates (notes-app-chic, brutalist-grid, highlight-bar, bold-yellow, y2k-pop): fragmented short clauses, lowercase, ransom-note rhythm, "i" statements. Talk-to-me feel.
+The TEMPLATE VOICE NOTE above (when present) overrides any conflict with this register guidance.
+
+${AI_SLOP_AVOID_ADDENDUM}
 
 SLIDE STRUCTURE RULES:
 1. First slide: Must be a powerful hook that stops scrolling. Short, punchy, max 10 words.

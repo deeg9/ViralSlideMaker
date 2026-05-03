@@ -53,3 +53,30 @@ export function filterPexelsResultsByAlt<T extends { alt?: string | null }>(
   })
   return filtered.length > 0 ? filtered : photos
 }
+
+// Quick-260502-ntp: forbid list for the Gemini system prompt — synthesized
+// from tropes.fyi, the Wikipedia "Signs of AI writing" page, Plagiarism
+// Today's 2025 AI-tells survey, and the Goedecke em-dash analysis. Imported
+// by prompts.ts and appended unconditionally to every system instruction.
+// Lives here (not inline in prompts.ts) so it's a single source of truth and
+// individually testable.
+//
+// The em-dash rule is intentionally a "cluster" rule, not a blanket ban —
+// isolated em-dashes are fine; >=2 in one slide reads as AI.
+export const AI_SLOP_AVOID_ADDENDUM: string =
+  "AVOID — these patterns make copy read as AI-generated. Do not use any of them:\n" +
+  "- Negative parallelism: 'It's not X. It's Y.' / 'It's not just X — it's Y.'\n" +
+  "- Em-dash clusters: never use more than one em-dash (—) in a single slide's hook + body combined.\n" +
+  "- Pedagogical openers: 'Let's dive in', 'Let's unpack', 'Let's break this down', 'Buckle up'.\n" +
+  "- Filler transitions: 'It's worth noting', 'Importantly', 'Notably', 'Interestingly', 'Here's the thing', 'Here's the kicker'.\n" +
+  "- Magic adverbs as adjective-boosters: 'quietly', 'deeply', 'fundamentally', 'remarkably', 'genuinely'.\n" +
+  "- Grandiose abstract nouns: 'tapestry', 'landscape', 'paradigm', 'ecosystem', 'synergy', 'journey', 'realm'.\n" +
+  "- Overused verbs: 'delve into', 'leverage', 'utilize', 'harness', 'streamline', 'unlock', 'unleash', 'navigate'.\n" +
+  "- The 'serves as' dodge: write 'X is Y', not 'X serves as Y' / 'X stands as Y' / 'X represents Y'.\n" +
+  "- Tricolon abuse: avoid stacked 'A, B, and C' / 'from X to Y to Z' rhythms more than once per carousel.\n" +
+  "- Listicle openers ('Here are 5...', 'Let's count down...') — these clash with editorial / personal templates.\n" +
+  "- Signposted conclusions: 'In conclusion', 'To sum up', 'In summary', 'All in all'.\n" +
+  "- Bold-first bullet pattern where every list item begins with a bolded label followed by a colon.\n" +
+  "- Hedging adverbs that drain confidence: 'perhaps', 'potentially', 'arguably', 'somewhat', 'generally'.\n" +
+  "- False ranges: 'from beginners to experts' with no real middle. State the actual audience.\n" +
+  "- 'Imagine a world where' / 'In a world where' / 'Did you know' — already forbidden, repeated for emphasis."
