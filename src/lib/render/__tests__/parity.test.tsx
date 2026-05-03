@@ -340,6 +340,11 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     // which the className regex cannot see). Strengthens the chrome leak
     // detector for the whole TPLREND-05 invariant.
     expect(html).not.toMatch(/data-testid="[^"]*marquee[^"]*"/)
+    // Phase 62 Plan 02: group-bounding-ring testid scan. Plan 62-02 lands
+    // the third concrete chrome that the PARITY-01 invariant gates against.
+    // Mirror of the marquee-overlay scan above — the testid must NEVER
+    // appear in the editable={false} render tree.
+    expect(html).not.toMatch(/data-testid="[^"]*group-bounding-ring[^"]*"/)
   })
 
   it('PARITY-01 (Plan 60-05, SEL-13): editable={false} renders no multi-selection-ring even with N>=2 selection passed', () => {
@@ -454,6 +459,71 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
       locked.querySelector('[data-testid="marquee-overlay"]'),
     ).toBeNull()
     expect(locked.innerHTML).not.toMatch(/marquee-overlay/)
+  })
+
+  it('PARITY-01 (Plan 62-02, GROUP-06): editable={false} renders no group-bounding-ring even with grouped selection', () => {
+    // Plan 62-02 (Phase 62) lands the third concrete chrome that PARITY-01
+    // gates against: the group bounding-box ring. Confirms the testid is
+    // structurally unreachable from the non-editable branch — same proof
+    // shape as the multi-selection-ring + marquee-overlay tests above.
+    // The structural gate is the line-728 early return in slide-preview.tsx
+    // (the editable={false} branch never reaches the JSX where the group
+    // ring is mounted).
+    const slide: Slide = {
+      hook_text: 'STOP', body_text: 'Body', image_query: 'q', is_cta: false,
+      background_url: null, pexels_photo_id: null,
+      style_overrides: { hook_font_size: 60, hook_width: 100 },
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20, groupId: 'g_x' },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25, groupId: 'g_x' },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const selection = { ids: ['img-a', 'img-b'], primary: 'img-b' }
+
+    const { container: locked } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={selection}
+        currentlyInsideGroup={null}
+      />,
+    )
+    expect(
+      locked.querySelector('[data-testid="group-bounding-ring"]'),
+    ).toBeNull()
+    expect(locked.innerHTML).not.toMatch(/group-bounding-ring/)
+  })
+
+  it('PARITY-01 (Plan 62-02, GROUP-06): editable={true} renders no group-bounding-ring with empty selection', () => {
+    // Plan 62-02 negative gate: the group ring is selection-driven. When
+    // selection.ids is empty, the ring must NOT render even though editable
+    // is true and the slide carries grouped elements. This is the symmetric
+    // partner to the editable=false test above.
+    const slide: Slide = {
+      hook_text: 'H', body_text: 'B', image_query: 'q', is_cta: false,
+      background_url: null, pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20, groupId: 'g_x' },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25, groupId: 'g_x' },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={{ ids: [], primary: null }}
+        currentlyInsideGroup={null}
+      />,
+    )
+    expect(
+      container.querySelector('[data-testid="group-bounding-ring"]'),
+    ).toBeNull()
   })
 
   it('PARITY-01 (Plan 61-02, SEL-05): editable={true} renders no marquee-overlay when no active marquee', () => {

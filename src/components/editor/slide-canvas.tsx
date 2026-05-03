@@ -8,6 +8,10 @@ import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { Selection } from '@/lib/editor/use-selection-model'
 
+// Re-export so consumers can type the new group-state props symmetrically.
+type GroupEnterFn = (elementId: string, slide: Slide) => void
+type GroupExitFn = () => void
+
 interface SlideCanvasProps {
   slides: Slide[]
   template: SlideTemplate
@@ -44,6 +48,13 @@ interface SlideCanvasProps {
   // SlidePreview for click handlers + union-AABB ring rendering.
   selection?: Selection
   onSelectionChange?: (next: Selection | ((prev: Selection) => Selection)) => void
+  // Phase 62 (GROUP-06, GROUP-07, GROUP-08, GROUP-10): group-state
+  // pass-through to SlidePreview. SlideCanvas is a thin forwarding wrapper —
+  // these props are read by SlidePreview's group-bounding-ring + group-aware
+  // click handlers + canvas-empty exitGroup branch.
+  currentlyInsideGroup?: string | null
+  onEnterGroup?: GroupEnterFn
+  onExitGroup?: GroupExitFn
 }
 
 export function SlideCanvas({
@@ -73,6 +84,9 @@ export function SlideCanvas({
   selectedTextBoxId,
   selection,
   onSelectionChange,
+  currentlyInsideGroup,
+  onEnterGroup,
+  onExitGroup,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   // Phase 57 (EDITOR-03, D-21): IG feed crop preview toggle. Component-local
@@ -119,6 +133,9 @@ export function SlideCanvas({
             selectedTextBoxId={selectedTextBoxId}
             selection={selection}
             onSelectionChange={onSelectionChange}
+            currentlyInsideGroup={currentlyInsideGroup}
+            onEnterGroup={onEnterGroup}
+            onExitGroup={onExitGroup}
           />
           {/* Phase 57 (EDITOR-03, D-20, D-23): IG feed safe-zone overlay.
               CSS outline (not border) so layout is unaffected. Top-aligned —

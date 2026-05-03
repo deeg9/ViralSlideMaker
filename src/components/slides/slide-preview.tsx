@@ -14,6 +14,10 @@ import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
 // Pure module — no React/DOM coupling. Editor-only chrome consumer; gated
 // strictly to the editable={true} branch below.
 import { computeSelectionBounds } from '@/lib/editor/transforms/selection-bounds'
+// Phase 62 (GROUP-06, GROUP-10): cross-type group membership read for the
+// dashed group-bounding-ring + group-aware click handlers. Pure module
+// (no React/DOM); same TPLREND-05 structural gate as computeSelectionBounds.
+import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
 // Phase 61 Plan 02 (SEL-05, SEL-06, SEL-14): marquee selection state machine.
 // Pure helpers from Plan 61-01 — rect canonicalization + Figma-intersect AABB
 // + render-only overlay component. All editor-only chrome; structurally gated
@@ -352,6 +356,21 @@ interface SlidePreviewProps {
   // Threaded from useSelectionModel at slide-editor.tsx via SlideCanvas.
   selection?: Selection
   onSelectionChange?: (next: Selection | ((prev: Selection) => Selection)) => void
+  // Phase 62 (GROUP-06, GROUP-07, GROUP-08, GROUP-10): group state hooks.
+  //   - currentlyInsideGroup: groupId the user has "entered" via double-click,
+  //     or null. While set, single-click on a group member targets the LEAF
+  //     (not the whole group); the group ring switches to a solid (entered)
+  //     visual style.
+  //   - onEnterGroup: invoked from per-element onDoubleClick when target has
+  //     a groupId. Caller (slide-editor) routes to selection.enterGroup.
+  //   - onExitGroup: invoked from canvas-empty no-drag pointerup branch when
+  //     currentlyInsideGroup !== null. Caller routes to selection.exitGroup.
+  // All three are editor-only — read ONLY inside the editable={true} branch
+  // (downstream of the line-728 early return). PARITY-01 / TPLREND-05 carry-
+  // forward: the data-testid="group-bounding-ring" is structurally gated.
+  currentlyInsideGroup?: string | null
+  onEnterGroup?: (elementId: string, slide: Slide) => void
+  onExitGroup?: () => void
 }
 
 export function SlidePreview({
@@ -367,6 +386,9 @@ export function SlidePreview({
   selectedTextBoxId,
   selection,
   onSelectionChange,
+  currentlyInsideGroup,
+  onEnterGroup,
+  onExitGroup,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -1978,6 +2000,65 @@ export function SlidePreview({
                 outlineOffset: 4,
                 pointerEvents: 'none',
                 zIndex: 50,
+              }}
+            />
+          )
+        })()}
+
+        {/* Phase 62 (GROUP-06): dashed/dotted group bounding-box ring.
+            STRICTLY editable-only — sibling of the multi-selection-ring above,
+            structurally gated by the line-728 early non-editable return so the
+            data-testid="group-bounding-ring" is unreachable from the Satori
+            export branch (TPLREND-05 / PARITY-01 carry-forward).
+            Renders when ANY selected element has a groupId AND that group has
+            >=2 members. PLAN locked-decision: ring shows on partial-selection
+            of a group (single-member-of-group highlights the whole AABB) so
+            the user gets immediate "you have hit a grouped element" feedback
+            even before Plan 62-03's Cmd+G dispatcher expands selection.
+            Visual distinction:
+              - currentlyInsideGroup === group.id → solid border (entered)
+              - otherwise                          → dotted border (not entered)
+            outlineOffset 6 (vs the 4 used by multi-selection-ring) and zIndex 51
+            (vs 50) mean a group ring nests cleanly outside any concurrent
+            multi-selection-ring without z-fighting.
+            pointer-events: none lets the ring sit above element wrappers
+            without swallowing their onMouseDown / Rnd drag handles. */}
+        {(() => {
+          if (!selection || selection.ids.length === 0) return null
+          // Find the FIRST selected element with a groupId — that's the group
+          // we're visualizing. Multi-group multi-select edge case: the schema
+          // is flat and we render ONE ring; the first matching groupId wins.
+          // Phase 65 (layers panel) may revisit if users routinely combine 2+
+          // groups in a single multi-selection.
+          const allElements: Array<{ id: string; groupId?: string }> = [
+            ...(slide.text_boxes ?? []),
+            ...(slide.custom_images ?? []),
+            ...(slide.watermark ? [slide.watermark] : []),
+          ]
+          const firstSelected = allElements.find(
+            (el) => selection.ids.includes(el.id) && el.groupId,
+          )
+          if (!firstSelected || !firstSelected.groupId) return null
+          const memberIds = getGroupMembers(slide, firstSelected.groupId)
+          if (memberIds.length < 2) return null // orphan groupId — not really a group
+          const aabb = computeSelectionBounds(slide, memberIds)
+          if (!aabb) return null
+          const entered = currentlyInsideGroup === firstSelected.groupId
+          return (
+            <div
+              data-testid="group-bounding-ring"
+              data-group-id={firstSelected.groupId}
+              data-entered={entered ? 'true' : 'false'}
+              style={{
+                position: 'absolute',
+                left: `${aabb.x}%`,
+                top: `${aabb.y}%`,
+                width: `${aabb.width}%`,
+                height: `${aabb.height}%`,
+                outline: entered ? '2px solid #3d0000' : '2px dotted #3d0000',
+                outlineOffset: 6,
+                pointerEvents: 'none',
+                zIndex: 51,
               }}
             />
           )
