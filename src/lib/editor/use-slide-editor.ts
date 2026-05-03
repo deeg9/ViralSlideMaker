@@ -5,16 +5,32 @@ import type { Slide } from '@/lib/types/slide'
 import type { EditorAction } from '@/lib/editor/editor-actions'
 import { editorReducer, type EditorHistory } from '@/lib/editor/editor-reducer'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import { legacyWatermarkToElement } from '@/lib/editor/watermark-adapter'
 
 /**
  * Phase 49: Eager migration on load. When slides arrive without `text_boxes`, derive the field
  * from legacy hook_text/body_text/custom_texts so the editor always operates on the unified
  * shape. Idempotent — slides that already have `text_boxes` are passed through unchanged.
+ *
+ * Phase 60 (WMARK-04): Also mints `slide.watermark` from `style_overrides.watermark` /
+ * `style_overrides.hide_watermark` via `legacyWatermarkToElement`. Idempotent — slides
+ * that already have `watermark` are passed through unchanged. The legacy
+ * `style_overrides.watermark` slot is RETAINED populated so the existing
+ * `resolveForcedWatermark` (which reads from the legacy slot for free-tier opt-out
+ * handling) continues to work unchanged. Both paths coexist for one milestone
+ * (sunset target: v2.12+ post-PMF).
  */
 function migrateLegacySlides(slides: Slide[]): Slide[] {
-  return slides.map((slide) =>
-    slide.text_boxes ? slide : { ...slide, text_boxes: legacyToTextBoxes(slide) }
-  )
+  return slides.map((slide, slideIndex) => {
+    const next: Slide = slide.text_boxes
+      ? slide
+      : { ...slide, text_boxes: legacyToTextBoxes(slide) }
+    if (!next.watermark) {
+      const wm = legacyWatermarkToElement(next, slideIndex)
+      if (wm) next.watermark = wm
+    }
+    return next
+  })
 }
 
 function createInitialState(slides: Slide[]): EditorHistory {

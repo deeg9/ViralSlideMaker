@@ -744,6 +744,12 @@ export function SlidePreview({
           ))}
 
           {/* Brand watermark (non-editable) — coords resolved at REF canvas size; CSS scale handles container size */}
+          {/* Phase 60 (WMARK-04): the lazy initializer in use-slide-editor.ts mirrors
+              slide.watermark ↔ slide.style_overrides.watermark via watermark-adapter.ts.
+              resolveWatermark reads from the legacy slot — the mirror keeps both in sync,
+              so byte-identical output is preserved across the schema lift. Replacing
+              resolveWatermark wholesale belongs to a later phase; Phase 60 only adds the
+              unified element while preserving the resolver contract (RESEARCH Q1 + Q10). */}
           {(() => {
             const wm = resolveWatermark(brandKit ?? null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
             if (!wm) return null
