@@ -37,7 +37,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 - [x] **Phase 62: Group / Ungroup** — `groupId?` semantics live; Cmd+G / Cmd+Shift+G; group bounding box visualization; double-click enter / Esc exit; group drag fans out delta to members; first multi-element reducer action with single `pushHistory` (3/3 plans complete 2026-05-03)
 - [x] **Phase 63: Alignment / Distribute + Smart Guides (Wave A + Wave B)** — 6-axis align + H/V distribute + floating Figma toolbar (Wave A); sorted-edge-array snap index + 5px threshold + canvas-edge targets + equal-spacing "==" guide + asymmetric hysteresis (Wave B); both ship together (snap engine shared) (5/5 plans complete 2026-05-03 — 24/24 reqs satisfied: ALIGN-01..10 + SNAP-01..10 + DIFF-03 + PERF-03 + PERF-05 + PARITY-03)
 - [x] **Phase 64: Lock / Hide + Z-Order** — `locked?` + `hidden?` semantics live; Cmd+Shift+L lock toggle; lock blocks drag/resize/edit but allows select; hidden skipped by both renderers; Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ z-order via array splice; lock stripped on fork (completed 2026-05-03)
-- [ ] **Phase 65: Layers Panel + TPLREND-05 Audit** — New LEFT rail; `react-arborist@3.5.0` (Day-1 StrictMode verification); flat list + group collapse; click-select; lock/visibility toggles; button-based reorder; comprehensive parity test extension; React.memo perf
+- [x] **Phase 65: Layers Panel + TPLREND-05 Audit** — New LEFT rail; `react-arborist@3.5.0` (Day-1 StrictMode verification); flat list + group collapse; click-select; lock/visibility toggles; button-based reorder; comprehensive parity test extension; React.memo perf
 - [ ] **Phase 66: Power-User Differentiators + Keyboard Completion + Polish** — Alt-drag duplicate; Cmd+D smart offset; arrow nudge 1px / Shift+Arrow 10px; keyboard tooltips on alignment toolbar + layer chips; final keyboard sweep
 
 ---
@@ -180,10 +180,10 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   4. All 11 existing templates render byte-identical pre/post v2.11 across both renderers; v2.9 + v2.10 audits re-run with zero parity regressions; `parity.test.tsx` extended with multi-element fixtures (selection ring, group bbox, marquee active, smart guides active)
   5. Regression test walks the `editable={false}` render tree and asserts ZERO DOM nodes match `*selection*` / `*marquee*` / `*guide*` / `*layer-overlay*` class patterns (PARITY-02 — TPLREND-05 leak guard for the entire v2.11 surface)
 
-**Plans**: 3 plans (2/3 shipped)
+**Plans**: 3 plans (3/3 shipped)
 - [x] 65-01-PLAN.md — Vanilla layers panel structure (LayersPanel + LayerChip + GroupRow) + LEFT rail mount + React.memo + selection sync (LAYERS-01..04, LAYERS-08, LAYERS-09, LAYERS-10) — SHIPPED 2026-05-03 `f2ede67` / `fd61deb` / `8fd259e`
 - [x] 65-02-PLAN.md — Lock + visibility + z-order toggles wired to Plan 64 reducer actions (LAYERS-05..07, PERF-02 trivially satisfied via no-drag scope) — SHIPPED 2026-05-03 `88253b1` / `4e7eaaa` / `6524237` / `ea1cec8` / `29c23b9`
-- [ ] 65-03-PLAN.md — TPLREND-05 comprehensive audit suite (PARITY-02 chrome-leak scan + PARITY-04 12-template fingerprint + PARITY-05 v2.9/v2.10 regression sweep + PERF-04 verification linkage) — partially in-flight: parallel-wave commits `32cdfbc` (PCL1..PCL10 chrome-leak) + `cfe6a78` (PTF1..PTF12 template-fingerprint) already landed
+- [x] 65-03-PLAN.md — TPLREND-05 comprehensive audit suite (PARITY-02 PCL1..PCL10 chrome-leak runtime + source-grep dual gate, PARITY-04 PTF1..PTF12 dual-renderer fingerprint baseline, PARITY-05 PRS1..PRS6 v2.9/v2.10 regression sweep, PERF-04 verification linkage via PRS6 → LM1..LM3) — SHIPPED 2026-05-03 `32cdfbc` / `cfe6a78` / `3417eea`
 **UI hint**: yes
 
 ---

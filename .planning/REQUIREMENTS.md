@@ -132,17 +132,17 @@
 ### TPLREND-05 Parity (PARITY)
 
 - [x] **PARITY-01**: Selection rings, marquee rect, smart guide lines, group bounding box, layers panel induced ordering — ALL render only when `editable={true}`
-- [ ] **PARITY-02**: Regression test walks `editable={false}` render tree; asserts NO node with class matching `*selection*`, `*marquee*`, `*guide*`, `*layer-overlay*`
+- [x] **PARITY-02**: Regression test walks `editable={false}` render tree; asserts NO node with class matching `*selection*`, `*marquee*`, `*guide*`, `*layer-overlay*`
 - [x] **PARITY-03**: Existing `parity.test.tsx` extended with multi-element fixtures (selection ring, group bbox, marquee active, smart guides active)
-- [ ] **PARITY-04**: All 11 existing templates render byte-identical pre/post v2.11 across both renderers
-- [ ] **PARITY-05**: All v2.9 / v2.10 audits re-run; zero parity regressions
+- [x] **PARITY-04**: All 11 existing templates render byte-identical pre/post v2.11 across both renderers
+- [x] **PARITY-05**: All v2.9 / v2.10 audits re-run; zero parity regressions
 
 ### Performance (PERF)
 
 - [x] **PERF-01**: Multi-drag dispatches a single `BULK_TRANSLATE` action on `onDragStop` only (NEVER per-frame `onDrag`); strict carry-forward of v2.10's `onResizeStop` rule
 - [ ] **PERF-02**: Layers panel reorder dispatches reducer on `dragEnd` only; uses local `useState` during drag for visual feedback
 - [x] **PERF-03**: Smart-guide overlay updates via direct ref + `transform: translate3d` (no React reconciliation per pointer-move)
-- [ ] **PERF-04**: Layer chips wrapped in `React.memo` (covered by LAYERS-09)
+- [x] **PERF-04**: Layer chips wrapped in `React.memo` (covered by LAYERS-09)
 - [x] **PERF-05**: Smart-guide perf budget verified at <2ms per pointer-move at N=30 elements per slide (test fixture in Phase 63)
 
 ---
@@ -276,14 +276,14 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | DIFF-02 | Phase 66 | Pending |
 | DIFF-03 | Phase 63 | Complete |
 | PARITY-01 | Phase 60 | Complete |
-| PARITY-02 | Phase 65 | Pending |
+| PARITY-02 | Phase 65 | Complete |
 | PARITY-03 | Phase 63 | Complete |
-| PARITY-04 | Phase 65 | Pending |
-| PARITY-05 | Phase 65 | Pending |
+| PARITY-04 | Phase 65 | Complete |
+| PARITY-05 | Phase 65 | Complete |
 | PERF-01 | Phase 60 | Complete |
 | PERF-02 | Phase 65 | Pending |
 | PERF-03 | Phase 63 | Complete |
-| PERF-04 | Phase 65 | Pending |
+| PERF-04 | Phase 65 | Complete |
 | PERF-05 | Phase 63 | Complete |
 
 ### Per-Phase Summary
