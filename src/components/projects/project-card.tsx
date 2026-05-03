@@ -42,7 +42,14 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
   const [menuOpen, setMenuOpen] = useState(false)
   const [visibilityModalOpen, setVisibilityModalOpen] = useState(false)
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
+  // Lazy-mount the heavy <SlidePreview> only when the card scrolls into view.
+  // Below-the-fold cards render a lightweight <img> placeholder until then,
+  // keeping initial paint snappy on dashboards with many projects. Once
+  // mounted, the preview stays mounted (sticky-true) so flipping slides
+  // and scrolling back keeps state without re-render cost.
+  const [hasBeenVisible, setHasBeenVisible] = useState(false)
   const menuWrapperRef = useRef<HTMLDivElement>(null)
+  const thumbRef = useRef<HTMLDivElement>(null)
   const isPublic = !!publishedState
   const template = getTemplate(project.template_id ?? 'highlight-bar')
   const safeIndex = Math.min(currentSlideIndex, Math.max(0, slides.length - 1))
@@ -80,6 +87,33 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
     return () => document.removeEventListener('mousedown', handleMouseDown)
   }, [menuOpen])
 
+  // IntersectionObserver-based lazy mount. rootMargin pre-mounts the preview
+  // ~one card-height before it enters the viewport so users with fast scroll
+  // don't see the placeholder→preview swap mid-card. Disconnects after the
+  // first intersection — the preview stays mounted for the lifetime of the
+  // card. Falls back to immediate-mount on environments without IO (SSR /
+  // very old browsers).
+  useEffect(() => {
+    if (hasBeenVisible) return
+    const el = thumbRef.current
+    if (!el) return
+    if (typeof IntersectionObserver === 'undefined') {
+      setHasBeenVisible(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHasBeenVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '400px 0px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasBeenVisible])
+
   function handleMenuToggle(e: React.MouseEvent) {
     e.stopPropagation()
     setMenuOpen((v) => !v)
@@ -101,18 +135,37 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
   return (
     <>
     <div className="group cursor-pointer" onClick={handleCardClick}>
-      <div className="aspect-[9/16] bg-[#fadbdb] rounded-xl overflow-hidden relative mb-4 transition-all duration-300 group-hover:scale-[1.02]">
+      <div
+        ref={thumbRef}
+        className="aspect-[9/16] bg-[#fadbdb] rounded-xl overflow-hidden relative mb-4 transition-all duration-300 group-hover:scale-[1.02]"
+      >
         {currentSlide ? (
-          <SlidePreview
-            slide={currentSlide}
-            template={template}
-            index={safeIndex}
-            slideIndex={safeIndex}
-            totalSlides={slides.length}
-            topic={project.topic ?? undefined}
-            editable={false}
-            brandKit={brandKit ?? null}
-          />
+          hasBeenVisible ? (
+            <SlidePreview
+              slide={currentSlide}
+              template={template}
+              index={safeIndex}
+              slideIndex={safeIndex}
+              totalSlides={slides.length}
+              topic={project.topic ?? undefined}
+              editable={false}
+              brandKit={brandKit ?? null}
+            />
+          ) : currentSlide.background_url ? (
+            <img
+              src={currentSlide.background_url}
+              alt={project.title}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div
+              className="w-full h-full"
+              style={{ backgroundColor: template.backgroundColor }}
+              aria-hidden
+            />
+          )
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Icon name="auto_awesome_motion" size="xl" className="text-[#dbc1bc]" />
