@@ -7,6 +7,7 @@ import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { Selection } from '@/lib/editor/use-selection-model'
+import type { AlignAxis, DistributeAxis } from '@/lib/editor/transforms/align'
 
 // Re-export so consumers can type the new group-state props symmetrically.
 type GroupEnterFn = (elementId: string, slide: Slide) => void
@@ -65,6 +66,14 @@ interface SlideCanvasProps {
     deltaX: number
     deltaY: number
   }) => void
+  // Phase 63 Plan 02 (ALIGN-07): pass-through for the FloatingAlignmentToolbar
+  // action callback. SlideCanvas is a thin forwarding wrapper — slide-editor
+  // wires this to dispatch({ type: 'ALIGN' | 'DISTRIBUTE', ... }).
+  onAlign?: (
+    action:
+      | { kind: 'align'; axis: AlignAxis }
+      | { kind: 'distribute'; axis: DistributeAxis },
+  ) => void
 }
 
 export function SlideCanvas({
@@ -98,6 +107,7 @@ export function SlideCanvas({
   onEnterGroup,
   onExitGroup,
   onGroupDrag,
+  onAlign,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   // Phase 57 (EDITOR-03, D-21): IG feed crop preview toggle. Component-local
@@ -148,6 +158,7 @@ export function SlideCanvas({
             onEnterGroup={onEnterGroup}
             onExitGroup={onExitGroup}
             onGroupDrag={onGroupDrag}
+            onAlign={onAlign}
           />
           {/* Phase 57 (EDITOR-03, D-20, D-23): IG feed safe-zone overlay.
               CSS outline (not border) so layout is unaffected. Top-aligned —
