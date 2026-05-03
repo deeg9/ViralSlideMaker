@@ -66,6 +66,16 @@ interface SlideCanvasProps {
     deltaX: number
     deltaY: number
   }) => void
+  // Phase 66 Plan 02 (DIFF-01, KBD-09): Alt+drag duplicate fan-out. Forwarded
+  // verbatim to SlidePreview. slide-editor.tsx wires this to
+  // dispatch({ type: 'DUPLICATE_ELEMENTS_AT', ... }).
+  onAltDuplicate?: (payload: {
+    slideIndex: number
+    ids: string[]
+    deltaX: number
+    deltaY: number
+    newGroupId?: string
+  }) => void
   // Phase 63 Plan 02 (ALIGN-07): pass-through for the FloatingAlignmentToolbar
   // action callback. SlideCanvas is a thin forwarding wrapper — slide-editor
   // wires this to dispatch({ type: 'ALIGN' | 'DISTRIBUTE', ... }).
@@ -107,6 +117,7 @@ export function SlideCanvas({
   onEnterGroup,
   onExitGroup,
   onGroupDrag,
+  onAltDuplicate,
   onAlign,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
@@ -158,6 +169,7 @@ export function SlideCanvas({
             onEnterGroup={onEnterGroup}
             onExitGroup={onExitGroup}
             onGroupDrag={onGroupDrag}
+            onAltDuplicate={onAltDuplicate}
             onAlign={onAlign}
           />
           {/* Phase 57 (EDITOR-03, D-20, D-23): IG feed safe-zone overlay.
