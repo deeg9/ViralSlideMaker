@@ -1494,15 +1494,7 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
       // → reducer routes to text_boxes scope; applyZOrderToArray moves hook
       // to end → [body, ..., hook].
       fireEvent.keyDown(window, { key: '1', ctrlKey: true })
-
-      const ev = new KeyboardEvent('keydown', {
-        key: ']',
-        ctrlKey: true,
-        altKey: true,
-        bubbles: true,
-        cancelable: true,
-      })
-      window.dispatchEvent(ev)
+      fireEvent.keyDown(window, { key: ']', ctrlKey: true, altKey: true })
 
       const tbAfter = (
         screen
