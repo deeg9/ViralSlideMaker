@@ -1,5 +1,37 @@
 # Milestones
 
+## v2.11 Full Editor Parity (Shipped: 2026-05-03)
+
+**Phases completed:** 7 phases, 23 plans, 49 tasks
+
+**Key accomplishments:**
+
+- Three optional multi-select fields landed on every addressable element:
+- Watermark schema lift through the parity gate — adapter, lazy-init mirror, and 5-test PARITY-01 SEED that guarantees byte-identical PNG output across all 53+ existing projects pre/post unification.
+- 1. [Rule 1 — Test fixture bug] Test 8 dual-write fixture missing hook/body text_boxes
+- 1. [Rule 1 — Test infra bug] tinykeys + jsdom navigator.platform interaction
+- 1. [Rule 2 — Missing API] Added `setSelection` to `useSelectionModel`
+- Pure rect-normalization + AABB-intersect helpers + render-only MarqueeOverlay component, plus selecto@1.26.3 install — Wave-1 foundation for Plan 61-02 to wire selecto event handlers and the canvas-root onPointerDown swap.
+- Wired the marquee selection state machine on slide-preview's canvas root (replaces Plan 60-05's onClick), added KBD-07 Shift-axis-constrain to all 4 element drag handlers via a new pure helper, and extended the PARITY-01 invariant with marquee testid coverage — closes SEL-05 / SEL-06 / KBD-07 and ships SEL-14 end-to-end.
+- Pure getGroupMembers helper + GROUP/UNGROUP reducer cases with subset-dissolve cascade + useSelectionModel currentlyInsideGroup/enterGroup/exitGroup extension — all locked decisions from CONTEXT D-01..D-05 pinned by 23 unit tests across 3 files.
+- Phase 62 UI surface lands. Wired the dashed/solid group bounding-box ring (editable-only, PARITY-01-gated), the Figma-model "select-any-member-selects-group" click branch on 4 wrappers, the double-click-enters-group handler, and the canvas-empty exitGroup-then-clear branch — pinned by 17 new test cases (6 ring + 8 click + 3 exit) and 2 new parity tests, with tsc baseline 17 errors preserved across all 3 atomic RED+GREEN commit pairs.
+- Phase 62 ships end-to-end. Cmd+G / Cmd+Shift+G keyboard bindings dispatch GROUP / UNGROUP through the existing tinykeys map, the Escape handler is now group-aware (first press exits group, second press clears), and onDragStop on any of the 4 element wrappers fans the drag delta out across all group members in a single BULK_TRANSLATE dispatch — pinned by 21 new test cases (8 keyboard + 7 helper + 4 drag + 1 reducer round-trip + 2 parity) with the tsc baseline preserved at 17 errors and the full Phase 62 regression suite (159 tests across 9 files) green.
+- One-liner:
+- One-liner:
+- Sorted-edge-array snap index with O(log N) binary search and asymmetric 5/7-px hysteresis — replaces the legacy O(N×M) double-loop and ships against a stable contract for Plan 63-04 drag wiring.
+- Wave-2 integration plan: ships the visible Figma-style smart guides + equal-spacing == indicator by wiring Plan 63-03's pure snap module into all 4 onDragStart/onDrag/onDragStop sites in slide-preview.tsx, mounting a persistent-pool SmartGuideOverlay component inside the scaled canvas, and retiring the legacy useAlignmentGuides hook.
+- Final-wave polish + parity gate plan: ships the comprehensive PARITY-03 multi-element fixture suite (8 tests covering every v2.11 editor-only chrome surface), the ALIGN-10 end-to-end integration pin (5 tests via reducer dispatch), the PERF-05 integration-level perf verification (3 tests mirroring slide-preview's runSnapForDrag closure), and the legacy use-alignment-guides.ts @deprecated marker. All 24 Phase 63 reqs are now complete.
+- SET_LOCKED reducer + Cmd+Shift+L Figma-style toggle + react-rnd drag/resize prevention + marquee pass-through gate + 12×12 lock-icon overlay across all 4 Rnd wrappers; closes LOCK-01..06 with 19 new tests + tsc baseline preserved at 17.
+- SET_HIDDEN reducer mirroring SET_LOCKED + 13 byte-identical hidden-filter sites across both renderers (5 Satori + 8 React preview) + computeSelectionBounds hidden-skip + fork_published_carousel locked-strip migration; closes LOCK-07 + LOCK-08 with 13 new tests + tsc baseline preserved at 17.
+- Single Z_ORDER reducer action routes per-scope internally (text_boxes / custom_images / watermark) + 4 tinykeys bindings ($mod+], $mod+[, $mod+Alt+], $mod+Alt+[) all dispatching the single action + Figma multi-selection model with array-bound clamping + adjacent-selected guard + ZORDER-05 invariant pinned by purity grep gate (zero CSS layering references); closes ZORDER-01..07 with 33 new tests + tsc baseline preserved at 17. Phase 64 fully complete.
+- Vanilla flat-list LEFT-rail Layers Panel — synthesizeRows + React.memo'd LayerChip + read-only selection sync, mounted under SlideList in slide-editor.tsx; no react-arborist, no virtualization (≤30 elements per slide).
+- Filled the 5 placeholder slots from Plan 65-01 (chip-lock-slot / chip-vis-slot / chip-reorder-slot / group-lock-slot / group-vis-slot) with 6 real toggle buttons (4 chip + 2 group); each click dispatches Plan 64-01/02/03 reducer actions through a unified ids[] callback shape; single dispatch per click → single pushHistory entry (KBD-09 / PERF-01 carry-forward); 33/33 layers-panel tests + 86/86 reducer + 45/45 keyboard + 42/42 parity green; tsc baseline preserved.
+- Comprehensive TPLREND-05 audit suite — 50 new tests across 4 files: PCL1..PCL10 chrome-leak (runtime + source-grep dual gate), PTF1..PTF12 dual-renderer fingerprint baseline (24 snapshots), PRS1..PRS6 v2.9/v2.10 regression sweep, PERF-04 verification linkage. ZERO production code modified.
+- 8 new tinykeys arrow-nudge bindings dispatching BULK_TRANSLATE (1 ref-px / 10 ref-px) + lastMoveDeltaRef tracking the most recent move so Cmd+D positions duplicates at primary + lastDelta (Figma rapid-grid pattern) with a 20 ref-px fallback when no prior move has been recorded.
+- Alt+drag now produces deep-copies at the drag-end position via a new DUPLICATE_ELEMENTS_AT reducer action; alignment-toolbar buttons + group-row lock carry shortcut hints in their `title` attributes; v2.11 keyboard contract codified as automated regression tests.
+
+---
+
 ## v2.10 Text Box Resize Handles (Shipped: 2026-05-02)
 
 **Phases completed:** 1 phase (59), 4 plans, 13/13 requirements (100% at code level)
@@ -7,6 +39,7 @@
 **Status:** tech_debt — 13/13 reqs satisfied at code level; 1 deferred verification gate (A11Y-01 iPhone Safari touch QA, skipped per orchestrator since localhost is not iPhone-reachable). Desktop side of A11Y-01 fully verified.
 
 **Stats:**
+
 - 19 commits between `034ad5c` (start v2.10) and `cea2be1` (audit + plan files)
 - 28 files changed, +5,830 / −2,754 LOC (planning docs heavy; production diff ~150-200 LOC across 4 files)
 - Tests: +50 phase-specific tests, 47/47 in 3 phase test files green
@@ -52,6 +85,7 @@
 **Status:** passed — all 5 phases verified clean; 6/6 cross-phase wires verified; 4/4 E2E flows complete; ship-gate 15/15 items green
 
 **Stats:**
+
 - ~30 commits between `04780ae` (roadmap) and `5c58cfd` (final ship-gate)
 - 152 files changed, +21,292 / −316 LOC
 - Tests: 561 → 756 passing (+195 net new); 13 pre-existing vitest 4.x typing fails preserved unchanged

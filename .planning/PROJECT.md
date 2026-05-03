@@ -10,29 +10,44 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.10 Text Box Resize Handles (2026-05-02)
-**Current Milestone:** v2.11 Full Editor Parity (research-first; replicate Figma/Canva patterns)
+**Latest Shipped:** v2.11 Full Editor Parity (2026-05-03)
+**Current Milestone:** Planning next milestone (run `/gsd-new-milestone` to start)
 
 ---
 
-## Current Milestone: v2.11 Full Editor Parity
+## Latest Shipped: v2.11 Full Editor Parity (2026-05-03)
 
 **Goal:** Bring the slide editor to Figma/Canva-grade parity for multi-element manipulation — alignment, multi-select, group/ungroup, plus the adjacencies leading design tools always ship together. Replicate proven patterns; do not invent.
 
-**Target features:**
-- Multi-select (marquee + Shift/Cmd-click add/remove)
-- Alignment (align-to-canvas + align-to-selection, all 6 axes; distribute-evenly H + V)
-- Group / Ungroup (Cmd+G / Cmd+Shift+G; nested groups; ungroup preserves child positions)
-- "Maybe more" — research-defined; expected candidates: smart guides during drag, snapping (other elements + canvas edges + center), keyboard nudge (arrow / Shift+arrow), z-order controls, lock/unlock, layers panel
+**Delivered:**
+- **Phase 60 — Multi-Select Foundation + Watermark Schema Lift:** `Selection { ids[]; primary }` model outside reducer history; `groupId?` / `locked?` / `hidden?` optional schema fields on TextBox + CustomImage + new Watermark element; watermark unification adapter (`legacyWatermarkToElement` mirror of v2.8 text-box-adapter pattern) with byte-identical PNG output across all 53+ existing projects; tinykeys@3.0.0 keyboard firewall replacing hand-rolled keydown switch; `useModifierState` ref-based hook with window.blur + visibilitychange reset; `BULK_TRANSLATE` action contract; selection ring around union AABB (editable={true} gated); MultiSelectTypeBar with "Mixed" placeholder (no "primary" key-object UX trap); ~1,800 LOC across 5 plans + REVIEW-FIX (HIGH-1/HIGH-2/MED-2 fixes).
+- **Phase 61 — Marquee Selection:** `selecto@1.26.3` install (vanilla, not react-selecto); `<MarqueeOverlay>` render-only component; canvas-root onPointerDown state machine (intersect mode = Figma default); rect normalization for all 4 drag directions; Shift-additive marquee; KBD-07 axis-constrain on element drag (Shift held → lock to dominant axis); ~620 LOC across 2 plans.
+- **Phase 62 — Group / Ungroup:** Cmd+G / Cmd+Shift+G; flat-schema `groupId?` semantics (no group transform; no nested groups; subset-of-group dissolves prior + forms new flat group); group bounding box ring; double-click enters group; Esc exits; group drag fans-out delta via single BULK_TRANSLATE; ~1,300 LOC across 3 plans + 24 commits.
+- **Phase 63 — Alignment / Distribute + Smart Guides (Wave A + Wave B):** 6-axis alignment via Alt+A/H/D/W/V/S; H/V distribute via Cmd+Alt+H/V (gap-based, N≥3 only); floating Figma-style toolbar above multi-selection bounds; locked elements participate in selection bounds but don't move; integer-rounded positions (PITFALL-4.4 prevention); sorted-edge-array snap index (binary-search, asymmetric 5/7-px hysteresis); smart-guide overlay with `transform: translate3d` ref-based updates (no React reconciliation per pointer-move); equal-spacing "==" Figma pink double-equals indicator; Hold-Cmd disables snap; perf budget verified <2ms per pointer-move at N=30 elements; ~3,000 LOC across 5 plans (largest phase).
+- **Phase 64 — Lock / Hide + Z-Order:** Cmd+Shift+L lock toggle (Figma model — locked element selectable but blocks drag/resize/delete/edit; marquee skips locked; locked wrapper `pointer-events: none` only when marquee active); `hidden=true` skipped by BOTH renderers (TPLREND-05 byte-identity preserved across 13 symmetric filter sites); selection-bounds excludes hidden; `Z_ORDER` single action routes per-scope (text_boxes / custom_images / watermark) via array splice (NEVER CSS z-index — Satori invariant); Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ shortcuts; multi-selection +1/-1 individually with array-bound clamping (Figma model); Supabase migration `20260502_fork_strip_locked.sql` strips `locked` flag on fork (matches v2.4 `brand_kit_id` strip pattern).
+- **Phase 65 — Layers Panel + TPLREND-05 Audit:** Vanilla flat-list LEFT-rail layers panel mounted under SlideList in slide-editor.tsx (NO react-arborist — sidesteps React 19 + react-dnd@14 StrictMode risk); React.memo'd LayerChip + GroupRow components; lock/visibility/z-order toggle buttons wired to Plan 64 reducer actions through unified `ids[]` callback shape; click chip → element selected on canvas (read-only selection sync; no infinite loops); inline rename via `<input>` (existing isEditing guard at slide-editor.tsx:344-348 handles Backspace/Delete); comprehensive TPLREND-05 audit suite — 50 new tests across 4 files: PCL1..PCL10 chrome-leak (runtime + source-grep dual gate), PTF1..PTF12 dual-renderer fingerprint baseline (24 snapshots verified byte-identical between React preview AND Satori output), PRS1..PRS6 v2.9/v2.10 regression sweep, PERF-04 React.memo verification linkage. ZERO production code modified in 65-03.
+- **Phase 66 — Power-User Differentiators + Polish:** Alt-drag duplicate via new DUPLICATE_ELEMENTS_AT reducer action (deep-copy with new ids + delta-shifted positions + new groupId for shared-group selection; skips locked / hidden / structural-anchor / watermark); Cmd+D smart offset uses `lastMoveDeltaRef` updated after every BULK_TRANSLATE dispatch (~20px fallback when no prior move); arrow-key nudge bindings (1px / Shift=10px) all 4 directions; tooltip shortcut hints on all 8 alignment toolbar buttons + group-row lock; final keyboard sweep regression suite (SWEEP-1..4) codifying 33 inline isEditingTarget firewalls + ≥25 preventDefault sites + window.blur+visibilitychange listeners + zero `e.metaKey || e.ctrlKey` anti-pattern occurrences.
 
-**Approach:** Research-first. 4 parallel agents (Stack / Features / Architecture / Pitfalls) survey Figma, Canva, Figjam, Adobe Express, Keynote, Photoshop, VEED to surface every table-stakes editor capability and the integration patterns that ship them safely. Requirements scoped from research findings, not from intuition.
+**96/97 active requirements satisfied at code level (PERF-02 trivially-satisfied — drag-to-reorder layers panel deferred to v2.12).**
 
-**Hard constraints (carry-over):**
-- TPLREND-05 render parity invariant preserved — editor-only features (selection rings, marquee, smart guides) gate behind `editable={true}` so Satori PNG export remains byte-identical.
-- Builds on v2.8 `text_boxes[]` schema. Legacy fields (`hook_text` / `body_text` / etc.) remain untouched — sunset still deferred to post-PMF.
-- Multi-select / groups must address `custom_images` + watermarks + decorative overlays, not just text boxes.
+**Test count:** ~960 in-scope tests across 63+ test files (was 756 at v2.9; +200 net new across 23 plans). 17 baseline tsc errors maintained throughout (pre-existing in unrelated test mocks; zero new errors introduced).
+
+**Research-grounded:** 4 parallel research agents during `/gsd-new-milestone` (STACK / FEATURES / ARCHITECTURE / PITFALLS). Industry survey of Figma, Canva, Figjam, Adobe Express, Keynote, Photoshop, VEED, Sketch. GitHub issue trail: fabric.js #4163/#1798/#6315/#4392/#3830/#3616, react-rnd #58/#609/#911/#724, satori #573/#41/#162/#712/#217, react-moveable #433/#947, dnd-kit #120. 8 ship-critical "Watch Out For" warnings synthesized in `.planning/research/SUMMARY.md`.
+
+**TPLREND-05 parity invariant** preserved end-to-end. Comprehensive PARITY-02..05 audit suite ships in Phase 65: chrome-leak runtime + source-grep dual gate covers `*selection*`/`*marquee*`/`*guide*`/`*group-bound*`/`*lock-icon*` classNames; 24 dual-renderer fingerprint snapshots across 12 templates verify byte-identical output; v2.9/v2.10 regression sweep confirms zero regressions.
+
+**Definitively deferred to v2.12+:** Watermark freeform position (numeric x/y schema lift); Cmd+D duplicate-of-selection semantic alignment (currently spawns blank custom text at smart-offset, not duplicate of selection); Alt+drag auto-selects duplicates (originals stay selected); TextBox alignment height = 0 (DOM-ref measurement deferred); Layers panel drag-to-reorder (re-evaluate react-arborist + StrictMode); nested groups; cross-slide multi-select; multi-select rotation (blocked on ROTATE-01); right-click context menu; copy/paste style.
+
+**Archive:** `.planning/milestones/v2.11-ROADMAP.md`. Audit: `.planning/milestones/v2.11-MILESTONE-AUDIT.md` (status: tech_debt). Requirements: `.planning/milestones/v2.11-REQUIREMENTS.md`.
+
+**Awaiting user (manual QA before tagging):** Selection ring visual polish across templates; TYPE BAR right-rail layout review; click-empty-canvas-clears feel on touch devices; modifier-state reset on real OS-level Cmd+Tab; byte-identity PNG round-trip on 3-5 actual projects from the library (PARITY-04 covers automated). Carry-over: iPhone Safari touch QA for v2.10 corner resize handles (A11Y-01).
 
 ---
+
+<details>
+<summary>v2.10 Text Box Resize Handles (2026-05-02) — archived</summary>
+
+
 
 ## Latest Shipped: v2.10 Text Box Resize Handles (2026-05-02)
 
@@ -56,6 +71,8 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 **Archive:** `.planning/milestones/v2.10-ROADMAP.md`. Audit: `.planning/v2.10-MILESTONE-AUDIT.md` (status: tech_debt).
 
 **Awaiting user:** Manual iPhone Safari touch QA — deploy to Vercel preview, run the 9-step touch test from `59-03-PLAN.md` if mobile usability concerns arise.
+
+</details>
 
 ---
 
@@ -428,4 +445,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-02 — v2.11 Full Editor Parity milestone started (research-first)*
+*Last updated: 2026-05-03 — v2.11 Full Editor Parity milestone shipped (96/97 reqs, 7 phases, 23 plans, ~150+ commits, 955/955 in-scope tests, 17 baseline tsc errors maintained)*
