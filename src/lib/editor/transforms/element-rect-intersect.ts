@@ -17,9 +17,10 @@
 //   - SKIP structural-anchor TextBoxes (role !== 'custom' OR
 //     position.anchor !== 'custom'). Hook/body have no x/y; height
 //     resolution requires DOM ref. Phase 63 alignment will lift that.
-//   - INCLUDE locked elements in Phase 61 (Phase 64 ships locked
-//     semantics; for Phase 61, marquee includes them — no UX consequence
-//     yet per CONTEXT.md domain.out_of_scope).
+//   - EXCLUDE locked elements (LOCK-05; Phase 64 closes Phase 61 documented
+//     gap — Figma + Canva model: locked elements are still selectable via
+//     direct click but excluded from marquee results so users can drag-
+//     select around them without disturbing locked decoration).
 //
 // TextBox height approximation: TextBox in our schema does NOT carry an
 // explicit height — it's text-driven via DOM ref. Pure modules cannot
@@ -43,6 +44,7 @@ export function elementsInRect(slide: Slide, rect: Rect): string[] {
 
   // Walk in slide source order so result is stable for tests + downstream.
   for (const tb of slide.text_boxes ?? []) {
+    if (tb.locked === true) continue   // LOCK-05 (Phase 64 closes Phase 61 gap)
     if (tb.role !== 'custom') continue
     const p = tb.position ?? { anchor: 'custom' }
     if (p.anchor !== 'custom') continue
@@ -60,6 +62,7 @@ export function elementsInRect(slide: Slide, rect: Rect): string[] {
   }
 
   for (const ci of slide.custom_images ?? []) {
+    if (ci.locked === true) continue   // LOCK-05
     if (
       typeof ci.x !== 'number' ||
       typeof ci.y !== 'number' ||
