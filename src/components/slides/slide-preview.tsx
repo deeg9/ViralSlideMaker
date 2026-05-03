@@ -5,7 +5,22 @@ import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition, CustomText, TextSegment } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
-import { useAlignmentGuides, type TextBox } from '@/hooks/use-alignment-guides'
+// Phase 63 Plan 04 (SNAP-02..06, SNAP-09, DIFF-03, PERF-03): snap-index +
+// smart-guide overlay + equal-spacing == indicator. Replaces the legacy
+// alignment-guides hook (file retained at src/hooks/use-alignment-guides.ts
+// per CONTEXT D-09 — Phase 66 cleanup target).
+import {
+  buildSnapIndex,
+  snapWithHysteresis,
+  type SnapIndex,
+  type HysteresisResult,
+} from '@/lib/editor/transforms/snap-index'
+import { detectEqualSpacing } from '@/lib/editor/transforms/equal-spacing'
+import {
+  SmartGuideOverlay,
+  type SmartGuideOverlayHandle,
+  type GuideLine,
+} from '@/components/editor/smart-guide-overlay'
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
@@ -448,7 +463,16 @@ export function SlidePreview({
   const bodyDragStartRef = useRef<{ x: number; y: number } | null>(null)
   const customTextDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
   const customImageDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
-  const { calculateSnap, activeGuides, clearGuides } = useAlignmentGuides()
+  // Phase 63 Plan 04 (SNAP-02..06, PERF-03): smart-guide snap state.
+  //   - snapIndexRef: built ONCE on onDragStart from buildSnapIndex(slide,
+  //     excludeIds), reused across every onDrag tick, cleared on onDragStop.
+  //   - wasSnappedX/Y: per-axis hysteresis scalars (Plan 63-03 contract).
+  //   - guideOverlayRef: imperative handle into <SmartGuideOverlay>; updates
+  //     are direct-DOM via translate3d (NO React state per pointer-move).
+  const snapIndexRef = useRef<SnapIndex | null>(null)
+  const wasSnappedXRef = useRef<number | null>(null)
+  const wasSnappedYRef = useRef<number | null>(null)
+  const guideOverlayRef = useRef<SmartGuideOverlayHandle | null>(null)
   const overrides = slide.style_overrides ?? {}
 
   const [editingCustomTextId, setEditingCustomTextId] = useState<string | null>(null)
@@ -723,56 +747,158 @@ export function SlidePreview({
     />
   ) : null
 
-  // Helper: build "others" array for snap calculations including custom texts
-  const buildOthersForSnap = useCallback((excludeId: string): TextBox[] => {
-    const others: TextBox[] = []
-    if (excludeId !== 'hook') {
-      others.push({
-        id: 'hook',
-        x: (resolvedHookX / 100) * REF_WIDTH,
-        y: (resolvedHookY / 100) * REF_HEIGHT,
-        width: (hookWidth / 100) * REF_WIDTH,
-        height: hookRef.current?.getBoundingClientRect().height
-          ? hookRef.current.getBoundingClientRect().height / scale
-          : 200,
+  // Phase 63 Plan 04 (SNAP-02..06, SNAP-09, DIFF-03, PERF-03):
+  // Single helper closure consumed by all 4 onDrag sites (hook, body,
+  // custom_text, custom_image). Reads snapIndexRef (built on onDragStart),
+  // queries snapWithHysteresis per axis using wasSnappedX/YRef state, runs
+  // detectEqualSpacing for the "==" indicator, and pushes the result into
+  // <SmartGuideOverlay> via guideOverlayRef. Returns the snapped (x, y) for
+  // the caller to write back into react-rnd's data object.
+  //
+  // Hold-Cmd disable (SNAP-05): if modifiers.get().cmd is true, skip ALL
+  // snap math and clear the overlay. Plan 60-04 useModifierState handles
+  // the blur-reset contract (PITFALL-5.5) — this plan just consumes.
+  //
+  // Multi-element drag (SNAP-09): callers pass the union AABB query rect
+  // when selection.ids.length >= 2 — see each onDrag site below for the
+  // bounds → REF px conversion.
+  //
+  // PERF-03: this helper allocates 1 result object + a few small arrays per
+  // tick; no setState, no DOM reads (other than the overlay update which is
+  // direct ref.style mutation). The pure module's binary-search keeps
+  // per-tick work O(log N) per axis (Plan 63-03 verified bench).
+  //
+  // useCallback isn't strictly necessary (the function is read once per
+  // render and stored on the closure of each onDrag), but keeping it stable
+  // avoids subtle re-renders if a future consumer captures it via memo.
+  const runSnapForDrag = useCallback(
+    (x: number, y: number, width: number, height: number): { x: number; y: number } => {
+      // SNAP-05: Hold Cmd → skip snap math entirely; clear the overlay.
+      if (modifiers.get().cmd) {
+        guideOverlayRef.current?.clear()
+        return { x, y }
+      }
+      const idx = snapIndexRef.current
+      if (!idx) return { x, y }
+
+      // X-axis: pick the dragging-entity x-edge with the smallest snap delta.
+      const dCenterX = x + width / 2
+      const dRight = x + width
+      const xCandidates = [x, dCenterX, dRight]
+      let bestX: HysteresisResult = { snapped: false, snappedTo: null, delta: 0, nextWasSnapped: null }
+      let bestXAbs = Infinity
+      for (const cand of xCandidates) {
+        const r = snapWithHysteresis(cand, idx.xEdges, wasSnappedXRef.current)
+        if (r.snapped) {
+          const ad = Math.abs(r.delta)
+          if (ad < bestXAbs) {
+            bestXAbs = ad
+            bestX = r
+          }
+        }
+      }
+      wasSnappedXRef.current = bestX.nextWasSnapped
+      const snappedX = bestX.snapped ? x + bestX.delta : x
+
+      // Y-axis: same shape.
+      const dCenterY = y + height / 2
+      const dBottom = y + height
+      const yCandidates = [y, dCenterY, dBottom]
+      let bestY: HysteresisResult = { snapped: false, snappedTo: null, delta: 0, nextWasSnapped: null }
+      let bestYAbs = Infinity
+      for (const cand of yCandidates) {
+        const r = snapWithHysteresis(cand, idx.yEdges, wasSnappedYRef.current)
+        if (r.snapped) {
+          const ad = Math.abs(r.delta)
+          if (ad < bestYAbs) {
+            bestYAbs = ad
+            bestY = r
+          }
+        }
+      }
+      wasSnappedYRef.current = bestY.nextWasSnapped
+      const snappedY = bestY.snapped ? y + bestY.delta : y
+
+      // Build guide-line lists for the overlay.
+      const xLines: GuideLine[] = bestX.snapped && bestX.snappedTo !== null
+        ? [{ pos: bestX.snappedTo }]
+        : []
+      const yLines: GuideLine[] = bestY.snapped && bestY.snappedTo !== null
+        ? [{ pos: bestY.snappedTo }]
+        : []
+
+      // SNAP-04 / DIFF-03: equal-spacing == indicator. Detection runs
+      // against ALL elements on the slide (we want the indicator to show
+      // the canvas's equal-gap state regardless of who's dragging — the
+      // dragging element STILL contributes to the visible state). Walks
+      // text_boxes (custom-anchor only — Phase 60 height gap) ∪
+      // custom_images. Watermark is excluded from this gap detection
+      // because its size is a placeholder (Phase 64 will fix).
+      const xElements: Array<{ id: string; pos: number; size: number }> = []
+      const yElements: Array<{ id: string; pos: number; size: number }> = []
+      for (const tb of slide.text_boxes ?? []) {
+        if (tb.position.anchor !== 'custom') continue
+        const xPx = ((tb.position.x ?? 0) / 100) * REF_WIDTH
+        const yPx = ((tb.position.y ?? 0) / 100) * REF_HEIGHT
+        const wPx = ((tb.position.width ?? 60) / 100) * REF_WIDTH
+        xElements.push({ id: tb.id, pos: xPx, size: wPx })
+        yElements.push({ id: tb.id, pos: yPx, size: 0 }) // Phase 60 height gap
+      }
+      for (const ci of slide.custom_images ?? []) {
+        const xPx = (ci.x / 100) * REF_WIDTH
+        const yPx = (ci.y / 100) * REF_HEIGHT
+        const wPx = (ci.width / 100) * REF_WIDTH
+        const hPx = (ci.height / 100) * REF_HEIGHT
+        xElements.push({ id: ci.id, pos: xPx, size: wPx })
+        yElements.push({ id: ci.id, pos: yPx, size: hPx })
+      }
+      const xMatch = detectEqualSpacing(xElements)
+      const yMatch = detectEqualSpacing(yElements)
+      // Prefer X axis when both match (matches Figma observation; arbitrary
+      // but stable).
+      const equalSpacing = xMatch ?? yMatch
+      const equalSpacingAxis: 'horizontal' | 'vertical' | undefined =
+        xMatch ? 'horizontal' : yMatch ? 'vertical' : undefined
+
+      guideOverlayRef.current?.updateGuides({
+        xLines,
+        yLines,
+        equalSpacing,
+        equalSpacingAxis,
       })
-    }
-    if (excludeId !== 'body' && slide.body_text) {
-      others.push({
-        id: 'body',
-        x: (resolvedBodyX / 100) * REF_WIDTH,
-        y: (resolvedBodyY / 100) * REF_HEIGHT,
-        width: (bodyWidth / 100) * REF_WIDTH,
-        height: bodyRef.current?.getBoundingClientRect().height
-          ? bodyRef.current.getBoundingClientRect().height / scale
-          : 200,
-      })
-    }
-    for (const ct of slide.custom_texts ?? []) {
-      if (ct.id === excludeId) continue
-      const ref = customTextRefs.current[ct.id]
-      others.push({
-        id: ct.id,
-        x: (ct.x / 100) * REF_WIDTH,
-        y: (ct.y / 100) * REF_HEIGHT,
-        width: (ct.width / 100) * REF_WIDTH,
-        height: ref?.getBoundingClientRect().height
-          ? ref.getBoundingClientRect().height / scale
-          : 100,
-      })
-    }
-    for (const ci of slide.custom_images ?? []) {
-      if (ci.id === excludeId) continue
-      others.push({
-        id: ci.id,
-        x: (ci.x / 100) * REF_WIDTH,
-        y: (ci.y / 100) * REF_HEIGHT,
-        width: (ci.width / 100) * REF_WIDTH,
-        height: (ci.height / 100) * REF_HEIGHT,
-      })
-    }
-    return others
-  }, [resolvedHookX, resolvedHookY, hookWidth, resolvedBodyX, resolvedBodyY, bodyWidth, slide.body_text, slide.custom_texts, slide.custom_images, scale])
+      return { x: snappedX, y: snappedY }
+    },
+    [modifiers, slide.text_boxes, slide.custom_images],
+  )
+
+  // Phase 63 Plan 04 (SNAP-09): assemble excludeIds for the snap index based
+  // on the active drag's group/multi-select state. When the drag is part of
+  // a multi-select or group drag, ALL co-moving ids are excluded so the
+  // dragging entity's edges aren't snapped to itself.
+  const buildExcludeIds = useCallback(
+    (draggedId: string): Set<string> => {
+      const exclude = new Set<string>([draggedId])
+      // Group-drag: shouldGroupDrag returns the full member set when this
+      // drag is a group drag (selection equals the group's member set AND
+      // currentlyInsideGroup === null).
+      const groupMembers = selection
+        ? shouldGroupDrag(slide, selection, currentlyInsideGroup ?? null, draggedId)
+        : null
+      if (groupMembers) {
+        for (const m of groupMembers) exclude.add(m)
+        return exclude
+      }
+      // Plain multi-select: when selection.ids.length >= 2 AND the dragged
+      // element is in the selection, BULK_TRANSLATE-style flow moves all
+      // selected ids together (Phase 60). Exclude all selected so they
+      // don't snap to each other.
+      if (selection && selection.ids.length >= 2 && selection.ids.includes(draggedId)) {
+        for (const id of selection.ids) exclude.add(id)
+      }
+      return exclude
+    },
+    [slide, selection, currentlyInsideGroup],
+  )
 
   // Don't render content until we have a valid scale
   if (scale === 0) {
@@ -1240,6 +1366,15 @@ export function SlidePreview({
             // Phase 61 Plan 02 (KBD-07): snapshot drag-start position for
             // axis-constrain. Cleared in onDragStop.
             hookDragStartRef.current = { x: data.x, y: data.y }
+            // Phase 63 Plan 04 (SNAP-02..06, SNAP-09): build the snap index
+            // ONCE for the gesture, excluding the dragging entity (and any
+            // co-moving group/multi-select members). Reused across every
+            // onDrag tick. Cleared in onDragStop.
+            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+            const draggedId = hookBox?.id ?? 'hook'
+            snapIndexRef.current = buildSnapIndex(slide, buildExcludeIds(draggedId))
+            wasSnappedXRef.current = null
+            wasSnappedYRef.current = null
           }}
           onDrag={(_e, data) => {
             // Phase 61 Plan 02 (KBD-07): if Shift held, lock to dominant axis
@@ -1255,22 +1390,51 @@ export function SlidePreview({
               data.x = constrained.x
               data.y = constrained.y
             }
-            const dragging: TextBox = {
-              id: 'hook',
-              x: data.x,
-              y: data.y,
-              width: hookWidthPx,
-              height: hookRef.current?.getBoundingClientRect().height
-                ? hookRef.current.getBoundingClientRect().height / scale
-                : 200,
+            // Phase 63 Plan 04 (SNAP-02..06, PERF-03): query snap-with-
+            // hysteresis + update overlay in one helper. Multi-element drag
+            // (SNAP-09): when the hook is part of a multi-select, query the
+            // union AABB so the dragging "entity" edges include all moving
+            // siblings. The query rect is the hook's box for single-element;
+            // for multi-element we offset the union AABB by the drag delta.
+            const hookHeight = hookRef.current?.getBoundingClientRect().height
+              ? hookRef.current.getBoundingClientRect().height / scale
+              : 200
+            let queryX = data.x
+            let queryY = data.y
+            let queryW = hookWidthPx
+            let queryH = hookHeight
+            const hookBoxForBounds = slide.text_boxes?.find((tb) => tb.role === 'hook')
+            if (
+              hookBoxForBounds &&
+              selection &&
+              selection.ids.length >= 2 &&
+              selection.ids.includes(hookBoxForBounds.id)
+            ) {
+              const bounds = computeSelectionBounds(slide, selection.ids)
+              const startRef = hookDragStartRef.current
+              if (bounds && startRef) {
+                const dx = data.x - startRef.x
+                const dy = data.y - startRef.y
+                queryX = (bounds.x / 100) * REF_WIDTH + dx
+                queryY = (bounds.y / 100) * REF_HEIGHT + dy
+                queryW = (bounds.width / 100) * REF_WIDTH
+                queryH = (bounds.height / 100) * REF_HEIGHT
+              }
             }
-            const others = buildOthersForSnap('hook')
-            const result = calculateSnap(dragging, others)
-            data.x = result.snappedX
-            data.y = result.snappedY
+            const result = runSnapForDrag(queryX, queryY, queryW, queryH)
+            // Translate the snap result back to this element's coords. The
+            // delta from the queried union AABB to this element's coords is
+            // invariant across the snap operation.
+            data.x = result.x + (data.x - queryX)
+            data.y = result.y + (data.y - queryY)
           }}
           onDragStop={(_e, data) => {
-            clearGuides()
+            // Phase 63 Plan 04: clear snap index, overlay, and per-axis
+            // hysteresis state at gesture end.
+            snapIndexRef.current = null
+            wasSnappedXRef.current = null
+            wasSnappedYRef.current = null
+            guideOverlayRef.current?.clear()
             // Phase 61 Plan 02 (KBD-07): clear drag-start ref on gesture end.
             const startRef = hookDragStartRef.current
             hookDragStartRef.current = null
@@ -1451,6 +1615,12 @@ export function SlidePreview({
             onDragStart={(_e, data) => {
               // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
               bodyDragStartRef.current = { x: data.x, y: data.y }
+              // Phase 63 Plan 04: build snap index for the gesture.
+              const bb = slide.text_boxes?.find((tb) => tb.role === 'body')
+              const draggedId = bb?.id ?? 'body'
+              snapIndexRef.current = buildSnapIndex(slide, buildExcludeIds(draggedId))
+              wasSnappedXRef.current = null
+              wasSnappedYRef.current = null
             }}
             onDrag={(_e, data) => {
               // Phase 61 Plan 02 (KBD-07): Shift-locked axis BEFORE snap.
@@ -1463,22 +1633,42 @@ export function SlidePreview({
                 data.x = constrained.x
                 data.y = constrained.y
               }
-              const dragging: TextBox = {
-                id: 'body',
-                x: data.x,
-                y: data.y,
-                width: bodyWidthPx,
-                height: bodyRef.current?.getBoundingClientRect().height
-                  ? bodyRef.current.getBoundingClientRect().height / scale
-                  : 200,
+              // Phase 63 Plan 04 — multi-element-aware snap query.
+              const bodyHeight = bodyRef.current?.getBoundingClientRect().height
+                ? bodyRef.current.getBoundingClientRect().height / scale
+                : 200
+              let queryX = data.x
+              let queryY = data.y
+              let queryW = bodyWidthPx
+              let queryH = bodyHeight
+              const bbForBounds = slide.text_boxes?.find((tb) => tb.role === 'body')
+              if (
+                bbForBounds &&
+                selection &&
+                selection.ids.length >= 2 &&
+                selection.ids.includes(bbForBounds.id)
+              ) {
+                const bounds = computeSelectionBounds(slide, selection.ids)
+                const startRef = bodyDragStartRef.current
+                if (bounds && startRef) {
+                  const dx = data.x - startRef.x
+                  const dy = data.y - startRef.y
+                  queryX = (bounds.x / 100) * REF_WIDTH + dx
+                  queryY = (bounds.y / 100) * REF_HEIGHT + dy
+                  queryW = (bounds.width / 100) * REF_WIDTH
+                  queryH = (bounds.height / 100) * REF_HEIGHT
+                }
               }
-              const others = buildOthersForSnap('body')
-              const result = calculateSnap(dragging, others)
-              data.x = result.snappedX
-              data.y = result.snappedY
+              const result = runSnapForDrag(queryX, queryY, queryW, queryH)
+              data.x = result.x + (data.x - queryX)
+              data.y = result.y + (data.y - queryY)
             }}
             onDragStop={(_e, data) => {
-              clearGuides()
+              // Phase 63 Plan 04: clear snap state.
+              snapIndexRef.current = null
+              wasSnappedXRef.current = null
+              wasSnappedYRef.current = null
+              guideOverlayRef.current?.clear()
               // Phase 61 Plan 02 (KBD-07): clear drag-start ref.
               const startRef = bodyDragStartRef.current
               bodyDragStartRef.current = null
@@ -1650,6 +1840,10 @@ export function SlidePreview({
                 setDraggingElementId(ct.id)
                 // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
                 customTextDragStartRefs.current[ct.id] = { x: data.x, y: data.y }
+                // Phase 63 Plan 04: build snap index for the gesture.
+                snapIndexRef.current = buildSnapIndex(slide, buildExcludeIds(ct.id))
+                wasSnappedXRef.current = null
+                wasSnappedYRef.current = null
               }}
               onDrag={(_e, data) => {
                 // Phase 61 Plan 02 (KBD-07): Shift-locked axis BEFORE snap.
@@ -1663,23 +1857,40 @@ export function SlidePreview({
                   data.x = constrained.x
                   data.y = constrained.y
                 }
-                const dragging: TextBox = {
-                  id: ct.id,
-                  x: data.x,
-                  y: data.y,
-                  width: ctWidthPx,
-                  height: customTextRefs.current[ct.id]?.getBoundingClientRect().height
-                    ? customTextRefs.current[ct.id]!.getBoundingClientRect().height / scale
-                    : 100,
+                // Phase 63 Plan 04 — multi-element-aware snap query.
+                const ctHeight = customTextRefs.current[ct.id]?.getBoundingClientRect().height
+                  ? customTextRefs.current[ct.id]!.getBoundingClientRect().height / scale
+                  : 100
+                let queryX = data.x
+                let queryY = data.y
+                let queryW = ctWidthPx
+                let queryH = ctHeight
+                if (
+                  selection &&
+                  selection.ids.length >= 2 &&
+                  selection.ids.includes(ct.id)
+                ) {
+                  const bounds = computeSelectionBounds(slide, selection.ids)
+                  if (bounds && dragStart) {
+                    const dx = data.x - dragStart.x
+                    const dy = data.y - dragStart.y
+                    queryX = (bounds.x / 100) * REF_WIDTH + dx
+                    queryY = (bounds.y / 100) * REF_HEIGHT + dy
+                    queryW = (bounds.width / 100) * REF_WIDTH
+                    queryH = (bounds.height / 100) * REF_HEIGHT
+                  }
                 }
-                const others = buildOthersForSnap(ct.id)
-                const result = calculateSnap(dragging, others)
-                data.x = result.snappedX
-                data.y = result.snappedY
+                const result = runSnapForDrag(queryX, queryY, queryW, queryH)
+                data.x = result.x + (data.x - queryX)
+                data.y = result.y + (data.y - queryY)
                 setOverTrash((data.y / REF_HEIGHT) * 100 > 85)
               }}
               onDragStop={(_e, data) => {
-                clearGuides()
+                // Phase 63 Plan 04: clear snap state.
+                snapIndexRef.current = null
+                wasSnappedXRef.current = null
+                wasSnappedYRef.current = null
+                guideOverlayRef.current?.clear()
                 const yPercent = (data.y / REF_HEIGHT) * 100
                 setDraggingElementId(null)
                 setOverTrash(false)
@@ -1927,6 +2138,10 @@ export function SlidePreview({
                 setDraggingElementId(ci.id)
                 // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
                 customImageDragStartRefs.current[ci.id] = { x: data.x, y: data.y }
+                // Phase 63 Plan 04: build snap index for the gesture.
+                snapIndexRef.current = buildSnapIndex(slide, buildExcludeIds(ci.id))
+                wasSnappedXRef.current = null
+                wasSnappedYRef.current = null
               }}
               onDrag={(_e, data) => {
                 // Phase 61 Plan 02 (KBD-07): Shift-locked axis BEFORE snap.
@@ -1940,23 +2155,39 @@ export function SlidePreview({
                   data.x = constrained.x
                   data.y = constrained.y
                 }
-                const dragging: TextBox = {
-                  id: ci.id,
-                  x: data.x,
-                  y: data.y,
-                  width: ciWidthPx,
-                  height: ciHeightPx,
+                // Phase 63 Plan 04 — multi-element-aware snap query.
+                let queryX = data.x
+                let queryY = data.y
+                let queryW = ciWidthPx
+                let queryH = ciHeightPx
+                if (
+                  selection &&
+                  selection.ids.length >= 2 &&
+                  selection.ids.includes(ci.id)
+                ) {
+                  const bounds = computeSelectionBounds(slide, selection.ids)
+                  if (bounds && dragStart) {
+                    const dx = data.x - dragStart.x
+                    const dy = data.y - dragStart.y
+                    queryX = (bounds.x / 100) * REF_WIDTH + dx
+                    queryY = (bounds.y / 100) * REF_HEIGHT + dy
+                    queryW = (bounds.width / 100) * REF_WIDTH
+                    queryH = (bounds.height / 100) * REF_HEIGHT
+                  }
                 }
-                const others = buildOthersForSnap(ci.id)
-                const result = calculateSnap(dragging, others)
-                data.x = result.snappedX
-                data.y = result.snappedY
+                const result = runSnapForDrag(queryX, queryY, queryW, queryH)
+                data.x = result.x + (data.x - queryX)
+                data.y = result.y + (data.y - queryY)
                 // Check if over trash zone (bottom 12% of canvas)
                 const yPercent = (data.y / REF_HEIGHT) * 100
                 setOverTrash(yPercent > 85)
               }}
               onDragStop={(_e, data) => {
-                clearGuides()
+                // Phase 63 Plan 04: clear snap state.
+                snapIndexRef.current = null
+                wasSnappedXRef.current = null
+                wasSnappedYRef.current = null
+                guideOverlayRef.current?.clear()
                 const yPercent = (data.y / REF_HEIGHT) * 100
                 setDraggingElementId(null)
                 setOverTrash(false)
@@ -2185,24 +2416,21 @@ export function SlidePreview({
           </div>
         )}
 
-        {/* Alignment guide overlays */}
-        {activeGuides.map((guide, i) => (
-          <div
-            key={i}
-            data-testid="alignment-guide"
-            style={{
-              position: 'absolute',
-              [guide.orientation === 'vertical' ? 'left' : 'top']: guide.position,
-              [guide.orientation === 'vertical' ? 'top' : 'left']: 0,
-              [guide.orientation === 'vertical' ? 'width' : 'height']: 0,
-              [guide.orientation === 'vertical' ? 'height' : 'width']: guide.orientation === 'vertical' ? REF_HEIGHT : REF_WIDTH,
-              borderLeft: guide.orientation === 'vertical' ? '2px dashed rgba(255, 100, 100, 0.8)' : 'none',
-              borderTop: guide.orientation === 'horizontal' ? '2px dashed rgba(255, 100, 100, 0.8)' : 'none',
-              zIndex: 50,
-              pointerEvents: 'none' as const,
-            }}
-          />
-        ))}
+        {/* Phase 63 Plan 04 (SNAP-02..06, SNAP-09, DIFF-03, PERF-03):
+            smart-guide overlay. Persistent pool of guide-line + equal-
+            spacing-segment <div>s; positions update via direct ref.style
+            mutation (translate3d) — NO React state per pointer-move
+            (PERF-03). Coords are REF px and live INSIDE the scaled canvas
+            wrapper so they align at every zoom level (SNAP-06 + PITFALL-5.3).
+
+            STRICTLY editable-only — sits downstream of the line-790
+            editable={false} early return; PARITY-01 + slide-preview-smart-
+            guides.test.tsx SP7/SP10 pin the structural gate.
+
+            Replaces the legacy {activeGuides.map(...)} JSX from the
+            alignment-guides hook (Phase 63 D-09 retains the file for Phase
+            66 cleanup; the import is gone — see Plan 63-04 SUMMARY). */}
+        <SmartGuideOverlay ref={guideOverlayRef} />
 
         {/* Slide number badge */}
         <div style={{
