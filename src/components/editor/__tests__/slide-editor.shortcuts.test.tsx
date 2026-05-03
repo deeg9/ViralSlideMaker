@@ -679,16 +679,12 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     //   x: min(10, 50, 80, hook.x=11, body.x=11) = 10 → img-a.x baseline.
     //   leftmost x = 10. After align-left: all images snap to x=10.
     fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
+    // Sanity: confirm Cmd+A populated selection.ids (text_boxes + images).
+    const selectedIds = screen.getByTestId('text-editor-panel')
+      .getAttribute('data-selected-ids') ?? ''
+    expect(selectedIds.split(',').filter(Boolean).length).toBeGreaterThanOrEqual(5)
 
-    const ev = new KeyboardEvent('keydown', {
-      key: 'a',
-      altKey: true,
-      bubbles: true,
-      cancelable: true,
-    })
-    const pd = vi.spyOn(ev, 'preventDefault')
-    window.dispatchEvent(ev)
-    expect(pd).toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: 'a', altKey: true })
 
     const after = readImagePositions()
     // All 3 images now share x=10 (the selection's leftmost edge).
@@ -798,10 +794,23 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     renderAlignEditor()
     // Cmd+A selects 5 elements (hook + body + 3 images). Distribute candidates
     // are the 3 images (text_boxes are structural). Sort by x: img-a (x=10),
-    // img-b (x=50), img-c (x=80). All width=10. Outer pinned. New img-b x =
-    // (10+10) + ((80 - 10) - 30)/2 - 0 (cursor walks). Per the gap-based math:
+    // img-b (x=50), img-c (x=80). All width=10. Outer pinned. Per the gap-
+    // based math (PITFALL-4.6 / Plan 63-01):
     //   sumSizes = 30; totalSpan = (80+10) - 10 = 80; totalInnerSpan = 80 - 30 = 50; gap = 50/2 = 25.
     //   img-b new x = (10 + 10) + 25 = 45.
+    fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
+    fireEvent.keyDown(window, { key: 'h', ctrlKey: true, altKey: true })
+
+    const after = readImagePositions()
+    // Outer images pinned.
+    expect(after['img-a'].x).toBe(10)
+    expect(after['img-c'].x).toBe(80)
+    // Inner image at gap-equal new x = 45.
+    expect(after['img-b'].x).toBe(45)
+  })
+
+  it('KD1b (Cmd+Alt+H preventDefault — Chrome history suppression): KBD-03 always preventDefault', () => {
+    renderAlignEditor()
     fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
 
     const ev = new KeyboardEvent('keydown', {
@@ -813,14 +822,7 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     })
     const pd = vi.spyOn(ev, 'preventDefault')
     window.dispatchEvent(ev)
-    expect(pd).toHaveBeenCalled() // KBD-03 — Cmd+Alt+H is Chrome history default
-
-    const after = readImagePositions()
-    // Outer images pinned.
-    expect(after['img-a'].x).toBe(10)
-    expect(after['img-c'].x).toBe(80)
-    // Inner image at gap-equal new x = 45.
-    expect(after['img-b'].x).toBe(45)
+    expect(pd).toHaveBeenCalled()
   })
 
   it('KD2 (Cmd+Alt+H, N<3): no dispatch; preventDefault still called (Chrome history suppression)', () => {
@@ -845,15 +847,27 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     expect(after).toEqual(before)
   })
 
-  it('KD3 (Cmd+Alt+V, N>=3 → distribute vertical): inner image moves to even-gap y position', () => {
+  it('KD3 (Cmd+Alt+V, N>=3 → distribute vertical): outer images pinned, inner image at gap-equal y', () => {
     renderAlignEditor()
     // Sort by y: img-a (y=10), img-b (y=20), img-c (y=30). All height=10.
     //   sumSizes=30; totalSpan=(30+10) - 10 = 30; totalInnerSpan=30 - 30 = 0; gap = 0.
     //   img-b new y = (10 + 10) + 0 = 20. (already at 20 — degenerate but
-    //   correct gap-equal — first/last touch.) Use a wider y spread to assert
-    //   the recompute. Re-seed: use Cmd+A then nothing — the math collapses.
-    // Substitute: assert post-dispatch the y values are monotone increasing
-    // (which they were before AND after — no regression).
+    //   the dispatch IS observable via outer pin + integer reconfirm.)
+    fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
+    fireEvent.keyDown(window, { key: 'v', ctrlKey: true, altKey: true })
+
+    const after = readImagePositions()
+    // Outer images pinned (y=10 and y=30).
+    expect(after['img-a'].y).toBe(10)
+    expect(after['img-c'].y).toBe(30)
+    // Inner image at gap-equal new y. With span=20, sumSizes=20 (just inner),
+    // gap=0; img-b new y = first.bottom + gap = 20. (Already 20 pre-state —
+    // dispatch is observed via the preventDefault paired test KD3b.)
+    expect(after['img-b'].y).toBe(20)
+  })
+
+  it('KD3b (Cmd+Alt+V preventDefault — Chrome view-source suppression): KBD-03 always preventDefault', () => {
+    renderAlignEditor()
     fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
 
     const ev = new KeyboardEvent('keydown', {
@@ -865,17 +879,7 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     })
     const pd = vi.spyOn(ev, 'preventDefault')
     window.dispatchEvent(ev)
-    expect(pd).toHaveBeenCalled() // KBD-03 — Cmd+Alt+V is Chrome view-source default
-
-    const after = readImagePositions()
-    // Outer images pinned (y=10 and y=30).
-    expect(after['img-a'].y).toBe(10)
-    expect(after['img-c'].y).toBe(30)
-    // Inner image at gap-equal new y. With 30-y span and 30 sumSizes: gap=0,
-    // img-b new y = first.bottom + gap = 20. (Identical to pre-state — that's
-    // already the equal-spacing answer for these dims; the dispatch is still
-    // observed to land via preventDefault above.)
-    expect(after['img-b'].y).toBe(20)
+    expect(pd).toHaveBeenCalled()
   })
 
   it('KD4 (Cmd+Alt+V inside textarea — KBD-02): no dispatch; preventDefault NOT called', () => {

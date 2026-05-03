@@ -29,6 +29,17 @@ import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { useSelectionModel } from '@/lib/editor/use-selection-model'
 import { isEditingTarget } from '@/lib/editor/keyboard-utils'
 import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
+// Phase 63 Plan 02 (ALIGN-01..06): types for the 6-axis align + 2-axis distribute
+// dispatch shape. Imported here so both the tinykeys handlers and the handleAlign
+// callback wired to SlideCanvas.onAlign use the SAME ALIGN/DISTRIBUTE action
+// shape. Plan 63-01 ships the reducer cases + pure transforms; this plan wires
+// keyboard + toolbar to dispatch.
+import type {
+  AlignAxis,
+  AlignTarget,
+  DistributeAxis,
+} from '@/lib/editor/transforms/align'
+import type { ToolbarAction } from '@/components/editor/floating-alignment-toolbar'
 import { tinykeys } from 'tinykeys'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
@@ -526,7 +537,96 @@ export function SlideEditor({
         e.preventDefault()
         removeTextBox(selectedIndex, selectedTextBoxId)
       },
+
+      // ────────────────────────────────────────────────────────────────────
+      // Phase 63 Plan 02 (ALIGN-01, ALIGN-02, ALIGN-06): 6-axis align +
+      // 2-axis distribute keyboard map. Every binding starts with the
+      // KBD-02 isEditingTarget firewall (returns BEFORE preventDefault to
+      // let browser defaults fire inside text inputs) and then unconditionally
+      // preventDefaults — Alt-key combos and Cmd+Alt-key combos can have
+      // browser-default behaviors:
+      //   • Alt+A/H/D/W/V/S: some platforms consume Alt+letter as "menu
+      //     mnemonic" — preventDefault keeps the canvas in focus.
+      //   • Cmd+Alt+H is Chrome history.
+      //   • Cmd+Alt+V is Chrome view-source.
+      // The N=1→canvas vs N>=2→selection routing happens inside the closure
+      // helpers — the toolbar UI hides at N<=1 (single-element canvas-align
+      // is keyboard-only, matching Figma's power-user pattern). Distribute
+      // binds N<3 → silent no-op (with preventDefault still called per
+      // PITFALL-9.3 / Cmd+G pattern).
+      //
+      // KBD-02 firewall is INLINED at each binding (not just the closure
+      // helper) so the `isEditingTarget(e.target)` call is grep-visible
+      // per Plan 60-04 contract — the verification grep counts >= 19 sites
+      // after this plan (was 11 after Plan 62-03; +8 sites from this plan).
+      // ────────────────────────────────────────────────────────────────────
+      'Alt+a': (e) => {
+        if (isEditingTarget(e.target)) return
+        alignKeyHandler(e, 'left')
+      },
+      'Alt+h': (e) => {
+        if (isEditingTarget(e.target)) return
+        alignKeyHandler(e, 'center-h')
+      },
+      'Alt+d': (e) => {
+        if (isEditingTarget(e.target)) return
+        alignKeyHandler(e, 'right')
+      },
+      'Alt+w': (e) => {
+        if (isEditingTarget(e.target)) return
+        alignKeyHandler(e, 'top')
+      },
+      'Alt+v': (e) => {
+        if (isEditingTarget(e.target)) return
+        alignKeyHandler(e, 'center-v')
+      },
+      'Alt+s': (e) => {
+        if (isEditingTarget(e.target)) return
+        alignKeyHandler(e, 'bottom')
+      },
+      '$mod+Alt+h': (e) => {
+        if (isEditingTarget(e.target)) return
+        distributeKeyHandler(e, 'horizontal')
+      },
+      '$mod+Alt+v': (e) => {
+        if (isEditingTarget(e.target)) return
+        distributeKeyHandler(e, 'vertical')
+      },
     })
+
+    // Phase 63 Plan 02 — closure helpers. Defined INSIDE the useEffect so
+    // they capture the freshest selection / dispatch / selectedIndex on
+    // every render where a binding fires. The ALIGN-08 single-pushHistory
+    // contract is upheld by the reducer; here we just dispatch ONE action.
+    // The isEditingTarget firewall is inlined at each binding ABOVE so the
+    // guard is grep-visible per Plan 60-04 contract; these helpers only see
+    // events that already passed the firewall.
+    function alignKeyHandler(e: KeyboardEvent, axis: AlignAxis) {
+      e.preventDefault() // KBD-03 — always preventDefault when not editing
+      if (selection.ids.length === 0) return // no-op (no selection to align)
+      // ALIGN-03: N=1 routes target='canvas' (1080×1920); N>=2 routes
+      // target='selection' (union AABB). The pure align.ts module computes
+      // patches; locked + watermark + structural-anchor are filtered there.
+      const target: AlignTarget = selection.ids.length === 1 ? 'canvas' : 'selection'
+      dispatch({
+        type: 'ALIGN',
+        slideIndex: selectedIndex,
+        ids: selection.ids,
+        axis,
+        target,
+      })
+    }
+
+    function distributeKeyHandler(e: KeyboardEvent, axis: DistributeAxis) {
+      e.preventDefault() // KBD-03 — always preventDefault (Chrome history / view-source)
+      if (selection.ids.length < 3) return // ALIGN-06 — silent no-op when N<3
+      dispatch({
+        type: 'DISTRIBUTE',
+        slideIndex: selectedIndex,
+        ids: selection.ids,
+        axis,
+      })
+    }
 
     return () => unsubscribe()
   }, [
@@ -547,6 +647,41 @@ export function SlideEditor({
   function handleUpdate(updates: Partial<Slide>) {
     dispatch({ type: 'UPDATE_SLIDE', index: selectedIndex, updates })
   }
+
+  // Phase 63 Plan 02 (ALIGN-01..05, ALIGN-07): toolbar-action handler.
+  // Wired to SlideCanvas.onAlign → SlidePreview.onAlign → FloatingAlignmentToolbar.
+  // Mirrors alignKeyHandler / distributeKeyHandler from the tinykeys closure
+  // so keyboard + mouse paths land the SAME ALIGN/DISTRIBUTE dispatch shape.
+  // Uses useCallback so SlideCanvas's reference identity is stable across
+  // renders that don't change selection.ids / selectedIndex / dispatch.
+  const handleAlign = useCallback(
+    (action: ToolbarAction) => {
+      if (action.kind === 'align') {
+        if (selection.ids.length === 0) return
+        const target: AlignTarget =
+          selection.ids.length === 1 ? 'canvas' : 'selection'
+        dispatch({
+          type: 'ALIGN',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          axis: action.axis,
+          target,
+        })
+      } else {
+        // distribute — ALIGN-06 N<3 gate. Toolbar disables the button at N<3,
+        // but defense-in-depth: handler also no-ops here. Matches the
+        // distributeKeyHandler closure above.
+        if (selection.ids.length < 3) return
+        dispatch({
+          type: 'DISTRIBUTE',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          axis: action.axis,
+        })
+      }
+    },
+    [selection.ids, selectedIndex, dispatch],
+  )
 
   function handlePositionChange(field: 'hook' | 'body', position: TextPosition) {
     if (!currentSlide) return
@@ -927,6 +1062,14 @@ export function SlideEditor({
           // so the gesture lands as one history entry. Reducer skips locked +
           // watermark + structural-anchor (Plan 60-03 contract carry-forward).
           onGroupDrag={(payload) => dispatch({ type: 'BULK_TRANSLATE', ...payload })}
+          // Phase 63 Plan 02 (ALIGN-01..05, ALIGN-07): toolbar action callback.
+          // SlideCanvas → SlidePreview → FloatingAlignmentToolbar. Click on
+          // an align/distribute button calls handleAlign which resolves
+          // N=1→canvas vs N>=2→selection target and dispatches ALIGN /
+          // DISTRIBUTE. Same dispatch shape as the keyboard alignKeyHandler /
+          // distributeKeyHandler closures above (single source of truth at
+          // the reducer layer).
+          onAlign={handleAlign}
         />
 
         {/* Right panel: Editor controls */}
