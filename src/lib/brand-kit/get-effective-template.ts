@@ -15,13 +15,21 @@ function fontStack(name: string | null | undefined): string | undefined {
  *   template defaults -> brand kit overrides -> per-slide style_overrides
  *   (style_overrides are handled in buildSlideHtml; this function covers the first two layers)
  *
- * Returns the template unchanged when brandKit is null.
+ * Returns the template unchanged when brandKit is null OR when the template
+ * declares `paletteMode: 'fixed'` — those templates (paper-essay,
+ * brutalist-grid) promise a locked typographic identity. Letting a brand
+ * kit's `background_color` / `text_color` / fonts paint over them produced
+ * the user-reported divergence where the browser preview rendered a cream
+ * serif paper-essay but the Satori export came back as a dark-navy
+ * sans-serif slab — the preview component does not apply this merge, so
+ * the brand kit's identity only leaked into the export path.
  */
 export function mergeWithBrandKit(
   template: SlideTemplate,
   brandKit: BrandKit | null
 ): SlideTemplate {
   if (!brandKit) return template
+  if (template.paletteMode === 'fixed') return template
 
   // Body / general font: prefer body_font_family, fall back to legacy font_family.
   const bodyFont = fontStack(brandKit.body_font_family ?? brandKit.font_family)

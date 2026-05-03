@@ -112,6 +112,15 @@ export async function loadFontBuffersForSlide(
   // Collect unique font names (hook and body may be the same)
   const uniqueFonts = new Set([hookFontName, bodyFontName])
 
+  // Also load the template's headingFontFamily — render-slide-satori.tsx
+  // applies it to the hook via `template.headingFontFamily ?? template.fontFamily`,
+  // but resolveSlideStyles only surfaces template.fontFamily. Without this,
+  // paper-essay's Playfair-Display hook would silently fall back to Lora in
+  // the Satori-loaded font set.
+  if (template.headingFontFamily) {
+    uniqueFonts.add(extractFontName(template.headingFontFamily))
+  }
+
   // Phase 56 (TPL-07, D-22): walk segment-level fontFamily for ransom-note
   // hooks (notes-app-chic). Each unique segment fontFamily is registered with
   // Satori via its catalog entry. Forward-compat: also walk text_boxes /
