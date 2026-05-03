@@ -61,12 +61,12 @@
 - [x] **SNAP-01**: Snap threshold is 5 reference pixels (lowered from current 10)
 - [x] **SNAP-02**: Elements snap to other elements' edges (left, center-h, right, top, center-v, bottom) during drag
 - [x] **SNAP-03**: Elements snap to canvas edges (0, 540 center-h, 1080, 0, 960 center-v, 1920) during drag
-- [ ] **SNAP-04**: Equal-spacing "==" guide renders when 3+ elements form equal gaps during drag (Figma pink double-equals pattern)
-- [ ] **SNAP-05**: User can hold Cmd/Ctrl during drag to temporarily disable snap (modifier state resets on `window.blur` and `document.visibilitychange`)
-- [ ] **SNAP-06**: Smart guide overlay renders inside the scaled canvas container (coordinates correct at every zoom level)
-- [ ] **SNAP-07**: Smart guide DOM nodes are persistently mounted; positions update via `transform: translate3d` refs (no React reconciliation per pointer-move)
+- [x] **SNAP-04**: Equal-spacing "==" guide renders when 3+ elements form equal gaps during drag (Figma pink double-equals pattern)
+- [x] **SNAP-05**: User can hold Cmd/Ctrl during drag to temporarily disable snap (modifier state resets on `window.blur` and `document.visibilitychange`)
+- [x] **SNAP-06**: Smart guide overlay renders inside the scaled canvas container (coordinates correct at every zoom level)
+- [x] **SNAP-07**: Smart guide DOM nodes are persistently mounted; positions update via `transform: translate3d` refs (no React reconciliation per pointer-move)
 - [x] **SNAP-08**: Snap algorithm uses sorted edge arrays built at `onDragStart`; binary-search at `onDrag` (target <2ms per pointer-move at N=30 elements per slide)
-- [ ] **SNAP-09**: Multi-element drag uses the multi-selection bounding-box edges as the "dragging" element's snap candidates
+- [x] **SNAP-09**: Multi-element drag uses the multi-selection bounding-box edges as the "dragging" element's snap candidates
 - [x] **SNAP-10**: Snap threshold has asymmetric hysteresis (enter at ≤5px; exit at >7px) to prevent flicker
 
 ### Z-Order (ZORDER)
@@ -127,7 +127,7 @@
 
 - [ ] **DIFF-01**: User can hold Alt while dragging to drop a copy of the selection at the new location (Figma Alt-drag duplicate pattern)
 - [ ] **DIFF-02**: Cmd+D duplicates selection with smart offset (matches direction + magnitude of last move; falls back to ~20px offset on first use)
-- [ ] **DIFF-03**: Equal-spacing "==" guide rendering covered by SNAP-04 (DIFF cross-reference)
+- [x] **DIFF-03**: Equal-spacing "==" guide rendering covered by SNAP-04 (DIFF cross-reference)
 
 ### TPLREND-05 Parity (PARITY)
 
@@ -141,7 +141,7 @@
 
 - [x] **PERF-01**: Multi-drag dispatches a single `BULK_TRANSLATE` action on `onDragStop` only (NEVER per-frame `onDrag`); strict carry-forward of v2.10's `onResizeStop` rule
 - [ ] **PERF-02**: Layers panel reorder dispatches reducer on `dragEnd` only; uses local `useState` during drag for visual feedback
-- [ ] **PERF-03**: Smart-guide overlay updates via direct ref + `transform: translate3d` (no React reconciliation per pointer-move)
+- [x] **PERF-03**: Smart-guide overlay updates via direct ref + `transform: translate3d` (no React reconciliation per pointer-move)
 - [ ] **PERF-04**: Layer chips wrapped in `React.memo` (covered by LAYERS-09)
 - [x] **PERF-05**: Smart-guide perf budget verified at <2ms per pointer-move at N=30 elements per slide (test fixture in Phase 63)
 
@@ -226,12 +226,12 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | SNAP-01 | Phase 63 | Complete |
 | SNAP-02 | Phase 63 | Complete |
 | SNAP-03 | Phase 63 | Complete |
-| SNAP-04 | Phase 63 | Pending |
-| SNAP-05 | Phase 63 | Pending |
-| SNAP-06 | Phase 63 | Pending |
-| SNAP-07 | Phase 63 | Pending |
+| SNAP-04 | Phase 63 | Complete |
+| SNAP-05 | Phase 63 | Complete |
+| SNAP-06 | Phase 63 | Complete |
+| SNAP-07 | Phase 63 | Complete |
 | SNAP-08 | Phase 63 | Complete |
-| SNAP-09 | Phase 63 | Pending |
+| SNAP-09 | Phase 63 | Complete |
 | SNAP-10 | Phase 63 | Complete |
 | ZORDER-01 | Phase 64 | Pending |
 | ZORDER-02 | Phase 64 | Pending |
@@ -274,7 +274,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | WMARK-05 | Phase 60 | Complete |
 | DIFF-01 | Phase 66 | Pending |
 | DIFF-02 | Phase 66 | Pending |
-| DIFF-03 | Phase 63 | Pending |
+| DIFF-03 | Phase 63 | Complete |
 | PARITY-01 | Phase 60 | Complete |
 | PARITY-02 | Phase 65 | Pending |
 | PARITY-03 | Phase 63 | Pending |
@@ -282,7 +282,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | PARITY-05 | Phase 65 | Pending |
 | PERF-01 | Phase 60 | Complete |
 | PERF-02 | Phase 65 | Pending |
-| PERF-03 | Phase 63 | Pending |
+| PERF-03 | Phase 63 | Complete |
 | PERF-04 | Phase 65 | Pending |
 | PERF-05 | Phase 63 | Complete |
 
