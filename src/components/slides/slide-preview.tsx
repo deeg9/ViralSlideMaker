@@ -20,6 +20,7 @@ import { computeSelectionBounds } from '@/lib/editor/transforms/selection-bounds
 // to the editable={true} branch (TPLREND-05 / PARITY-01).
 import { normalizeRect } from '@/lib/editor/transforms/normalize-rect'
 import { elementsInRect } from '@/lib/editor/transforms/element-rect-intersect'
+import { applyAxisConstrain } from '@/lib/editor/transforms/axis-constrain'
 import { MarqueeOverlay } from '@/components/editor/marquee-overlay'
 import { useModifierState } from '@/lib/editor/use-modifier-state'
 import type { Selection } from '@/lib/editor/use-selection-model'
@@ -377,6 +378,14 @@ export function SlidePreview({
   const hookResizeStartRef = useRef<{ widthPx: number; fontSize: number } | null>(null)
   const bodyResizeStartRef = useRef<{ widthPx: number; fontSize: number } | null>(null)
   const customTextResizeStartRefs = useRef<Record<string, { widthPx: number; fontSize: number } | null>>({})
+  // Phase 61 Plan 02 (KBD-07): per-element drag-start refs. Populated in
+  // onDragStart, read in onDrag (axis-constrain), cleared in onDragStop.
+  // Mirrors the existing resize-ref pattern above for the same correctness
+  // properties: per-element scope (no cross-talk), gesture-bounded lifetime.
+  const hookDragStartRef = useRef<{ x: number; y: number } | null>(null)
+  const bodyDragStartRef = useRef<{ x: number; y: number } | null>(null)
+  const customTextDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
+  const customImageDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
   const { calculateSnap, activeGuides, clearGuides } = useAlignmentGuides()
   const overrides = slide.style_overrides ?? {}
 
@@ -1157,7 +1166,25 @@ export function SlidePreview({
           bounds="parent"
           enableResizing={enableResizing}
           resizeHandleStyles={resizeHandleStyles}
+          onDragStart={(_e, data) => {
+            // Phase 61 Plan 02 (KBD-07): snapshot drag-start position for
+            // axis-constrain. Cleared in onDragStop.
+            hookDragStartRef.current = { x: data.x, y: data.y }
+          }}
           onDrag={(_e, data) => {
+            // Phase 61 Plan 02 (KBD-07): if Shift held, lock to dominant axis
+            // BEFORE snap. Snap then refines on the FREE axis. TouchEvent has
+            // no shiftKey — safe falsy fall-through (KBD-07 graceful no-op on
+            // touch, mirrors Plan 59 corner-resize Shift escape pattern).
+            if (hookDragStartRef.current) {
+              const constrained = applyAxisConstrain(
+                { x: data.x, y: data.y },
+                hookDragStartRef.current,
+                (_e as MouseEvent).shiftKey === true,
+              )
+              data.x = constrained.x
+              data.y = constrained.y
+            }
             const dragging: TextBox = {
               id: 'hook',
               x: data.x,
@@ -1174,6 +1201,8 @@ export function SlidePreview({
           }}
           onDragStop={(_e, data) => {
             clearGuides()
+            // Phase 61 Plan 02 (KBD-07): clear drag-start ref on gesture end.
+            hookDragStartRef.current = null
             if (!onPositionChange) return
             const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
             const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
@@ -1293,7 +1322,21 @@ export function SlidePreview({
             bounds="parent"
             enableResizing={enableResizing}
             resizeHandleStyles={resizeHandleStyles}
+            onDragStart={(_e, data) => {
+              // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
+              bodyDragStartRef.current = { x: data.x, y: data.y }
+            }}
             onDrag={(_e, data) => {
+              // Phase 61 Plan 02 (KBD-07): Shift-locked axis BEFORE snap.
+              if (bodyDragStartRef.current) {
+                const constrained = applyAxisConstrain(
+                  { x: data.x, y: data.y },
+                  bodyDragStartRef.current,
+                  (_e as MouseEvent).shiftKey === true,
+                )
+                data.x = constrained.x
+                data.y = constrained.y
+              }
               const dragging: TextBox = {
                 id: 'body',
                 x: data.x,
@@ -1310,6 +1353,8 @@ export function SlidePreview({
             }}
             onDragStop={(_e, data) => {
               clearGuides()
+              // Phase 61 Plan 02 (KBD-07): clear drag-start ref.
+              bodyDragStartRef.current = null
               if (!onPositionChange) return
               const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
               const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
@@ -1429,8 +1474,23 @@ export function SlidePreview({
               enableResizing={enableResizing}
               resizeHandleStyles={resizeHandleStyles}
               disableDragging={isEditing}
-              onDragStart={() => setDraggingElementId(ct.id)}
+              onDragStart={(_e, data) => {
+                setDraggingElementId(ct.id)
+                // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
+                customTextDragStartRefs.current[ct.id] = { x: data.x, y: data.y }
+              }}
               onDrag={(_e, data) => {
+                // Phase 61 Plan 02 (KBD-07): Shift-locked axis BEFORE snap.
+                const dragStart = customTextDragStartRefs.current[ct.id]
+                if (dragStart) {
+                  const constrained = applyAxisConstrain(
+                    { x: data.x, y: data.y },
+                    dragStart,
+                    (_e as MouseEvent).shiftKey === true,
+                  )
+                  data.x = constrained.x
+                  data.y = constrained.y
+                }
                 const dragging: TextBox = {
                   id: ct.id,
                   x: data.x,
@@ -1451,6 +1511,8 @@ export function SlidePreview({
                 const yPercent = (data.y / REF_HEIGHT) * 100
                 setDraggingElementId(null)
                 setOverTrash(false)
+                // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
+                delete customTextDragStartRefs.current[ct.id]
                 if (yPercent > 85) {
                   onCustomTextRemove?.(ct.id)
                   return
@@ -1635,8 +1697,23 @@ export function SlidePreview({
                 left: { ...imageResizeHandleStyle, left: -4, top: '50%', transform: 'translateY(-50%)' },
                 right: { ...imageResizeHandleStyle, right: -4, top: '50%', transform: 'translateY(-50%)' },
               }}
-              onDragStart={() => setDraggingElementId(ci.id)}
+              onDragStart={(_e, data) => {
+                setDraggingElementId(ci.id)
+                // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
+                customImageDragStartRefs.current[ci.id] = { x: data.x, y: data.y }
+              }}
               onDrag={(_e, data) => {
+                // Phase 61 Plan 02 (KBD-07): Shift-locked axis BEFORE snap.
+                const dragStart = customImageDragStartRefs.current[ci.id]
+                if (dragStart) {
+                  const constrained = applyAxisConstrain(
+                    { x: data.x, y: data.y },
+                    dragStart,
+                    (_e as MouseEvent).shiftKey === true,
+                  )
+                  data.x = constrained.x
+                  data.y = constrained.y
+                }
                 const dragging: TextBox = {
                   id: ci.id,
                   x: data.x,
@@ -1657,6 +1734,8 @@ export function SlidePreview({
                 const yPercent = (data.y / REF_HEIGHT) * 100
                 setDraggingElementId(null)
                 setOverTrash(false)
+                // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
+                delete customImageDragStartRefs.current[ci.id]
                 if (yPercent > 85) {
                   // Dropped on trash zone — delete
                   onCustomImageRemove?.(ci.id)
