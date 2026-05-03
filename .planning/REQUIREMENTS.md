@@ -53,7 +53,7 @@
 - [x] **GROUP-06**: Group bounding box ring renders around member AABB when group is selected (`editable={true}` gated)
 - [x] **GROUP-07**: User can double-click a group member to enter the group (focuses leaf element; right-rail shows leaf properties)
 - [x] **GROUP-08**: User can press Esc or click outside the group to exit it
-- [ ] **GROUP-09**: Group drag iterates members and applies same delta to each member's absolute position (skips locked members)
+- [x] **GROUP-09**: Group drag iterates members and applies same delta to each member's absolute position (skips locked members)
 - [x] **GROUP-10**: Selecting any single member while NOT inside the group selects the entire group (Figma "select group" model)
 
 ### Smart Guides + Snapping (SNAP)
@@ -221,7 +221,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | GROUP-06 | Phase 62 | Complete |
 | GROUP-07 | Phase 62 | Complete |
 | GROUP-08 | Phase 62 | Complete |
-| GROUP-09 | Phase 62 | Pending |
+| GROUP-09 | Phase 62 | Complete |
 | GROUP-10 | Phase 62 | Complete |
 | SNAP-01 | Phase 63 | Pending |
 | SNAP-02 | Phase 63 | Pending |

@@ -34,7 +34,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 
 - [x] **Phase 60: Multi-Select Foundation + Watermark Schema Lift** — Unified `Selection { ids, primary }` model + flat-schema `groupId?` / `locked?` / `hidden?` field definitions + watermark unification + Shift/Cmd-click + Cmd+A / Esc + selection ring + tinykeys install + modifier-blur reset (5/5 plans complete 2026-05-03)
 - [x] **Phase 61: Marquee Selection** — `selecto@1.26.3` rubber-band marquee on canvas whitespace; intersect mode (Figma); Shift-additive; rect normalization for all 4 drag directions; pointer-events seam (2/2 plans complete: 61-01 SHIPPED 2026-05-02 — pure helpers + MarqueeOverlay + selecto install; 61-02 SHIPPED 2026-05-02 — marquee state machine + KBD-07 axis-constrain + PARITY-01 marquee scan)
-- [ ] **Phase 62: Group / Ungroup** — `groupId?` semantics live; Cmd+G / Cmd+Shift+G; group bounding box visualization; double-click enter / Esc exit; group drag fans out delta to members; first multi-element reducer action with single `pushHistory`
+- [x] **Phase 62: Group / Ungroup** — `groupId?` semantics live; Cmd+G / Cmd+Shift+G; group bounding box visualization; double-click enter / Esc exit; group drag fans out delta to members; first multi-element reducer action with single `pushHistory` (3/3 plans complete 2026-05-03)
 - [ ] **Phase 63: Alignment / Distribute + Smart Guides (Wave A + Wave B)** — 6-axis align + H/V distribute + floating Figma toolbar (Wave A); sorted-edge-array snap index + 5px threshold + canvas-edge targets + equal-spacing "==" guide + asymmetric hysteresis (Wave B); both ship together (snap engine shared)
 - [ ] **Phase 64: Lock / Hide + Z-Order** — `locked?` + `hidden?` semantics live; Cmd+Shift+L lock toggle; lock blocks drag/resize/edit but allows select; hidden skipped by both renderers; Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ z-order via array splice; lock stripped on fork
 - [ ] **Phase 65: Layers Panel + TPLREND-05 Audit** — New LEFT rail; `react-arborist@3.5.0` (Day-1 StrictMode verification); flat list + group collapse; click-select; lock/visibility toggles; button-based reorder; comprehensive parity test extension; React.memo perf
@@ -107,10 +107,12 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   3. Selecting any member of a group (when not inside the group) selects the entire group and renders a dashed group bounding box around the member AABB (only when `editable={true}` — Satori PNG output unchanged); user can double-click a member to enter the group (focuses leaf element; right-rail shows leaf properties); user can press Esc or click outside to exit
   4. Dragging a group iterates each member and applies the same delta to each member's absolute position (locked members are skipped — see Phase 64); the entire group operation dispatches a single `pushHistory` so one Cmd+Z reverses it; alignment, distribute, z-order on a multi-selection containing groups behave identically (groups treated as single units for bounding-box math)
 
-**Plans (3)**:
-- [x] 62-01-PLAN.md — Data layer: getGroupMembers pure helper + GROUP/UNGROUP reducer actions (single pushHistory; subset-dissolve cascade) + useSelectionModel currentlyInsideGroup/enterGroup/exitGroup extension (GROUP-01..05, KBD-09 — also seeds GROUP-07/08 selection-model surface)
-- [x] 62-02-PLAN.md — UI surface: group-bounding ring (editable=true; dotted-vs-solid for entered state) + group-aware click handlers + double-click enter + click-outside-exit on 4 wrappers + PARITY-01 group gate extension (GROUP-06, GROUP-07, GROUP-08, GROUP-10)
-- [ ] 62-03-PLAN.md — Integration: Cmd+G/Cmd+Shift+G tinykeys bindings + group-aware Esc + shouldGroupDrag pure helper + group drag onDragStop → BULK_TRANSLATE single dispatch + round-trip parity tests (GROUP-02..05, GROUP-08, GROUP-09, KBD-09)
+**Plans (3/3 complete)**:
+- [x] 62-01-PLAN.md — Data layer: getGroupMembers pure helper + GROUP/UNGROUP reducer actions (single pushHistory; subset-dissolve cascade) + useSelectionModel currentlyInsideGroup/enterGroup/exitGroup extension (GROUP-01..05, KBD-09 — also seeds GROUP-07/08 selection-model surface) — SHIPPED `28f05fc` / `85a2253` / `14b046b` / `561edb7` / `a630e15` / `30d6edf` / `57a88bb`
+- [x] 62-02-PLAN.md — UI surface: group-bounding ring (editable=true; dotted-vs-solid for entered state) + group-aware click handlers + double-click enter + click-outside-exit on 4 wrappers + PARITY-01 group gate extension (GROUP-06, GROUP-07, GROUP-08, GROUP-10) — SHIPPED `2f4b1a1` / `cdba76c` / `7d2796f` / `c7e0723` / `776213d` / `9ec97f1`
+- [x] 62-03-PLAN.md — Integration: Cmd+G/Cmd+Shift+G tinykeys bindings + group-aware Esc + shouldGroupDrag pure helper + group drag onDragStop → BULK_TRANSLATE single dispatch + round-trip parity tests (GROUP-02..05, GROUP-08, GROUP-09, KBD-09) — SHIPPED `c1965d2` / `16dd0be` / `202c9fe` / `f7fb46f` / `2d78fce` / `dbc4d6d` / `daffc57` / `ef3207d`
+
+**Status**: COMPLETE 2026-05-03. 11/11 requirements satisfied (GROUP-01..10, KBD-09).
 **UI hint**: yes
 
 ---
@@ -202,9 +204,9 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 60. Multi-Select Foundation + Watermark Schema Lift | 4/5 | In Progress|  |
+| 60. Multi-Select Foundation + Watermark Schema Lift | 5/5 | Complete | 2026-05-03 |
 | 61. Marquee Selection | 2/2 | Complete | 2026-05-02 |
-| 62. Group / Ungroup | 2/3 | In Progress|  |
+| 62. Group / Ungroup | 3/3 | Complete | 2026-05-03 |
 | 63. Alignment / Distribute + Smart Guides | 0/0 | Not started | - |
 | 64. Lock / Hide + Z-Order | 0/0 | Not started | - |
 | 65. Layers Panel + TPLREND-05 Audit | 0/0 | Not started | - |
