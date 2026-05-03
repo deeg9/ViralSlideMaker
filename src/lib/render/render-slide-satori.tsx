@@ -10,6 +10,7 @@ import {
   resolveOverlayContent,
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
+  renderTextBlock,
   bottomCardBackground,
   renderGrain,
   renderVignette,
@@ -130,6 +131,12 @@ export function buildSlideElement(
   // own text_align; fallback chain: per-box → slide-level overrides → template.
   const hookBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')?.text_align
   const bodyBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')?.text_align
+  // quick-260502-pw8: per-text-box list_type / list_indent (modern path).
+  // Mirrors the text_align lookup. Legacy hook/body have no list fields, so
+  // when text_boxes is empty the values are undefined → renderTextBlock fast
+  // path returns the byte-identical renderSegments output.
+  const hookBox = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')
+  const bodyBox = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')
   const slideAlign = overrides.text_align ?? template.textAlign
   const hookTextAlign = hookBoxAlign ?? slideAlign
   const bodyTextAlign = bodyBoxAlign ?? slideAlign
@@ -434,18 +441,22 @@ export function buildSlideElement(
       })}
       {/* Hook text */}
       <div style={hookStyle}>
-        {renderSegmentChildren(
+        {renderTextBlock(
           slide.hook_text,
           slide.hook_segments,
+          hookBox?.list_type,
+          hookBox?.list_indent,
           isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
           accentColor,
         )}
       </div>
       {/* Body text */}
       <div style={bodyStyle}>
-        {renderSegmentChildren(
+        {renderTextBlock(
           slide.body_text,
           slide.body_segments,
+          bodyBox?.list_type,
+          bodyBox?.list_indent,
           isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
           accentColor,
         )}
@@ -508,7 +519,7 @@ export function buildSlideElement(
               ...(ctHighlight ?? {}),
             }}
           >
-            {renderSegmentChildren(ct.text, ct.segments, ctBaseColor, accentColor)}
+            {renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}
           </div>
         )
       })}
