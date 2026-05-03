@@ -2267,3 +2267,245 @@ describe('editorReducer — Phase 64 Plan 02 (LOCK-07): SET_HIDDEN single-dispat
     expect(next.past.length).toBe(before)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 64 Plan 03 (ZORDER-01..07, KBD-09): Z_ORDER single-dispatch contract.
+//
+// Single Z_ORDER action routes per-scope internally (text_boxes /
+// custom_images / watermark). Cross-scope multi-selection produces ONE
+// pushHistory entry — a 5-element multi-select Cmd+] is one undo step, not
+// three (text_boxes + custom_images + watermark).
+//
+// ZORDER-05 (Satori parity invariant) is enforced in the pure transform
+// `applyZOrderToArray` — array splice ONLY, never CSS layering. ZORDER-07
+// constrains operation to within one element-type array (cross-array
+// reorder deferred to v3.0+).
+//
+// Sort discipline (ZORDER-06): forward/front DESC, backward/back ASC.
+// Adjacent-selected windows do NOT shift (Figma model — PITFALL-6.3).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('editorReducer — Phase 64 Plan 03 (ZORDER-01..07): Z_ORDER single-dispatch contract', () => {
+  test('Test ZR1: Z_ORDER { ids: [tb1], op: forward } moves tb1 forward in text_boxes; past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['tb1'],
+      op: 'forward',
+    })
+    expect(next.present[0].text_boxes!.map((t) => t.id)).toEqual(['tb2', 'tb1'])
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test ZR2: Z_ORDER { ids: [ci2], op: back } moves ci2 to index 0 of custom_images', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'ci1', url: 'https://example.com/1.png', x: 10, y: 10, width: 20, height: 20 },
+          { id: 'ci2', url: 'https://example.com/2.png', x: 30, y: 30, width: 20, height: 20 },
+          { id: 'ci3', url: 'https://example.com/3.png', x: 50, y: 50, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['ci2'],
+      op: 'back',
+    })
+    expect(next.present[0].custom_images!.map((c) => c.id)).toEqual(['ci2', 'ci1', 'ci3'])
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test ZR3 (cross-scope single dispatch): Z_ORDER { ids: [tb1, ci1], op: forward } mutates BOTH arrays; past.length grows by EXACTLY 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb2',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+        custom_images: [
+          { id: 'ci1', url: 'https://example.com/1.png', x: 10, y: 10, width: 20, height: 20 },
+          { id: 'ci2', url: 'https://example.com/2.png', x: 30, y: 30, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['tb1', 'ci1'],
+      op: 'forward',
+    })
+    // Both arrays mutated: tb1 swapped with tb2; ci1 swapped with ci2.
+    expect(next.present[0].text_boxes!.map((t) => t.id)).toEqual(['tb2', 'tb1'])
+    expect(next.present[0].custom_images!.map((c) => c.id)).toEqual(['ci2', 'ci1'])
+    // KBD-09: single pushHistory per gesture even when scope spans multiple types.
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test ZR4 (multi-selection sort discipline): Z_ORDER { ids: [tb_a, tb_c], op: forward } on [a, b, c, d] → [b, a, d, c]', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'tb_a', role: 'custom', text: 'A', position: { anchor: 'custom', x: 10, y: 10, width: 50 } },
+          { id: 'tb_b', role: 'custom', text: 'B', position: { anchor: 'custom', x: 20, y: 20, width: 50 } },
+          { id: 'tb_c', role: 'custom', text: 'C', position: { anchor: 'custom', x: 30, y: 30, width: 50 } },
+          { id: 'tb_d', role: 'custom', text: 'D', position: { anchor: 'custom', x: 40, y: 40, width: 50 } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['tb_a', 'tb_c'],
+      op: 'forward',
+    })
+    // Mirrors ZA3 from the pure transform tests — DESC sort: c moves first
+    // ([a,b,c,d] → [a,b,d,c]); then a ([a,b,d,c] → [b,a,d,c]).
+    expect(next.present[0].text_boxes!.map((t) => t.id)).toEqual(['tb_b', 'tb_a', 'tb_d', 'tb_c'])
+  })
+
+  test('Test ZR5 (BL-01 dual-write): Z_ORDER on text_boxes routes through applyDualWrite — legacy custom_texts mirror order matches text_boxes order', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-c1',
+            role: 'custom',
+            text: 'C1',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb-c2',
+            role: 'custom',
+            text: 'C2',
+            position: { anchor: 'custom', x: 20, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['tb-c1'],
+      op: 'forward',
+    })
+    // tb-c1 swapped with tb-c2 (the only valid forward neighbor — hook/body
+    // are also in the array but the swap is index-local: c1 was at idx 2,
+    // c2 at idx 3 → after swap [hook, body, c2, c1]).
+    expect(next.present[0].text_boxes!.map((t) => t.id)).toEqual([
+      'tb-hook',
+      'tb-body',
+      'tb-c2',
+      'tb-c1',
+    ])
+    // hook_text / body_text untouched (proves dual-write ran end-to-end).
+    expect(next.present[0].hook_text).toBe('Hook')
+    expect(next.present[0].body_text).toBe('Body')
+    // custom_texts mirror reflects the new text_boxes order: c2 BEFORE c1.
+    expect(next.present[0].custom_texts).toBeDefined()
+    expect(next.present[0].custom_texts!.length).toBe(2)
+    expect(next.present[0].custom_texts!.map((c) => c.text)).toEqual(['C2', 'C1'])
+  })
+
+  test('Test ZR6: Z_ORDER with empty ids → ref-equal short-circuit (no pushHistory)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: [],
+      op: 'forward',
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+
+  test('Test ZR7: Z_ORDER on watermark id (length-1 implicit array) → ref-equal no-op', () => {
+    const initial = makeState([
+      makeSlide({
+        watermark: { id: 'w0', enabled: true, position: 'bottom-right' },
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['w0'],
+      op: 'forward',
+    })
+    // Watermark is a single slot; "z-order on watermark" cannot move within
+    // a length-1 scope. Ref-equal no-op (no pushHistory).
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+
+  test('Test ZR8: Z_ORDER with id not present in any scope → ref-equal no-op', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['ghost-id-not-anywhere'],
+      op: 'forward',
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+})
