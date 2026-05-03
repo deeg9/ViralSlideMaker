@@ -351,6 +351,55 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, slides)  // PERF-01: exactly one pushHistory
     }
 
+    // Phase 60 (HIGH-1 review-fix): bulk delete in a single dispatch — mirrors
+    // BULK_TRANSLATE shape. Pre-fix, slide-editor.tsx onBulkDelete looped over
+    // ids and called removeTextBox / handleRemoveCustomImage per element; each
+    // helper pushed its own history entry, so a 5-element bulk delete required
+    // 5× Cmd+Z to undo. This action collapses the gesture to one history entry.
+    //
+    // Filtering rules (kept consistent with the per-id pre-fix behavior):
+    //   - text_boxes with role !== 'custom' are KEPT (hook/body are non-
+    //     deletable; the pre-fix loop's `if (tb?.role === 'custom')` gate
+    //     skipped them silently).
+    //   - text_boxes with locked === true are KEPT (Phase 64 honor; matches
+    //     BULK_TRANSLATE precedent — declared here so Phase 64 doesn't need
+    //     to re-touch the reducer).
+    //   - custom_images with locked === true are KEPT (same Phase 64 honor).
+    //   - watermark is NEVER deleted by this action (lives on slide.watermark,
+    //     not in text_boxes/custom_images; mirrors existing v2.10 behavior).
+    //
+    // Routes text_boxes through applyDualWrite so legacy hook_text /
+    // body_text / custom_texts mirror the surviving text_boxes (BL-01).
+    case 'BULK_DELETE': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const idSet = new Set(action.ids)
+
+        const prevTextBoxes = slide.text_boxes ?? []
+        const nextTextBoxes = prevTextBoxes.filter(
+          (tb) =>
+            !idSet.has(tb.id) ||
+            tb.role !== 'custom' ||
+            tb.locked === true,
+        )
+
+        const prevCustomImages = slide.custom_images ?? []
+        const nextCustomImages = prevCustomImages.filter(
+          (ci) => !idSet.has(ci.id) || ci.locked === true,
+        )
+
+        let next: Slide = slide
+        if (nextTextBoxes.length !== prevTextBoxes.length) {
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (nextCustomImages.length !== prevCustomImages.length) {
+          next = { ...next, custom_images: nextCustomImages }
+        }
+        return next
+      })
+      return pushHistory(state, slides)  // PERF-01: exactly one pushHistory
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state
       const previous = state.past[state.past.length - 1]
