@@ -1404,3 +1404,15 @@ describe('Phase 64 Plan 02 (LOCK-07, PARITY-01): both renderers honor `hidden`',
     expect(lockOnlySatori).toMatch(/LOCKED_ONLY_IMG\.png/)
   })
 })
+
+// Phase 65 Plan 03 (PARITY-02, PARITY-04, PARITY-05, PERF-04 verification):
+// Comprehensive audit suite lives in:
+//   - parity.chrome-leak.test.tsx          (PARITY-02 — PCL1..PCL10)
+//   - parity.template-fingerprint.test.tsx (PARITY-04 — PTF1..PTF12 dual-renderer)
+//   - parity.regression-sweep.test.tsx     (PARITY-05 — PRS1..PRS6)
+//   - layers-panel/__tests__/layer-chip.memo.test.tsx (PERF-04 — LM1..LM3)
+//
+// This file (parity.test.tsx) remains the historical record of per-phase
+// PARITY-01 chrome additions (multi-selection ring, marquee, group bbox,
+// alignment toolbar, smart guides, lock icon). Plan 65-03 does NOT extend
+// this file — new tests live in dedicated audit files for cleaner organization.
