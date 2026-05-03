@@ -2,14 +2,16 @@ import { CreateProjectDialog } from './create-project-dialog'
 import { ProjectCard, type ProjectPublishedState } from './project-card'
 import { Icon } from '@/components/ui/icon'
 import type { Project } from '@/lib/types/project'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface ProjectListProps {
   projects: Project[]
   showCreateOnly?: boolean
   publishedByProjectId?: Record<string, ProjectPublishedState>
+  brandKit?: BrandKit | null
 }
 
-export function ProjectList({ projects, showCreateOnly, publishedByProjectId }: ProjectListProps) {
+export function ProjectList({ projects, showCreateOnly, publishedByProjectId, brandKit }: ProjectListProps) {
   if (showCreateOnly) {
     return <CreateProjectDialog />
   }
@@ -46,6 +48,7 @@ export function ProjectList({ projects, showCreateOnly, publishedByProjectId }: 
               key={project.id}
               project={project}
               publishedState={publishedByProjectId?.[project.id] ?? null}
+              brandKit={brandKit ?? null}
             />
           ))}
           {/* Start Fresh card */}

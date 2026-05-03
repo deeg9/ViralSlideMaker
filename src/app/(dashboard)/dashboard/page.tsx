@@ -7,6 +7,7 @@ import { TIER_CREDITS } from '@/lib/credits/types'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import type { Project } from '@/lib/types/project'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -27,6 +28,18 @@ export default async function DashboardPage() {
     .order('updated_at', { ascending: false })
 
   const projectList = (projects as Project[]) ?? []
+
+  // Single brand-kit fetch shared across every dashboard card so each
+  // ProjectCard's <SlidePreview> renders with the same brand-kit overrides
+  // the editor and Satori export use. One DB read for the whole grid.
+  const { data: brandKitRow } = user
+    ? await supabase
+        .from('brand_kits')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
+    : { data: null }
+  const brandKit = (brandKitRow as BrandKit | null) ?? null
 
   const { data: publishedRows } = user
     ? await supabase
@@ -110,7 +123,11 @@ export default async function DashboardPage() {
       )}
 
       {/* Recent Carousels */}
-      <ProjectList projects={projectList} publishedByProjectId={publishedByProjectId} />
+      <ProjectList
+        projects={projectList}
+        publishedByProjectId={publishedByProjectId}
+        brandKit={brandKit}
+      />
     </div>
   )
 }
