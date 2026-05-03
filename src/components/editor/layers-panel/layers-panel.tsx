@@ -184,7 +184,14 @@ function computeAllHidden(slide: Slide, ids: string[]): boolean {
 
 // ───── LayersPanel ──────────────────────────────────────────────────
 
-export default function LayersPanel({ slide, selection, onRename }: LayersPanelProps) {
+export default function LayersPanel({
+  slide,
+  selection,
+  onRename,
+  onLockToggle,
+  onVisibilityToggle,
+  onReorder,
+}: LayersPanelProps) {
   const rows = useMemo(
     () => synthesizeRows(slide),
     // Memo deps: the three element-bearing slots. Reference-stable when
@@ -237,6 +244,38 @@ export default function LayersPanel({ slide, selection, onRename }: LayersPanelP
     setEditingId(null)
   }, [])
 
+  // Plan 65-02 toggle callbacks — wrapped in useCallback so React.memo's
+  // areEqual on LayerChip stays referentially stable (LM1..LM3 contract
+  // preserved; areEqual intentionally excludes function refs but still
+  // requires the parent to keep them stable).
+  //
+  // DECISION (locked at Plan 65-02 Task 3): unified `ids: string[]` shape
+  // on onLockToggle / onVisibilityToggle. Single chip dispatches with
+  // `[row.id]`; group-row passes memberIds directly through the SAME
+  // callback. Group dispatch is just an N-id call — no separate parent
+  // handler needed. The chip wrapper does the array-wrap; the group-row
+  // wrapper passes its memberIds straight through.
+  const handleChipLockToggle = useCallback(
+    (ids: string[], next: boolean) => onLockToggle(ids, next),
+    [onLockToggle],
+  )
+  const handleChipVisToggle = useCallback(
+    (ids: string[], next: boolean) => onVisibilityToggle(ids, next),
+    [onVisibilityToggle],
+  )
+  const handleChipReorder = useCallback(
+    (id: string, op: 'forward' | 'backward') => onReorder(id, op),
+    [onReorder],
+  )
+  const handleGroupLockToggle = useCallback(
+    (memberIds: string[], next: boolean) => onLockToggle(memberIds, next),
+    [onLockToggle],
+  )
+  const handleGroupVisToggle = useCallback(
+    (memberIds: string[], next: boolean) => onVisibilityToggle(memberIds, next),
+    [onVisibilityToggle],
+  )
+
   // Filter: when a group-header is collapsed, hide its member chips.
   const visibleRows: LayerRow[] = useMemo(() => {
     const out: LayerRow[] = []
@@ -276,6 +315,8 @@ export default function LayersPanel({ slide, selection, onRename }: LayersPanelP
                   row={row}
                   expanded={expanded[row.groupId] === true}
                   onToggleExpanded={() => toggleGroupExpanded(row.groupId)}
+                  onGroupLockToggle={handleGroupLockToggle}
+                  onGroupVisibilityToggle={handleGroupVisToggle}
                 />
               )
             }
@@ -293,6 +334,9 @@ export default function LayersPanel({ slide, selection, onRename }: LayersPanelP
                 onStartRename={() => handleStartRename(row.id)}
                 onCommitRename={(newName) => handleCommitRename(row.id, newName)}
                 onCancelRename={handleCancelRename}
+                onLockToggle={handleChipLockToggle}
+                onVisibilityToggle={handleChipVisToggle}
+                onReorder={handleChipReorder}
               />
             )
           })}

@@ -1047,6 +1047,33 @@ export function SlideEditor({
     [currentSlide, selectedIndex, dispatch],
   )
 
+  // Phase 65 Plan 02 (LAYERS-05/06/07): layers-panel toggle dispatchers.
+  // Each handler is a thin wrapper around dispatch — toggle math (the
+  // !current-bool) happens at the chip / group-row level (Plan 64-01 D-01
+  // caller-toggle-math pattern). Single dispatch per click → single
+  // pushHistory entry (KBD-09 / PERF-01 carry-forward; identical to the
+  // existing Cmd+Shift+L / Cmd+] keyboard bindings).
+  const handleLayerLockToggle = useCallback(
+    (ids: string[], nextLocked: boolean) => {
+      dispatch({ type: 'SET_LOCKED', slideIndex: selectedIndex, ids, locked: nextLocked })
+    },
+    [selectedIndex, dispatch],
+  )
+
+  const handleLayerVisibilityToggle = useCallback(
+    (ids: string[], nextHidden: boolean) => {
+      dispatch({ type: 'SET_HIDDEN', slideIndex: selectedIndex, ids, hidden: nextHidden })
+    },
+    [selectedIndex, dispatch],
+  )
+
+  const handleLayerReorder = useCallback(
+    (elementId: string, op: 'forward' | 'backward') => {
+      dispatch({ type: 'Z_ORDER', slideIndex: selectedIndex, ids: [elementId], op })
+    },
+    [selectedIndex, dispatch],
+  )
+
   return (
     <div className="flex flex-col bg-[#fff8f7] h-[calc(100vh-140px)] lg:h-[calc(100vh-80px)] overflow-hidden">
       {/* Three-panel layout -- no top toolbar */}
@@ -1081,6 +1108,9 @@ export function SlideEditor({
                 slide={currentSlide}
                 selection={selection}
                 onRename={handleLayerRename}
+                onLockToggle={handleLayerLockToggle}
+                onVisibilityToggle={handleLayerVisibilityToggle}
+                onReorder={handleLayerReorder}
               />
             )}
           </div>

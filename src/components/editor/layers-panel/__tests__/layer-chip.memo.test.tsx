@@ -59,6 +59,11 @@ function Harness({ rows, selectedIds, primary, editingId, mocks }: HarnessProps)
   const onStartRename = useCallback(() => {}, [])
   const onCommitRename = useCallback((_v: string) => {}, [])
   const onCancelRename = useCallback(() => {}, [])
+  // Plan 65-02 added callbacks — memoized at the parent so areEqual stays
+  // referentially stable (LM1..LM3 contract preserved).
+  const onLockToggle = useCallback((_ids: string[], _next: boolean) => {}, [])
+  const onVisibilityToggle = useCallback((_ids: string[], _next: boolean) => {}, [])
+  const onReorder = useCallback((_id: string, _op: 'forward' | 'backward') => {}, [])
 
   const selectedSet = new Set(selectedIds)
 
@@ -79,6 +84,9 @@ function Harness({ rows, selectedIds, primary, editingId, mocks }: HarnessProps)
             onStartRename={onStartRename}
             onCommitRename={onCommitRename}
             onCancelRename={onCancelRename}
+            onLockToggle={onLockToggle}
+            onVisibilityToggle={onVisibilityToggle}
+            onReorder={onReorder}
           />
         )
       })}
@@ -234,6 +242,12 @@ describe('Phase 65 Plan 01 (LAYERS-09 / PERF-04): LayerChip React.memo render-co
       onStartRename: () => {},
       onCommitRename: () => {},
       onCancelRename: () => {},
+      // Plan 65-02 added callbacks — areEqual intentionally excludes
+      // these (parent useCallback handles ref stability; LM1..LM3 cover
+      // the render-count contract).
+      onLockToggle: () => {},
+      onVisibilityToggle: () => {},
+      onReorder: () => {},
     }
     expect(areEqual(base, base)).toBe(true)
 
