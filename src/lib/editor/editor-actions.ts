@@ -4,6 +4,7 @@ import type {
   AlignTarget,
   DistributeAxis,
 } from '@/lib/editor/transforms/align'
+import type { ZOrderOp } from '@/lib/editor/transforms/z-order'
 
 export type EditorAction =
   | { type: 'ADD_SLIDE'; index: number }
@@ -172,6 +173,31 @@ export type EditorAction =
       slideIndex: number
       ids: string[]      // text_boxes ∪ custom_images ∪ watermark ids
       hidden: boolean
+    }
+  // Phase 64 Plan 03 (ZORDER-01..07, KBD-09): single Z_ORDER dispatch routes
+  // per-scope internally. The reducer groups `ids` by element-type array
+  // (text_boxes / custom_images / watermark) and applies the op WITHIN each
+  // array via the pure transform `applyZOrderToArray` — never crosses array
+  // boundaries (ZORDER-07; cross-array reorder deferred to v3.0+).
+  //
+  // Why a single action even for cross-scope multi-selection: KBD-09 / PERF-01
+  // contract — single pushHistory per gesture. A 5-element multi-select Cmd+]
+  // must be ONE undo entry, not three (text_boxes + custom_images + watermark).
+  //
+  // ZORDER-05 (Satori parity invariant) is ENFORCED by `applyZOrderToArray`:
+  // array splice ONLY, never the CSS layering property. The pure transform's
+  // grep gate confirms zero references to that property in the source.
+  //
+  // op semantics (Figma model — ZORDER-06):
+  //   - 'forward' / 'backward' — swap with neighbor +/-1, with array-bound
+  //      clamp + adjacent-selected guard (PITFALL-6.3 — selected windows
+  //      stay intact at the edge).
+  //   - 'front' / 'back' — splice + push/unshift to the array edge.
+  | {
+      type: 'Z_ORDER'
+      slideIndex: number
+      ids: string[]      // text_boxes ∪ custom_images ∪ watermark ids
+      op: ZOrderOp
     }
   | { type: 'UNDO' }
   | { type: 'REDO' }
