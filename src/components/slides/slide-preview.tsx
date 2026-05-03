@@ -1304,11 +1304,44 @@ export function SlidePreview({
               })
               return
             }
+            // Phase 62 (GROUP-10, Figma model): when the hook carries a groupId
+            // AND the user is NOT inside that same group, single-click selects
+            // ALL group members. When inside the group (currentlyInsideGroup
+            // === hookBox.groupId), fall through to SEL-01 leaf-select so the
+            // right rail shows leaf properties. The branch sits AFTER the
+            // Shift-click toggle so Test C5 ordering invariant holds.
+            if (
+              hookBox.groupId &&
+              currentlyInsideGroup !== hookBox.groupId &&
+              onSelectionChange
+            ) {
+              const memberIds = getGroupMembers(slide, hookBox.groupId)
+              if (memberIds.length >= 2) {
+                onSelectionChange({ ids: memberIds, primary: hookBox.id })
+                // Group selection is multi-element — clear the legacy single-id
+                // slots so the right rail doesn't render stale single-element UI.
+                onTextBoxSelect?.(null)
+                onCustomTextSelect?.(null)
+                onCustomImageSelect?.(null)
+                return
+              }
+              // memberIds.length === 1 (orphan groupId) — fall through to SEL-01.
+            }
             // SEL-01: single-click replaces (existing v2.8 behavior preserved).
             onCustomTextSelect?.(null)
             onCustomImageSelect?.(null)
             if (onTextBoxSelect) onTextBoxSelect(hookBox.id)
             onSelectionChange?.({ ids: [hookBox.id], primary: hookBox.id })
+          }}
+          onDoubleClick={(e: React.MouseEvent) => {
+            // Phase 62 (GROUP-07): double-click on a grouped hook enters the
+            // group. Subsequent single-clicks then select the LEAF (handled by
+            // the currentlyInsideGroup check in onMouseDown above).
+            e.stopPropagation()
+            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+            if (hookBox?.groupId) {
+              onEnterGroup?.(hookBox.id, slide)
+            }
           }}
           style={{ zIndex: 10 }}
           className={`hover:outline hover:outline-2 hover:outline-white/50 ${hookSelected ? selectionRingClass : ''}`}
@@ -1441,10 +1474,35 @@ export function SlidePreview({
                 })
                 return
               }
+              // Phase 62 (GROUP-10): group-aware select-all-members branch.
+              // See hook handler above for the full rationale; pattern is
+              // identical at all 4 wrapper sites.
+              if (
+                bodyBox.groupId &&
+                currentlyInsideGroup !== bodyBox.groupId &&
+                onSelectionChange
+              ) {
+                const memberIds = getGroupMembers(slide, bodyBox.groupId)
+                if (memberIds.length >= 2) {
+                  onSelectionChange({ ids: memberIds, primary: bodyBox.id })
+                  onTextBoxSelect?.(null)
+                  onCustomTextSelect?.(null)
+                  onCustomImageSelect?.(null)
+                  return
+                }
+              }
               onCustomTextSelect?.(null)
               onCustomImageSelect?.(null)
               if (onTextBoxSelect) onTextBoxSelect(bodyBox.id)
               onSelectionChange?.({ ids: [bodyBox.id], primary: bodyBox.id })
+            }}
+            onDoubleClick={(e: React.MouseEvent) => {
+              // Phase 62 (GROUP-07): double-click on a grouped body enters the group.
+              e.stopPropagation()
+              const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+              if (bodyBox?.groupId) {
+                onEnterGroup?.(bodyBox.id, slide)
+              }
             }}
             style={{ zIndex: 10 }}
             className={`hover:outline hover:outline-2 hover:outline-white/50 ${bodySelected ? selectionRingClass : ''}`}
@@ -1609,10 +1667,41 @@ export function SlidePreview({
                   })
                   return
                 }
+                // Phase 62 (GROUP-10): group-aware select-all-members branch.
+                // Custom-text groupId lives on the text_boxes mirror (Phase 49
+                // adapter); legacy slide.custom_texts also carries it but the
+                // text_boxes entry is the canonical source of truth post-Plan
+                // 60-01. Look up via slide.text_boxes to match getGroupMembers'
+                // walk order.
+                const ctBox = slide.text_boxes?.find((tb) => tb.id === ct.id)
+                if (
+                  ctBox?.groupId &&
+                  currentlyInsideGroup !== ctBox.groupId &&
+                  onSelectionChange
+                ) {
+                  const memberIds = getGroupMembers(slide, ctBox.groupId)
+                  if (memberIds.length >= 2) {
+                    onSelectionChange({ ids: memberIds, primary: ct.id })
+                    onTextBoxSelect?.(null)
+                    onCustomTextSelect?.(null)
+                    onCustomImageSelect?.(null)
+                    return
+                  }
+                }
                 onCustomTextSelect?.(ct.id)
                 onCustomImageSelect?.(null)
                 onTextBoxSelect?.(ct.id)
                 onSelectionChange?.({ ids: [ct.id], primary: ct.id })
+              }}
+              onDoubleClick={(e: React.MouseEvent) => {
+                // Phase 62 (GROUP-07): double-click on a grouped custom_text enters the group.
+                // Note: ct may also enter editing mode on double-click via
+                // separate UI; the group-enter handler is non-blocking.
+                e.stopPropagation()
+                const ctBox = slide.text_boxes?.find((tb) => tb.id === ct.id)
+                if (ctBox?.groupId) {
+                  onEnterGroup?.(ct.id, slide)
+                }
               }}
               style={{ zIndex: 15 }}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
@@ -1795,9 +1884,31 @@ export function SlidePreview({
                   })
                   return
                 }
+                // Phase 62 (GROUP-10): group-aware select-all-members branch.
+                if (
+                  ci.groupId &&
+                  currentlyInsideGroup !== ci.groupId &&
+                  onSelectionChange
+                ) {
+                  const memberIds = getGroupMembers(slide, ci.groupId)
+                  if (memberIds.length >= 2) {
+                    onSelectionChange({ ids: memberIds, primary: ci.id })
+                    onTextBoxSelect?.(null)
+                    onCustomTextSelect?.(null)
+                    onCustomImageSelect?.(null)
+                    return
+                  }
+                }
                 onCustomImageSelect?.(ci.id)
                 onCustomTextSelect?.(null)
                 onSelectionChange?.({ ids: [ci.id], primary: ci.id })
+              }}
+              onDoubleClick={(e: React.MouseEvent) => {
+                // Phase 62 (GROUP-07): double-click on a grouped custom_image enters the group.
+                e.stopPropagation()
+                if (ci.groupId) {
+                  onEnterGroup?.(ci.id, slide)
+                }
               }}
               style={{ zIndex: 12 }}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
