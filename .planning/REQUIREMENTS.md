@@ -32,13 +32,13 @@
 
 ### Alignment & Distribute (ALIGN)
 
-- [ ] **ALIGN-01**: User can align selection left / center-horizontal / right (Alt+A / Alt+H / Alt+D)
-- [ ] **ALIGN-02**: User can align selection top / center-vertical / bottom (Alt+W / Alt+V / Alt+S)
+- [x] **ALIGN-01**: User can align selection left / center-horizontal / right (Alt+A / Alt+H / Alt+D)
+- [x] **ALIGN-02**: User can align selection top / center-vertical / bottom (Alt+W / Alt+V / Alt+S)
 - [x] **ALIGN-03**: With N=1 selected, alignment targets canvas (1080×1920); with N≥2, alignment targets selection bounds
 - [x] **ALIGN-04**: User can distribute horizontally (Cmd+Alt+H) — gap-based equal spacing
 - [x] **ALIGN-05**: User can distribute vertically (Cmd+Alt+V) — gap-based equal spacing
-- [ ] **ALIGN-06**: Distribute buttons + shortcuts disabled when N<3 (with tooltip: "Select 3+ elements to distribute")
-- [ ] **ALIGN-07**: Floating alignment toolbar appears above multi-selection bounds (Figma pattern); shows align + distribute icon-buttons
+- [x] **ALIGN-06**: Distribute buttons + shortcuts disabled when N<3 (with tooltip: "Select 3+ elements to distribute")
+- [x] **ALIGN-07**: Floating alignment toolbar appears above multi-selection bounds (Figma pattern); shows align + distribute icon-buttons
 - [x] **ALIGN-08**: Alignment / distribute operations dispatch a single `pushHistory` per gesture (one undo step)
 - [x] **ALIGN-09**: Alignment positions are integer-rounded on dispatch (prevents floating-point creep across nudge+align cycles)
 - [x] **ALIGN-10**: Locked elements participate in selection BOUNDS computation but DO NOT MOVE during alignment
@@ -203,13 +203,13 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | SEL-13 | Phase 60 | Complete |
 | SEL-14 | Phase 61 | Complete |
 | SEL-15 | Phase 60 | Complete |
-| ALIGN-01 | Phase 63 | Pending |
-| ALIGN-02 | Phase 63 | Pending |
+| ALIGN-01 | Phase 63 | Complete |
+| ALIGN-02 | Phase 63 | Complete |
 | ALIGN-03 | Phase 63 | Complete |
 | ALIGN-04 | Phase 63 | Complete |
 | ALIGN-05 | Phase 63 | Complete |
-| ALIGN-06 | Phase 63 | Pending |
-| ALIGN-07 | Phase 63 | Pending |
+| ALIGN-06 | Phase 63 | Complete |
+| ALIGN-07 | Phase 63 | Complete |
 | ALIGN-08 | Phase 63 | Complete |
 | ALIGN-09 | Phase 63 | Complete |
 | ALIGN-10 | Phase 63 | Complete |
