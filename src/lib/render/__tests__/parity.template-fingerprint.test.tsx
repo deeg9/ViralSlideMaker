@@ -38,6 +38,7 @@ import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import {
   fingerprintFixtureSlide,
+  longHookCoverFixtureSlide,
   computeStructuralFingerprint,
 } from './__fixtures__/parity-fingerprint-fixtures'
 
@@ -93,5 +94,62 @@ describe('Phase 65 Plan 03 (PARITY-04): 11-template structural fingerprint', () 
     // count. Phase 56 added paper-essay as the 12th. Every template above
     // gets a PTFNa + PTFNb pair via the forEach iteration above (24 tests).
     expect(templates.length).toBeGreaterThanOrEqual(11)
+  })
+})
+
+// quick-260503-0f2: long-hook + cover-layout regression suite for the news-*
+// templates. The original PARITY-04 fixture (`fingerprintFixtureSlide`) never
+// exercises (a) the hook-fit auto-shrink curve in `hook-fit.ts` nor (b) the
+// news-zone `cover` layout (hookY=60% / bodyY=80%). This second suite pins the
+// fingerprint at that exact corner of the matrix — the user's reported
+// "exported PNG diverges from live preview" lives here. Future drift between
+// the React preview and Satori React tree at this scenario fails CI.
+//
+// PTLNa / PTLNb labels — pinned for the verify-gate grep:
+//   PTL1a, PTL1b, PTL2a, PTL2b
+// (2 templates × 2 renderers = 4 fingerprint tests.)
+describe('quick-260503-0f2: long-hook + cover-layout fingerprint (news-*)', () => {
+  const NEWS_TEMPLATE_IDS = ['news-cyan', 'news-drop'] as const
+
+  NEWS_TEMPLATE_IDS.forEach((templateId, idx) => {
+    const ptlNum = idx + 1
+    const template = templates.find((t) => t.id === templateId)
+    if (!template) {
+      // Defensive — registry should always include the news-* templates
+      // (validate.ts enforces). The skip-with-message keeps the suite
+      // self-documenting if a template is ever renamed without a fixture
+      // update.
+      it.skip(`PTL${ptlNum}: ${templateId} not in templates registry`, () => {})
+      return
+    }
+
+    describe(`PTL${ptlNum} (${templateId} long-hook + cover)`, () => {
+      it(`PTL${ptlNum}a: SlidePreview editable={false} pins long-hook + cover fingerprint for ${templateId}`, () => {
+        const slide = {
+          ...longHookCoverFixtureSlide,
+          template_id_override: templateId,
+        }
+        const { container } = render(
+          <SlidePreview
+            slide={slide}
+            template={template}
+            index={0}
+            editable={false}
+          />,
+        )
+        const fingerprint = computeStructuralFingerprint(container.innerHTML)
+        expect(fingerprint).toMatchSnapshot()
+      })
+
+      it(`PTL${ptlNum}b: Satori React tree pins long-hook + cover fingerprint for ${templateId}`, () => {
+        const slide = {
+          ...longHookCoverFixtureSlide,
+          template_id_override: templateId,
+        }
+        const html = renderToStaticMarkup(buildSlideElement(slide, template))
+        const fingerprint = computeStructuralFingerprint(html)
+        expect(fingerprint).toMatchSnapshot()
+      })
+    })
   })
 })

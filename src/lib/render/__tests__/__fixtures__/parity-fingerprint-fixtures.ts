@@ -68,6 +68,95 @@ export const fingerprintFixtureSlide: Slide = {
 }
 
 /**
+ * quick-260503-0f2: long-hook + cover-layout fixture for the news-* templates.
+ *
+ * The original `fingerprintFixtureSlide` exercises a 16-char hook with no
+ * `style_overrides.layout`, which (a) keeps `hookFontSize` at the template's
+ * declared base size (no auto-shrink) and (b) routes the renderer through the
+ * SAFE_ZONE 'bottom' preset (hookY=48% / bodyY=62%) instead of the news-zone
+ * 'cover' layout (hookY=60% / bodyY=80%, image clipped to top 0..55%).
+ *
+ * This fixture pins the OPPOSITE corner of the matrix: a 40-char hook with
+ * 7 segments + 3 body segments + `style_overrides.layout: 'cover'`. It triggers:
+ *   - hook-fit auto-shrink: news-cyan/news-drop step 4 (maxChars 48 → scale 0.52)
+ *     so hookFontSize collapses from 110px → 57px, exercising the rounding path
+ *     in BOTH renderers. Any future drift in `parseInt(template.hookFontSize)` /
+ *     `getHookFontSize` between Satori (truthy-check) and React preview
+ *     (?? nullish-check) will now diverge the snapshot.
+ *   - news-zone cover layout: hookY=60%, bodyY=80%, image confined to 0..55%.
+ *     This is the path the user's "exported PNG diverges from live preview"
+ *     bug lives at — the original PARITY-04 fixture never reached it.
+ *   - multi-segment hook + body with `accent: true` segments: exercises the
+ *     shared `renderSegments` helper (and post-pw8 `renderTextBlock` fast path
+ *     when `list_type` and `list_indent` are unset) at all three text sites.
+ *
+ * Tied to the news templates (news-cyan, news-drop) via the parity test —
+ * those are the only templates whose `hook-fit` registry entries this fixture
+ * meaningfully exercises and whose `cover` layout produces visible image-top +
+ * text-bottom output. Other templates either lack `hook-fit` (no auto-shrink)
+ * or use `backgroundMode: 'image-with-bottom-card'` (which forces newsZone off
+ * via the `isTemplateBgMode` guard in both renderers).
+ */
+export const longHookCoverFixtureSlide: Slide = {
+  hook_text: 'YOUR BRAIN IS OUTSOURCING THINKING TO AI',
+  body_text:
+    'Researchers call it cognitive agency surrender — students who lean on AI for every prompt show measurable declines in independent reasoning.',
+  hook_segments: [
+    { text: 'YOUR' },
+    { text: 'BRAIN', accent: true },
+    { text: 'IS' },
+    { text: 'OUTSOURCING', accent: true },
+    { text: 'THINKING' },
+    { text: 'TO' },
+    { text: 'AI', accent: true },
+  ],
+  body_segments: [
+    { text: 'Researchers call it' },
+    { text: 'cognitive agency surrender', accent: true },
+    {
+      text: '— students who lean on AI for every prompt show measurable declines in independent reasoning.',
+    },
+  ],
+  image_query: 'parity-long-hook-fixture',
+  is_cta: false,
+  background_url: 'https://example.com/fingerprint-bg.jpg',
+  pexels_photo_id: 9999,
+  style_overrides: {
+    layout: 'cover',
+  },
+  text_boxes: [
+    {
+      id: 'tb-lh-hook',
+      role: 'hook',
+      text: 'YOUR BRAIN IS OUTSOURCING THINKING TO AI',
+      segments: [
+        { text: 'YOUR' },
+        { text: 'BRAIN', accent: true },
+        { text: 'IS' },
+        { text: 'OUTSOURCING', accent: true },
+        { text: 'THINKING' },
+        { text: 'TO' },
+        { text: 'AI', accent: true },
+      ],
+      position: { anchor: 'top' },
+    },
+    {
+      id: 'tb-lh-body',
+      role: 'body',
+      text: 'Researchers call it cognitive agency surrender — students who lean on AI for every prompt show measurable declines in independent reasoning.',
+      segments: [
+        { text: 'Researchers call it' },
+        { text: 'cognitive agency surrender', accent: true },
+        {
+          text: '— students who lean on AI for every prompt show measurable declines in independent reasoning.',
+        },
+      ],
+      position: { anchor: 'bottom' },
+    },
+  ],
+}
+
+/**
  * Strip dynamic noise from rendered HTML so the fingerprint is stable across
  * repeat runs. Targets:
  *   - React SSR scoped ids: `_:r0:_`, `_:R1abcd:_` — replaced with literal `_:rN:_`
