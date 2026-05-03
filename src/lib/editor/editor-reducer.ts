@@ -1,6 +1,11 @@
 import type { Slide, TextBox, TextBoxPosition, TextBoxRole } from '@/lib/types/slide'
 import type { EditorAction } from '@/lib/editor/editor-actions'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
+import {
+  alignElements,
+  distributeElements,
+  type AlignPatch,
+} from '@/lib/editor/transforms/align'
 
 const MAX_HISTORY = 50
 
@@ -86,6 +91,75 @@ function defaultPositionForRole(role: TextBoxRole): TextBoxPosition {
       // Mirrors existing custom_text defaults at editor-reducer.ts ADD_CUSTOM_TEXT case.
       return { anchor: 'custom', x: 20, y: 50, width: 60 }
   }
+}
+
+/**
+ * Phase 63 (ALIGN-03..05): apply integer-rounded position patches from
+ * align.ts to a slide. Routes text_boxes mutations through applyDualWrite
+ * (BL-01).
+ *
+ * The pure align.ts module is the rounding boundary (PITFALL-4.4 — ALIGN-09).
+ * This helper does NOT re-round — would double-round (defense-in-depth in
+ * the wrong direction). Watermark patches are not produced by align.ts;
+ * defense-in-depth here just means "skip if a future caller passes a
+ * watermark patch by mistake".
+ *
+ * Returns the same `slide` reference unchanged when no patch matched any
+ * element on the slide — lets the caller skip pushHistory.
+ */
+function applyAlignPatches(slide: Slide, patches: AlignPatch[]): Slide {
+  if (patches.length === 0) return slide
+
+  const patchById = new Map<string, { x?: number; y?: number }>()
+  for (const p of patches) patchById.set(p.id, p.patch)
+
+  let textBoxesChanged = false
+  let nextTextBoxes = slide.text_boxes
+  if (slide.text_boxes) {
+    nextTextBoxes = slide.text_boxes.map((tb) => {
+      const p = patchById.get(tb.id)
+      if (!p) return tb
+      // Defense-in-depth: align.ts already filtered structural anchors out.
+      if (tb.position.anchor !== 'custom') return tb
+      textBoxesChanged = true
+      return {
+        ...tb,
+        position: {
+          ...tb.position,
+          ...(p.x !== undefined ? { x: p.x } : {}),
+          ...(p.y !== undefined ? { y: p.y } : {}),
+        },
+      }
+    })
+  }
+
+  let customImagesChanged = false
+  let nextCustomImages = slide.custom_images
+  if (slide.custom_images) {
+    nextCustomImages = slide.custom_images.map((ci) => {
+      const p = patchById.get(ci.id)
+      if (!p) return ci
+      // Defense-in-depth: align.ts already filtered locked images out.
+      if (ci.locked === true) return ci
+      customImagesChanged = true
+      return {
+        ...ci,
+        ...(p.x !== undefined ? { x: p.x } : {}),
+        ...(p.y !== undefined ? { y: p.y } : {}),
+      }
+    })
+  }
+
+  if (!textBoxesChanged && !customImagesChanged) return slide
+
+  let next: Slide = slide
+  if (textBoxesChanged && nextTextBoxes !== undefined) {
+    next = applyDualWrite(next, nextTextBoxes)
+  }
+  if (customImagesChanged) {
+    next = { ...next, custom_images: nextCustomImages }
+  }
+  return next
 }
 
 function pushHistory(state: EditorHistory, newPresent: Slide[]): EditorHistory {
@@ -578,6 +652,43 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
 
       if (!anyChange) return state // U4 idempotency
       return pushHistory(state, slides)  // KBD-09: exactly one pushHistory
+    }
+
+    // Phase 63 (ALIGN-03..05, ALIGN-08, ALIGN-09, ALIGN-10): single-dispatch
+    // ALIGN action.
+    //   - alignElements (pure align.ts) computes integer-rounded patches
+    //     (Math.round at the boundary; ALIGN-09) and pre-filters out locked
+    //     elements + watermark + structural-anchor TextBoxes (ALIGN-10
+    //     move-side).
+    //   - applyAlignPatches applies them, routing text_boxes through
+    //     applyDualWrite (BL-01).
+    //   - Single pushHistory per dispatch (ALIGN-08 = PERF-01).
+    //   - Ref-equal short-circuit when no slide changed (empty ids,
+    //     all-locked selection, only-watermark selection — Tests AR7/AR7b).
+    case 'ALIGN': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const patches = alignElements(slide, action.ids, action.axis, action.target)
+        if (patches.length === 0) return slide
+        return applyAlignPatches(slide, patches)
+      })
+      if (slides.every((s, i) => s === state.present[i])) return state
+      return pushHistory(state, slides)  // ALIGN-08: exactly one pushHistory
+    }
+
+    // Phase 63 (ALIGN-04, ALIGN-05, ALIGN-08, ALIGN-09, ALIGN-10): single-
+    // dispatch DISTRIBUTE action. Same shape as ALIGN; pure
+    // distributeElements enforces N>=3 gate + locked/watermark filter +
+    // gap-equal math (PITFALL-4.6).
+    case 'DISTRIBUTE': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const patches = distributeElements(slide, action.ids, action.axis)
+        if (patches.length === 0) return slide
+        return applyAlignPatches(slide, patches)
+      })
+      if (slides.every((s, i) => s === state.present[i])) return state
+      return pushHistory(state, slides)  // ALIGN-08: exactly one pushHistory
     }
 
     case 'UNDO': {
