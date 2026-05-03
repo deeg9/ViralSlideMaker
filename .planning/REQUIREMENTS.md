@@ -71,13 +71,13 @@
 
 ### Z-Order (ZORDER)
 
-- [ ] **ZORDER-01**: User can press Cmd+] to bring selection forward one step (array splice within owning array)
-- [ ] **ZORDER-02**: User can press Cmd+[ to send selection backward one step
-- [ ] **ZORDER-03**: User can press Cmd+Alt+] to bring to front
-- [ ] **ZORDER-04**: User can press Cmd+Alt+[ to send to back
-- [ ] **ZORDER-05**: Z-order operations use array splice — never CSS `z-index` (Satori parity invariant)
-- [ ] **ZORDER-06**: Z-order on multi-selection iterates each selected element and applies +1 / −1 individually with array-bound clamping (Figma model)
-- [ ] **ZORDER-07**: Z-order operates within each element-type array independently (text_boxes / custom_images / watermarks). Cross-array reorder deferred to v3.0+ schema unification
+- [x] **ZORDER-01**: User can press Cmd+] to bring selection forward one step (array splice within owning array)
+- [x] **ZORDER-02**: User can press Cmd+[ to send selection backward one step
+- [x] **ZORDER-03**: User can press Cmd+Alt+] to bring to front
+- [x] **ZORDER-04**: User can press Cmd+Alt+[ to send to back
+- [x] **ZORDER-05**: Z-order operations use array splice — never CSS `z-index` (Satori parity invariant)
+- [x] **ZORDER-06**: Z-order on multi-selection iterates each selected element and applies +1 / −1 individually with array-bound clamping (Figma model)
+- [x] **ZORDER-07**: Z-order operates within each element-type array independently (text_boxes / custom_images / watermarks). Cross-array reorder deferred to v3.0+ schema unification
 
 ### Lock / Hide (LOCK)
 
@@ -233,13 +233,13 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | SNAP-08 | Phase 63 | Complete |
 | SNAP-09 | Phase 63 | Complete |
 | SNAP-10 | Phase 63 | Complete |
-| ZORDER-01 | Phase 64 | Pending |
-| ZORDER-02 | Phase 64 | Pending |
-| ZORDER-03 | Phase 64 | Pending |
-| ZORDER-04 | Phase 64 | Pending |
-| ZORDER-05 | Phase 64 | Pending |
-| ZORDER-06 | Phase 64 | Pending |
-| ZORDER-07 | Phase 64 | Pending |
+| ZORDER-01 | Phase 64 | Complete |
+| ZORDER-02 | Phase 64 | Complete |
+| ZORDER-03 | Phase 64 | Complete |
+| ZORDER-04 | Phase 64 | Complete |
+| ZORDER-05 | Phase 64 | Complete |
+| ZORDER-06 | Phase 64 | Complete |
+| ZORDER-07 | Phase 64 | Complete |
 | LOCK-01 | Phase 64 | Complete |
 | LOCK-02 | Phase 64 | Complete |
 | LOCK-03 | Phase 64 | Complete |
