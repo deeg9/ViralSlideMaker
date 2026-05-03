@@ -26,16 +26,10 @@ import { getTemplate } from '@/lib/render/templates/index'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
 import type { Slide } from '@/lib/types/slide'
 
-// Task 3 will use these helpers; declared here so the file is structured
-// for the Task-3 X-test append without a follow-up shape change. Unused
-// during the Task 2 RED→GREEN cycle.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const REF_WIDTH = 1080
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const REF_HEIGHT = 1920
 
 // Helpers — mirror slide-preview-marquee.test.tsx conventions.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getCanvasRoot(container: HTMLElement): HTMLElement {
   const slidePreview = container.querySelector('[data-testid="slide-preview"]')
   if (!slidePreview) throw new Error('slide-preview testid missing')
@@ -44,7 +38,6 @@ function getCanvasRoot(container: HTMLElement): HTMLElement {
   return inner
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function pctToPx(pctX: number, pctY: number): { x: number; y: number } {
   return { x: (pctX / 100) * REF_WIDTH, y: (pctY / 100) * REF_HEIGHT }
 }
@@ -372,5 +365,128 @@ describe('Phase 62 Plan 02 (GROUP-07): double-click enters group', () => {
 })
 
 // ============================================================================
-// Task 3 (Plan 62-02): canvas-empty exitGroup-then-clear branch — appended in Task 3
+// Task 3 (Plan 62-02): canvas-empty exitGroup-then-clear branch (GROUP-08)
 // ============================================================================
+
+describe('Phase 62 Plan 02 (GROUP-08): canvas-empty no-drag pointerup exits group then clears', () => {
+  it('Test X1 (click outside while inside group): onExitGroup → onSelectionChange clear', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const onSelectionChange = vi.fn()
+    const onExitGroup = vi.fn()
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={{ ids: ['x'], primary: 'x' }}
+        onSelectionChange={onSelectionChange}
+        currentlyInsideGroup="g_x"
+        onExitGroup={onExitGroup}
+      />,
+    )
+
+    const canvas = getCanvasRoot(container)
+    const at = pctToPx(50, 50)
+    fireEvent.pointerDown(canvas, { clientX: at.x, clientY: at.y, pointerId: 1 })
+    fireEvent.pointerUp(canvas, { clientX: at.x, clientY: at.y, pointerId: 1 })
+
+    // Both fire in a single user gesture.
+    expect(onExitGroup).toHaveBeenCalledTimes(1)
+    expect(onSelectionChange).toHaveBeenCalled()
+    const lastCall = onSelectionChange.mock.calls.at(-1)![0]
+    expect(lastCall).toEqual({ ids: [], primary: null })
+  })
+
+  it('Test X2 (click outside while NOT inside group): only clear, no exitGroup', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const onSelectionChange = vi.fn()
+    const onExitGroup = vi.fn()
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={{ ids: ['x'], primary: 'x' }}
+        onSelectionChange={onSelectionChange}
+        currentlyInsideGroup={null}
+        onExitGroup={onExitGroup}
+      />,
+    )
+
+    const canvas = getCanvasRoot(container)
+    const at = pctToPx(50, 50)
+    fireEvent.pointerDown(canvas, { clientX: at.x, clientY: at.y, pointerId: 1 })
+    fireEvent.pointerUp(canvas, { clientX: at.x, clientY: at.y, pointerId: 1 })
+
+    // exitGroup not fired (no group to exit).
+    expect(onExitGroup).not.toHaveBeenCalled()
+    // Existing Plan 60-05 clear behavior unchanged.
+    expect(onSelectionChange).toHaveBeenCalled()
+    const lastCall = onSelectionChange.mock.calls.at(-1)![0]
+    expect(lastCall).toEqual({ ids: [], primary: null })
+  })
+
+  it('Test X3 (Shift+click outside while inside group): no-op (Plan 61-02 invariant)', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const onSelectionChange = vi.fn()
+    const onExitGroup = vi.fn()
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={{ ids: ['x'], primary: 'x' }}
+        onSelectionChange={onSelectionChange}
+        currentlyInsideGroup="g_x"
+        onExitGroup={onExitGroup}
+      />,
+    )
+
+    const canvas = getCanvasRoot(container)
+    fireEvent.keyDown(window, { key: 'Shift', shiftKey: true })
+    const at = pctToPx(50, 50)
+    fireEvent.pointerDown(canvas, {
+      clientX: at.x, clientY: at.y, pointerId: 1, shiftKey: true,
+    })
+    fireEvent.pointerUp(canvas, {
+      clientX: at.x, clientY: at.y, pointerId: 1, shiftKey: true,
+    })
+
+    // Per CONTEXT D-04 / Plan 61-02: Shift held during canvas no-drag tap is
+    // a NO-OP (preserves existing selection). exitGroup hook only fires on
+    // the CLEAR branch — pin that here.
+    expect(onExitGroup).not.toHaveBeenCalled()
+    // onSelectionChange must NOT be called with a clear shape.
+    const clearCalls = onSelectionChange.mock.calls.filter(
+      (c) => typeof c[0] !== 'function' && c[0]?.ids?.length === 0,
+    )
+    expect(clearCalls.length).toBe(0)
+  })
+})
