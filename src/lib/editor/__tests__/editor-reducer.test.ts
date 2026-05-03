@@ -1815,3 +1815,317 @@ describe('editorReducer — Phase 63 (ALIGN-08): DISTRIBUTE single-dispatch cont
     expect(legacyB.x).toBe(40)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 64 Plan 01 (LOCK-03, LOCK-04): SET_LOCKED single-dispatch contract +
+// REMOVE_TEXT_BOX / REMOVE_CUSTOM_IMAGE / BULK_DELETE locked-skip guards.
+//
+// SET_LOCKED toggles `locked` on every listed id across text_boxes ∪
+// custom_images ∪ watermark in a single dispatch + single pushHistory. Empty
+// ids OR all-no-op (every listed element already at the target locked state)
+// returns the prior state ref unchanged (matches UNGROUP idempotency from
+// Plan 62). Routes text_boxes mutations through applyDualWrite (BL-01).
+//
+// REMOVE_TEXT_BOX / REMOVE_CUSTOM_IMAGE / BULK_DELETE silently skip elements
+// where locked === true (LOCK-04 delete-prevention). Mirrors BULK_TRANSLATE's
+// existing skip-locked pattern; reducers must stay pure (no console.warn).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('editorReducer — Phase 64 Plan 01 (LOCK-03): SET_LOCKED single-dispatch contract', () => {
+  test('Test SL1: SET_LOCKED with [tb1, ci1] → both elements have locked: true; past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+        custom_images: [
+          { id: 'ci1', url: 'https://example.com/x.png', x: 30, y: 30, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['tb1', 'ci1'],
+      locked: true,
+    })
+    expect(next.present[0].text_boxes![0].locked).toBe(true)
+    expect(next.present[0].custom_images![0].locked).toBe(true)
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test SL2: SET_LOCKED { ids: [tb1], locked: false } when tb1.locked is undefined → ref-equal short-circuit; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['tb1'],
+      locked: false,
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+
+  test('Test SL3: SET_LOCKED { ids: [tb1], locked: false } when tb1.locked === true → tb1.locked becomes false; past.length grows by 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+            locked: true,
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['tb1'],
+      locked: false,
+    })
+    expect(next.present[0].text_boxes![0].locked).toBe(false)
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test SL4: SET_LOCKED on watermark id → watermark.locked toggled; past.length grows by 1', () => {
+    const initial = makeState([
+      makeSlide({
+        watermark: { id: 'w0', enabled: true, position: 'bottom-right' },
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['w0'],
+      locked: true,
+    })
+    expect(next.present[0].watermark!.locked).toBe(true)
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test SL5 (BL-01): SET_LOCKED routes text_boxes through applyDualWrite — legacy hook_text + custom_texts mirror unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-c1',
+            role: 'custom',
+            text: 'CT1',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['tb-c1'],
+      locked: true,
+    })
+    // hook_text / body_text untouched (proves dual-write ran end-to-end)
+    expect(next.present[0].hook_text).toBe('Hook')
+    expect(next.present[0].body_text).toBe('Body')
+    // custom_texts mirror exists for the locked custom row.
+    expect(next.present[0].custom_texts).toBeDefined()
+    expect(next.present[0].custom_texts!.length).toBe(1)
+    expect(next.present[0].custom_texts![0].text).toBe('CT1')
+    // The locked field landed on the canonical text_boxes mirror.
+    expect(next.present[0].text_boxes!.find((t) => t.id === 'tb-c1')!.locked).toBe(true)
+  })
+
+  test('Test SL6: SET_LOCKED with empty ids → ref-equal short-circuit; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: [],
+      locked: true,
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+
+  test('Test SL7 (LOCK-04): REMOVE_TEXT_BOX on locked text_box → state unchanged (no past growth, no mutation)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb-locked',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+            locked: true,
+          },
+          {
+            id: 'tb-free',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 30, y: 30, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'REMOVE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'tb-locked',
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+    // Verify the free box is still present (locked guard didn't break the case)
+    const next2 = editorReducer(initial, {
+      type: 'REMOVE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'tb-free',
+    })
+    expect(next2.present[0].text_boxes!.length).toBe(1)
+    expect(next2.present[0].text_boxes![0].id).toBe('tb-locked')
+  })
+
+  test('Test SL7b (LOCK-04): REMOVE_CUSTOM_IMAGE on locked image → state unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'ci-locked', url: 'https://example.com/a.png', x: 10, y: 10, width: 20, height: 20, locked: true },
+          { id: 'ci-free', url: 'https://example.com/b.png', x: 50, y: 50, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'REMOVE_CUSTOM_IMAGE',
+      slideIndex: 0,
+      imageId: 'ci-locked',
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+
+  test('Test SL8 (LOCK-04): BULK_DELETE { ids: [lockedTb, freeCi] } → only freeCi removed; lockedTb retained; past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb-locked',
+            role: 'custom',
+            text: 'L',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+            locked: true,
+          },
+        ],
+        custom_images: [
+          { id: 'ci-free', url: 'https://example.com/x.png', x: 30, y: 30, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['tb-locked', 'ci-free'],
+    })
+    // Locked text_box retained
+    expect(next.present[0].text_boxes!.length).toBe(1)
+    expect(next.present[0].text_boxes![0].id).toBe('tb-locked')
+    // Free custom_image deleted
+    expect(next.present[0].custom_images!.length).toBe(0)
+    expect(next.past.length).toBe(before + 1)
+  })
+
+  test('Test SL8b (LOCK-04): BULK_DELETE where ALL ids are locked → empty patch list → ref-equal short-circuit', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb-locked',
+            role: 'custom',
+            text: 'L',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+            locked: true,
+          },
+        ],
+        custom_images: [
+          { id: 'ci-locked', url: 'https://example.com/x.png', x: 30, y: 30, width: 20, height: 20, locked: true },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['tb-locked', 'ci-locked'],
+    })
+    // BULK_DELETE still calls pushHistory unconditionally (mirrors existing
+    // behavior — the all-locked case can short-circuit at the slide-walk
+    // level if neither array length changed). Spec asks for "empty patch
+    // list → ref-equal short-circuit". Implementation: when the per-slide
+    // map produces no changes AND the post-map slides every-ref-equal the
+    // pre-map slides, return state unchanged.
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+
+  test('Test SL9: SET_LOCKED with unknown ids is silently ignored (matches BULK_TRANSLATE robustness)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const before = initial.past.length
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['unknown-id'],
+      locked: true,
+    })
+    // No element matched → no change → state ref unchanged.
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(before)
+  })
+})
