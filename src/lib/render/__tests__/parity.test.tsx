@@ -337,6 +337,86 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     expect(html).not.toMatch(/class="[^"]*\bguide\b[^"]*"/)
   })
 
+  it('PARITY-01 (Plan 60-05, SEL-13): editable={false} renders no multi-selection-ring even with N>=2 selection passed', () => {
+    // Plan 60-05 (Phase 60) lands the FIRST concrete chrome that the PARITY-01
+    // scan is gating against. This test passes a selection with N>=2 to BOTH
+    // editable={true} and editable={false} renders and confirms the testid is
+    // gated structurally to the editable=true branch.
+    const slide: Slide = {
+      hook_text: 'STOP SCROLLING',
+      body_text: 'Body text here',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: { hook_font_size: 60, hook_width: 100 },
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const selection = { ids: ['img-a', 'img-b'], primary: 'img-b' }
+
+    // editable={false}: no ring even though selection.ids.length >= 2.
+    const { container: locked } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={selection}
+      />,
+    )
+    expect(
+      locked.querySelector('[data-testid="multi-selection-ring"]'),
+    ).toBeNull()
+    expect(locked.innerHTML).not.toMatch(/multi-selection-ring/)
+
+    // editable={true}: ring present for N>=2.
+    const { container: editable } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={selection}
+      />,
+    )
+    expect(
+      editable.querySelector('[data-testid="multi-selection-ring"]'),
+    ).not.toBeNull()
+  })
+
+  it('PARITY-01 (Plan 60-05, SEL-13): editable={true} renders no ring when N<2 (single-select unchanged)', () => {
+    // Confirms the union-AABB ring is gated on selection.ids.length >= 2 —
+    // single-select uses the existing per-element dashed ring, not the union.
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={{ ids: ['img-a'], primary: 'img-a' }}
+      />,
+    )
+    expect(
+      container.querySelector('[data-testid="multi-selection-ring"]'),
+    ).toBeNull()
+  })
+
   it('Phase 60 (WMARK-04, WMARK-05): free-tier enabled=false STILL renders post-unification', () => {
     // Free-tier opt-out is locked by spec — `enabled: false` MUST still
     // render the ViralSlideMaker mark. The lazy initializer adds

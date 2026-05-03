@@ -10,6 +10,11 @@ import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffect
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
 import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
+// Phase 60 (SEL-13, PARITY-01): union-AABB for the multi-select ring.
+// Pure module — no React/DOM coupling. Editor-only chrome consumer; gated
+// strictly to the editable={true} branch below.
+import { computeSelectionBounds } from '@/lib/editor/transforms/selection-bounds'
+import type { Selection } from '@/lib/editor/use-selection-model'
 // Phase 45 — shared resolver that guarantees the React preview renders overlay
 // content + slot anchors + per-segment highlight pills with the SAME source as
 // the Satori PNG export (TPLREND-05 parity contract). The 5-export surface is
@@ -331,6 +336,12 @@ interface SlidePreviewProps {
   // Both gated to editable={true} — Satori export path (editable=false) is unchanged.
   onTextBoxSelect?: (id: string | null) => void
   selectedTextBoxId?: string | null
+  // Phase 60 (SEL-01..04, SEL-09, SEL-13): multi-select state. Both props are
+  // editor-only — used by per-element click handlers (Shift-click toggle),
+  // canvas-empty-area onClick (clears), and the union-AABB ring (N>=2).
+  // Threaded from useSelectionModel at slide-editor.tsx via SlideCanvas.
+  selection?: Selection
+  onSelectionChange?: (next: Selection | ((prev: Selection) => Selection)) => void
 }
 
 export function SlidePreview({
@@ -344,6 +355,8 @@ export function SlidePreview({
   selectedCustomImageId,
   onTextBoxSelect,
   selectedTextBoxId,
+  selection,
+  onSelectionChange,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -958,10 +971,15 @@ export function SlidePreview({
       <div
         style={innerStyle}
         onClick={(e) => {
-          // Click on canvas background clears selections
+          // Click on canvas background clears selections.
+          // Phase 60 (SEL-09): also clear the multi-select model so the union
+          // AABB ring + TYPE BAR disappear. Phase 61 will replace this onClick
+          // with onPointerDown for marquee-start (CONTEXT.md line 81); for now
+          // we keep onClick.
           if (e.target === e.currentTarget) {
             onCustomTextSelect?.(null)
             onCustomImageSelect?.(null)
+            onSelectionChange?.({ ids: [], primary: null })
           }
         }}
       >
@@ -1069,11 +1087,29 @@ export function SlidePreview({
             // Phase 52 (T-01): click on hook wrapper → resolve hook TextBox.id and
             // promote it as the active selection. stopPropagation() prevents the
             // canvas-background onClick from immediately clearing the selection.
+            // Phase 60 (SEL-01/02/03/04): branch on e.shiftKey for additive
+            // toggle vs replace. Cmd+click is a no-op in Phase 60 — the modifier
+            // read is wired but deep-select-through-groups lands in Phase 62.
             e.stopPropagation()
+            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+            if (!hookBox) return
+            if (e.shiftKey && onSelectionChange) {
+              // SEL-02 / SEL-03: toggle membership without changing single-select handlers.
+              onSelectionChange((s: Selection) =>
+                s.ids.includes(hookBox.id)
+                  ? {
+                      ids: s.ids.filter((x) => x !== hookBox.id),
+                      primary: s.primary === hookBox.id ? null : s.primary,
+                    }
+                  : { ids: [...s.ids, hookBox.id], primary: hookBox.id },
+              )
+              return
+            }
+            // SEL-01: single-click replaces (existing v2.8 behavior preserved).
             onCustomTextSelect?.(null)
             onCustomImageSelect?.(null)
-            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
-            if (hookBox && onTextBoxSelect) onTextBoxSelect(hookBox.id)
+            if (onTextBoxSelect) onTextBoxSelect(hookBox.id)
+            onSelectionChange?.({ ids: [hookBox.id], primary: hookBox.id })
           }}
           style={{ zIndex: 10 }}
           className={`hover:outline hover:outline-2 hover:outline-white/50 ${hookSelected ? selectionRingClass : ''}`}
@@ -1171,11 +1207,25 @@ export function SlidePreview({
             onMouseDown={(e) => {
               // Phase 52 (T-01): click on body wrapper → resolve body TextBox.id.
               // Same pattern as hook above.
+              // Phase 60 (SEL-01/02/03): Shift-click toggles; plain click replaces.
               e.stopPropagation()
+              const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+              if (!bodyBox) return
+              if (e.shiftKey && onSelectionChange) {
+                onSelectionChange((s: Selection) =>
+                  s.ids.includes(bodyBox.id)
+                    ? {
+                        ids: s.ids.filter((x) => x !== bodyBox.id),
+                        primary: s.primary === bodyBox.id ? null : s.primary,
+                      }
+                    : { ids: [...s.ids, bodyBox.id], primary: bodyBox.id },
+                )
+                return
+              }
               onCustomTextSelect?.(null)
               onCustomImageSelect?.(null)
-              const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
-              if (bodyBox && onTextBoxSelect) onTextBoxSelect(bodyBox.id)
+              if (onTextBoxSelect) onTextBoxSelect(bodyBox.id)
+              onSelectionChange?.({ ids: [bodyBox.id], primary: bodyBox.id })
             }}
             style={{ zIndex: 10 }}
             className={`hover:outline hover:outline-2 hover:outline-white/50 ${bodySelected ? selectionRingClass : ''}`}
@@ -1302,10 +1352,23 @@ export function SlidePreview({
                 // Phase 52 (T-01): also dispatch unified TextBox selection so
                 // the right-rail mirrors. Custom-text TextBox.id == CustomText.id
                 // by Phase 49 adapter contract (text-box-adapter.ts customTextToBox).
+                // Phase 60 (SEL-01/02/03): Shift-click toggles; plain click replaces.
                 e.stopPropagation()
+                if (e.shiftKey && onSelectionChange) {
+                  onSelectionChange((s: Selection) =>
+                    s.ids.includes(ct.id)
+                      ? {
+                          ids: s.ids.filter((x) => x !== ct.id),
+                          primary: s.primary === ct.id ? null : s.primary,
+                        }
+                      : { ids: [...s.ids, ct.id], primary: ct.id },
+                  )
+                  return
+                }
                 onCustomTextSelect?.(ct.id)
                 onCustomImageSelect?.(null)
                 onTextBoxSelect?.(ct.id)
+                onSelectionChange?.({ ids: [ct.id], primary: ct.id })
               }}
               style={{ zIndex: 15 }}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
@@ -1452,9 +1515,22 @@ export function SlidePreview({
                 onCustomImagePositionChange?.(ci.id, { x: percentX, y: percentY })
               }}
               onMouseDown={(e) => {
+                // Phase 60 (SEL-01/02/03): Shift-click toggles; plain click replaces.
                 e.stopPropagation()
+                if (e.shiftKey && onSelectionChange) {
+                  onSelectionChange((s: Selection) =>
+                    s.ids.includes(ci.id)
+                      ? {
+                          ids: s.ids.filter((x) => x !== ci.id),
+                          primary: s.primary === ci.id ? null : s.primary,
+                        }
+                      : { ids: [...s.ids, ci.id], primary: ci.id },
+                  )
+                  return
+                }
                 onCustomImageSelect?.(ci.id)
                 onCustomTextSelect?.(null)
+                onSelectionChange?.({ ids: [ci.id], primary: ci.id })
               }}
               style={{ zIndex: 12 }}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
@@ -1633,6 +1709,34 @@ export function SlidePreview({
           justifyContent: 'center',
           fontFamily: 'system-ui, sans-serif',
         }}>{index + 1}</div>
+
+        {/* Phase 60 (SEL-13, PARITY-01): union-AABB multi-select ring.
+            STRICTLY editable-only — this block lives inside the editable={true}
+            render path (the entire editable branch starts ~line 880 and the
+            non-editable branch returned early at line 651). The PARITY-01 test
+            in src/lib/render/__tests__/parity.test.tsx asserts the testid is
+            absent from the editable={false} render tree.
+            pointer-events:none ensures clicks pass through to the elements. */}
+        {selection && selection.ids.length >= 2 && (() => {
+          const aabb = computeSelectionBounds(slide, selection.ids)
+          if (!aabb) return null
+          return (
+            <div
+              data-testid="multi-selection-ring"
+              style={{
+                position: 'absolute',
+                left: `${aabb.x}%`,
+                top: `${aabb.y}%`,
+                width: `${aabb.width}%`,
+                height: `${aabb.height}%`,
+                outline: '2px dashed #3d0000',
+                outlineOffset: 4,
+                pointerEvents: 'none',
+                zIndex: 50,
+              }}
+            />
+          )
+        })()}
       </div>
     </div>
   )

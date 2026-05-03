@@ -6,6 +6,7 @@ import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
+import type { Selection } from '@/lib/editor/use-selection-model'
 
 interface SlideCanvasProps {
   slides: Slide[]
@@ -39,6 +40,10 @@ interface SlideCanvasProps {
   // wrappers in editable mode dispatches the matching TextBox.id; right rail mirrors.
   onTextBoxSelect?: (id: string | null) => void
   selectedTextBoxId?: string | null
+  // Phase 60 (SEL-01..04, SEL-09, SEL-13): multi-select state forwarded to
+  // SlidePreview for click handlers + union-AABB ring rendering.
+  selection?: Selection
+  onSelectionChange?: (next: Selection | ((prev: Selection) => Selection)) => void
 }
 
 export function SlideCanvas({
@@ -66,6 +71,8 @@ export function SlideCanvas({
   selectedCustomImageId,
   onTextBoxSelect,
   selectedTextBoxId,
+  selection,
+  onSelectionChange,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   // Phase 57 (EDITOR-03, D-21): IG feed crop preview toggle. Component-local
@@ -110,6 +117,8 @@ export function SlideCanvas({
             selectedCustomImageId={selectedCustomImageId}
             onTextBoxSelect={onTextBoxSelect}
             selectedTextBoxId={selectedTextBoxId}
+            selection={selection}
+            onSelectionChange={onSelectionChange}
           />
           {/* Phase 57 (EDITOR-03, D-20, D-23): IG feed safe-zone overlay.
               CSS outline (not border) so layout is unaffected. Top-aligned —
