@@ -309,6 +309,9 @@ describe('Phase 65 Plan 01 (LAYERS-01..04, LAYERS-08, LAYERS-09): LayersPanel st
         slide={slide}
         selection={makeSelection()}
         onRename={onRename}
+        onLockToggle={vi.fn()}
+        onVisibilityToggle={vi.fn()}
+        onReorder={vi.fn()}
       />,
     )
     expect(screen.getByTestId('layers-panel')).toBeInTheDocument()
@@ -323,7 +326,16 @@ describe('Phase 65 Plan 01 (LAYERS-01..04, LAYERS-08, LAYERS-09): LayersPanel st
       ],
     })
     const sel = makeSelection()
-    render(<LayersPanel slide={slide} selection={sel} onRename={vi.fn()} />)
+    render(
+      <LayersPanel
+        slide={slide}
+        selection={sel}
+        onRename={vi.fn()}
+        onLockToggle={vi.fn()}
+        onVisibilityToggle={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    )
     const chips = screen.getAllByTestId('layer-chip')
     fireEvent.click(chips[0])
     expect(sel.replaceWith).toHaveBeenCalledWith(['tb1'])
@@ -343,7 +355,16 @@ describe('Phase 65 Plan 01 (LAYERS-01..04, LAYERS-08, LAYERS-09): LayersPanel st
       ],
     })
     const onRename = vi.fn()
-    render(<LayersPanel slide={slide} selection={makeSelection()} onRename={onRename} />)
+    render(
+      <LayersPanel
+        slide={slide}
+        selection={makeSelection()}
+        onRename={onRename}
+        onLockToggle={vi.fn()}
+        onVisibilityToggle={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    )
     const chips = screen.getAllByTestId('layer-chip')
     const label = chips[0].querySelector('[data-testid="chip-label"]')
     expect(label).toBeTruthy()
@@ -374,7 +395,16 @@ describe('Phase 65 Plan 01 (LAYERS-01..04, LAYERS-08, LAYERS-09): LayersPanel st
         },
       ],
     })
-    render(<LayersPanel slide={slide} selection={makeSelection()} onRename={vi.fn()} />)
+    render(
+      <LayersPanel
+        slide={slide}
+        selection={makeSelection()}
+        onRename={vi.fn()}
+        onLockToggle={vi.fn()}
+        onVisibilityToggle={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    )
     // Default collapsed → 0 chips visible (only group header).
     expect(screen.queryAllByTestId('layer-chip')).toHaveLength(0)
     expect(screen.getByTestId('group-row')).toBeInTheDocument()
@@ -398,7 +428,16 @@ describe('Phase 65 Plan 01 (LAYERS-01..04, LAYERS-08, LAYERS-09): LayersPanel st
       ],
     })
     const onRename = vi.fn()
-    render(<LayersPanel slide={slide} selection={makeSelection()} onRename={onRename} />)
+    render(
+      <LayersPanel
+        slide={slide}
+        selection={makeSelection()}
+        onRename={onRename}
+        onLockToggle={vi.fn()}
+        onVisibilityToggle={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    )
     const chip = screen.getAllByTestId('layer-chip')[0]
     const label = chip.querySelector('[data-testid="chip-label"]')!
     fireEvent.doubleClick(label)
