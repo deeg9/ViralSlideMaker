@@ -96,9 +96,9 @@
 - [x] **LAYERS-02**: Layers panel renders flat list with synthesized group-collapse rows (group rows expand/collapse on click)
 - [x] **LAYERS-03**: Click on a layer chip selects that element (matches canvas selection state)
 - [x] **LAYERS-04**: Inline rename uses `<input>` element (triggers existing `isEditing` guard at `slide-editor.tsx:344-348` so Backspace doesn't delete)
-- [ ] **LAYERS-05**: Lock toggle on each layer chip
-- [ ] **LAYERS-06**: Visibility (hidden) toggle on each layer chip
-- [ ] **LAYERS-07**: Z-order reorder via button controls on the chip (drag-to-reorder deferred to v2.12 due to react-arborist + React 19 StrictMode risk)
+- [x] **LAYERS-05**: Lock toggle on each layer chip
+- [x] **LAYERS-06**: Visibility (hidden) toggle on each layer chip
+- [x] **LAYERS-07**: Z-order reorder via button controls on the chip (drag-to-reorder deferred to v2.12 due to react-arborist + React 19 StrictMode risk)
 - [x] **LAYERS-08**: Selection sync between canvas and panel uses one-way reads only — both READ selection state; both WRITE only on direct user click (no infinite-loop sync)
 - [x] **LAYERS-09**: Layer chips wrapped in `React.memo` with custom equality to avoid full-tree re-render on selection change
 - [x] **LAYERS-10**: Layers panel uses `react-arborist@3.5.0` (pending Day-1 React 19 StrictMode verification; fallback `react-complex-tree@2.4.6`)
@@ -252,9 +252,9 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | LAYERS-02 | Phase 65 | Complete |
 | LAYERS-03 | Phase 65 | Complete |
 | LAYERS-04 | Phase 65 | Complete |
-| LAYERS-05 | Phase 65 | Pending |
-| LAYERS-06 | Phase 65 | Pending |
-| LAYERS-07 | Phase 65 | Pending |
+| LAYERS-05 | Phase 65 | Complete |
+| LAYERS-06 | Phase 65 | Complete |
+| LAYERS-07 | Phase 65 | Complete |
 | LAYERS-08 | Phase 65 | Complete |
 | LAYERS-09 | Phase 65 | Complete |
 | LAYERS-10 | Phase 65 | Complete |
