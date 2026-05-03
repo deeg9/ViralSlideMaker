@@ -1112,6 +1112,14 @@ export function SlidePreview({
           // PITFALL-2.5: shift+click without drag is a no-op (don't clear).
           if (pixRect.w <= 2 && pixRect.h <= 2) {
             if (!shiftHeld) {
+              // Phase 62 (GROUP-08): if the user is inside a group, exit it
+              // BEFORE clearing the selection. Single user gesture →
+              // single observable behavior (group ring collapses + selection
+              // clears in one render). The Esc-key handler in Plan 62-03 will
+              // mirror this two-step on keyboard escape.
+              if (currentlyInsideGroup !== null) {
+                onExitGroup?.()
+              }
               onCustomTextSelect?.(null)
               onCustomImageSelect?.(null)
               onSelectionChange?.({ ids: [], primary: null })
