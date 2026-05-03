@@ -32,6 +32,19 @@ import type { Slide } from '@/lib/types/slide'
  * The returned object is wrapped in `useMemo` so consumers don't see a new
  * `model` reference on every render unless `ids` / `primary` actually change
  * (mirrors use-slide-editor.ts:51-65 pattern).
+ *
+ * Phase 62 (GROUP-07, GROUP-08): adds `currentlyInsideGroup: string | null`
+ * + `enterGroup(elementId, slide)` + `exitGroup()`. The "inside group" flag
+ * carries forward the Plan 60-03 selection-state-outside-reducer-history
+ * invariant: it lives in `useState` (mirrored via `useRef` for synchronous
+ * reads), NEVER inside the editor reducer's pushHistory pipeline. The
+ * SEL-10 (slide-switch) and SEL-11 (stale-id prune) effects ALSO clear the
+ * flag so it stays in lock-step with the rest of the selection state.
+ *
+ * Known gap: `enterGroup` takes the slide as a 2nd arg by design — the hook
+ * resolves the element's groupId without holding a slide reference internally
+ * (avoids a useEffect explosion). Phase 65 (layers panel) may want a
+ * slide-bound variant; defer.
  */
 export interface Selection {
   /** Insertion-ordered list of selected element ids. Order matters for
@@ -66,6 +79,22 @@ export interface SelectionModel {
       setter is for callers that need to compute the next selection from prev
       synchronously inside an event handler. */
   setSelection(next: Selection | ((prev: Selection) => Selection)): void
+  /** Phase 62 (GROUP-07): groupId of the group the user is currently editing
+      "inside" (set by double-click; cleared by Esc / click-outside / slide-
+      switch / stale-id prune). When null, click selects the group; when set,
+      click selects the leaf element inside the group. State lives in React
+      useState — NEVER inside the editor reducer history (Plan 60-03 invariant
+      carry-forward). */
+  currentlyInsideGroup: string | null
+  /** Phase 62 (GROUP-07): set `currentlyInsideGroup` to the element's groupId.
+      No-op when the element has no groupId or the id is not on the slide.
+      Takes `slide` as a 2nd arg so the hook can resolve groupId without
+      holding a slide reference internally (avoids a useEffect explosion). */
+  enterGroup(elementId: string, slide: Slide): void
+  /** Phase 62 (GROUP-08): clear `currentlyInsideGroup` to null. Idempotent —
+      the callback ref is stable, and a second call when already null produces
+      no observable state change. */
+  exitGroup(): void
 }
 
 export function useSelectionModel(opts: {
@@ -74,6 +103,10 @@ export function useSelectionModel(opts: {
 }): SelectionModel {
   const [ids, setIds] = useState<string[]>([])
   const [primary, setPrimary] = useState<string | null>(null)
+  // Phase 62 (GROUP-07): "inside group" flag — groupId the user has
+  // double-clicked into, or null. Lives in React useState so it never
+  // enters the editor reducer history (Plan 60-03 carry-forward).
+  const [currentlyInsideGroup, setCurrentlyInsideGroup] = useState<string | null>(null)
 
   // Phase 60 (SEL-02/03): mirror current state in a ref so setSelection's
   // functional-updater branch can compute `(prev) => next` synchronously
@@ -81,29 +114,42 @@ export function useSelectionModel(opts: {
   // (no re-render triggered), and the effects below keep them in sync.
   const idsRef = useRef<string[]>(ids)
   const primaryRef = useRef<string | null>(primary)
+  // Phase 62 (GROUP-07): mirror the in-group flag for synchronous reads
+  // in event handlers (matches the idsRef/primaryRef pattern).
+  const insideGroupRef = useRef<string | null>(currentlyInsideGroup)
   useEffect(() => {
     idsRef.current = ids
   }, [ids])
   useEffect(() => {
     primaryRef.current = primary
   }, [primary])
+  useEffect(() => {
+    insideGroupRef.current = currentlyInsideGroup
+  }, [currentlyInsideGroup])
 
   // SEL-10: clear on slide switch.
   // Independent of stale-id logic — slide-switch ALWAYS clears, even if the
   // selected id would have remained valid on the new slide.
+  // Phase 62: ALSO clears currentlyInsideGroup (a group never spans slides;
+  // the in-group flag is meaningless after a slide switch).
   useEffect(() => {
     setIds([])
     setPrimary(null)
+    setCurrentlyInsideGroup(null)
   }, [opts.slideIndex])
 
   // SEL-11: prune stale ids when slide content mutates (undo/redo + removals
   // + DUPLICATE_SLIDE id-regen). Filters `ids` against the union of valid ids
   // on the currently-selected slide; clears `primary` if it's no longer valid.
+  // Phase 62: ALSO computes the union of groupIds reachable from surviving
+  // elements; if `currentlyInsideGroup` is no longer in that set, the flag
+  // clears. Mirrors the SEL-11 stale-id contract for the in-group state.
   useEffect(() => {
     const slide = opts.presentSlides[opts.slideIndex]
     if (!slide) {
       setIds((prev) => (prev.length === 0 ? prev : []))
       setPrimary((prev) => (prev === null ? prev : null))
+      setCurrentlyInsideGroup((prev) => (prev === null ? prev : null))
       return
     }
     const validIds = new Set<string>([
@@ -111,11 +157,24 @@ export function useSelectionModel(opts: {
       ...(slide.custom_images ?? []).map((ci) => ci.id),
       ...(slide.watermark ? [slide.watermark.id] : []),
     ])
+    const validGroupIds = new Set<string>()
+    for (const tb of slide.text_boxes ?? []) {
+      if (tb.groupId !== undefined) validGroupIds.add(tb.groupId)
+    }
+    for (const ci of slide.custom_images ?? []) {
+      if (ci.groupId !== undefined) validGroupIds.add(ci.groupId)
+    }
+    if (slide.watermark && slide.watermark.groupId !== undefined) {
+      validGroupIds.add(slide.watermark.groupId)
+    }
     setIds((prev) => {
       const filtered = prev.filter((id) => validIds.has(id))
       return filtered.length === prev.length ? prev : filtered
     })
     setPrimary((prev) => (prev && validIds.has(prev) ? prev : null))
+    setCurrentlyInsideGroup((prev) =>
+      prev !== null && !validGroupIds.has(prev) ? null : prev,
+    )
   }, [opts.presentSlides, opts.slideIndex])
 
   const replaceWith = useCallback((next: string[]) => {
@@ -177,6 +236,38 @@ export function useSelectionModel(opts: {
     [],
   )
 
+  // Phase 62 (GROUP-07): enter group by element id. Walks text_boxes ∪
+  // custom_images ∪ watermark on the supplied slide; if the element exists
+  // and carries a groupId, set currentlyInsideGroup to that groupId.
+  // Otherwise no-op (unknown id OR ungrouped element). Caller passes the
+  // slide so the hook stays decoupled from the slide reference (avoids a
+  // useEffect explosion).
+  const enterGroup = useCallback((elementId: string, slide: Slide) => {
+    const tb = (slide.text_boxes ?? []).find((t) => t.id === elementId)
+    if (tb) {
+      if (tb.groupId !== undefined) setCurrentlyInsideGroup(tb.groupId)
+      return
+    }
+    const ci = (slide.custom_images ?? []).find((c) => c.id === elementId)
+    if (ci) {
+      if (ci.groupId !== undefined) setCurrentlyInsideGroup(ci.groupId)
+      return
+    }
+    if (slide.watermark && slide.watermark.id === elementId) {
+      if (slide.watermark.groupId !== undefined) {
+        setCurrentlyInsideGroup(slide.watermark.groupId)
+      }
+      return
+    }
+    // Unknown id → no-op (silent, no throw)
+  }, [])
+
+  // Phase 62 (GROUP-08): exit group → clear the in-group flag. Idempotent
+  // when already null (functional updater preserves the prev reference).
+  const exitGroup = useCallback(() => {
+    setCurrentlyInsideGroup((prev) => (prev === null ? prev : null))
+  }, [])
+
   return useMemo(
     () => ({
       ids,
@@ -188,6 +279,9 @@ export function useSelectionModel(opts: {
       clear,
       selectAll,
       setSelection,
+      currentlyInsideGroup,
+      enterGroup,
+      exitGroup,
     }),
     [
       ids,
@@ -199,6 +293,9 @@ export function useSelectionModel(opts: {
       clear,
       selectAll,
       setSelection,
+      currentlyInsideGroup,
+      enterGroup,
+      exitGroup,
     ],
   )
 }
