@@ -501,6 +501,37 @@ export function SlideEditor({
         })
       },
 
+      // Phase 64 Plan 01 (LOCK-03 / KBD-02 / KBD-03): toggle `locked` on every
+      // selected element in a single dispatch. Toggle semantics (CONTEXT D-01
+      // majority/all-locked): if EVERY selected element is currently locked,
+      // unlock all; otherwise (any unlocked element), lock all. Matches
+      // Figma's lock model. Cmd+Shift+L on Chrome is "Reopen Closed Tab" —
+      // preventDefault keeps focus on the canvas (mirrors Cmd+G's PITFALL-9.3
+      // suppression). KBD-02 firewall is INLINED so the grep count goes
+      // 24 → 25 (Plan 64-03 will push to 29 with the 4 z-order bindings).
+      '$mod+Shift+l': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (!currentSlide) return
+        if (selection.ids.length === 0) return
+        const idSet = new Set(selection.ids)
+        const allElements = [
+          ...(currentSlide.text_boxes ?? []),
+          ...(currentSlide.custom_images ?? []),
+          ...(currentSlide.watermark ? [currentSlide.watermark] : []),
+        ]
+        const selectedElements = allElements.filter((el) => idSet.has(el.id))
+        if (selectedElements.length === 0) return // selection contains only stale ids
+        const allLocked = selectedElements.every((el) => el.locked === true)
+        const nextLocked = !allLocked
+        dispatch({
+          type: 'SET_LOCKED',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          locked: nextLocked,
+        })
+      },
+
       // Phase 62 GROUP-08: group-aware Escape. First press exits the group
       // if currentlyInsideGroup !== null (Plan 62-01 selection-model state).
       // Second press clears selection (Plan 60-04 SEL-08 behavior). Single
