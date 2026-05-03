@@ -189,7 +189,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 60. Multi-Select Foundation + Watermark Schema Lift | 1/5 | In Progress|  |
+| 60. Multi-Select Foundation + Watermark Schema Lift | 3/5 | In Progress|  |
 | 61. Marquee Selection | 0/0 | Not started | - |
 | 62. Group / Ungroup | 0/0 | Not started | - |
 | 63. Alignment / Distribute + Smart Guides | 0/0 | Not started | - |

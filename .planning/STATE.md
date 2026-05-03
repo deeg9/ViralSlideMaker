@@ -80,6 +80,11 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ### Decisions
 
+- [v2.11 / 60-03]: `useSelectionModel` lives at `src/lib/editor/use-selection-model.ts`. Mutator API exposes 6 ops (replaceWith / addToSelection / removeFromSelection / toggleInSelection / clear / selectAll) returning ref-stable references via `useMemo`. Selection state never enters reducer history.
+- [v2.11 / 60-03]: `Selection.primary` clears (NOT auto-promotes) when invalidated by stale-id pruning — matches PITFALLS-12.3 no-key-object UX.
+- [v2.11 / 60-03]: SEL-10 slide-switch reset is INDEPENDENT of stale-id pruning — slide-switch ALWAYS clears, even if a selected id would have remained valid on the new slide.
+- [v2.11 / 60-03]: BULK_TRANSLATE reducer action skips locked=true (Phase 64 honor pre-installed), text_boxes with `anchor !== 'custom'` (RESEARCH Q7 conservative), and watermark entirely (enum-only position; documented gap for Phase 62/63).
+- [v2.11 / 60-03]: BULK_TRANSLATE routes text_boxes through `applyDualWrite` so BL-01 invariant holds for multi-element drags.
 - [v2.11 / 60-02]: Watermark id strategy locked at deterministic `w_${slideIndex}` (RESEARCH Q2 idempotent across loads).
 - [v2.11 / 60-02]: Lazy-init adds `slide.watermark` from legacy slot but RETAINS `style_overrides.watermark` populated. `resolveForcedWatermark` continues reading the legacy slot, so the free-tier `enabled=false` opt-out lock survives the schema lift unchanged. Both paths coexist for one milestone (sunset: v2.12+ post-PMF).
 - [v2.11 / 60-02]: NO functional change to `render-slide-satori.tsx` or `slide-preview.tsx` — comment annotations only. Byte-identity preserved by the lazy-init mirror, NOT by changing the resolver contract.
@@ -131,6 +136,6 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ## Session Continuity
 
-Last activity: 2026-05-03 — Plan 60-02 watermark schema lift shipped (commits `35b7ce3` / `b67c13a` / `0a7deb9`): pure adapter module + 10 unit tests + lazy-init wiring + 5-test PARITY-01 gate in parity.test.tsx. ~340 LOC, byte-identity invariant verified across the schema lift, free-tier `enabled=false` lock preserved.
-Stopped at: Plan 60-02 complete (Wave 2 — PARITY GATE). Plan 60-03 useSelectionModel T1 already landed (`082bfe9`); BULK_TRANSLATE T2 finishing in parallel. Wave 3 (60-04 tinykeys + 60-05 selection ring) ready as soon as 60-03 is fully complete.
-Next: Continue Plan 60-03 (BULK_TRANSLATE if not yet committed) → Plan 60-04 (keyboard firewall) → Plan 60-05 (selection bounds + union ring).
+Last activity: 2026-05-03 — Plan 60-03 shipped (commits `082bfe9` + `5f98e5e`): useSelectionModel hook with insertion-ordered Selection { ids, primary } + 6 mutator ops + slide-switch reset + stale-id pruning + ref-stable API (17 unit tests); BULK_TRANSLATE reducer action declared with single-pushHistory + applyDualWrite + locked/anchor/watermark skips (9 reducer tests). 87/87 editor tests green; TypeScript baseline unchanged at 17 pre-existing errors.
+Stopped at: Plan 60-03 complete. Wave 2 fully landed (60-01 schema + 60-02 watermark adapter + 60-03 selection model). Wave 3 (60-04 tinykeys keyboard firewall + 60-05 selection bounds/union ring) is unblocked.
+Next: Plan 60-04 (tinykeys keyboard firewall: Cmd+A → selectAll, Esc → clear, click-empty-canvas → clear, modifier-state hook with blur reset) → Plan 60-05 (selection bounds + union AABB ring rendering when N≥2 + editable={true} gate).
