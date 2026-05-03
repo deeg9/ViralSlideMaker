@@ -14,6 +14,14 @@ import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
 // Pure module — no React/DOM coupling. Editor-only chrome consumer; gated
 // strictly to the editable={true} branch below.
 import { computeSelectionBounds } from '@/lib/editor/transforms/selection-bounds'
+// Phase 63 Plan 02 (ALIGN-07, PARITY-01): floating alignment toolbar. Editor-
+// only chrome — mounted ONLY inside the editable={true} branch (downstream of
+// the line-665 early return) so PARITY-01 / TPLREND-05 invariants hold.
+import {
+  FloatingAlignmentToolbar,
+  type ToolbarAction,
+} from '@/components/editor/floating-alignment-toolbar'
+import type { AlignAxis, DistributeAxis } from '@/lib/editor/transforms/align'
 // Phase 62 (GROUP-06, GROUP-09, GROUP-10): cross-type group membership read
 // for the dashed group-bounding-ring + group-aware click handlers + group-
 // drag detection. Pure module (no React/DOM); same TPLREND-05 structural
@@ -386,6 +394,21 @@ interface SlidePreviewProps {
     deltaX: number
     deltaY: number
   }) => void
+  // Phase 63 Plan 02 (ALIGN-01..05, ALIGN-07): floating alignment toolbar
+  // action callback. Invoked when the user clicks an align/distribute button
+  // in the toolbar that this component mounts inside the editable={true}
+  // branch. The parent (slide-editor.tsx via slide-canvas.tsx) is responsible
+  // for resolving N=1→canvas vs N>=2→selection target and dispatching the
+  // matching ALIGN/DISTRIBUTE reducer action.
+  // Editor-only — read ONLY downstream of the editable={true} early return
+  // (TPLREND-05 / PARITY-01). When omitted, the toolbar does not render
+  // (keeps the testid out of legacy callers / Storybook stories that haven't
+  // wired the new prop).
+  onAlign?: (
+    action:
+      | { kind: 'align'; axis: AlignAxis }
+      | { kind: 'distribute'; axis: DistributeAxis },
+  ) => void
 }
 
 export function SlidePreview({
@@ -405,6 +428,7 @@ export function SlidePreview({
   onEnterGroup,
   onExitGroup,
   onGroupDrag,
+  onAlign,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -2205,25 +2229,50 @@ export function SlidePreview({
             non-editable branch returned early at line 651). The PARITY-01 test
             in src/lib/render/__tests__/parity.test.tsx asserts the testid is
             absent from the editable={false} render tree.
-            pointer-events:none ensures clicks pass through to the elements. */}
+            pointer-events:none ensures clicks pass through to the elements.
+            Phase 63 Plan 02 (ALIGN-07): the FloatingAlignmentToolbar below
+            consumes the SAME computeSelectionBounds output — both walk the
+            slide once via the pure helper. Reusing the AABB across the two
+            chrome surfaces keeps a single source of truth and avoids drift
+            (per Phase 63 D-04 — bounds reused across the ring + toolbar). */}
         {selection && selection.ids.length >= 2 && (() => {
           const aabb = computeSelectionBounds(slide, selection.ids)
           if (!aabb) return null
           return (
-            <div
-              data-testid="multi-selection-ring"
-              style={{
-                position: 'absolute',
-                left: `${aabb.x}%`,
-                top: `${aabb.y}%`,
-                width: `${aabb.width}%`,
-                height: `${aabb.height}%`,
-                outline: '2px dashed #3d0000',
-                outlineOffset: 4,
-                pointerEvents: 'none',
-                zIndex: 50,
-              }}
-            />
+            <>
+              <div
+                data-testid="multi-selection-ring"
+                style={{
+                  position: 'absolute',
+                  left: `${aabb.x}%`,
+                  top: `${aabb.y}%`,
+                  width: `${aabb.width}%`,
+                  height: `${aabb.height}%`,
+                  outline: '2px dashed #3d0000',
+                  outlineOffset: 4,
+                  pointerEvents: 'none',
+                  zIndex: 50,
+                }}
+              />
+              {/* Phase 63 Plan 02 (ALIGN-07): floating alignment toolbar.
+                  Mounted as a sibling of the multi-selection-ring above so
+                  both consume the same AABB. The toolbar manages its own
+                  render gate (selectionCount < 2 → null) but we additionally
+                  guard on `onAlign` here so the testid stays out of legacy
+                  callers (e.g. tests / stories that haven't wired onAlign).
+                  TPLREND-05 / PARITY-01: structurally inside the editable=
+                  true branch — line-665 early return for editable=false
+                  guarantees this JSX is unreachable from the Satori path. */}
+              {onAlign && (
+                <FloatingAlignmentToolbar
+                  selectionCount={selection.ids.length}
+                  bounds={aabb}
+                  onAction={onAlign as (a: ToolbarAction) => void}
+                  canvasWidthPct={100}
+                  canvasHeightPct={100}
+                />
+              )}
+            </>
           )
         })()}
 
