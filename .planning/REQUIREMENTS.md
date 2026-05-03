@@ -118,10 +118,10 @@
 ### Watermark Integration (WMARK)
 
 - [x] **WMARK-01**: Watermark lifted from `style_overrides.watermark` into a unified addressable element with stable `id` + `groupId?` + `locked?` + `hidden?` fields (additive — old field path retained for back-compat)
-- [ ] **WMARK-02**: Watermark participates in multi-select, marquee, alignment, distribute, group, z-order operations identically to text_boxes / custom_images
-- [ ] **WMARK-03**: Schema migration adapter `legacyWatermarkToElement` runs at slide-load boundary (mirrors v2.8 `legacyToTextBoxes` pattern)
-- [ ] **WMARK-04**: Both renderers (React preview + Satori PNG) consume watermark from the unified path with byte-identical output (TPLREND-05 parity preserved)
-- [ ] **WMARK-05**: Existing 53+ projects render byte-identically pre/post watermark unification (parity test extended)
+- [x] **WMARK-02**: Watermark participates in multi-select, marquee, alignment, distribute, group, z-order operations identically to text_boxes / custom_images
+- [x] **WMARK-03**: Schema migration adapter `legacyWatermarkToElement` runs at slide-load boundary (mirrors v2.8 `legacyToTextBoxes` pattern)
+- [x] **WMARK-04**: Both renderers (React preview + Satori PNG) consume watermark from the unified path with byte-identical output (TPLREND-05 parity preserved)
+- [x] **WMARK-05**: Existing 53+ projects render byte-identically pre/post watermark unification (parity test extended)
 
 ### Power-User Differentiators (DIFF)
 
@@ -131,7 +131,7 @@
 
 ### TPLREND-05 Parity (PARITY)
 
-- [ ] **PARITY-01**: Selection rings, marquee rect, smart guide lines, group bounding box, layers panel induced ordering — ALL render only when `editable={true}`
+- [x] **PARITY-01**: Selection rings, marquee rect, smart guide lines, group bounding box, layers panel induced ordering — ALL render only when `editable={true}`
 - [ ] **PARITY-02**: Regression test walks `editable={false}` render tree; asserts NO node with class matching `*selection*`, `*marquee*`, `*guide*`, `*layer-overlay*`
 - [ ] **PARITY-03**: Existing `parity.test.tsx` extended with multi-element fixtures (selection ring, group bbox, marquee active, smart guides active)
 - [ ] **PARITY-04**: All 11 existing templates render byte-identical pre/post v2.11 across both renderers
@@ -268,14 +268,14 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | KBD-08 | Phase 66 | Pending |
 | KBD-09 | Phase 62 | Pending |
 | WMARK-01 | Phase 60 | Complete |
-| WMARK-02 | Phase 60 | Pending |
-| WMARK-03 | Phase 60 | Pending |
-| WMARK-04 | Phase 60 | Pending |
-| WMARK-05 | Phase 60 | Pending |
+| WMARK-02 | Phase 60 | Complete |
+| WMARK-03 | Phase 60 | Complete |
+| WMARK-04 | Phase 60 | Complete |
+| WMARK-05 | Phase 60 | Complete |
 | DIFF-01 | Phase 66 | Pending |
 | DIFF-02 | Phase 66 | Pending |
 | DIFF-03 | Phase 63 | Pending |
-| PARITY-01 | Phase 60 | Pending |
+| PARITY-01 | Phase 60 | Complete |
 | PARITY-02 | Phase 65 | Pending |
 | PARITY-03 | Phase 63 | Pending |
 | PARITY-04 | Phase 65 | Pending |

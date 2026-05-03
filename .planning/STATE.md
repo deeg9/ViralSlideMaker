@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
-status: Phase 60 in progress (Plan 01/05 complete — schema foundation landed)
-stopped_at: Plan 60-01 complete — schema foundation shipped; Wave 2 (Plans 60-02 + 60-03) ready to execute in parallel.
-last_updated: "2026-05-03T01:12:00.000Z"
-last_activity: 2026-05-02 — Plan 60-01 schema foundation: groupId/locked/hidden fields + Watermark interface (commit 1164c73)
+status: executing
+stopped_at: Plan 60-03 complete (Wave 2). useSelectionModel hook + BULK_TRANSLATE action shape both shipped (commits `082bfe9` + `5f98e5e`). Wave 3 (60-04 tinykeys + 60-05 selection ring) is unblocked.
+last_updated: "2026-05-03T01:20:00.000Z"
+last_activity: "2026-05-03 — Plan 60-03 selection model + BULK_TRANSLATE: useSelectionModel hook (17 tests) + BULK_TRANSLATE reducer action (9 tests). 87/87 editor tests green."
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
-Phase: 60 — Multi-Select Foundation + Watermark Schema Lift (Wave 1 of 4 complete)
-Plan: 60-01 SHIPPED (schema foundation: 39 LOC, 1 commit `1164c73`); 60-02 + 60-03 ready (parallel-safe Wave 2)
-Status: Phase 60 in progress; WMARK-01 marked complete in REQUIREMENTS.md
-Last activity: 2026-05-02 — Plan 60-01 schema foundation: groupId/locked/hidden fields + Watermark interface
+Phase: 60 — Multi-Select Foundation + Watermark Schema Lift (Wave 2 complete; Wave 3 unblocked)
+Plan: 60-01 SHIPPED (schema foundation: 39 LOC, commit `1164c73`); 60-02 SHIPPED (watermark adapter + lazy init + parity gate, ~340 LOC, 3 commits `35b7ce3` / `b67c13a` / `0a7deb9`); 60-03 SHIPPED (useSelectionModel hook + BULK_TRANSLATE action, ~893 LOC incl. tests, 2 commits `082bfe9` / `5f98e5e`); 60-04 + 60-05 pending (Wave 3)
+Status: Phase 60 in progress; WMARK-01..05 + PARITY-01 + SEL-01..04 + SEL-10 + SEL-11 + SEL-15 + PERF-01 marked complete in REQUIREMENTS.md
+Last activity: 2026-05-03 — Plan 60-03 selection model + BULK_TRANSLATE: useSelectionModel hook (17 tests) + BULK_TRANSLATE reducer action (9 tests). 87/87 editor tests green.
 
 ## v2.11 Phase Map
 
@@ -80,6 +80,10 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ### Decisions
 
+- [v2.11 / 60-02]: Watermark id strategy locked at deterministic `w_${slideIndex}` (RESEARCH Q2 idempotent across loads).
+- [v2.11 / 60-02]: Lazy-init adds `slide.watermark` from legacy slot but RETAINS `style_overrides.watermark` populated. `resolveForcedWatermark` continues reading the legacy slot, so the free-tier `enabled=false` opt-out lock survives the schema lift unchanged. Both paths coexist for one milestone (sunset: v2.12+ post-PMF).
+- [v2.11 / 60-02]: NO functional change to `render-slide-satori.tsx` or `slide-preview.tsx` — comment annotations only. Byte-identity preserved by the lazy-init mirror, NOT by changing the resolver contract.
+- [v2.11 / 60-02]: PARITY-01 SEED uses whole-word regex `\\bselection\\b` / `\\bmarquee\\b` / `\\bguide\\b` (NOT substring). Plan 60-05 selection ring MUST keep its className gated to `editable={true}`.
 - [v2.11]: Flat schema only — `groupId?` / `locked?` / `hidden?` are optional additive fields. No `Slide.groups[]`. No nested groups. Group exists iff 2+ elements share a `groupId`.
 - [v2.11]: Watermark unification (WMARK-01..05) lands in Phase 60 (NOT split into 60.5) — schema lift is interdependent with `Selection { ids, primary }` model since right-rail "Mixed" placeholder must accept watermarks.
 - [v2.11]: Phase 63 keeps Alignment + Smart Guides combined as Wave A / Wave B — sorted-edge-array snap index is shared between alignment bounding-box math and smart-guide visualization. Splitting risks scope drift.
@@ -127,6 +131,6 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ## Session Continuity
 
-Last activity: 2026-05-02 — Plan 60-01 schema foundation shipped (commit `1164c73`): TextBox + CustomImage gain `groupId?` / `locked?` / `hidden?`; new `Watermark` interface; `Slide.watermark?` slot. 39 LOC, additive only, zero behavior changes, all 356 src/lib/ tests pass.
-Stopped at: Plan 60-01 complete; Wave 2 ready (60-02 watermark adapter + parity gate; 60-03 useSelectionModel + BULK_TRANSLATE). 60-02 and 60-03 are parallel-safe — zero file overlap.
-Next: Execute Plan 60-02 (Wave 2 — PARITY GATE) and Plan 60-03 (Wave 2 — selection model) in parallel.
+Last activity: 2026-05-03 — Plan 60-02 watermark schema lift shipped (commits `35b7ce3` / `b67c13a` / `0a7deb9`): pure adapter module + 10 unit tests + lazy-init wiring + 5-test PARITY-01 gate in parity.test.tsx. ~340 LOC, byte-identity invariant verified across the schema lift, free-tier `enabled=false` lock preserved.
+Stopped at: Plan 60-02 complete (Wave 2 — PARITY GATE). Plan 60-03 useSelectionModel T1 already landed (`082bfe9`); BULK_TRANSLATE T2 finishing in parallel. Wave 3 (60-04 tinykeys + 60-05 selection ring) ready as soon as 60-03 is fully complete.
+Next: Continue Plan 60-03 (BULK_TRANSLATE if not yet committed) → Plan 60-04 (keyboard firewall) → Plan 60-05 (selection bounds + union ring).
