@@ -2509,3 +2509,341 @@ describe('editorReducer — Phase 64 Plan 03 (ZORDER-01..07): Z_ORDER single-dis
     expect(next.past.length).toBe(before)
   })
 })
+
+// Phase 66 Plan 02 (DIFF-01, KBD-09, PERF-01): DUPLICATE_ELEMENTS_AT — Alt+drag
+// duplicate. Holding Alt during a drag produces COPIES at the drag-end position
+// while leaving the originals at their start positions (Figma model — RESEARCH
+// F39). Single pushHistory per dispatch; routes text_boxes through
+// applyDualWrite; honors the same skip-set as BULK_TRANSLATE (locked / structural
+// / watermark).
+describe('editorReducer — Phase 66 Plan 02 (DIFF-01): DUPLICATE_ELEMENTS_AT', () => {
+  test('DE1: text_box duplicate — copy gets new id + delta-applied position; original unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 20, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['tb1'],
+      deltaX: 5,
+      deltaY: 3,
+    })
+    const tbs = next.present[0].text_boxes!
+    expect(tbs.length).toBe(2) // original + copy
+    const original = tbs.find((tb) => tb.id === 'tb1')!
+    const copy = tbs.find((tb) => tb.id !== 'tb1')!
+    // Original unchanged
+    expect(original.position.x).toBe(10)
+    expect(original.position.y).toBe(20)
+    expect(original.text).toBe('A')
+    // Copy has different id + delta-shifted position
+    expect(copy.id).not.toBe('tb1')
+    expect(typeof copy.id).toBe('string')
+    expect(copy.id.length).toBeGreaterThan(0)
+    expect(copy.position.x).toBe(15)
+    expect(copy.position.y).toBe(23)
+    expect(copy.text).toBe('A') // deep-copy preserves all schema fields
+    expect(copy.role).toBe('custom')
+  })
+
+  test('DE2: custom_image duplicate — copy gets new id + delta-applied position; original unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          {
+            id: 'ci1',
+            url: 'https://example.com/x.png',
+            x: 30,
+            y: 40,
+            width: 30,
+            height: 30,
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['ci1'],
+      deltaX: 2,
+      deltaY: 1,
+    })
+    const cis = next.present[0].custom_images!
+    expect(cis.length).toBe(2)
+    const original = cis.find((ci) => ci.id === 'ci1')!
+    const copy = cis.find((ci) => ci.id !== 'ci1')!
+    expect(original.x).toBe(30)
+    expect(original.y).toBe(40)
+    expect(copy.id).not.toBe('ci1')
+    expect(copy.x).toBe(32)
+    expect(copy.y).toBe(41)
+    expect(copy.url).toBe('https://example.com/x.png')
+    expect(copy.width).toBe(30)
+    expect(copy.height).toBe(30)
+  })
+
+  test('DE3: locked text_box is silently skipped — no copy created', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb-locked',
+            role: 'custom',
+            text: 'Locked',
+            locked: true,
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['tb-locked'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.present[0].text_boxes!.length).toBe(1) // unchanged
+    expect(next).toBe(initial) // ref-equal short-circuit (no pushHistory)
+  })
+
+  test('DE4: structural-anchor / non-custom-role text_box is silently skipped', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'H', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'B', position: { anchor: 'bottom' } },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['tb-hook', 'tb-body'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.present[0].text_boxes!.length).toBe(2) // unchanged
+    expect(next).toBe(initial)
+  })
+
+  test('DE5: watermark id is silently skipped (lives on slide.watermark, not iterated)', () => {
+    const initial = makeState([
+      makeSlide({
+        watermark: { id: 'w0', enabled: true, position: 'bottom-right' },
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['w0'],
+      deltaX: 10,
+      deltaY: 10,
+    })
+    expect(next.present[0].watermark).toEqual({
+      id: 'w0',
+      enabled: true,
+      position: 'bottom-right',
+    })
+    expect(next).toBe(initial) // no copy, no pushHistory
+  })
+
+  test('DE6: newGroupId — both copies receive groupId; originals unchanged; applyDualWrite invoked', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+            // no groupId initially
+          },
+        ],
+        custom_images: [
+          {
+            id: 'ci1',
+            url: 'https://example.com/x.png',
+            x: 20,
+            y: 20,
+            width: 30,
+            height: 30,
+            // no groupId initially
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['tb1', 'ci1'],
+      deltaX: 3,
+      deltaY: 4,
+      newGroupId: 'g_test_xyz',
+    })
+    const slide = next.present[0]
+    // Find copies
+    const tbCopy = slide.text_boxes!.find((tb) => tb.id !== 'tb1')!
+    const ciCopy = slide.custom_images!.find((ci) => ci.id !== 'ci1')!
+    expect(tbCopy.groupId).toBe('g_test_xyz')
+    expect(ciCopy.groupId).toBe('g_test_xyz')
+    // Originals' groupIds unchanged (still undefined)
+    const tbOriginal = slide.text_boxes!.find((tb) => tb.id === 'tb1')!
+    const ciOriginal = slide.custom_images!.find((ci) => ci.id === 'ci1')!
+    expect(tbOriginal.groupId).toBeUndefined()
+    expect(ciOriginal.groupId).toBeUndefined()
+    // applyDualWrite invoked: custom_texts mirror grew by 1 (the copied custom text_box)
+    expect(slide.custom_texts!.length).toBe(2)
+  })
+
+  test('DE7 (PERF-01): single pushHistory per dispatch — past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+        custom_images: [
+          {
+            id: 'ci1',
+            url: 'https://example.com/x.png',
+            x: 20,
+            y: 20,
+            width: 30,
+            height: 30,
+          },
+        ],
+      }),
+    ])
+    expect(initial.past.length).toBe(0)
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['tb1', 'ci1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.past.length).toBe(1) // exactly one pushHistory call
+    expect(next.future.length).toBe(0)
+  })
+
+  test('DE-EMPTY: ids = [] → silent no-op (no pushHistory)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: [],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next).toBe(initial) // ref-equal — no pushHistory
+  })
+
+  test('DE-STALE: ids = ["nonexistent"] → silent no-op (no pushHistory)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['does-not-exist'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next).toBe(initial) // ref-equal — no pushHistory
+  })
+
+  test('DE-DUALWRITE: duplicating a custom-role text_box mirrors to legacy custom_texts; hook/body unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-custom',
+            role: 'custom',
+            text: 'CustomText',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    // The fixture didn't run through dual-write yet (custom_texts undefined).
+    // Count the custom-role text_boxes in the initial state instead, which is
+    // what applyDualWrite will use to regenerate custom_texts.
+    const customRoleCountBefore = (initial.present[0].text_boxes ?? []).filter(
+      (tb) => tb.role === 'custom',
+    ).length
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['tb-custom'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    const slide = next.present[0]
+    // dual-write: hook_text / body_text remain bytewise identical
+    expect(slide.hook_text).toBe('Hook')
+    expect(slide.body_text).toBe('Body')
+    // custom_texts mirror reflects the post-duplicate text_boxes (original + copy)
+    expect(slide.custom_texts!.length).toBe(customRoleCountBefore + 1)
+  })
+
+  test('DE-NON-MATCHING-SLIDE: dispatch on slideIndex 99 leaves all slides ref-equal (no pushHistory)', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb1',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 99,
+      ids: ['tb1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next).toBe(initial)
+  })
+})

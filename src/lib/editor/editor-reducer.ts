@@ -1,4 +1,4 @@
-import type { Slide, TextBox, TextBoxPosition, TextBoxRole } from '@/lib/types/slide'
+import type { Slide, TextBox, TextBoxPosition, TextBoxRole, CustomImage } from '@/lib/types/slide'
 import type { EditorAction } from '@/lib/editor/editor-actions'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import {
@@ -491,6 +491,89 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       // e.g. every requested id was locked or otherwise non-deletable —
       // short-circuit ref-equal so the no-op gesture doesn't pollute undo
       // history. Mirrors the ALIGN/DISTRIBUTE pattern at lines 675/690.
+      if (slides.every((s, i) => s === state.present[i])) return state
+      return pushHistory(state, slides)  // PERF-01: exactly one pushHistory
+    }
+
+    // Phase 66 Plan 02 (DIFF-01, KBD-09, PERF-01): Alt+drag duplicate.
+    //   - Empty / stale ids → silent no-op (matches UNGROUP idempotency).
+    //   - Deep-copies every listed text_box / custom_image with a fresh id
+    //     (crypto.randomUUID()) and applies (deltaX, deltaY) to the copy's
+    //     position; originals are NEVER mutated.
+    //   - Optionally assigns newGroupId on every copy (caller decides; reducer
+    //     trusts it).
+    //   - Skips locked / structural-anchor / non-custom-role text_boxes.
+    //     Watermark lives on slide.watermark — never iterated; silently skipped.
+    //   - text_boxes mutations route through applyDualWrite (BL-01).
+    //   - Single pushHistory per dispatch (KBD-09 / PERF-01).
+    case 'DUPLICATE_ELEMENTS_AT': {
+      if (action.ids.length === 0) return state // DE-EMPTY silent no-op
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const idSet = new Set(action.ids)
+
+        // Build duplicates from text_boxes (custom-role + custom-anchor +
+        // unlocked only — same skip-set as BULK_TRANSLATE/BULK_DELETE).
+        const textBoxCopies: TextBox[] = []
+        for (const tb of slide.text_boxes ?? []) {
+          if (!idSet.has(tb.id)) continue
+          if (tb.locked === true) continue
+          if (tb.role !== 'custom') continue            // structural skip
+          if (tb.position.anchor !== 'custom') continue // structural-anchor skip
+          const copy: TextBox = {
+            ...tb,
+            id: crypto.randomUUID(),
+            position: {
+              ...tb.position,
+              x: (tb.position.x ?? 0) + action.deltaX,
+              y: (tb.position.y ?? 0) + action.deltaY,
+            },
+            ...(action.newGroupId !== undefined
+              ? { groupId: action.newGroupId }
+              : { groupId: undefined }),
+          }
+          textBoxCopies.push(copy)
+        }
+
+        // Build duplicates from custom_images (unlocked only).
+        const imageCopies: CustomImage[] = []
+        for (const ci of slide.custom_images ?? []) {
+          if (!idSet.has(ci.id)) continue
+          if (ci.locked === true) continue
+          const copy: CustomImage = {
+            ...ci,
+            id: crypto.randomUUID(),
+            x: ci.x + action.deltaX,
+            y: ci.y + action.deltaY,
+            ...(action.newGroupId !== undefined
+              ? { groupId: action.newGroupId }
+              : { groupId: undefined }),
+          }
+          imageCopies.push(copy)
+        }
+
+        // Watermark: SKIPPED. Watermark.position is enum-only — cannot be
+        // freeform-translated. Same gap as BULK_TRANSLATE; documented in
+        // 66-CONTEXT.md.
+        if (textBoxCopies.length === 0 && imageCopies.length === 0) {
+          return slide  // truly nothing to copy — no-op for this slide
+        }
+
+        let next: Slide = slide
+        if (textBoxCopies.length > 0) {
+          const nextTextBoxes = [...(slide.text_boxes ?? []), ...textBoxCopies]
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (imageCopies.length > 0) {
+          next = {
+            ...next,
+            custom_images: [...(next.custom_images ?? []), ...imageCopies],
+          }
+        }
+        return next
+      })
+      // Detect any-slide-changed: if every slide returned ref-equal, skip
+      // pushHistory (DE-EMPTY / DE-STALE silent no-op contract).
       if (slides.every((s, i) => s === state.present[i])) return state
       return pushHistory(state, slides)  // PERF-01: exactly one pushHistory
     }
