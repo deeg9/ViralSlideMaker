@@ -157,7 +157,10 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   3. User can press Cmd+] (forward), Cmd+[ (backward), Cmd+Alt+] (to front), Cmd+Alt+[ (to back) to reorder selection within the owning element-type array via array splice — never via CSS `z-index` (Satori invariant); cross-array z-order (text above image) is explicitly deferred to v3.0+ schema unification
   4. Z-order on multi-selection iterates each selected element and applies +1 / −1 individually with array-bound clamping (Figma model — no batch reordering); the `fork_published_carousel` RPC strips the `locked` flag on copy so the forker takes ownership (matches v2.4 `brand_kit_id` strip pattern); all renderers byte-identical pre/post for projects that don't use lock/hide
 
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 64-01-PLAN.md — LOCK reducer + Cmd+Shift+L + drag/resize/delete prevention + marquee skip-locked + lock-icon overlay (LOCK-01..06)
+- [ ] 64-02-PLAN.md — HIDDEN reducer + both renderers honor hidden + selection-bounds skip-hidden + Fork RPC strip-locked (LOCK-07, LOCK-08)
+- [ ] 64-03-PLAN.md — Z_ORDER single action + 4 tinykeys bindings + per-scope routing + multi-selection iteration (ZORDER-01..07)
 **UI hint**: yes
 
 ---
