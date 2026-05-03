@@ -133,7 +133,7 @@
 
 - [x] **PARITY-01**: Selection rings, marquee rect, smart guide lines, group bounding box, layers panel induced ordering — ALL render only when `editable={true}`
 - [ ] **PARITY-02**: Regression test walks `editable={false}` render tree; asserts NO node with class matching `*selection*`, `*marquee*`, `*guide*`, `*layer-overlay*`
-- [ ] **PARITY-03**: Existing `parity.test.tsx` extended with multi-element fixtures (selection ring, group bbox, marquee active, smart guides active)
+- [x] **PARITY-03**: Existing `parity.test.tsx` extended with multi-element fixtures (selection ring, group bbox, marquee active, smart guides active)
 - [ ] **PARITY-04**: All 11 existing templates render byte-identical pre/post v2.11 across both renderers
 - [ ] **PARITY-05**: All v2.9 / v2.10 audits re-run; zero parity regressions
 
@@ -277,7 +277,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | DIFF-03 | Phase 63 | Complete |
 | PARITY-01 | Phase 60 | Complete |
 | PARITY-02 | Phase 65 | Pending |
-| PARITY-03 | Phase 63 | Pending |
+| PARITY-03 | Phase 63 | Complete |
 | PARITY-04 | Phase 65 | Pending |
 | PARITY-05 | Phase 65 | Pending |
 | PERF-01 | Phase 60 | Complete |
