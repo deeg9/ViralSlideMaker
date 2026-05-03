@@ -373,7 +373,7 @@ export const openApiSpec = {
         type: 'object' as const,
         required: ['topic', 'templateId'],
         properties: {
-          topic: { type: 'string' as const, minLength: 1, maxLength: 500 },
+          topic: { type: 'string' as const, minLength: 1, maxLength: 2000 },
           templateId: { type: 'string' as const },
           imageSource: {
             type: 'string' as const,
@@ -536,7 +536,7 @@ export const openApiSpec = {
                 required: ['title'],
                 properties: {
                   title: { type: 'string' as const, minLength: 1, maxLength: 200 },
-                  topic: { type: 'string' as const, maxLength: 500 },
+                  topic: { type: 'string' as const, maxLength: 2000 },
                   templateId: { type: 'string' as const },
                 },
               },

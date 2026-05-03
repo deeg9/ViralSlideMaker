@@ -34,8 +34,8 @@ export const POST = withApiAuth(async (req, ctx) => {
   }
 
   // Validate optional fields
-  if (topic !== undefined && (typeof topic !== 'string' || topic.length > 500)) {
-    return apiError('VALIDATION_ERROR', 'topic must be a string with max 500 characters', 400)
+  if (topic !== undefined && (typeof topic !== 'string' || topic.length > 2000)) {
+    return apiError('VALIDATION_ERROR', 'topic must be a string with max 2000 characters', 400)
   }
 
   if (templateId !== undefined && typeof templateId !== 'string') {

@@ -195,7 +195,7 @@ export function GenerationForm({
             placeholder="e.g. 5 tips for growing your Instagram following, benefits of morning routines, how to start investing..."
             rows={6}
             disabled={busy}
-            maxLength={500}
+            maxLength={2000}
             className="w-full bg-white pt-6 px-6 pb-16 rounded-xl border-b-2 border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 transition-all text-lg resize-none placeholder:text-[#dbc1bc] disabled:opacity-50"
           />
 
@@ -216,6 +216,13 @@ export function GenerationForm({
                 </span>
               )}
             </button>
+
+            <span
+              className="pointer-events-none text-[0.65rem] tracking-wide text-[#7d6161]/60 tabular-nums"
+              aria-live="polite"
+            >
+              {topic.length} / 2000
+            </span>
 
             <button
               type="submit"
