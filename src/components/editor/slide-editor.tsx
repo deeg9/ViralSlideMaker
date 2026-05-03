@@ -11,6 +11,7 @@ import { TextEditorPanel } from '@/components/editor/text-editor-panel'
 import { LegacyTextEditorPanel } from '@/components/editor/text-editor-panel-legacy'
 import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import { ElementsPanel } from '@/components/editor/elements-panel'
+import LayersPanel from '@/components/editor/layers-panel/layers-panel'
 import { Icon } from '@/components/ui/icon'
 import { downloadSlidesAsZip } from '@/lib/download/zip-slides'
 import { VisibilityDropdown } from '@/components/editor/visibility-dropdown'
@@ -1010,6 +1011,42 @@ export function SlideEditor({
     } catch { /* silently handle */ }
   }
 
+  // Phase 65 Plan 01 (LAYERS-04): inline-rename callback wired to the
+  // LEFT-rail layers panel. TextBox.role hook/body are structural —
+  // their label is derived from the role + text content; renaming a
+  // hook/body chip writes to the additive `name?: string` field
+  // (Phase 65 Plan 01 schema-additive on TextBox + CustomImage).
+  // Watermark renames are silently no-op'd (singleton; label derives
+  // from customText). The dispatch shape matches the existing
+  // UPDATE_TEXT_BOX / UPDATE_CUSTOM_IMAGE actions in editor-reducer.
+  const handleLayerRename = useCallback(
+    (elementId: string, newName: string) => {
+      if (!currentSlide) return
+      const tb = currentSlide.text_boxes?.find((b) => b.id === elementId)
+      if (tb) {
+        dispatch({
+          type: 'UPDATE_TEXT_BOX',
+          slideIndex: selectedIndex,
+          textBoxId: elementId,
+          updates: { name: newName },
+        })
+        return
+      }
+      const ci = currentSlide.custom_images?.find((c) => c.id === elementId)
+      if (ci) {
+        dispatch({
+          type: 'UPDATE_CUSTOM_IMAGE',
+          slideIndex: selectedIndex,
+          imageId: elementId,
+          updates: { name: newName },
+        })
+        return
+      }
+      // Watermark / unknown id → silent no-op
+    },
+    [currentSlide, selectedIndex, dispatch],
+  )
+
   return (
     <div className="flex flex-col bg-[#fff8f7] h-[calc(100vh-140px)] lg:h-[calc(100vh-80px)] overflow-hidden">
       {/* Three-panel layout -- no top toolbar */}
@@ -1039,6 +1076,13 @@ export function SlideEditor({
                 setSelectedIndex(to)
               }}
             />
+            {currentSlide && (
+              <LayersPanel
+                slide={currentSlide}
+                selection={selection}
+                onRename={handleLayerRename}
+              />
+            )}
           </div>
 
           {/* Bottom actions: back, title, slide actions, help */}
