@@ -137,6 +137,7 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 | 260502-mre | Remove Generate Captions button + default new carousels to Public | 2026-05-02 | 92af6a7 | [260502-mre-remove-generate-captions-button-and-defa](./quick/260502-mre-remove-generate-captions-button-and-defa/) |
 | 260502-ntp | Raise prompt-box char limit 500→2000 + upgrade Gemini system prompt with 2025-26 hook patterns + slop forbid list | 2026-05-03 | 8c4fa69 | [260502-ntp-raise-prompt-box-character-limit-and-upg](./quick/260502-ntp-raise-prompt-box-character-limit-and-upg/) |
 | 260502-oim | Render first slide as dashboard thumbnail + add inline left/right slide-navigation arrows | 2026-05-03 | e0e7b0d | [260502-oim-replace-dashboard-project-thumbnails-wit](./quick/260502-oim-replace-dashboard-project-thumbnails-wit/) |
+| 260502-pss | Lazy-mount dashboard SlidePreview via IntersectionObserver (perf follow-up to 260502-oim) | 2026-05-03 | c255409 | [260502-pss-lazy-mount-dashboard-slidepreview-via-in](./quick/260502-pss-lazy-mount-dashboard-slidepreview-via-in/) |
 
 (prior history truncated — latest before this: 260502-er5 watermark right-rail UI on 2026-05-02)
 
