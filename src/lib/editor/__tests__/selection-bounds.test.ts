@@ -47,8 +47,11 @@ function makeStructuralTextBox(
   }
 }
 
-function makeWatermark(id: string): Watermark {
-  return { id, enabled: true, position: 'bottom-right' }
+function makeWatermark(
+  id: string,
+  position: 'top-left' | 'bottom-left' | 'bottom-right' = 'bottom-right',
+): Watermark {
+  return { id, enabled: true, position }
 }
 
 function makeSlide(opts: {
@@ -146,19 +149,10 @@ describe('computeSelectionBounds — Phase 60 known gaps (skip semantics)', () =
     expect(computeSelectionBounds(slide, ['hook1'])).toBe(null)
   })
 
-  test('Test 7: watermark id silently skipped — returns bounds of OTHER elements only', () => {
-    const slide = makeSlide({
-      custom_images: [makeCustomImage('img', 10, 10, 20, 20)],
-      watermark: makeWatermark('w_0'),
-    })
-    const result = computeSelectionBounds(slide, ['w_0', 'img'])
-    expect(result).toEqual<AABB>({ x: 10, y: 10, width: 20, height: 20 })
-  })
-
-  test('Test 7b: only watermark selected → returns null (Phase 60 gap)', () => {
-    const slide = makeSlide({ watermark: makeWatermark('w_0') })
-    expect(computeSelectionBounds(slide, ['w_0'])).toBe(null)
-  })
+  // Phase 63 D-01: Tests 7 / 7b are SUPERSEDED by Tests 12 / 13 below. The
+  // Phase 60 watermark-skip gap is closed: watermark contributes its
+  // placeholder rect to the union AABB. Read-side ALIGN-10 is now uniform
+  // across element types; the move-side filter is the caller's job.
 })
 
 describe('computeSelectionBounds — purity invariant', () => {
@@ -171,5 +165,104 @@ describe('computeSelectionBounds — purity invariant', () => {
     expect(src).not.toMatch(/from ['"]react['"]/)
     expect(src).not.toMatch(/['"]use client['"]/)
     expect(src).not.toMatch(/document\.|window\./)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 63 D-01: locked + watermark INCLUDED in bounds (read side of
+// ALIGN-10). Closes Phase 60 known gaps #2 (watermark) and partially #3
+// (locked elements were already implicitly included; tests pin that).
+// The MOVE side filter (locked/watermark exclusion from translation) is
+// the caller's job — see align.ts and the ALIGN/DISTRIBUTE reducer cases.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('computeSelectionBounds — Phase 63 (locked + watermark in bounds)', () => {
+  test('Test 11 (ALIGN-10 read): selection containing a locked custom_image returns bounds INCLUDING that image', () => {
+    const lockedImg: CustomImage = {
+      id: 'locked-img',
+      url: 'https://example.com/x.png',
+      x: 5,
+      y: 5,
+      width: 25,
+      height: 25,
+      locked: true,
+    }
+    const slide = makeSlide({
+      custom_images: [lockedImg, makeCustomImage('free', 50, 50, 20, 20)],
+    })
+    const result = computeSelectionBounds(slide, ['locked-img', 'free'])
+    // locked-img: rect (5,5,25,25); free: rect (50,50,20,20)
+    // minX=5, minY=5, maxX=70, maxY=70 → width=65, height=65
+    expect(result).toEqual<AABB>({ x: 5, y: 5, width: 65, height: 65 })
+  })
+
+  test('Test 12: selection containing watermark contributes a placeholder rect (bottom-right anchor)', () => {
+    const slide = makeSlide({
+      watermark: makeWatermark('w_0', 'bottom-right'),
+      custom_images: [makeCustomImage('img', 10, 10, 20, 20)],
+    })
+    const result = computeSelectionBounds(slide, ['w_0', 'img'])
+    // Watermark placeholder: 18% wide × 5% tall, anchored bottom-right (x=82, y=95)
+    // img: rect (10,10,20,20)
+    // minX=10, minY=10, maxX=max(30, 82+18=100)=100, maxY=max(30, 95+5=100)=100
+    expect(result).not.toBeNull()
+    expect(result!.x).toBe(10)
+    expect(result!.y).toBe(10)
+    expect(result!.width).toBe(90)
+    expect(result!.height).toBe(90)
+  })
+
+  test('Test 12b: only watermark (top-left) selected → returns its placeholder rect', () => {
+    const slide = makeSlide({
+      watermark: makeWatermark('w_0', 'top-left'),
+    })
+    const result = computeSelectionBounds(slide, ['w_0'])
+    // top-left placeholder: x=0, y=0, width=18, height=5
+    expect(result).toEqual<AABB>({ x: 0, y: 0, width: 18, height: 5 })
+  })
+
+  test('Test 12c: only watermark (bottom-left) selected → returns its placeholder rect', () => {
+    const slide = makeSlide({
+      watermark: makeWatermark('w_0', 'bottom-left'),
+    })
+    const result = computeSelectionBounds(slide, ['w_0'])
+    // bottom-left placeholder: x=0, y=95, width=18, height=5
+    expect(result).toEqual<AABB>({ x: 0, y: 95, width: 18, height: 5 })
+  })
+
+  test('Test 13: selection of ONLY watermark + ONLY locked custom_image — both contribute; bounds equals union', () => {
+    const lockedImg: CustomImage = {
+      id: 'locked-img',
+      url: 'https://example.com/x.png',
+      x: 40,
+      y: 40,
+      width: 10,
+      height: 10,
+      locked: true,
+    }
+    const slide = makeSlide({
+      custom_images: [lockedImg],
+      watermark: makeWatermark('w_0', 'top-left'),
+    })
+    const result = computeSelectionBounds(slide, ['w_0', 'locked-img'])
+    // watermark top-left: (0,0,18,5); locked-img: (40,40,10,10)
+    // minX=0, minY=0, maxX=max(18,50)=50, maxY=max(5,50)=50
+    expect(result).toEqual<AABB>({ x: 0, y: 0, width: 50, height: 50 })
+  })
+
+  test('Test 14 (purity): no React / use-client / DOM imports after the Phase 63 lift', () => {
+    const filePath = path.resolve(
+      process.cwd(),
+      'src/lib/editor/transforms/selection-bounds.ts',
+    )
+    const src = fs.readFileSync(filePath, 'utf8')
+    expect(src).not.toMatch(/from ['"]react['"]/)
+    expect(src).not.toMatch(/['"]use client['"]/)
+    expect(src).not.toMatch(/document\.|window\./)
+    // Phase 63 invariants (close-the-gap):
+    //   - "Watermark intentionally skipped" comment must be gone.
+    //   - No `locked` skip in this read-only function.
+    expect(src).not.toMatch(/Watermark intentionally skipped/)
+    expect(src).not.toMatch(/if\s*\([^)]*\.locked\b/)
   })
 })
