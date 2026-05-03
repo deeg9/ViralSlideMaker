@@ -207,7 +207,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 | 60. Multi-Select Foundation + Watermark Schema Lift | 5/5 | Complete | 2026-05-03 |
 | 61. Marquee Selection | 2/2 | Complete | 2026-05-02 |
 | 62. Group / Ungroup | 3/3 | Complete | 2026-05-03 |
-| 63. Alignment / Distribute + Smart Guides | 0/0 | Not started | - |
+| 63. Alignment / Distribute + Smart Guides | 1/5 | In Progress|  |
 | 64. Lock / Hide + Z-Order | 0/0 | Not started | - |
 | 65. Layers Panel + TPLREND-05 Audit | 0/0 | Not started | - |
 | 66. Power-User Differentiators + Polish | 0/0 | Not started | - |
