@@ -400,6 +400,186 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, slides)  // PERF-01: exactly one pushHistory
     }
 
+    // Phase 62 (GROUP-02, GROUP-04, GROUP-05, KBD-09, BL-01): GROUP single-
+    // dispatch contract.
+    //   - ids.length <= 1 → silent no-op (return state unchanged; PITFALL-3.4).
+    //   - ids.length >= 2 → assign action.groupId to every listed id; the
+    //     reducer trusts the caller-provided groupId.
+    //   - "Subset of an existing group dissolves prior group" cascade
+    //     (PITFALL-3.3 — flat schema only): if any listed id already carries
+    //     a different groupId, the OLD group is dissolved entirely. Any
+    //     non-listed members of any old groupId hit by the cascade have
+    //     their groupId cleared.
+    //   - text_boxes mutations route through applyDualWrite (BL-01).
+    //   - Single pushHistory per dispatch (KBD-09 / PERF-01).
+    case 'GROUP': {
+      if (action.ids.length <= 1) return state // GROUP-04 / PITFALL-3.4
+
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const idSet = new Set(action.ids)
+
+        // Detect prior groupIds among the selected ids — drives the
+        // "subset dissolves prior group" cascade for unselected members.
+        const oldGroupIds = new Set<string>()
+        for (const tb of slide.text_boxes ?? []) {
+          if (idSet.has(tb.id) && tb.groupId !== undefined && tb.groupId !== action.groupId) {
+            oldGroupIds.add(tb.groupId)
+          }
+        }
+        for (const ci of slide.custom_images ?? []) {
+          if (idSet.has(ci.id) && ci.groupId !== undefined && ci.groupId !== action.groupId) {
+            oldGroupIds.add(ci.groupId)
+          }
+        }
+        if (
+          slide.watermark &&
+          idSet.has(slide.watermark.id) &&
+          slide.watermark.groupId !== undefined &&
+          slide.watermark.groupId !== action.groupId
+        ) {
+          oldGroupIds.add(slide.watermark.groupId)
+        }
+
+        // Walk text_boxes
+        let nextTextBoxes = slide.text_boxes
+        if (slide.text_boxes) {
+          nextTextBoxes = slide.text_boxes.map((tb) => {
+            if (idSet.has(tb.id)) {
+              return tb.groupId === action.groupId ? tb : { ...tb, groupId: action.groupId }
+            }
+            if (tb.groupId !== undefined && oldGroupIds.has(tb.groupId)) {
+              // Subset cascade: clear groupId on un-listed members of dissolved old group.
+              const { groupId: _g, ...rest } = tb
+              return rest as TextBox
+            }
+            return tb
+          })
+        }
+
+        // Walk custom_images
+        let nextCustomImages = slide.custom_images
+        if (slide.custom_images) {
+          nextCustomImages = slide.custom_images.map((ci) => {
+            if (idSet.has(ci.id)) {
+              return ci.groupId === action.groupId ? ci : { ...ci, groupId: action.groupId }
+            }
+            if (ci.groupId !== undefined && oldGroupIds.has(ci.groupId)) {
+              const { groupId: _g, ...rest } = ci
+              return rest
+            }
+            return ci
+          })
+        }
+
+        // Watermark: single optional value
+        let nextWatermark = slide.watermark
+        if (slide.watermark) {
+          if (idSet.has(slide.watermark.id)) {
+            nextWatermark =
+              slide.watermark.groupId === action.groupId
+                ? slide.watermark
+                : { ...slide.watermark, groupId: action.groupId }
+          } else if (
+            slide.watermark.groupId !== undefined &&
+            oldGroupIds.has(slide.watermark.groupId)
+          ) {
+            const { groupId: _g, ...rest } = slide.watermark
+            nextWatermark = rest
+          }
+        }
+
+        let next: Slide = slide
+        if (nextTextBoxes !== slide.text_boxes && nextTextBoxes !== undefined) {
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (nextCustomImages !== slide.custom_images) {
+          next = { ...next, custom_images: nextCustomImages }
+        }
+        if (nextWatermark !== slide.watermark) {
+          next = { ...next, watermark: nextWatermark }
+        }
+        return next
+      })
+      return pushHistory(state, slides)  // KBD-09: exactly one pushHistory
+    }
+
+    // Phase 62 (GROUP-03, KBD-09, BL-01): UNGROUP single-dispatch contract.
+    //   - Clear groupId on every listed id; un-listed members keep theirs
+    //     (no cascade — that's GROUP-only behavior).
+    //   - Idempotent on already-ungrouped: if NO listed id carries a groupId,
+    //     return state unchanged (no pushHistory dispatch).
+    //   - Lossless across unlimited cycles — absolute positions preserved
+    //     byte-identically (Test U3 pins this).
+    //   - text_boxes mutations route through applyDualWrite (BL-01).
+    //   - Single pushHistory per dispatch (KBD-09 / PERF-01).
+    case 'UNGROUP': {
+      const idSet = new Set(action.ids)
+      let anyChange = false
+
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+
+        let textBoxesChanged = false
+        let nextTextBoxes = slide.text_boxes
+        if (slide.text_boxes) {
+          nextTextBoxes = slide.text_boxes.map((tb) => {
+            if (idSet.has(tb.id) && tb.groupId !== undefined) {
+              textBoxesChanged = true
+              const { groupId: _g, ...rest } = tb
+              return rest as TextBox
+            }
+            return tb
+          })
+        }
+
+        let customImagesChanged = false
+        let nextCustomImages = slide.custom_images
+        if (slide.custom_images) {
+          nextCustomImages = slide.custom_images.map((ci) => {
+            if (idSet.has(ci.id) && ci.groupId !== undefined) {
+              customImagesChanged = true
+              const { groupId: _g, ...rest } = ci
+              return rest
+            }
+            return ci
+          })
+        }
+
+        let watermarkChanged = false
+        let nextWatermark = slide.watermark
+        if (
+          slide.watermark &&
+          idSet.has(slide.watermark.id) &&
+          slide.watermark.groupId !== undefined
+        ) {
+          watermarkChanged = true
+          const { groupId: _g, ...rest } = slide.watermark
+          nextWatermark = rest
+        }
+
+        if (!textBoxesChanged && !customImagesChanged && !watermarkChanged) {
+          return slide
+        }
+        anyChange = true
+
+        let next: Slide = slide
+        if (textBoxesChanged && nextTextBoxes !== undefined) {
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (customImagesChanged) {
+          next = { ...next, custom_images: nextCustomImages }
+        }
+        if (watermarkChanged) {
+          next = { ...next, watermark: nextWatermark }
+        }
+        return next
+      })
+
+      if (!anyChange) return state // U4 idempotency
+      return pushHistory(state, slides)  // KBD-09: exactly one pushHistory
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state
       const previous = state.past[state.past.length - 1]
