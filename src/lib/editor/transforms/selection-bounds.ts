@@ -1,16 +1,23 @@
 /**
  * Phase 60 (SEL-13): Pure union-AABB computation for the multi-select ring.
+ * Phase 63 D-01 (ALIGN-10 read side): EXTENDED to include locked elements
+ * and the watermark in the union AABB. The MOVE-side filter (skip locked,
+ * skip watermark) is the caller's job — see align.ts and the
+ * ALIGN/DISTRIBUTE reducer cases.
  *
  * No React or DOM. Reusable from any layer (server, RPC, future MCP tool).
  * Mirrors text-box-adapter.ts pure-module convention.
  *
- * Phase 60 known gaps (TODO when later phases revisit):
+ * Phase 63 closes Phase 60 known gaps #2 (watermark) and #3 (locked elements
+ * documented "TBD" semantics). Watermark size is computed from a placeholder
+ * rect (18% wide × 5% tall) anchored per the watermark.position enum
+ * ('top-left' / 'bottom-left' / 'bottom-right'). True schema-derived
+ * freeform watermark sizing is a Phase 64 task.
+ *
+ * Phase 60 known gap STILL OPEN:
  *  - Structural-anchor TextBoxes (anchor !== 'custom') are SKIPPED — height
  *    resolution requires DOM ref via the rendered-height observer pattern at
- *    slide-preview.tsx:589-637. Phase 63 (alignment) will lift that into a
- *    shared helper.
- *  - Watermarks are SKIPPED — size is computed by resolveWatermark /
- *    resolveForcedWatermark at render time. Phase 62/63 revisit.
+ *    slide-preview.tsx:589-637. Phase 64 lift target.
  */
 
 import type { Slide } from '@/lib/types/slide'
@@ -27,6 +34,33 @@ export interface AABB {
 }
 
 /**
+ * Phase 63 placeholder watermark size. Phase 64 lifts to schema-derived
+ * freeform positioning when the watermark gains x/y/width/height. The 18%×5%
+ * rect is a conservative match for the rendered watermark badge at the
+ * 1080×1920 reference (~194×96 px); good enough for alignment-target bounds
+ * without a render-time measurement.
+ */
+const WATERMARK_PLACEHOLDER_WIDTH = 18
+const WATERMARK_PLACEHOLDER_HEIGHT = 5
+
+function watermarkPlaceholderRect(
+  position: 'top-left' | 'bottom-left' | 'bottom-right' | undefined,
+): AABB {
+  const w = WATERMARK_PLACEHOLDER_WIDTH
+  const h = WATERMARK_PLACEHOLDER_HEIGHT
+  switch (position) {
+    case 'top-left':
+      return { x: 0, y: 0, width: w, height: h }
+    case 'bottom-left':
+      return { x: 0, y: 100 - h, width: w, height: h }
+    case 'bottom-right':
+    default:
+      // Default + explicit 'bottom-right'.
+      return { x: 100 - w, y: 100 - h, width: w, height: h }
+  }
+}
+
+/**
  * Compute the union axis-aligned bounding box (in canvas %) for the given
  * selection ids on a slide.
  *
@@ -34,9 +68,14 @@ export interface AABB {
  *   - `ids` is empty
  *   - none of `ids` resolve to a contributing element on the slide
  *
- * Phase 60 conservative behavior (see header):
- *   - Skip TextBoxes with `position.anchor !== 'custom'` (no x/y to resolve).
- *   - Skip the watermark (enum-only position; resolveWatermark owns size).
+ * Phase 63 D-01: locked + watermark are INCLUDED in the union AABB so
+ * alignment-to-selection bounds is computed against the visible footprint
+ * of every selected element. The MOVE side filters locked + watermark out
+ * — see align.ts and reducer ALIGN/DISTRIBUTE cases.
+ *
+ * Phase 60 conservative behavior STILL HONORED:
+ *   - Skip TextBoxes with `position.anchor !== 'custom'` (no x/y to resolve;
+ *     DOM-ref height resolution is a Phase 64 task).
  */
 export function computeSelectionBounds(
   slide: Slide,
@@ -49,21 +88,28 @@ export function computeSelectionBounds(
 
   for (const tb of slide.text_boxes ?? []) {
     if (!idSet.has(tb.id)) continue
-    if (tb.position.anchor !== 'custom') continue // Phase 60 known gap (see header)
+    if (tb.position.anchor !== 'custom') continue // Phase 64 lift target
     rects.push({
       x: tb.position.x ?? 0,
       y: tb.position.y ?? 0,
       width: tb.position.width ?? 60,
-      height: 0, // Phase 60 known gap — DOM-ref-based resolution lands later
+      height: 0, // Phase 64 lift target — DOM-ref-based resolution
     })
   }
 
   for (const ci of slide.custom_images ?? []) {
     if (!idSet.has(ci.id)) continue
+    // Phase 63 D-01: locked === true is INCLUDED in bounds. The reducer's
+    // ALIGN / DISTRIBUTE / BULK_TRANSLATE move-side filter excludes locked
+    // from translation; this read-side helper is uniform across lock state.
     rects.push({ x: ci.x, y: ci.y, width: ci.width, height: ci.height })
   }
 
-  // Watermark intentionally skipped — see header comment.
+  // Phase 63 D-01: watermark contributes a placeholder rect derived from
+  // its position enum. Move-side filter is in align.ts + reducer.
+  if (slide.watermark && idSet.has(slide.watermark.id)) {
+    rects.push(watermarkPlaceholderRect(slide.watermark.position))
+  }
 
   if (rects.length === 0) return null
 
