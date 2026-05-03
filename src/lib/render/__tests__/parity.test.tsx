@@ -413,6 +413,54 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     ).not.toBeNull()
   })
 
+  it('PARITY-01 (Phase 64 Plan 01): editable={false} renders no lock-icon even when locked elements present (TPLREND-05 invariant)', () => {
+    // Phase 64 Plan 01 lands the SIXTH concrete chrome that the PARITY-01
+    // scan gates against — the lock-icon overlay (data-testid="lock-icon").
+    // Same shape as the multi-selection-ring / marquee / group-ring /
+    // floating-toolbar / smart-guide scans above. The structural gate is
+    // the line-916 early return for editable=false (lock icons are rendered
+    // inside the editable=true Rnd children, downstream of the early return).
+    const slide: Slide = {
+      hook_text: 'STOP SCROLLING',
+      body_text: 'Body text here',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: { hook_font_size: 60, hook_width: 100 },
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20, locked: true },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25, locked: true },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+
+    const { container: locked } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    // Even with TWO locked custom_images, no lock-icon must appear in the
+    // editable=false render — Satori PNG export must NEVER show editor chrome.
+    expect(locked.querySelector('[data-testid="lock-icon"]')).toBeNull()
+    expect(locked.innerHTML).not.toMatch(/data-testid="[^"]*lock-icon[^"]*"/)
+
+    // Sanity: editable=true render DOES surface the lock icon (so the test
+    // doesn't pass vacuously when the implementation silently no-ops).
+    const { container: editable } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+      />,
+    )
+    expect(editable.querySelector('[data-testid="lock-icon"]')).not.toBeNull()
+  })
+
   it('PARITY-01 (Plan 60-05, SEL-13): editable={true} renders no ring when N<2 (single-select unchanged)', () => {
     // Confirms the union-AABB ring is gated on selection.ids.length >= 2 —
     // single-select uses the existing per-element dashed ring, not the union.
