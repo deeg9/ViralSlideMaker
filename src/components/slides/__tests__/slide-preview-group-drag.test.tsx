@@ -59,6 +59,7 @@ type RndProps = {
 interface RndRegistryEntry {
   position: { x: number; y: number }
   onDragStop?: RndProps['onDragStop']
+  onDragStart?: RndProps['onDragStart']
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,6 +75,7 @@ vi.mock('react-rnd', () => {
     rndRegistry.current[key] = {
       position: props.position,
       onDragStop: props.onDragStop,
+      onDragStart: props.onDragStart,
     }
     return React.createElement(
       'div',
@@ -223,9 +225,12 @@ describe('Phase 62 Plan 03 (GROUP-09): group drag dispatches BULK_TRANSLATE in a
     expect(entry).toBeDefined()
     expect(entry.onDragStop).toBeDefined()
 
-    // Simulate drag stopping at +50px x, +30px y from current position.
+    // Simulate drag from current position +50px x, +30px y.
+    // Fire onDragStart so the slide-preview's drag-start ref is populated;
+    // the GROUP-09 delta computation reads { newX - startRef.x } / REF_WIDTH.
     const startX = entry.position.x
     const startY = entry.position.y
+    entry.onDragStart?.({}, { x: startX, y: startY })
     const newX = startX + 50
     const newY = startY + 30
     entry.onDragStop!({}, {
@@ -273,6 +278,7 @@ describe('Phase 62 Plan 03 (GROUP-09): group drag dispatches BULK_TRANSLATE in a
     // Drag from (10%,10%) to (15%,15%) — delta = +5%/+5% relative.
     const startX = entry.position.x
     const startY = entry.position.y
+    entry.onDragStart?.({}, { x: startX, y: startY })
     const newX = startX + (5 / 100) * REF_WIDTH
     const newY = startY + (5 / 100) * REF_HEIGHT
     entry.onDragStop!({}, {

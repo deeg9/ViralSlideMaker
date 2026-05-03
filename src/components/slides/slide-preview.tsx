@@ -14,10 +14,11 @@ import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
 // Pure module — no React/DOM coupling. Editor-only chrome consumer; gated
 // strictly to the editable={true} branch below.
 import { computeSelectionBounds } from '@/lib/editor/transforms/selection-bounds'
-// Phase 62 (GROUP-06, GROUP-10): cross-type group membership read for the
-// dashed group-bounding-ring + group-aware click handlers. Pure module
-// (no React/DOM); same TPLREND-05 structural gate as computeSelectionBounds.
-import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
+// Phase 62 (GROUP-06, GROUP-09, GROUP-10): cross-type group membership read
+// for the dashed group-bounding-ring + group-aware click handlers + group-
+// drag detection. Pure module (no React/DOM); same TPLREND-05 structural
+// gate as computeSelectionBounds.
+import { getGroupMembers, shouldGroupDrag } from '@/lib/editor/transforms/group-membership'
 // Phase 61 Plan 02 (SEL-05, SEL-06, SEL-14): marquee selection state machine.
 // Pure helpers from Plan 61-01 — rect canonicalization + Figma-intersect AABB
 // + render-only overlay component. All editor-only chrome; structurally gated
@@ -371,6 +372,20 @@ interface SlidePreviewProps {
   currentlyInsideGroup?: string | null
   onEnterGroup?: (elementId: string, slide: Slide) => void
   onExitGroup?: () => void
+  // Phase 62 (GROUP-09, KBD-09): group drag fan-out. When the active drag
+  // gesture started on an element whose groupId matches the current
+  // selection's full member set AND currentlyInsideGroup === null, the
+  // onDragStop branch dispatches a single BULK_TRANSLATE-equivalent
+  // payload via this callback INSTEAD of the per-element position-change
+  // callback. Single user gesture → one history entry (KBD-09 / PERF-01
+  // carry-forward from Plan 60-03). The slide-editor wiring routes this
+  // into dispatch({ type: 'BULK_TRANSLATE', ... }).
+  onGroupDrag?: (payload: {
+    slideIndex: number
+    ids: string[]
+    deltaX: number
+    deltaY: number
+  }) => void
 }
 
 export function SlidePreview({
@@ -389,6 +404,7 @@ export function SlidePreview({
   currentlyInsideGroup,
   onEnterGroup,
   onExitGroup,
+  onGroupDrag,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -1232,7 +1248,30 @@ export function SlidePreview({
           onDragStop={(_e, data) => {
             clearGuides()
             // Phase 61 Plan 02 (KBD-07): clear drag-start ref on gesture end.
+            const startRef = hookDragStartRef.current
             hookDragStartRef.current = null
+            // Phase 62 (GROUP-09 / KBD-09): if this drag started a group drag,
+            // dispatch BULK_TRANSLATE in ONE call via onGroupDrag. The hook's
+            // groupId is on the canonical text_boxes mirror; resolve via id.
+            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+            if (hookBox && onGroupDrag && selection) {
+              const groupIds = shouldGroupDrag(
+                slide,
+                selection,
+                currentlyInsideGroup ?? null,
+                hookBox.id,
+              )
+              if (groupIds) {
+                const deltaX = startRef
+                  ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                  : 0
+                const deltaY = startRef
+                  ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                  : 0
+                onGroupDrag({ slideIndex: index, ids: groupIds, deltaX, deltaY })
+                return
+              }
+            }
             if (!onPositionChange) return
             const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
             const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
@@ -1417,7 +1456,28 @@ export function SlidePreview({
             onDragStop={(_e, data) => {
               clearGuides()
               // Phase 61 Plan 02 (KBD-07): clear drag-start ref.
+              const startRef = bodyDragStartRef.current
               bodyDragStartRef.current = null
+              // Phase 62 (GROUP-09 / KBD-09): group drag fan-out branch.
+              const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+              if (bodyBox && onGroupDrag && selection) {
+                const groupIds = shouldGroupDrag(
+                  slide,
+                  selection,
+                  currentlyInsideGroup ?? null,
+                  bodyBox.id,
+                )
+                if (groupIds) {
+                  const deltaX = startRef
+                    ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                    : 0
+                  const deltaY = startRef
+                    ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                    : 0
+                  onGroupDrag({ slideIndex: index, ids: groupIds, deltaX, deltaY })
+                  return
+                }
+              }
               if (!onPositionChange) return
               const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
               const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
@@ -1600,10 +1660,33 @@ export function SlidePreview({
                 setDraggingElementId(null)
                 setOverTrash(false)
                 // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
+                const startRef = customTextDragStartRefs.current[ct.id]
                 delete customTextDragStartRefs.current[ct.id]
                 if (yPercent > 85) {
                   onCustomTextRemove?.(ct.id)
                   return
+                }
+                // Phase 62 (GROUP-09 / KBD-09): group drag fan-out branch.
+                // Trash-zone drop above takes precedence (it's still a single
+                // gesture, but the user's intent is delete-not-move; this
+                // matches the existing per-element fall-through ordering).
+                if (onGroupDrag && selection) {
+                  const groupIds = shouldGroupDrag(
+                    slide,
+                    selection,
+                    currentlyInsideGroup ?? null,
+                    ct.id,
+                  )
+                  if (groupIds) {
+                    const deltaX = startRef
+                      ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                      : 0
+                    const deltaY = startRef
+                      ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                      : 0
+                    onGroupDrag({ slideIndex: index, ids: groupIds, deltaX, deltaY })
+                    return
+                  }
                 }
                 const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
                 const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
@@ -1854,11 +1937,31 @@ export function SlidePreview({
                 setDraggingElementId(null)
                 setOverTrash(false)
                 // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
+                const startRef = customImageDragStartRefs.current[ci.id]
                 delete customImageDragStartRefs.current[ci.id]
                 if (yPercent > 85) {
                   // Dropped on trash zone — delete
                   onCustomImageRemove?.(ci.id)
                   return
+                }
+                // Phase 62 (GROUP-09 / KBD-09): group drag fan-out branch.
+                if (onGroupDrag && selection) {
+                  const groupIds = shouldGroupDrag(
+                    slide,
+                    selection,
+                    currentlyInsideGroup ?? null,
+                    ci.id,
+                  )
+                  if (groupIds) {
+                    const deltaX = startRef
+                      ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                      : 0
+                    const deltaY = startRef
+                      ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                      : 0
+                    onGroupDrag({ slideIndex: index, ids: groupIds, deltaX, deltaY })
+                    return
+                  }
                 }
                 const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
                 const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
