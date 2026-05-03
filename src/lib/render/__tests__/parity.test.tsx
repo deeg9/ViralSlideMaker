@@ -739,6 +739,315 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     expect(finalB.groupId).toBeUndefined()
   })
 
+  // ───────────────────────────────────────────────────────────────────────
+  // PARITY-03 (Phase 63 Plan 05 milestone gate): every editor-only chrome
+  // surface introduced in v2.11 (multi-selection-ring, group-bounding-ring,
+  // marquee-rect/marquee-overlay, floating-alignment-toolbar, smart-guide-
+  // overlay-x/y/equal) MUST be structurally absent from the editable={false}
+  // render tree. PT-03H is the positive control — same fixture editable={true}
+  // must render every testid (except marquee-overlay, which is transient
+  // local state — only active during a marquee drag, not selection-driven).
+  //
+  // PT-03A..F are regression confirmations under Phase 63 changes. PT-03G is
+  // the kitchen-sink: every chrome simultaneously, all absent in non-editable.
+  // PT-03H is the inverse: same fixture editable={true} → all chrome PRESENT.
+  // The pair (G/H) prevents the false-negative class where a test passes only
+  // because the fixture is broken upstream.
+  // ───────────────────────────────────────────────────────────────────────
+  it('PARITY-03 PT-03A (Plan 63-05): editable={false} + N>=2 selection → no multi-selection-ring (regression confirmation under Phase 63 changes)', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={{ ids: ['img-a', 'img-b'], primary: 'img-b' }}
+      />,
+    )
+    expect(container.querySelector('[data-testid="multi-selection-ring"]')).toBeNull()
+    expect(container.innerHTML).not.toMatch(/multi-selection-ring/)
+  })
+
+  it('PARITY-03 PT-03B (Plan 63-05): editable={false} + 2 grouped elements → no group-bounding-ring (regression confirmation under Phase 63 changes)', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20, groupId: 'g_x' },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25, groupId: 'g_x' },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={{ ids: ['img-a', 'img-b'], primary: 'img-b' }}
+        currentlyInsideGroup={null}
+      />,
+    )
+    expect(container.querySelector('[data-testid="group-bounding-ring"]')).toBeNull()
+    expect(container.innerHTML).not.toMatch(/group-bounding-ring/)
+  })
+
+  it('PARITY-03 PT-03C (Plan 63-05): editable={false} → no marquee-overlay (Phase 61 chrome gated; Phase 63 regression confirmation)', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={{ ids: [], primary: null }}
+      />,
+    )
+    expect(container.querySelector('[data-testid="marquee-overlay"]')).toBeNull()
+    expect(container.innerHTML).not.toMatch(/marquee-overlay/)
+    expect(container.innerHTML).not.toMatch(/marquee-rect/)
+  })
+
+  it('PARITY-03 PT-03D (Plan 63-05): editable={false} + N>=2 + onAlign provided → no floating-alignment-toolbar (Plan 63-02 chrome gated)', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 15, height: 15 },
+        { id: 'img-b', url: 'data:,', x: 30, y: 10, width: 15, height: 15 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={{ ids: ['img-a', 'img-b'], primary: 'img-b' }}
+        onAlign={() => {}}
+      />,
+    )
+    expect(container.querySelector('[data-testid="floating-alignment-toolbar"]')).toBeNull()
+    expect(container.innerHTML).not.toMatch(/floating-alignment-toolbar/)
+  })
+
+  it('PARITY-03 PT-03E (Plan 63-05): editable={false} → no smart-guide-overlay (Plan 63-04 chrome gated; -root, -x, -y, -equal sub-pools all absent)', () => {
+    // Smart-guide overlay's root container + all three sub-pool testids
+    // (-x for vertical lines, -y for horizontal lines, -equal for the pink
+    // == indicator) must be structurally absent from editable={false}.
+    // The structural gate is the line-790 early return; the overlay JSX
+    // (line ~2433) is downstream of it.
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    expect(container.querySelector('[data-testid="smart-guide-overlay-root"]')).toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-x"]')).toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-y"]')).toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-equal"]')).toBeNull()
+    expect(container.innerHTML).not.toMatch(/smart-guide-overlay-x/)
+    expect(container.innerHTML).not.toMatch(/smart-guide-overlay-y/)
+    expect(container.innerHTML).not.toMatch(/smart-guide-overlay-equal/)
+  })
+
+  it('PARITY-03 PT-03F (Plan 63-05): editable={false} + 3 equally-spaced elements → no equal-spacing == indicator (covered by smart-guide-overlay-equal absence)', () => {
+    // The == indicator lives inside the smart-guide-overlay-equal sub-pool,
+    // which is itself inside smart-guide-overlay-root. Verify the equal-
+    // spacing scaffold is structurally unreachable. The pink color marker
+    // (#FF00C7) used by the indicator is also absent — defensive scan.
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 10, height: 10 },
+        { id: 'img-b', url: 'data:,', x: 30, y: 10, width: 10, height: 10 },
+        { id: 'img-c', url: 'data:,', x: 50, y: 10, width: 10, height: 10 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    expect(container.querySelector('[data-testid="smart-guide-overlay-equal"]')).toBeNull()
+    // Defensive scan for the Figma signature pink — should not appear in the
+    // non-editable render path (no equal-spacing indicator can render).
+    expect(container.innerHTML).not.toMatch(/#FF00C7/i)
+    expect(container.innerHTML).not.toMatch(/smart-guide-overlay-equal/)
+  })
+
+  it('PARITY-03 PT-03G (Plan 63-05) — KITCHEN SINK: editable={false} with grouped + locked + watermark + N=4 selection → ALL editor-only chrome testids absent', () => {
+    // Constructs a single fixture that, in the editable={true} branch, would
+    // render: multi-selection-ring (N>=2), group-bounding-ring (2 grouped
+    // elements selected), floating-alignment-toolbar (N>=2 + onAlign), and
+    // smart-guide-overlay-{root,x,y,equal} (mounted unconditionally inside
+    // editable=true). The non-editable render must contain NONE of them.
+    const slide: Slide = {
+      hook_text: 'STOP',
+      body_text: 'Body',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: { hook_font_size: 60, hook_width: 100 },
+      watermark: { id: 'w_0', enabled: true, customText: 'Brand', position: 'bottom-right' },
+      custom_images: [
+        // 2 grouped (would form a group-bounding-ring)
+        { id: 'img-grp-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20, groupId: 'g_x' },
+        { id: 'img-grp-b', url: 'data:,', x: 35, y: 10, width: 20, height: 20, groupId: 'g_x' },
+        // 1 locked (Phase 63 ALIGN-10 — included in bounds, excluded from move)
+        { id: 'img-locked', url: 'data:,', x: 60, y: 60, width: 15, height: 15, locked: true },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const selection = {
+      ids: ['img-grp-a', 'img-grp-b', 'img-locked', 'w_0'],
+      primary: 'img-locked',
+    }
+
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={selection}
+        currentlyInsideGroup={null}
+        onAlign={() => {}}
+      />,
+    )
+    // Every v2.11 editor-only chrome surface — all absent.
+    expect(container.querySelector('[data-testid="multi-selection-ring"]')).toBeNull()
+    expect(container.querySelector('[data-testid="group-bounding-ring"]')).toBeNull()
+    expect(container.querySelector('[data-testid="marquee-overlay"]')).toBeNull()
+    expect(container.querySelector('[data-testid="floating-alignment-toolbar"]')).toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-root"]')).toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-x"]')).toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-y"]')).toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-equal"]')).toBeNull()
+    // Inner HTML defensive scan — no chrome testid OR class survives.
+    const html = container.innerHTML
+    expect(html).not.toMatch(/multi-selection-ring/)
+    expect(html).not.toMatch(/group-bounding-ring/)
+    expect(html).not.toMatch(/marquee-overlay/)
+    expect(html).not.toMatch(/floating-alignment-toolbar/)
+    expect(html).not.toMatch(/data-testid="[^"]*smart-guide[^"]*"/)
+    expect(html).not.toMatch(/data-testid="[^"]*alignment-guide[^"]*"/)
+  })
+
+  it('PARITY-03 PT-03H (Plan 63-05) — POSITIVE CONTROL: same fixture editable={true} → multi-selection-ring + group-bounding-ring + floating-alignment-toolbar + smart-guide-overlay-root all PRESENT', () => {
+    // Inverse of PT-03G. If the editable={false} render passes PT-03G but
+    // editable={true} ALSO has none of the testids, the fixture is broken
+    // upstream and PT-03G is a false negative. This test guards against
+    // that — it asserts every chrome testid PRESENT in the editable=true
+    // render with the same fixture.
+    const slide: Slide = {
+      hook_text: 'STOP',
+      body_text: 'Body',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      style_overrides: { hook_font_size: 60, hook_width: 100 },
+      watermark: { id: 'w_0', enabled: true, customText: 'Brand', position: 'bottom-right' },
+      custom_images: [
+        { id: 'img-grp-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20, groupId: 'g_x' },
+        { id: 'img-grp-b', url: 'data:,', x: 35, y: 10, width: 20, height: 20, groupId: 'g_x' },
+        { id: 'img-locked', url: 'data:,', x: 60, y: 60, width: 15, height: 15, locked: true },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const selection = {
+      ids: ['img-grp-a', 'img-grp-b', 'img-locked', 'w_0'],
+      primary: 'img-locked',
+    }
+
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={selection}
+        currentlyInsideGroup={null}
+        onAlign={() => {}}
+      />,
+    )
+    // Selection-driven chrome (N>=2 + onAlign + 2 grouped members in selection).
+    expect(container.querySelector('[data-testid="multi-selection-ring"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="group-bounding-ring"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="floating-alignment-toolbar"]')).not.toBeNull()
+    // Smart-guide overlay is mounted unconditionally inside editable=true
+    // (its slots are display:none until a drag triggers updateGuides — but
+    // the root + sub-pool testids are persistent DOM, the structural gate is
+    // the editable=true branch itself).
+    expect(container.querySelector('[data-testid="smart-guide-overlay-root"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-x"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-y"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="smart-guide-overlay-equal"]')).not.toBeNull()
+    // marquee-overlay is transient (only present during an active marquee
+    // drag — not selection-driven). Its absence here is expected and
+    // intentional; it does NOT undermine PT-03G's gate.
+  })
+
   it('PARITY-01 (Plan 62-03, RT2): GROUP → UNGROUP with no drag is a render no-op (byte-identical Satori HTML)', () => {
     const slide: Slide = {
       hook_text: 'STOP',
