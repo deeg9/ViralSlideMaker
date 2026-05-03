@@ -32,7 +32,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 
 ## Phases
 
-- [ ] **Phase 60: Multi-Select Foundation + Watermark Schema Lift** — Unified `Selection { ids, primary }` model + flat-schema `groupId?` / `locked?` / `hidden?` field definitions + watermark unification + Shift/Cmd-click + Cmd+A / Esc + selection ring + tinykeys install + modifier-blur reset
+- [x] **Phase 60: Multi-Select Foundation + Watermark Schema Lift** — Unified `Selection { ids, primary }` model + flat-schema `groupId?` / `locked?` / `hidden?` field definitions + watermark unification + Shift/Cmd-click + Cmd+A / Esc + selection ring + tinykeys install + modifier-blur reset (5/5 plans complete 2026-05-03)
 - [ ] **Phase 61: Marquee Selection** — `selecto@1.26.3` rubber-band marquee on canvas whitespace; intersect mode (Figma); Shift-additive; rect normalization for all 4 drag directions; pointer-events seam
 - [ ] **Phase 62: Group / Ungroup** — `groupId?` semantics live; Cmd+G / Cmd+Shift+G; group bounding box visualization; double-click enter / Esc exit; group drag fans out delta to members; first multi-element reducer action with single `pushHistory`
 - [ ] **Phase 63: Alignment / Distribute + Smart Guides (Wave A + Wave B)** — 6-axis align + H/V distribute + floating Figma toolbar (Wave A); sorted-edge-array snap index + 5px threshold + canvas-edge targets + equal-spacing "==" guide + asymmetric hysteresis (Wave B); both ship together (snap engine shared)
@@ -59,7 +59,14 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   4. Watermark is now an addressable element identical to text_boxes / custom_images — participates in selection, has stable `id` / `groupId?` / `locked?` / `hidden?` fields; legacy `style_overrides.watermark` path still produces byte-identical PNG output across all 53+ existing projects (TPLREND-05 parity preserved — PNG export byte-identical)
   5. Multi-drag dispatches a single `BULK_TRANSLATE` action on `onDragStop` only — never per-frame; modifier state (Shift / Cmd / Alt) resets on `window.blur` and `document.visibilitychange`; every new shortcut respects the existing `isEditing` guard at `slide-editor.tsx:344-348` and calls `e.preventDefault()`
 
-**Plans**: TBD
+**Plans (5/5 complete)**:
+- 60-01 — Schema foundation (TextBox/CustomImage/Watermark groupId?/locked?/hidden? + Watermark interface) — SHIPPED `1164c73`
+- 60-02 — Watermark adapter + lazy-init mirror + PARITY-01 chrome-leak gate seed — SHIPPED `35b7ce3` / `b67c13a` / `0a7deb9`
+- 60-03 — useSelectionModel hook + BULK_TRANSLATE reducer action — SHIPPED `082bfe9` / `5f98e5e`
+- 60-04 — tinykeys keyboard firewall + isEditingTarget + useModifierState — SHIPPED `8bdfc09` / `f62f29d` / `c2a40a2` / `f7760b4`
+- 60-05 — Selection ring (union AABB) + MultiSelectTypeBar + click-empty-canvas — SHIPPED `2edf43b` / `278a0a4` / `c8ef91b`
+
+**Status**: COMPLETE 2026-05-03. 23/23 requirements satisfied (SEL-01..04, SEL-07..13, SEL-15, WMARK-01..05, KBD-01..04, PARITY-01, PERF-01).
 **UI hint**: yes
 
 ---
