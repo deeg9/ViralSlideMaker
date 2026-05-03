@@ -85,7 +85,10 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
   3. Holding Shift during marquee adds the marqueed elements to existing selection rather than replacing it; `selecto`'s `setScale(x, y)` is wired correctly so marquee coordinates account for the canvas's scaled wrapper at every zoom level
   4. Marquee overlay renders only when `editable={true}` — Satori PNG export tree contains zero marquee DOM nodes (verified via `editable={false}` regression scan); holding Shift during element drag constrains motion to the dominant axis (X or Y based on which delta is larger)
 
-**Plans**: TBD
+**Plans:** 2 plans
+- [ ] 61-01-PLAN.md — Pure helpers (normalizeRect, elementsInRect) + selecto@1.26.3 install + render-only MarqueeOverlay component (29 tests; SEL-14)
+- [ ] 61-02-PLAN.md — Wire marquee state machine + onPointerDown seam swap on canvas root + KBD-07 axis-constrain in 4 element onDrag handlers + PARITY-01 test extension (SEL-05, SEL-06, KBD-07)
+
 **UI hint**: yes
 
 ---
