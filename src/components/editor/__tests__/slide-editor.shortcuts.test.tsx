@@ -60,6 +60,26 @@ vi.mock('@/components/editor/text-editor-panel', () => ({
       data-image-positions={(props.slide.custom_images ?? [])
         .map((ci) => `${ci.id}:${ci.x},${ci.y}`)
         .join(';')}
+      // Phase 64 Plan 01 (LOCK-03): expose per-element `locked` flags so
+      // Cmd+Shift+L tests can observe SET_LOCKED dispatch effects across
+      // text_boxes / custom_images / watermark. Format: "id:0|1;id:0|1;..."
+      // Walk text_boxes ∪ custom_images ∪ watermark in canonical order so the
+      // serialization is stable across renders.
+      data-locked-state={[
+        ...(props.slide.text_boxes ?? []).map(
+          (tb) => `${tb.id}:${tb.locked === true ? '1' : '0'}`,
+        ),
+        ...(props.slide.custom_images ?? []).map(
+          (ci) => `${ci.id}:${ci.locked === true ? '1' : '0'}`,
+        ),
+        ...(props.slide.watermark
+          ? [
+              `${props.slide.watermark.id}:${
+                props.slide.watermark.locked === true ? '1' : '0'
+              }`,
+            ]
+          : []),
+      ].join(';')}
     />
   ),
 }))
@@ -990,5 +1010,221 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     ) as string
     const matches = file.match(/isEditingTarget\(e\.target\)/g) ?? []
     expect(matches.length).toBeGreaterThanOrEqual(19)
+  })
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Phase 64 Plan 01 (LOCK-03): Cmd+Shift+L tinykeys binding.
+  // ──────────────────────────────────────────────────────────────────────
+  //
+  // Toggle math (CONTEXT D-01 majority/all-locked semantic):
+  //   - Empty selection → no-op (still preventDefault).
+  //   - All selected elements currently locked → unlock all (next: false).
+  //   - Otherwise (any unlocked, including mixed) → lock all (next: true).
+  //
+  // Mechanism: data-locked-state on TextEditorPanel mirrors the post-dispatch
+  // locked field on every text_box / custom_image / watermark. After Cmd+A
+  // → Cmd+Shift+L, every selected element should flip to locked='1'.
+  describe('Cmd+Shift+L (LOCK-03) — toggle SET_LOCKED on selection', () => {
+    function makeLockSlide(): Slide {
+      const slide: Slide = {
+        hook_text: 'Hook',
+        body_text: 'Body',
+        image_query: '',
+        is_cta: false,
+        background_url: null,
+        pexels_photo_id: null,
+        custom_images: [
+          { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 10, height: 10 },
+          { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 10, height: 10 },
+        ],
+      }
+      slide.text_boxes = legacyToTextBoxes(slide)
+      return slide
+    }
+
+    function renderLockEditor() {
+      return render(
+        <SlideEditor
+          initialSlides={[makeLockSlide()]}
+          projectId="p1"
+          templateId="highlight-bar"
+          topic="test"
+        />,
+      )
+    }
+
+    function readLockedState(): Record<string, boolean> {
+      const raw =
+        screen.getByTestId('text-editor-panel').getAttribute('data-locked-state') ??
+        ''
+      const out: Record<string, boolean> = {}
+      for (const entry of raw.split(';').filter(Boolean)) {
+        const [id, flag] = entry.split(':')
+        out[id] = flag === '1'
+      }
+      return out
+    }
+
+    it('KL1: Cmd+Shift+L with empty selection → no dispatch + preventDefault still called', () => {
+      renderLockEditor()
+      // Clear selection
+      fireEvent.keyDown(window, { key: 'Escape' })
+      const before = readLockedState()
+      // No element should be locked initially
+      expect(Object.values(before).every((v) => v === false)).toBe(true)
+
+      const ev = new KeyboardEvent('keydown', {
+        key: 'l',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      const pd = vi.spyOn(ev, 'preventDefault')
+      window.dispatchEvent(ev)
+      // preventDefault is called even with empty selection (Chrome "Reopen
+      // Closed Tab" suppression — KBD-03 / mirror of Cmd+G PITFALL-9.3).
+      expect(pd).toHaveBeenCalled()
+
+      // No element flipped to locked.
+      const after = readLockedState()
+      expect(Object.values(after).every((v) => v === false)).toBe(true)
+    })
+
+    it('KL2: Cmd+Shift+L with all-unlocked selection → dispatches SET_LOCKED with locked: true', () => {
+      renderLockEditor()
+      // Cmd+A populates selection with all elements (hook, body, 2 images)
+      fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
+      const selectedAfterA = screen.getByTestId('text-editor-panel')
+        .getAttribute('data-selected-ids') ?? ''
+      const selectedIds = selectedAfterA.split(',').filter(Boolean)
+      expect(selectedIds.length).toBeGreaterThanOrEqual(2)
+
+      // Pre: all unlocked
+      const before = readLockedState()
+      for (const id of selectedIds) {
+        expect(before[id]).toBe(false)
+      }
+
+      // Cmd+Shift+L → lock all
+      fireEvent.keyDown(window, { key: 'l', ctrlKey: true, shiftKey: true })
+
+      const after = readLockedState()
+      for (const id of selectedIds) {
+        expect(after[id]).toBe(true)
+      }
+    })
+
+    it('KL3: Cmd+Shift+L with all-locked selection → dispatches SET_LOCKED with locked: false', () => {
+      // Drive the all-locked → unlock semantic via a 2-press sequence:
+      //   Press 1 (mixed, since hook/body start unlocked) → "any unlocked"
+      //     → SET_LOCKED locked: true → all flip to locked.
+      //   Press 2 (now all-locked) → SET_LOCKED locked: false → unlock all.
+      //
+      // Use the fresh fixture (img-a/img-b unlocked) so we don't conflate
+      // with pre-existing locked state — the test then provably exercises
+      // BOTH the lock-all and unlock-all branches.
+      renderLockEditor()
+      fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
+
+      // Press 1: mixed (all unlocked) → lock all.
+      fireEvent.keyDown(window, { key: 'l', ctrlKey: true, shiftKey: true })
+      const mid = readLockedState()
+      expect(mid['img-a']).toBe(true)
+      expect(mid['img-b']).toBe(true)
+      // Every selected element is now locked; the post-press state is the
+      // input the unlock-branch needs.
+      expect(Object.values(mid).every((v) => v === true)).toBe(true)
+
+      // Press 2: all-locked → unlock all.
+      fireEvent.keyDown(window, { key: 'l', ctrlKey: true, shiftKey: true })
+      const after = readLockedState()
+      expect(after['img-a']).toBe(false)
+      expect(after['img-b']).toBe(false)
+      expect(Object.values(after).every((v) => v === false)).toBe(true)
+    })
+
+    it('KL4: Cmd+Shift+L with mixed selection → dispatches SET_LOCKED with locked: true', () => {
+      // Mixed: img-a is locked, img-b is unlocked.
+      const slide: Slide = {
+        hook_text: 'Hook',
+        body_text: 'Body',
+        image_query: '',
+        is_cta: false,
+        background_url: null,
+        pexels_photo_id: null,
+        custom_images: [
+          { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 10, height: 10, locked: true },
+          { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 10, height: 10 },
+        ],
+      }
+      slide.text_boxes = legacyToTextBoxes(slide)
+      render(
+        <SlideEditor
+          initialSlides={[slide]}
+          projectId="p1"
+          templateId="highlight-bar"
+          topic="test"
+        />,
+      )
+      // Cmd+A → selection includes img-a (locked) + img-b (unlocked)
+      fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
+      // Cmd+Shift+L → "any unlocked" → next: true (lock all)
+      fireEvent.keyDown(window, { key: 'l', ctrlKey: true, shiftKey: true })
+      const after = readLockedState()
+      expect(after['img-a']).toBe(true)
+      expect(after['img-b']).toBe(true)
+    })
+
+    it('KL5: Cmd+Shift+L while focus is on a textarea → no dispatch (isEditingTarget firewall)', () => {
+      renderLockEditor()
+      fireEvent.keyDown(window, { key: 'a', ctrlKey: true })
+      const before = readLockedState()
+
+      const textarea = document.createElement('textarea')
+      document.body.appendChild(textarea)
+      textarea.focus()
+      expect(document.activeElement).toBe(textarea)
+
+      // Dispatch directly on the textarea so e.target is the textarea (the
+      // window-level handler still sees it via bubbling).
+      const ev = new KeyboardEvent('keydown', {
+        key: 'l',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      const pd = vi.spyOn(ev, 'preventDefault')
+      textarea.dispatchEvent(ev)
+      // Firewall returns BEFORE preventDefault — browser default fires (text
+      // input receives 'l' character).
+      expect(pd).not.toHaveBeenCalled()
+
+      // No element flipped to locked.
+      const after = readLockedState()
+      expect(after).toEqual(before)
+
+      document.body.removeChild(textarea)
+    })
+
+    it('KL6 (structural): isEditingTarget grep count is 25 in slide-editor.tsx (was 24; +1 for Cmd+Shift+L)', () => {
+      // Plan 64-01 grep gate: `grep -c "isEditingTarget" slide-editor.tsx`
+      // counts every reference (call sites + comments mentioning the firewall).
+      // Pre-Plan 64-01: 24. Plan 64-01 adds 1 inlined firewall site (the
+      // Cmd+Shift+L binding) so the count becomes 25. Plan 64-03 will push
+      // it to 29 with the 4 z-order bindings.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require('fs')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const path = require('path')
+      const file = fs.readFileSync(
+        path.resolve(__dirname, '../slide-editor.tsx'),
+        'utf-8',
+      ) as string
+      // Match ANY 'isEditingTarget' occurrence (Plan grep gate uses raw `-c "isEditingTarget"`).
+      const matches = file.match(/isEditingTarget/g) ?? []
+      expect(matches.length).toBe(25)
+    })
   })
 })
