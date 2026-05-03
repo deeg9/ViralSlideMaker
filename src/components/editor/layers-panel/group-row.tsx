@@ -5,22 +5,30 @@ import type { GroupRowProps } from './types'
 
 /**
  * Phase 65 Plan 01 (LAYERS-02): group-collapse row.
+ * Phase 65 Plan 02 (LAYERS-05/06 group-scope): lock + visibility toggles
+ * filled into the previously-empty group-lock-slot / group-vis-slot.
  *
- * CONTEXT D-02: a synthesized row emitted ONCE per groupId. Renders a
- * chevron that expands/collapses the member chips below + a "Group (N)"
- * label showing member count. Two empty data-testid slots (group-lock-slot
- * + group-vis-slot) are placeholders that Plan 65-02 will fill with
- * per-group toggle buttons (LAYERS-05 / LAYERS-06).
+ * Click on the chevron + label area calls `onToggleExpanded()`. Click on
+ * the lock or vis button calls `onGroupLockToggle` / `onGroupVisibilityToggle`
+ * with the full memberIds array — the parent dispatches a single SET_LOCKED
+ * / SET_HIDDEN action via Plan 64-01 / 64-02. One pushHistory entry per
+ * group toggle (KBD-09 / PERF-01 carry-forward).
  *
- * Click on the toggle button (chevron + label area) calls
- * `onToggleExpanded()`. The expanded state itself lives in panel-local
- * useState<Record<string, boolean>> at LayersPanel — this component is
- * fully controlled by props (no local state).
+ * Group-row z-order is intentionally OUT of scope (cross-array reorder +
+ * multi-id splice deferred to v2.12+ per Plan 64-03 ZA4).
  *
- * No drag handle — drag-to-reorder is OUT of scope per CONTEXT D-01
- * (vanilla decision). Plan 65-02 will add a button-based reorder slot.
+ * No drag handle — drag-to-reorder is OUT of scope per CONTEXT D-01.
+ *
+ * Toggle buttons stopPropagation so clicks don't bubble up to the
+ * surrounding `<div>` and accidentally toggle expansion (GT4 pin).
  */
-export function GroupRow({ row, expanded, onToggleExpanded }: GroupRowProps) {
+export function GroupRow({
+  row,
+  expanded,
+  onToggleExpanded,
+  onGroupLockToggle,
+  onGroupVisibilityToggle,
+}: GroupRowProps) {
   return (
     <div
       data-testid="group-row"
@@ -44,8 +52,48 @@ export function GroupRow({ row, expanded, onToggleExpanded }: GroupRowProps) {
           Group ({row.memberIds.length})
         </span>
       </button>
-      <div data-testid="group-lock-slot" className="w-5 h-5" />
-      <div data-testid="group-vis-slot" className="w-5 h-5" />
+      {/* group-lock-slot filled by Plan 65-02 — LAYERS-05 group-scope */}
+      <button
+        type="button"
+        data-testid="group-lock-button"
+        data-pressed={row.allLocked ? 'true' : 'false'}
+        title="Lock group"
+        aria-label={row.allLocked ? 'Unlock group' : 'Lock group'}
+        aria-pressed={row.allLocked}
+        onClick={(e) => {
+          e.stopPropagation()
+          onGroupLockToggle(row.memberIds, !row.allLocked)
+        }}
+        className={[
+          'w-5 h-5 flex items-center justify-center rounded transition-colors focus:outline-none',
+          row.allLocked
+            ? 'bg-[#3d0000] text-white'
+            : 'text-[#795e5e] hover:bg-[#fadbdb]',
+        ].join(' ')}
+      >
+        <Icon name={row.allLocked ? 'lock' : 'lock_open'} size="sm" />
+      </button>
+      {/* group-vis-slot filled by Plan 65-02 — LAYERS-06 group-scope */}
+      <button
+        type="button"
+        data-testid="group-vis-button"
+        data-pressed={row.allHidden ? 'true' : 'false'}
+        title="Toggle group visibility"
+        aria-label={row.allHidden ? 'Show group' : 'Hide group'}
+        aria-pressed={row.allHidden}
+        onClick={(e) => {
+          e.stopPropagation()
+          onGroupVisibilityToggle(row.memberIds, !row.allHidden)
+        }}
+        className={[
+          'w-5 h-5 flex items-center justify-center rounded transition-colors focus:outline-none',
+          row.allHidden
+            ? 'bg-[#3d0000] text-white'
+            : 'text-[#795e5e] hover:bg-[#fadbdb]',
+        ].join(' ')}
+      >
+        <Icon name={row.allHidden ? 'visibility_off' : 'visibility'} size="sm" />
+      </button>
     </div>
   )
 }
