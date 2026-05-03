@@ -335,6 +335,11 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     expect(html).not.toMatch(/class="[^"]*\bselection\b[^"]*"/)
     expect(html).not.toMatch(/class="[^"]*\bmarquee\b[^"]*"/)
     expect(html).not.toMatch(/class="[^"]*\bguide\b[^"]*"/)
+    // Phase 61 Plan 02: marquee testid scan (Plan 60-05 regex caught
+    // class names; Plan 61-02 introduced data-testid="marquee-overlay"
+    // which the className regex cannot see). Strengthens the chrome leak
+    // detector for the whole TPLREND-05 invariant.
+    expect(html).not.toMatch(/data-testid="[^"]*marquee[^"]*"/)
   })
 
   it('PARITY-01 (Plan 60-05, SEL-13): editable={false} renders no multi-selection-ring even with N>=2 selection passed', () => {
@@ -414,6 +419,66 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     )
     expect(
       container.querySelector('[data-testid="multi-selection-ring"]'),
+    ).toBeNull()
+  })
+
+  it('PARITY-01 (Plan 61-02, SEL-05): editable={false} renders no marquee-overlay even with selection state', () => {
+    // Plan 61-02 (Phase 61) lands the second concrete chrome that PARITY-01
+    // gates against: marquee overlay. Confirm the testid is structurally
+    // unreachable from the non-editable branch — same proof shape as the
+    // multi-selection-ring test above. The structural gate is the line-665
+    // early return in slide-preview.tsx (the editable={false} branch never
+    // reaches the JSX where MarqueeOverlay is mounted).
+    const slide: Slide = {
+      hook_text: 'STOP', body_text: 'Body', image_query: 'q', is_cta: false,
+      background_url: null, pexels_photo_id: null,
+      style_overrides: { hook_font_size: 60, hook_width: 100 },
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const selection = { ids: ['img-a', 'img-b'], primary: 'img-b' }
+
+    const { container: locked } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        selection={selection}
+      />,
+    )
+    expect(
+      locked.querySelector('[data-testid="marquee-overlay"]'),
+    ).toBeNull()
+    expect(locked.innerHTML).not.toMatch(/marquee-overlay/)
+  })
+
+  it('PARITY-01 (Plan 61-02, SEL-05): editable={true} renders no marquee-overlay when no active marquee', () => {
+    // Plan 61-02 marquee state is local component state; default = no active
+    // marquee. The MarqueeOverlay rect=null branch returns null. This test
+    // confirms the IDLE state has zero marquee DOM (negative gate).
+    const slide: Slide = {
+      hook_text: 'H', body_text: 'B', image_query: 'q', is_cta: false,
+      background_url: null, pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={true}
+        selection={{ ids: [], primary: null }}
+      />,
+    )
+    expect(
+      container.querySelector('[data-testid="marquee-overlay"]'),
     ).toBeNull()
   })
 
