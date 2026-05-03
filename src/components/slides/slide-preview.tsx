@@ -954,7 +954,8 @@ export function SlidePreview({
               pills stay top-most. */}
           <OverlayLayers template={template} ctx={resolveCtx} />
 
-          {/* Hook text */}
+          {/* Hook text — Phase 64 LOCK-07: skip when hook text_box hidden=true */}
+          {!hookTextBox?.hidden && (
           <div style={{
             position: 'absolute',
             left: `${resolvedHookX}%`,
@@ -972,9 +973,10 @@ export function SlidePreview({
                 : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
             </p>
           </div>
+          )}
 
-          {/* Body text */}
-          {slide.body_text && (
+          {/* Body text — Phase 64 LOCK-07: skip when body text_box hidden=true */}
+          {slide.body_text && !bodyTextBox?.hidden && (
             <div style={{
               position: 'absolute',
               left: `${resolvedBodyX}%`,
@@ -994,8 +996,8 @@ export function SlidePreview({
             </div>
           )}
 
-          {/* Custom images (non-editable) */}
-          {(slide.custom_images ?? []).map((ci) => (
+          {/* Custom images (non-editable) — Phase 64 LOCK-07: filter ci.hidden === true */}
+          {(slide.custom_images ?? []).filter((ci) => ci.hidden !== true).map((ci) => (
             <img
               key={ci.id}
               src={ci.url}
@@ -1020,8 +1022,11 @@ export function SlidePreview({
               resolveWatermark reads from the legacy slot — the mirror keeps both in sync,
               so byte-identical output is preserved across the schema lift. Replacing
               resolveWatermark wholesale belongs to a later phase; Phase 60 only adds the
-              unified element while preserving the resolver contract (RESEARCH Q1 + Q10). */}
+              unified element while preserving the resolver contract (RESEARCH Q1 + Q10).
+              Phase 64 LOCK-07: gate render on slide.watermark.hidden so a hidden
+              watermark suppresses both the unified-slot AND legacy resolver paths. */}
           {(() => {
+            if (slide.watermark?.hidden === true) return null
             const wm = resolveWatermark(brandKit ?? null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
             if (!wm) return null
             return (
@@ -1090,8 +1095,13 @@ export function SlidePreview({
             )
           })()}
 
-          {/* Custom texts (non-editable) */}
-          {(slide.custom_texts ?? []).map((ct) => {
+          {/* Custom texts (non-editable) — Phase 64 LOCK-07: hidden flag lives
+              on the text_boxes mirror (Phase 49 dual-write contract). Skip when
+              the matching text_box has hidden === true. */}
+          {(slide.custom_texts ?? []).filter((ct) => {
+            const ctBox = (slide.text_boxes ?? []).find((tb) => tb.id === ct.id)
+            return ctBox?.hidden !== true
+          }).map((ct) => {
             const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
             const ctEffectCSS = resolvedCt ? effectToCSS(resolvedCt.resolvedEffects) : {}
             const ctHighlight = resolvedCt?.resolvedEffects.highlight
@@ -1361,8 +1371,8 @@ export function SlidePreview({
         {/* Phase 45 layer 4: overlay zones — same DOM order as non-editable branch. */}
         <OverlayLayers template={template} ctx={resolveCtx} />
 
-        {/* Resizable + Draggable hook text */}
-        {(() => {
+        {/* Resizable + Draggable hook text — Phase 64 LOCK-07: skip when hook hidden */}
+        {hookTextBox?.hidden !== true && (() => {
           // Phase 64 Plan 01 (LOCK-04, LOCK-06): resolve hook locked flag
           // from the canonical text_boxes mirror. disableDragging blocks
           // both mouse and touch handlers (react-rnd contract); enableResizing
@@ -1647,8 +1657,8 @@ export function SlidePreview({
           )
         })()}
 
-        {/* Resizable + Draggable body text */}
-        {slide.body_text && (() => {
+        {/* Resizable + Draggable body text — Phase 64 LOCK-07: skip when body hidden */}
+        {slide.body_text && bodyTextBox?.hidden !== true && (() => {
           // Phase 64 Plan 01 (LOCK-04, LOCK-06): same shape as hook above —
           // resolve body locked flag and gate disableDragging + enableResizing
           // + marquee-active pointer-events override + lock-icon overlay.
@@ -1885,8 +1895,13 @@ export function SlidePreview({
           )
         })()}
 
-        {/* Custom text boxes */}
-        {(slide.custom_texts ?? []).map((ct) => {
+        {/* Custom text boxes — Phase 64 LOCK-07: filter when matching
+            text_box mirror has hidden === true (custom_text id == text_box id
+            per Phase 49 dual-write contract). */}
+        {(slide.custom_texts ?? []).filter((ct) => {
+          const ctBox = (slide.text_boxes ?? []).find((tb) => tb.id === ct.id)
+          return ctBox?.hidden !== true
+        }).map((ct) => {
           const ctPixels = {
             x: (ct.x / 100) * REF_WIDTH,
             y: (ct.y / 100) * REF_HEIGHT,
@@ -2188,8 +2203,8 @@ export function SlidePreview({
           )
         })}
 
-        {/* Custom image boxes */}
-        {(slide.custom_images ?? []).map((ci) => {
+        {/* Custom image boxes — Phase 64 LOCK-07: filter ci.hidden === true */}
+        {(slide.custom_images ?? []).filter((ci) => ci.hidden !== true).map((ci) => {
           const ciPixels = {
             x: (ci.x / 100) * REF_WIDTH,
             y: (ci.y / 100) * REF_HEIGHT,
@@ -2429,8 +2444,12 @@ export function SlidePreview({
           )
         })}
 
-        {/* Brand watermark (editable view) — non-interactive, sits above custom images */}
+        {/* Brand watermark (editable view) — non-interactive, sits above custom images.
+            Phase 64 LOCK-07: gate render on slide.watermark.hidden so a hidden
+            watermark suppresses the legacy resolver path identically to the
+            non-editable branch + render-slide-satori. */}
         {(() => {
+          if (slide.watermark?.hidden === true) return null
           const wm = resolveWatermark(brandKit ?? null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
           if (!wm) return null
           return (
