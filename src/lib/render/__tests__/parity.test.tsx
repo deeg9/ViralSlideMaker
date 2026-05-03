@@ -351,6 +351,15 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     // and group-ring scans above. The structural gate is the line-665 early
     // return for editable=false (toolbar mount lives downstream of it).
     expect(html).not.toMatch(/data-testid="[^"]*floating-alignment-toolbar[^"]*"/)
+    // Phase 63 Plan 04 (SNAP-06, SNAP-07, PERF-03): smart-guide-overlay testid
+    // scan. Plan 63-04 lands the fifth concrete chrome — persistent pool of
+    // guide-line + equal-spacing-segment divs mounted via SmartGuideOverlay.
+    // The structural gate is the same line-790 early return for editable=
+    // false; the overlay JSX (line ~2433) is downstream. The legacy
+    // alignment-guide testid (the v2.10 useAlignmentGuides DOM) is also gone
+    // — keep the scan defensive against future regressions.
+    expect(html).not.toMatch(/data-testid="[^"]*smart-guide[^"]*"/)
+    expect(html).not.toMatch(/data-testid="[^"]*alignment-guide[^"]*"/)
   })
 
   it('PARITY-01 (Plan 60-05, SEL-13): editable={false} renders no multi-selection-ring even with N>=2 selection passed', () => {
