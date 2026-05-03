@@ -607,7 +607,9 @@ export function SlidePreview({
   const bodyFontFamily = overrides.body_font_family ?? template.fontFamily
 
   // Bold/italic overrides (Phase 11)
-  const hookFontWeight = overrides.hook_font_weight ?? 900
+  // 260503-0f2: respect template-level hookFontWeight default (set to 400 on
+  // Anton-using templates so browser falls back consistently with Satori).
+  const hookFontWeight = overrides.hook_font_weight ?? template.hookFontWeight ?? 900
   const bodyFontWeight = overrides.body_font_weight ?? 400
   const hookFontStyle = overrides.hook_font_style ?? 'normal'
   const bodyFontStyle = overrides.body_font_style ?? 'normal'

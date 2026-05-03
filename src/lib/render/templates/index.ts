@@ -77,6 +77,12 @@ export interface SlideTemplate {
   textAlign: 'left' | 'center' | 'right'
   textPosition: 'top' | 'center' | 'bottom'
   hookStyle: 'uppercase' | 'normal' | 'italic'
+  // Optional hook font weight (260503-0f2). Defaults to 900 in both renderers
+  // when undefined. Templates using single-weight display fonts (e.g. Anton —
+  // Google Fonts ships only weight 400) MUST set this to 400 to match
+  // browser-DOM fallback behavior in Satori PNG export. Without this, Satori
+  // and browser disagree on glyph metrics → exported PNG diverges from preview.
+  hookFontWeight?: number
   // Optional accent color used by two-color news headlines (TextSegment.accent).
   // Falls back to textColor when not set.
   accentColor?: string

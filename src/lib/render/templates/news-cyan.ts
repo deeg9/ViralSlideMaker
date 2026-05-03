@@ -10,6 +10,10 @@ export const newsCyan: SlideTemplate = {
   thumbnail: '/templates/news-cyan.png',
   fontFamily: "'Anton', sans-serif",
   hookFontSize: '110px',
+  // 260503-0f2: Anton ships single-weight (400) on Google Fonts. Force 400 so
+  // Satori PNG export matches browser preview (which falls back to 400 when
+  // 900 is requested but unavailable).
+  hookFontWeight: 400,
   bodyFontSize: '38px',
   textColor: '#ffffff',
   backgroundColor: '#0a0a0a',

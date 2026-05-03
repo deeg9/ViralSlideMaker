@@ -10,6 +10,9 @@ export const newsDrop: SlideTemplate = {
   thumbnail: '/templates/news-drop.png',
   fontFamily: "'Anton', sans-serif",
   hookFontSize: '110px',
+  // 260503-0f2: Anton ships single-weight (400) on Google Fonts. Force 400 so
+  // Satori PNG export matches browser preview.
+  hookFontWeight: 400,
   bodyFontSize: '38px',
   textColor: '#ffffff',
   backgroundColor: '#000000',
