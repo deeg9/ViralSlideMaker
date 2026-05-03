@@ -28,6 +28,7 @@ import {
   elementToLegacyWatermark,
 } from '@/lib/editor/watermark-adapter'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
+import { editorReducer, type EditorHistory } from '@/lib/editor/editor-reducer'
 import type { Slide, Watermark } from '@/lib/types/slide'
 
 describe('Phase 58 (PARITY-01, PARITY-02): renderer parity for new templates', () => {
@@ -588,5 +589,139 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     expect(forcedLegacy).not.toBeNull()
     expect(forcedLifted).not.toBeNull()
     expect(forcedLifted).toEqual(forcedLegacy)
+  })
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Phase 62 Plan 03 (Tests RT1, RT2): GROUP/UNGROUP parity invariant.
+  //
+  // RT1: A user gesture chain (GROUP → BULK_TRANSLATE → UNGROUP) on the
+  //      canonical text_boxes ∪ custom_images projections leaves the
+  //      Satori-bound HTML output (rendered SlidePreview editable={false})
+  //      free of any data-group-id leak. Positions reflect the translate;
+  //      no extra DOM attributes appear.
+  //
+  // RT2: A no-drag GROUP → UNGROUP cycle is a true no-op for the Satori
+  //      render path — output is byte-identical to the start state. Pins
+  //      PITFALL-3.6 (schema migration trauma) for the editable={false}
+  //      slot of the parity contract.
+  // ───────────────────────────────────────────────────────────────────────
+  it('PARITY-01 (Plan 62-03, RT1): GROUP → BULK_TRANSLATE → UNGROUP — no groupId leak in Satori render path', () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const initial: EditorHistory = { past: [], present: [slide], future: [] }
+
+    // Apply GROUP → BULK_TRANSLATE +5%/+5% → UNGROUP via the reducer chain.
+    const afterGroup = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['img-a', 'img-b'],
+      groupId: 'g_rt1',
+    })
+    const afterTranslate = editorReducer(afterGroup, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['img-a', 'img-b'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    const finalState = editorReducer(afterTranslate, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['img-a', 'img-b'],
+    })
+
+    // Render the post-cycle slide via the Satori-equivalent React preview
+    // (editable={false} — same JSX path the export route uses).
+    const finalSlide = finalState.present[0]
+    const { container } = render(
+      <SlidePreview
+        slide={finalSlide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    // groupId MUST NOT leak as a DOM attribute, data-group-id, or as the
+    // literal string 'g_rt1' anywhere in the rendered HTML. The renderer
+    // should read x/y/width/height/text only — not groupId.
+    expect(container.innerHTML).not.toMatch(/g_rt1/)
+    expect(container.innerHTML).not.toMatch(/data-group-id/)
+    // Translated positions land in the legacy custom_images projection.
+    const finalA = finalSlide.custom_images!.find((c) => c.id === 'img-a')!
+    const finalB = finalSlide.custom_images!.find((c) => c.id === 'img-b')!
+    expect(finalA.x).toBe(15)
+    expect(finalA.y).toBe(15)
+    expect(finalB.x).toBe(55)
+    expect(finalB.y).toBe(55)
+    // groupId cleared on the final state — UNGROUP completed cleanly.
+    expect(finalA.groupId).toBeUndefined()
+    expect(finalB.groupId).toBeUndefined()
+  })
+
+  it('PARITY-01 (Plan 62-03, RT2): GROUP → UNGROUP with no drag is a render no-op (byte-identical Satori HTML)', () => {
+    const slide: Slide = {
+      hook_text: 'STOP',
+      body_text: 'Body',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'img-a', url: 'data:,', x: 10, y: 10, width: 20, height: 20 },
+        { id: 'img-b', url: 'data:,', x: 50, y: 50, width: 25, height: 25 },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const initial: EditorHistory = { past: [], present: [slide], future: [] }
+
+    // Render the start state (editable={false}).
+    const { container: startContainer } = render(
+      <SlidePreview
+        slide={initial.present[0]}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    const startHtml = startContainer.innerHTML
+
+    // GROUP → UNGROUP (no drag, no translate).
+    const afterGroup = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['img-a', 'img-b'],
+      groupId: 'g_rt2',
+    })
+    const finalState = editorReducer(afterGroup, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['img-a', 'img-b'],
+    })
+
+    // Render the post-cycle state.
+    const { container: endContainer } = render(
+      <SlidePreview
+        slide={finalState.present[0]}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    // Byte-identical Satori-render HTML — no groupId leak, no extra
+    // attributes, no schema migration trauma (PITFALL-3.6).
+    expect(endContainer.innerHTML).toBe(startHtml)
+    // Defense-in-depth: the literal groupId string never appears.
+    expect(endContainer.innerHTML).not.toMatch(/g_rt2/)
   })
 })
