@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'vitest'
+import * as fs from 'fs'
+import * as path from 'path'
 import { renderHook, act } from '@testing-library/react'
 import type { Slide, TextBox, CustomImage, Watermark } from '@/lib/types/slide'
 import { useSelectionModel } from '@/lib/editor/use-selection-model'
@@ -359,5 +361,203 @@ describe('useSelectionModel — ref-stable API (useMemo)', () => {
     expect(result.current.removeFromSelection).toBe(removeRef1)
     expect(result.current.toggleInSelection).toBe(toggleRef1)
     expect(result.current.selectAll).toBe(selectAllRef1)
+  })
+})
+
+// Phase 62 Plan 01 (GROUP-07, GROUP-08): enterGroup / exitGroup /
+// currentlyInsideGroup. Selection-state-outside-reducer-history invariant
+// (Plan 60-03 carry-forward): the new flag lives in React useState, NOT
+// in editor history. Test E9 grep-asserts the reducer file never references
+// `currentlyInsideGroup` to enforce the invariant in code.
+describe('useSelectionModel — enterGroup / exitGroup (Phase 62 GROUP-07, GROUP-08)', () => {
+  // ─── Local fixture helpers (extend the file's existing makers) ───────────
+  function makeTextBoxWithGroup(id: string, groupId?: string): TextBox {
+    return {
+      id,
+      role: 'custom',
+      text: '',
+      position: { anchor: 'custom', x: 0, y: 0, width: 50 },
+      ...(groupId !== undefined ? { groupId } : {}),
+    }
+  }
+
+  function makeCustomImageWithGroup(id: string, groupId?: string): CustomImage {
+    return {
+      id,
+      url: 'https://example.com/x.png',
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 20,
+      ...(groupId !== undefined ? { groupId } : {}),
+    }
+  }
+
+  function makeWatermarkWithGroup(id: string, groupId?: string): Watermark {
+    return {
+      id,
+      enabled: true,
+      position: 'bottom-right',
+      ...(groupId !== undefined ? { groupId } : {}),
+    }
+  }
+
+  test('Test E1: initial currentlyInsideGroup is null', () => {
+    const slide = slideWithIds(['a'])
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    expect(result.current.currentlyInsideGroup).toBe(null)
+  })
+
+  test('Test E2: enterGroup with valid grouped element sets currentlyInsideGroup to that groupId', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBoxWithGroup('tb1', 'g_x')],
+    })
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.enterGroup('tb1', slide)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_x')
+  })
+
+  test('Test E3: enterGroup with element NOT in any group → currentlyInsideGroup stays null', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBoxWithGroup('tb1')], // no groupId
+    })
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.enterGroup('tb1', slide)
+    })
+    expect(result.current.currentlyInsideGroup).toBe(null)
+  })
+
+  test('Test E4: enterGroup with unknown id → currentlyInsideGroup stays null (no throw)', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBoxWithGroup('tb1', 'g_x')],
+    })
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    expect(() => {
+      act(() => {
+        result.current.enterGroup('does-not-exist', slide)
+      })
+    }).not.toThrow()
+    expect(result.current.currentlyInsideGroup).toBe(null)
+  })
+
+  test('Test E5: exitGroup clears currentlyInsideGroup back to null', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBoxWithGroup('tb1', 'g_x')],
+    })
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.enterGroup('tb1', slide)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_x')
+    act(() => {
+      result.current.exitGroup()
+    })
+    expect(result.current.currentlyInsideGroup).toBe(null)
+  })
+
+  test('Test E6: exitGroup is idempotent when not inside a group (mutator ref stable)', () => {
+    const slide = slideWithIds(['a'])
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    expect(result.current.currentlyInsideGroup).toBe(null)
+    const exitRef1 = result.current.exitGroup
+    act(() => {
+      result.current.exitGroup()
+    })
+    act(() => {
+      result.current.exitGroup()
+    })
+    expect(result.current.currentlyInsideGroup).toBe(null)
+    expect(result.current.exitGroup).toBe(exitRef1) // same callback reference
+  })
+
+  test('Test E7 (SEL-10 carry-forward): slide-switch clears currentlyInsideGroup', () => {
+    const slideA = makeSlide({
+      text_boxes: [makeTextBoxWithGroup('tb1', 'g_x')],
+    })
+    const slideB = slideWithIds(['x'])
+    const { result, rerender } = renderHook(
+      (props: { slideIndex: number; presentSlides: Slide[] }) =>
+        useSelectionModel(props),
+      { initialProps: { slideIndex: 0, presentSlides: [slideA, slideB] } },
+    )
+    act(() => {
+      result.current.enterGroup('tb1', slideA)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_x')
+
+    rerender({ slideIndex: 1, presentSlides: [slideA, slideB] })
+
+    expect(result.current.currentlyInsideGroup).toBe(null)
+  })
+
+  test('Test E8 (SEL-11 carry-forward): stale-id pruning clears the in-group flag when its groupId is no longer reachable', () => {
+    const slideV1 = makeSlide({
+      text_boxes: [makeTextBoxWithGroup('tb1', 'g_x')],
+    })
+    const { result, rerender } = renderHook(
+      (props: { slideIndex: number; presentSlides: Slide[] }) =>
+        useSelectionModel(props),
+      { initialProps: { slideIndex: 0, presentSlides: [slideV1] } },
+    )
+    act(() => {
+      result.current.enterGroup('tb1', slideV1)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_x')
+
+    // Mutation: remove the only member of g_x — group is gone
+    const slideV2 = makeSlide({ text_boxes: [] })
+    rerender({ slideIndex: 0, presentSlides: [slideV2] })
+
+    expect(result.current.currentlyInsideGroup).toBe(null)
+  })
+
+  test('Test E9 (selection-state-outside-reducer invariant): editor-reducer.ts has zero `currentlyInsideGroup` references', () => {
+    const reducerPath = path.resolve(
+      __dirname,
+      '../editor-reducer.ts',
+    )
+    const source = fs.readFileSync(reducerPath, 'utf-8')
+    expect(source).not.toMatch(/currentlyInsideGroup/)
+  })
+
+  test('Test E10 (cross-type enter): enterGroup works with custom_image members', () => {
+    const slide = makeSlide({
+      custom_images: [makeCustomImageWithGroup('ci1', 'g_y')],
+    })
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.enterGroup('ci1', slide)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_y')
+  })
+
+  test('Test E11 (cross-type enter): enterGroup works with watermark members', () => {
+    const slide = makeSlide({
+      watermark: makeWatermarkWithGroup('w0', 'g_w'),
+    })
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.enterGroup('w0', slide)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_w')
   })
 })
