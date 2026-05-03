@@ -22,6 +22,9 @@ export const tr3ndingNews: SlideTemplate = {
   // Phase 55 (D-18, TYPO-03): premium hook size raised to 120px (mid-range of 110-130
   // per-template band; sibling cohesion with magazine-bold also at 120px).
   hookFontSize: '120px',
+  // 260503-0f2: Anton ships single-weight (400) on Google Fonts. Force 400 so
+  // Satori PNG export matches browser preview.
+  hookFontWeight: 400,
   bodyFontSize: '32px',
   textColor: '#ffffff',
   backgroundColor: '#000000',

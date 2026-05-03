@@ -238,7 +238,12 @@ export function buildSlideElement(
     flexWrap: 'wrap',
     textAlign: hookTextAlign,
     fontSize: hookFontSize,
-    fontWeight: 900,
+    // 260503-0f2: respect overrides + template-level hookFontWeight to match
+    // slide-preview.tsx:610. Templates using single-weight display fonts (Anton)
+    // MUST set hookFontWeight: 400 so Satori does not request weight 900 (which
+    // it falls back / synthesizes from 400) — divergence cause for the
+    // exported-PNG-vs-preview bug on news-* + cover layout.
+    fontWeight: overrides.hook_font_weight ?? template.hookFontWeight ?? 900,
     lineHeight: 1.1,
     fontFamily: template.headingFontFamily ?? template.fontFamily,
   }
