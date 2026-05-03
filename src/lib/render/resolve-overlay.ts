@@ -273,10 +273,18 @@ const GRAIN_OPACITY_MAP = {
 
 export function renderGrain(
   intensity: 'subtle' | 'medium' | 'heavy' | 'paper' | 'xerox',
+  origin?: string,
 ): React.ReactNode {
+  // Satori (next/og) rejects relative `<img src>` values with
+  // "Image source must be an absolute URL". When invoked from the satori
+  // render path, callers pass `origin` so we emit a fully-qualified URL.
+  // Browser-side preview callers omit it and get the relative path that the
+  // browser resolves against the current document origin.
+  const path = `/textures/grain-${intensity}.png`
+  const src = origin ? `${origin}${path}` : path
   return React.createElement('img', {
     'data-layer': 'grain',
-    src: `/textures/grain-${intensity}.png`,
+    src,
     style: {
       position: 'absolute',
       top: 0,
@@ -347,9 +355,12 @@ export function renderDecorativeOverlay(
   asset: DecorativeAsset,
   position: { x: number; y: number },
   options?: { rotation?: number; scale?: number; opacity?: number; tintColor?: string },
+  origin?: string,
 ): React.ReactNode {
   const ext = DECORATIVE_PNG_ASSETS.includes(asset) ? 'png' : 'svg'
-  const src = `/overlays/${asset}.${ext}`
+  // Same Satori absolute-URL constraint as renderGrain — see comment there.
+  const path = `/overlays/${asset}.${ext}`
+  const src = origin ? `${origin}${path}` : path
   const rotation = options?.rotation ?? 0
   const scale = options?.scale ?? 1
   // Phase 57 (D-15): tintColor injects via CSS `color` so SVGs that use

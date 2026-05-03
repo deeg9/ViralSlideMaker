@@ -303,8 +303,9 @@ export function buildSlideElement(
           }}
         />
       )}
-      {/* Phase 55 (D-13, layer 1.5): grain/noise overlay — only when template opts in. */}
-      {template.grainMode ? renderGrain(template.grainMode) : null}
+      {/* Phase 55 (D-13, layer 1.5): grain/noise overlay — only when template opts in.
+          `origin` prepends the absolute URL Satori requires for <img>. */}
+      {template.grainMode ? renderGrain(template.grainMode, origin) : null}
       {/* Overlay - rendered before text so text appears on top (Satori has no z-index) */}
       <div
         style={{
@@ -369,7 +370,7 @@ export function buildSlideElement(
                 scale: overlay.content.scale,
                 opacity: overlay.content.opacity,
                 tintColor,
-              })}
+              }, origin)}
             </React.Fragment>
           )
         }

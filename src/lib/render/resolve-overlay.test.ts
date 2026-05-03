@@ -301,6 +301,12 @@ describe('Phase 55: renderGrain (layer 1.5)', () => {
     expect(style).not.toHaveProperty('backdropFilter')
     expect(style).not.toHaveProperty('mixBlendMode')
   })
+
+  it('prepends origin when supplied (Satori absolute-URL requirement)', () => {
+    const el = renderGrain('xerox', 'https://viralslidemaker.com') as React.ReactElement
+    const props = el.props as Record<string, unknown>
+    expect(props.src).toBe('https://viralslidemaker.com/textures/grain-xerox.png')
+  })
 })
 
 describe('Phase 55: renderVignette (layer 2.5)', () => {
@@ -406,6 +412,28 @@ describe('Phase 56: renderDecorativeOverlay (TPL-04)', () => {
     const el = renderDecorativeOverlay('sticky-note-pink', { x: 0, y: 0 }) as React.ReactElement
     const style = (el.props as Record<string, unknown>).style as Record<string, unknown>
     expect(style.pointerEvents).toBe('none')
+  })
+
+  it('prepends origin when supplied (Satori absolute-URL requirement)', () => {
+    const el = renderDecorativeOverlay(
+      'paper-frame',
+      { x: 0, y: 0 },
+      undefined,
+      'https://viralslidemaker.com',
+    ) as React.ReactElement
+    const props = el.props as Record<string, unknown>
+    expect(props.src).toBe('https://viralslidemaker.com/overlays/paper-frame.svg')
+  })
+
+  it('prepends origin for PNG decorative assets too', () => {
+    const el = renderDecorativeOverlay(
+      'halftone-dots-light',
+      { x: 0, y: 0 },
+      { opacity: 0.5 },
+      'https://example.com',
+    ) as React.ReactElement
+    const props = el.props as Record<string, unknown>
+    expect(props.src).toBe('https://example.com/overlays/halftone-dots-light.png')
   })
 })
 
