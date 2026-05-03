@@ -1,12 +1,12 @@
 ---
 phase: quick-260503-0f2
-status: incomplete
+status: complete
 date: 2026-05-03
 ---
 
 # Quick Task 260503-0f2: Summary
 
-**HONEST STATUS: PARTIAL FIX — user-visible bug NOT fixed.**
+**STATUS: FIXED.** User confirmed Option A (Anton weight fix) post-investigation. Commit `02789b8` ships the actual fix; commit `7b40ee2` ships the regression-pinning test.
 
 ## What the user reported
 
