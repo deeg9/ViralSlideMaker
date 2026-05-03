@@ -45,6 +45,11 @@ export interface CustomImage {
   height: number        // percentage 0-100
   opacity?: number      // 0-100, default 100
   border_radius?: number // px, for rounded corners
+  /** Phase 60 (WMARK-01 / future GROUP/LOCK/HIDE): additive multi-select fields.
+      Behavior lands in Phase 62 (groups), Phase 64 (lock/hide). Phase 60 declares only. */
+  groupId?: string
+  locked?: boolean
+  hidden?: boolean
 }
 
 // Phase 19: Text effects
@@ -99,6 +104,11 @@ export interface TextBox {
   color?: string
   text_align?: 'left' | 'center' | 'right'
   effects?: TextEffects
+  /** Phase 60 (WMARK-01 / future GROUP/LOCK/HIDE): additive multi-select fields.
+      Behavior lands in Phase 62 (groups), Phase 64 (lock/hide). Phase 60 declares only. */
+  groupId?: string
+  locked?: boolean
+  hidden?: boolean
   position: TextBoxPosition
 }
 
@@ -157,6 +167,29 @@ export interface SlideStyleOverrides {
   }
 }
 
+/** Phase 60 (WMARK-01): Unified watermark element. Lifted from
+    SlideStyleOverrides.watermark into an addressable element so it can
+    participate in multi-select / group / lock / hide identically to
+    TextBox and CustomImage. The legacy SlideStyleOverrides.watermark slot
+    is RETAINED for back-compat (one-milestone bridge); Phase 60 mirrors
+    between the two paths via watermark-adapter.ts (Plan 02).
+
+    ID strategy: deterministic `w_${slideIndex}` (per RESEARCH Q2).
+    Idempotent: legacyWatermarkToElement(legacyWatermarkToElement(slide))
+    produces equal id values across both calls. */
+export interface Watermark {
+  id: string
+  // Existing watermark config fields (mirrored from style_overrides.watermark)
+  enabled?: boolean
+  customLogoUrl?: string
+  customText?: string
+  position?: 'top-left' | 'bottom-left' | 'bottom-right'
+  // Phase 60 additive fields (matches TextBox + CustomImage)
+  groupId?: string
+  locked?: boolean
+  hidden?: boolean
+}
+
 export interface Slide {
   /** @deprecated v2.8 — use text_boxes. Retained for backward compat through v2.9. */
   hook_text: string
@@ -176,6 +209,12 @@ export interface Slide {
   custom_images?: CustomImage[]
   /** Phase 49: Unified text-box array. When absent, derived from legacy fields on load. */
   text_boxes?: TextBox[]
+  /** Phase 60 (WMARK-01): Unified watermark element. When absent, derived
+      from style_overrides.watermark via legacyWatermarkToElement on slide
+      load (see use-slide-editor.ts createInitialState in Plan 02). Both
+      renderers consume from this field when present, fall back to
+      style_overrides.watermark when absent. Sunset target: v2.12+ post-PMF. */
+  watermark?: Watermark
   // Phase 55 (D-08): v2.9 visual quality additions.
   /** v2.9: untreated source photo URL (Pexels/Imagen). Populated by Phase 56
       generation pipeline; consumed by treatment-override re-treat path so we
