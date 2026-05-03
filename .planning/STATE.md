@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
-status: completed
-stopped_at: Plan 62-03 complete (Wave 3 — Cmd+G/Cmd+Shift+G tinykeys + group-aware Esc + shouldGroupDrag helper + group drag onDragStop → BULK_TRANSLATE). Phase 62 3/3 plans shipped — Phase 62 COMPLETE. Ready for Phase 63 (Alignment / Distribute + Smart Guides).
-last_updated: "2026-05-03T03:43:29Z"
-last_activity: "2026-05-03 — Plan 62-03 Wave-3 keyboard + group-drag integration shipped (commits `c1965d2` / `16dd0be` / `202c9fe` / `f7fb46f` / `2d78fce` / `dbc4d6d` / `daffc57` / `ef3207d`): 21 new tests (8 keyboard + 7 helper + 4 drag + 1 reducer round-trip + 2 parity); 159/159 full Phase 62 regression suite green; 560/560 broad cross-suite regression green; tsc baseline 17 errors preserved. Phase 62 COMPLETE."
+status: in_progress
+stopped_at: Plan 63-03 complete (Wave 1 parallel — Wave B core). snap-index pure module shipped: buildSnapIndex + findNearestSnap + snapWithHysteresis (sorted edges + O(log N) binary search + asymmetric 5/7-px hysteresis). PERF-05 contract verified by colocated bench. Plans 63-01/02/04/05 still pending.
+last_updated: "2026-05-03T04:19:26.148Z"
+last_activity: "2026-05-03 — Plan 63-03 (Wave 1 parallel — Wave B core) shipped: snap-index pure module (~520 LOC across module + 49 tests). buildSnapIndex (O(N log N) build), findNearestSnap (O(log N) lower_bound binary search), snapWithHysteresis (asymmetric 5/7-px state machine). 49/49 tests pass; PERF-05 budget (<2ms at N=30) verified by colocated bench (PB1..PB4); tsc baseline 17 errors preserved. SNAP-01/02/03/08/10 + PERF-05 marked complete. Plan 63-04 will wire the pure helpers into slide-preview.tsx drag handlers."
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 11
+  total_plans: 15
   completed_plans: 11
-  percent: 100
+  percent: 73
 ---
 
 # Project State
@@ -26,12 +26,16 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
-Phase: 62 — Group / Ungroup **COMPLETE** (3/3 plans shipped — Waves 1+2+3 done)
-Plan: 62-01 SHIPPED (Wave 1 — data layer: getGroupMembers helper + GROUP/UNGROUP reducer cases + useSelectionModel currentlyInsideGroup/enterGroup/exitGroup, ~1057 LOC incl. tests, 7 commits `28f05fc` / `85a2253` / `14b046b` / `561edb7` / `a630e15` / `30d6edf` / `57a88bb`); 62-02 SHIPPED (Wave 2 — UI surface: group-bounding-ring editable-only chrome + 4 group-aware onMouseDown branches + 4 onDoubleClick handlers + canvas-empty exitGroup-then-clear branch + 3-prop plumbing + PARITY-01 group gate, ~990 LOC incl. tests, 6 commits `2f4b1a1` / `cdba76c` / `7d2796f` / `c7e0723` / `776213d` / `9ec97f1`); 62-03 SHIPPED (Wave 3 — Cmd+G + Cmd+Shift+G tinykeys bindings + group-aware Esc + shouldGroupDrag helper + 4-site onDragStop branch → onGroupDrag → BULK_TRANSLATE, ~1346 LOC incl. tests, 8 commits `c1965d2` / `16dd0be` / `202c9fe` / `f7fb46f` / `2d78fce` / `dbc4d6d` / `daffc57` / `ef3207d`)
-Status: Phase 62 COMPLETE; ALL 11 Phase 62 reqs marked complete in REQUIREMENTS.md (GROUP-01..10 + KBD-09).
-Last activity: 2026-05-03 — Plan 62-03 Wave-3 keyboard + group-drag integration shipped: 21 new tests (8 keyboard + 7 helper + 4 drag + 1 reducer round-trip + 2 parity); 159/159 full Phase 62 regression suite green; 560/560 broad cross-suite regression green; tsc baseline 17 errors preserved. Phase 62 ships end-to-end: select 2+ → Cmd+G → drag any member → all members move (single Cmd+Z) → Cmd+Shift+G dissolves.
+Phase: 63 — Alignment / Distribute + Smart Guides **IN PROGRESS** (1/5 plans shipped — Wave 1 parallel partial)
+Plan: 63-03 SHIPPED (Wave 1 parallel — Wave B core: sorted-edge-array snap-index pure module + 49-test suite incl. perf bench, ~520 LOC, 3 commits `40d3cae` / `81e2c09` / `c63d848`). Pending: 63-01 (Wave A core — alignElements / distributeElements pure module, in flight by parallel agent), 63-02 (Wave A wiring — floating toolbar + keyboard bindings), 63-04 (Wave B integration — drag handler wire-up + multi-element + Hold-Cmd disable + equal-spacing), 63-05 (polish — parity test extensions + perf budget verification).
+Status: Phase 63 IN PROGRESS; 6 of 24 Phase 63 reqs marked complete in REQUIREMENTS.md (SNAP-01, SNAP-02, SNAP-03, SNAP-08, SNAP-10, PERF-05). Plan 63-04 has a stable contract to wire from slide-preview.tsx onDragStart / onDrag / onDragStop.
+Last activity: 2026-05-03 — Plan 63-03 ships sorted-edge-array snap math layer: buildSnapIndex (O(N log N) build) + findNearestSnap (O(log N) lower_bound binary search) + snapWithHysteresis (asymmetric 5/7-px enter/exit state machine, per-axis scalar state contract). 45 correctness tests (SI-1..SI-26) + 4 perf budgets (PB1..PB4); PERF-05 verified at <2ms median per 6-query pointer-tick at N=30 elements. Pure module — no React, no DOM. tsc baseline 17 errors preserved.
 
 ### Earlier in v2.11 (carry-over)
+
+Phase: 62 — Group / Ungroup **COMPLETE** (3/3 plans shipped — Waves 1+2+3 done)
+Plan: 62-01 SHIPPED (Wave 1 — data layer: getGroupMembers helper + GROUP/UNGROUP reducer cases + useSelectionModel currentlyInsideGroup/enterGroup/exitGroup, ~1057 LOC incl. tests, 7 commits `28f05fc` / `85a2253` / `14b046b` / `561edb7` / `a630e15` / `30d6edf` / `57a88bb`); 62-02 SHIPPED (Wave 2 — UI surface: group-bounding-ring editable-only chrome + 4 group-aware onMouseDown branches + 4 onDoubleClick handlers + canvas-empty exitGroup-then-clear branch + 3-prop plumbing + PARITY-01 group gate, ~990 LOC incl. tests, 6 commits `2f4b1a1` / `cdba76c` / `7d2796f` / `c7e0723` / `776213d` / `9ec97f1`); 62-03 SHIPPED (Wave 3 — Cmd+G + Cmd+Shift+G tinykeys bindings + group-aware Esc + shouldGroupDrag helper + 4-site onDragStop branch → onGroupDrag → BULK_TRANSLATE, ~1346 LOC incl. tests, 8 commits `c1965d2` / `16dd0be` / `202c9fe` / `f7fb46f` / `2d78fce` / `dbc4d6d` / `daffc57` / `ef3207d`)
+Phase 62 status: COMPLETE; ALL 11 Phase 62 reqs marked complete in REQUIREMENTS.md (GROUP-01..10 + KBD-09).
 
 Phase: 61 — Marquee Selection **COMPLETE** (2/2 plans shipped — Waves 1+2 done)
 Plan: 61-01 SHIPPED (Wave 1 — pure helpers + selecto install + render-only component, ~604 LOC incl. tests, 7 commits `66513d6` / `7db9555` / `099eda0` / `9c9caa3` / `61c65c7` / `7bce1e3` / `cae384f`); 61-02 SHIPPED (Wave 2 — marquee state machine + KBD-07 axis-constrain + PARITY-01 marquee scan, ~826 LOC incl. tests, 5 commits `4665bef` / `44d009e` / `68df419` / `5ed8e7a` / `6c5de8c`)
@@ -158,6 +162,7 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 - [v2.10]: Stayed on `react-rnd@10.5.3` — 6-line `enableResizing` flip beats library swap. v2.11 keeps this decision.
 - [v2.10]: Past-cap behavior: box keeps growing, font caps at 240/120. Forgiving > honest.
 - [v2.10]: Dispatch on `onResizeStop` only — prevents 60-tick history pollution. v2.11 PERF-01 carries this forward to multi-drag.
+- [Phase ?]: Phase 63 Plan 03 (Wave 1 parallel) — sorted-edge-array snap-index pure module shipped: buildSnapIndex (O(N log N) build), findNearestSnap (O(log N) lower_bound binary search), snapWithHysteresis (asymmetric 5/7-px enter/exit state machine). Per-axis scalar state contract (callers track wasSnappedX/wasSnappedY independently); locked elements INCLUDED as snap targets (Figma rule); structural-anchor TextBoxes skipped (Phase 60 carry-forward gap). PERF-05 budget verified by colocated bench (PB3: 6 queries < 2ms median at N=30). 49 tests pass; tsc baseline 17 errors preserved.
 
 ### Pending Todos
 
