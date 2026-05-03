@@ -81,12 +81,12 @@
 
 ### Lock / Hide (LOCK)
 
-- [ ] **LOCK-01**: Schema gains optional `locked?: boolean` field on `TextBox`, `CustomImage`, and `Watermark`
-- [ ] **LOCK-02**: Schema gains optional `hidden?: boolean` field on `TextBox`, `CustomImage`, and `Watermark`
-- [ ] **LOCK-03**: User can press Cmd+Shift+L to toggle lock on selection
-- [ ] **LOCK-04**: Locked element is selectable (so user can unlock) but blocks drag/resize/delete/edit
-- [ ] **LOCK-05**: Locked element is excluded from marquee-selection (Figma + Canva model); click-to-select still works
-- [ ] **LOCK-06**: Locked element wrapper sets `pointer-events: none` so marquee passes through stacked locked overlays
+- [x] **LOCK-01**: Schema gains optional `locked?: boolean` field on `TextBox`, `CustomImage`, and `Watermark`
+- [x] **LOCK-02**: Schema gains optional `hidden?: boolean` field on `TextBox`, `CustomImage`, and `Watermark`
+- [x] **LOCK-03**: User can press Cmd+Shift+L to toggle lock on selection
+- [x] **LOCK-04**: Locked element is selectable (so user can unlock) but blocks drag/resize/delete/edit
+- [x] **LOCK-05**: Locked element is excluded from marquee-selection (Figma + Canva model); click-to-select still works
+- [x] **LOCK-06**: Locked element wrapper sets `pointer-events: none` so marquee passes through stacked locked overlays
 - [ ] **LOCK-07**: Hidden element (`hidden=true`) is skipped by BOTH renderers (editor preview AND Satori PNG export); excluded from alignment bounds
 - [ ] **LOCK-08**: Fork RPC (`fork_published_carousel`) strips `locked` flag on copy (forker takes ownership; matches v2.4 brand_kit_id strip pattern)
 
@@ -240,12 +240,12 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | ZORDER-05 | Phase 64 | Pending |
 | ZORDER-06 | Phase 64 | Pending |
 | ZORDER-07 | Phase 64 | Pending |
-| LOCK-01 | Phase 64 | Pending |
-| LOCK-02 | Phase 64 | Pending |
-| LOCK-03 | Phase 64 | Pending |
-| LOCK-04 | Phase 64 | Pending |
-| LOCK-05 | Phase 64 | Pending |
-| LOCK-06 | Phase 64 | Pending |
+| LOCK-01 | Phase 64 | Complete |
+| LOCK-02 | Phase 64 | Complete |
+| LOCK-03 | Phase 64 | Complete |
+| LOCK-04 | Phase 64 | Complete |
+| LOCK-05 | Phase 64 | Complete |
+| LOCK-06 | Phase 64 | Complete |
 | LOCK-07 | Phase 64 | Pending |
 | LOCK-08 | Phase 64 | Pending |
 | LAYERS-01 | Phase 65 | Pending |
