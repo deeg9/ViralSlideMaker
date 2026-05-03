@@ -751,6 +751,83 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, slides)  // KBD-09: exactly one pushHistory
     }
 
+    // Phase 64 Plan 02 (LOCK-07, KBD-09, BL-01): SET_HIDDEN single-dispatch
+    // contract — IDENTICAL shape to SET_LOCKED (locked → hidden field swap).
+    //   - ids.length === 0 → ref-equal short-circuit (no pushHistory; matches
+    //     UNGROUP idempotency from Plan 62 / SET_LOCKED from Plan 64-01).
+    //   - For each listed id, set hidden = action.hidden ONLY when it would
+    //     change (i.e. (existing hidden ?? false) !== action.hidden). When no
+    //     element actually toggles, return state unchanged (handles SH2/SH5).
+    //   - Single pushHistory per dispatch (KBD-09 / PERF-01).
+    //   - text_boxes mutations route through applyDualWrite (BL-01) so legacy
+    //     hook_text/body_text/custom_texts mirror stays well-formed (SH4).
+    //   - Watermark + custom_images participate via the same idSet walk.
+    //   - Both renderers (slide-preview + render-slide-satori) honor the
+    //     `hidden` field at element iteration sites — TPLREND-05 byte-identity
+    //     preserved (Plan 64-02 lands the renderer filter alongside this case).
+    case 'SET_HIDDEN': {
+      if (action.ids.length === 0) return state // SH5 ref-equal
+      const idSet = new Set(action.ids)
+      let anyChange = false
+
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+
+        let textBoxesChanged = false
+        let nextTextBoxes = slide.text_boxes
+        if (slide.text_boxes) {
+          nextTextBoxes = slide.text_boxes.map((tb) => {
+            if (!idSet.has(tb.id)) return tb
+            if ((tb.hidden ?? false) === action.hidden) return tb
+            textBoxesChanged = true
+            return { ...tb, hidden: action.hidden }
+          })
+        }
+
+        let customImagesChanged = false
+        let nextCustomImages = slide.custom_images
+        if (slide.custom_images) {
+          nextCustomImages = slide.custom_images.map((ci) => {
+            if (!idSet.has(ci.id)) return ci
+            if ((ci.hidden ?? false) === action.hidden) return ci
+            customImagesChanged = true
+            return { ...ci, hidden: action.hidden }
+          })
+        }
+
+        let watermarkChanged = false
+        let nextWatermark = slide.watermark
+        if (
+          slide.watermark &&
+          idSet.has(slide.watermark.id) &&
+          (slide.watermark.hidden ?? false) !== action.hidden
+        ) {
+          watermarkChanged = true
+          nextWatermark = { ...slide.watermark, hidden: action.hidden }
+        }
+
+        if (!textBoxesChanged && !customImagesChanged && !watermarkChanged) {
+          return slide
+        }
+        anyChange = true
+
+        let next: Slide = slide
+        if (textBoxesChanged && nextTextBoxes !== undefined) {
+          next = applyDualWrite(next, nextTextBoxes)
+        }
+        if (customImagesChanged) {
+          next = { ...next, custom_images: nextCustomImages }
+        }
+        if (watermarkChanged) {
+          next = { ...next, watermark: nextWatermark }
+        }
+        return next
+      })
+
+      if (!anyChange) return state // SH2 ref-equal
+      return pushHistory(state, slides)  // KBD-09: exactly one pushHistory
+    }
+
     // Phase 63 (ALIGN-03..05, ALIGN-08, ALIGN-09, ALIGN-10): single-dispatch
     // ALIGN action.
     //   - alignElements (pure align.ts) computes integer-rounded patches
