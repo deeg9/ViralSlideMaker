@@ -1449,6 +1449,21 @@ export function SlideEditor({
             lastMoveDeltaRef.current = { x: payload.deltaX, y: payload.deltaY }
             dispatch({ type: 'BULK_TRANSLATE', ...payload })
           }}
+          // Phase 66 Plan 02 (DIFF-01, KBD-09): Alt+drag duplicate fan-out.
+          // The onDragStop branch in slide-preview.tsx dispatches this when
+          // the drag-START state had `modifiers.get().alt === true`. Forward
+          // the payload to DUPLICATE_ELEMENTS_AT so the gesture lands as a
+          // single history entry. Reducer skips locked / structural-anchor /
+          // watermark (Plan 66-02 contract — same skip-set as BULK_TRANSLATE).
+          // Note (v2.11 simplification): we do NOT update the selection to
+          // follow the duplicates here (the originals stay selected). v2.12+
+          // can extend the reducer to return the new id list (requires the
+          // useReducer pattern to fan an action result), or capture pre/post
+          // dispatch slide diffs to derive new ids. Documented in SUMMARY
+          // known stubs.
+          onAltDuplicate={(payload) => {
+            dispatch({ type: 'DUPLICATE_ELEMENTS_AT', ...payload })
+          }}
           // Phase 63 Plan 02 (ALIGN-01..05, ALIGN-07): toolbar action callback.
           // SlideCanvas → SlidePreview → FloatingAlignmentToolbar. Click on
           // an align/distribute button calls handleAlign which resolves

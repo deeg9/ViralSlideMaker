@@ -42,6 +42,7 @@ import type { AlignAxis, DistributeAxis } from '@/lib/editor/transforms/align'
 // drag detection. Pure module (no React/DOM); same TPLREND-05 structural
 // gate as computeSelectionBounds.
 import { getGroupMembers, shouldGroupDrag } from '@/lib/editor/transforms/group-membership'
+import { decideAltDuplicate } from '@/components/slides/drag-stop-decider'
 // Phase 61 Plan 02 (SEL-05, SEL-06, SEL-14): marquee selection state machine.
 // Pure helpers from Plan 61-01 — rect canonicalization + Figma-intersect AABB
 // + render-only overlay component. All editor-only chrome; structurally gated
@@ -409,6 +410,27 @@ interface SlidePreviewProps {
     deltaX: number
     deltaY: number
   }) => void
+  // Phase 66 Plan 02 (DIFF-01, KBD-09 / PERF-01): Alt+drag duplicate fan-out.
+  // When the active drag gesture's drag-START state had
+  // `modifiers.get().alt === true`, the onDragStop branch dispatches a single
+  // DUPLICATE_ELEMENTS_AT-equivalent payload via this callback INSTEAD of the
+  // per-element position-change callback OR the onGroupDrag fan-out. Single
+  // user gesture → one history entry (KBD-09 / PERF-01 carry-forward).
+  // The slide-editor wiring routes this into
+  // dispatch({ type: 'DUPLICATE_ELEMENTS_AT', ... }).
+  // The deltaX/deltaY units match BULK_TRANSLATE / DUPLICATE_ELEMENTS_AT:
+  // % of canvas (REF_WIDTH=1080 / REF_HEIGHT=1920).
+  // newGroupId: when the original selection shared a single groupId, the
+  // wrapper here generates a fresh `g_${slideIndex}_${Date.now-base36}` so
+  // the copies form a NEW group (Figma model — RESEARCH F39). When the
+  // originals were ungrouped or spanned groups, undefined.
+  onAltDuplicate?: (payload: {
+    slideIndex: number
+    ids: string[]
+    deltaX: number
+    deltaY: number
+    newGroupId?: string
+  }) => void
   // Phase 63 Plan 02 (ALIGN-01..05, ALIGN-07): floating alignment toolbar
   // action callback. Invoked when the user clicks an align/distribute button
   // in the toolbar that this component mounts inside the editable={true}
@@ -443,6 +465,7 @@ export function SlidePreview({
   onEnterGroup,
   onExitGroup,
   onGroupDrag,
+  onAltDuplicate,
   onAlign,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -463,6 +486,15 @@ export function SlidePreview({
   const bodyDragStartRef = useRef<{ x: number; y: number } | null>(null)
   const customTextDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
   const customImageDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
+  // Phase 66 Plan 02 (DIFF-01): per-element alt-state-at-drag-start.
+  // Captured in onDragStart from `modifiers.get().alt`. Read in onDragStop
+  // to branch onAltDuplicate vs onGroupDrag/onPositionChange. Cleared (set
+  // back to false) in onDragStop. Mid-drag Alt-release does NOT cancel the
+  // duplicate — v2.11 simplification (RESEARCH F39 / 66-CONTEXT.md).
+  const hookAltStartRef = useRef<boolean>(false)
+  const bodyAltStartRef = useRef<boolean>(false)
+  const customTextAltStartRefs = useRef<Record<string, boolean>>({})
+  const customImageAltStartRefs = useRef<Record<string, boolean>>({})
   // Phase 63 Plan 04 (SNAP-02..06, PERF-03): smart-guide snap state.
   //   - snapIndexRef: built ONCE on onDragStart from buildSnapIndex(slide,
   //     excludeIds), reused across every onDrag tick, cleared on onDragStop.
@@ -1397,6 +1429,11 @@ export function SlidePreview({
             // Phase 61 Plan 02 (KBD-07): snapshot drag-start position for
             // axis-constrain. Cleared in onDragStop.
             hookDragStartRef.current = { x: data.x, y: data.y }
+            // Phase 66 Plan 02 (DIFF-01): snapshot alt-state at gesture-start.
+            // Reads from `modifiers.get().alt` (Plan 60-04 KBD-04 single source
+            // of truth). The drag-stop branch reads this ref to decide
+            // alt-duplicate vs group-drag vs per-element fan-out.
+            hookAltStartRef.current = modifiers.get().alt
             // Phase 63 Plan 04 (SNAP-02..06, SNAP-09): build the snap index
             // ONCE for the gesture, excluding the dragging entity (and any
             // co-moving group/multi-select members). Reused across every
@@ -1469,10 +1506,44 @@ export function SlidePreview({
             // Phase 61 Plan 02 (KBD-07): clear drag-start ref on gesture end.
             const startRef = hookDragStartRef.current
             hookDragStartRef.current = null
+            // Phase 66 Plan 02 (DIFF-01): consume alt-start snapshot.
+            const altAtStart = hookAltStartRef.current
+            hookAltStartRef.current = false
+            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+            // Phase 66 Plan 02 (DIFF-01): Alt+drag duplicate branch — runs
+            // BEFORE the existing group-drag fan-out. When alt was held at
+            // drag-START, dispatch onAltDuplicate with the current selection
+            // (or just this element's id if single-select) and the gesture's
+            // delta in % of canvas. Originals stay in place (we DO NOT call
+            // onPositionChange / onGroupDrag in this branch).
+            if (altAtStart && onAltDuplicate && hookBox) {
+              const decision = decideAltDuplicate(
+                true,
+                hookBox.id,
+                slide,
+                selection,
+                index,
+              )
+              if (decision.kind === 'alt-duplicate') {
+                const deltaX = startRef
+                  ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                  : 0
+                const deltaY = startRef
+                  ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                  : 0
+                onAltDuplicate({
+                  slideIndex: index,
+                  ids: decision.ids,
+                  deltaX,
+                  deltaY,
+                  newGroupId: decision.newGroupId,
+                })
+                return
+              }
+            }
             // Phase 62 (GROUP-09 / KBD-09): if this drag started a group drag,
             // dispatch BULK_TRANSLATE in ONE call via onGroupDrag. The hook's
             // groupId is on the canonical text_boxes mirror; resolve via id.
-            const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
             if (hookBox && onGroupDrag && selection) {
               const groupIds = shouldGroupDrag(
                 slide,
@@ -1676,6 +1747,8 @@ export function SlidePreview({
             onDragStart={(_e, data) => {
               // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
               bodyDragStartRef.current = { x: data.x, y: data.y }
+              // Phase 66 Plan 02 (DIFF-01): snapshot alt-state at gesture-start.
+              bodyAltStartRef.current = modifiers.get().alt
               // Phase 63 Plan 04: build snap index for the gesture.
               const bb = slide.text_boxes?.find((tb) => tb.role === 'body')
               const draggedId = bb?.id ?? 'body'
@@ -1733,8 +1806,38 @@ export function SlidePreview({
               // Phase 61 Plan 02 (KBD-07): clear drag-start ref.
               const startRef = bodyDragStartRef.current
               bodyDragStartRef.current = null
-              // Phase 62 (GROUP-09 / KBD-09): group drag fan-out branch.
+              // Phase 66 Plan 02 (DIFF-01): consume alt-start snapshot.
+              const altAtStart = bodyAltStartRef.current
+              bodyAltStartRef.current = false
               const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+              // Phase 66 Plan 02 (DIFF-01): Alt+drag duplicate branch — runs
+              // BEFORE the existing group-drag fan-out.
+              if (altAtStart && onAltDuplicate && bodyBox) {
+                const decision = decideAltDuplicate(
+                  true,
+                  bodyBox.id,
+                  slide,
+                  selection,
+                  index,
+                )
+                if (decision.kind === 'alt-duplicate') {
+                  const deltaX = startRef
+                    ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                    : 0
+                  const deltaY = startRef
+                    ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                    : 0
+                  onAltDuplicate({
+                    slideIndex: index,
+                    ids: decision.ids,
+                    deltaX,
+                    deltaY,
+                    newGroupId: decision.newGroupId,
+                  })
+                  return
+                }
+              }
+              // Phase 62 (GROUP-09 / KBD-09): group drag fan-out branch.
               if (bodyBox && onGroupDrag && selection) {
                 const groupIds = shouldGroupDrag(
                   slide,
@@ -1935,6 +2038,8 @@ export function SlidePreview({
                 setDraggingElementId(ct.id)
                 // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
                 customTextDragStartRefs.current[ct.id] = { x: data.x, y: data.y }
+                // Phase 66 Plan 02 (DIFF-01): snapshot alt-state per element id.
+                customTextAltStartRefs.current[ct.id] = modifiers.get().alt
                 // Phase 63 Plan 04: build snap index for the gesture.
                 snapIndexRef.current = buildSnapIndex(slide, buildExcludeIds(ct.id))
                 wasSnappedXRef.current = null
@@ -1992,14 +2097,44 @@ export function SlidePreview({
                 // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
                 const startRef = customTextDragStartRefs.current[ct.id]
                 delete customTextDragStartRefs.current[ct.id]
+                // Phase 66 Plan 02 (DIFF-01): consume alt-start snapshot.
+                const altAtStart = customTextAltStartRefs.current[ct.id] === true
+                delete customTextAltStartRefs.current[ct.id]
                 if (yPercent > 85) {
                   onCustomTextRemove?.(ct.id)
                   return
                 }
+                // Phase 66 Plan 02 (DIFF-01): Alt+drag duplicate branch — runs
+                // BEFORE the existing group-drag fan-out. Trash-zone drop above
+                // still takes precedence; alt+drag-into-trash deletes (matches
+                // BULK_TRANSLATE / per-element fall-through ordering — the
+                // primary intent of dropping in the trash is destructive).
+                if (altAtStart && onAltDuplicate) {
+                  const decision = decideAltDuplicate(
+                    true,
+                    ct.id,
+                    slide,
+                    selection,
+                    index,
+                  )
+                  if (decision.kind === 'alt-duplicate') {
+                    const deltaX = startRef
+                      ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                      : 0
+                    const deltaY = startRef
+                      ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                      : 0
+                    onAltDuplicate({
+                      slideIndex: index,
+                      ids: decision.ids,
+                      deltaX,
+                      deltaY,
+                      newGroupId: decision.newGroupId,
+                    })
+                    return
+                  }
+                }
                 // Phase 62 (GROUP-09 / KBD-09): group drag fan-out branch.
-                // Trash-zone drop above takes precedence (it's still a single
-                // gesture, but the user's intent is delete-not-move; this
-                // matches the existing per-element fall-through ordering).
                 if (onGroupDrag && selection) {
                   const groupIds = shouldGroupDrag(
                     slide,
@@ -2263,6 +2398,8 @@ export function SlidePreview({
                 setDraggingElementId(ci.id)
                 // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
                 customImageDragStartRefs.current[ci.id] = { x: data.x, y: data.y }
+                // Phase 66 Plan 02 (DIFF-01): snapshot alt-state per element id.
+                customImageAltStartRefs.current[ci.id] = modifiers.get().alt
                 // Phase 63 Plan 04: build snap index for the gesture.
                 snapIndexRef.current = buildSnapIndex(slide, buildExcludeIds(ci.id))
                 wasSnappedXRef.current = null
@@ -2319,10 +2456,40 @@ export function SlidePreview({
                 // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
                 const startRef = customImageDragStartRefs.current[ci.id]
                 delete customImageDragStartRefs.current[ci.id]
+                // Phase 66 Plan 02 (DIFF-01): consume alt-start snapshot.
+                const altAtStart = customImageAltStartRefs.current[ci.id] === true
+                delete customImageAltStartRefs.current[ci.id]
                 if (yPercent > 85) {
                   // Dropped on trash zone — delete
                   onCustomImageRemove?.(ci.id)
                   return
+                }
+                // Phase 66 Plan 02 (DIFF-01): Alt+drag duplicate branch — runs
+                // BEFORE the existing group-drag fan-out.
+                if (altAtStart && onAltDuplicate) {
+                  const decision = decideAltDuplicate(
+                    true,
+                    ci.id,
+                    slide,
+                    selection,
+                    index,
+                  )
+                  if (decision.kind === 'alt-duplicate') {
+                    const deltaX = startRef
+                      ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                      : 0
+                    const deltaY = startRef
+                      ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                      : 0
+                    onAltDuplicate({
+                      slideIndex: index,
+                      ids: decision.ids,
+                      deltaX,
+                      deltaY,
+                      newGroupId: decision.newGroupId,
+                    })
+                    return
+                  }
                 }
                 // Phase 62 (GROUP-09 / KBD-09): group drag fan-out branch.
                 if (onGroupDrag && selection) {
