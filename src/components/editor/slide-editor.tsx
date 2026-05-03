@@ -829,6 +829,8 @@ export function SlideEditor({
           selectedCustomImageId={selectedCustomImageId}
           onTextBoxSelect={setSelectedTextBoxId}
           selectedTextBoxId={selectedTextBoxId}
+          selection={{ ids: selection.ids, primary: selection.primary }}
+          onSelectionChange={selection.setSelection}
         />
 
         {/* Right panel: Editor controls */}
@@ -920,6 +922,37 @@ export function SlideEditor({
                   onWatermarkLogoUpload={handleWatermarkLogoUpload}
                   onWatermarkLogoRemove={handleWatermarkLogoRemove}
                   isWatermarkPending={isWatermarkPending}
+                  selection={{
+                    ids: selection.ids,
+                    primary: selection.primary,
+                  }}
+                  onBulkDelete={(ids) => {
+                    // Phase 60 minimal: route through existing per-id remove
+                    // helpers. Custom text_boxes go via removeTextBox; custom
+                    // images via the existing handler. Hook/body and watermark
+                    // are silently skipped (non-deletable in Phase 60 — Plan-
+                    // Checker risk #2 noted; full bulk-delete reducer arrives
+                    // in Phase 64).
+                    for (const id of ids) {
+                      const tb = (currentSlide?.text_boxes ?? []).find(
+                        (t) => t.id === id,
+                      )
+                      if (tb?.role === 'custom') {
+                        removeTextBox(selectedIndex, id)
+                        continue
+                      }
+                      const ci = (currentSlide?.custom_images ?? []).find(
+                        (c) => c.id === id,
+                      )
+                      if (ci) {
+                        handleRemoveCustomImage(id)
+                        continue
+                      }
+                    }
+                    // After bulk delete, clear the selection model so the ring
+                    // and TYPE BAR collapse on the next render.
+                    selection.clear()
+                  }}
                 />
               ) : (
                 <LegacyTextEditorPanel

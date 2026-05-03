@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { Slide } from '@/lib/types/slide'
 
 /**
@@ -59,6 +59,13 @@ export interface SelectionModel {
   /** Select all addressable elements on the given slide:
       text_boxes ∪ custom_images ∪ (watermark if present). */
   selectAll(slide: Slide): void
+  /** Phase 60 (SEL-02/03/09): React-style setter accepting a {Selection} or
+      a `(prev: Selection) => Selection` updater. Used by slide-preview's
+      Shift-click handlers + canvas-empty-onClick (SEL-09). The model's
+      replaceWith / toggleInSelection / clear already cover discrete ops; this
+      setter is for callers that need to compute the next selection from prev
+      synchronously inside an event handler. */
+  setSelection(next: Selection | ((prev: Selection) => Selection)): void
 }
 
 export function useSelectionModel(opts: {
@@ -67,6 +74,19 @@ export function useSelectionModel(opts: {
 }): SelectionModel {
   const [ids, setIds] = useState<string[]>([])
   const [primary, setPrimary] = useState<string | null>(null)
+
+  // Phase 60 (SEL-02/03): mirror current state in a ref so setSelection's
+  // functional-updater branch can compute `(prev) => next` synchronously
+  // without nesting setState calls. Refs are read-only outside the render
+  // (no re-render triggered), and the effects below keep them in sync.
+  const idsRef = useRef<string[]>(ids)
+  const primaryRef = useRef<string | null>(primary)
+  useEffect(() => {
+    idsRef.current = ids
+  }, [ids])
+  useEffect(() => {
+    primaryRef.current = primary
+  }, [primary])
 
   // SEL-10: clear on slide switch.
   // Independent of stale-id logic — slide-switch ALWAYS clears, even if the
@@ -135,6 +155,28 @@ export function useSelectionModel(opts: {
     setPrimary(all.length > 0 ? all[all.length - 1] : null)
   }, [])
 
+  const setSelection = useCallback(
+    (next: Selection | ((prev: Selection) => Selection)) => {
+      if (typeof next === 'function') {
+        // Phase 60 (SEL-02/03): functional updater branch — compute next state
+        // from refs (kept in sync via the effects above). Refs hold the most
+        // recent committed values, so a Shift-click handler firing in rapid
+        // succession reads the post-commit state. Both setters then receive
+        // the computed values directly (no nested setState).
+        const result = (next as (prev: Selection) => Selection)({
+          ids: idsRef.current,
+          primary: primaryRef.current,
+        })
+        setIds(result.ids)
+        setPrimary(result.primary)
+        return
+      }
+      setIds(next.ids)
+      setPrimary(next.primary)
+    },
+    [],
+  )
+
   return useMemo(
     () => ({
       ids,
@@ -145,6 +187,7 @@ export function useSelectionModel(opts: {
       toggleInSelection,
       clear,
       selectAll,
+      setSelection,
     }),
     [
       ids,
@@ -155,6 +198,7 @@ export function useSelectionModel(opts: {
       toggleInSelection,
       clear,
       selectAll,
+      setSelection,
     ],
   )
 }

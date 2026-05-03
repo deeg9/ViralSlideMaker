@@ -9,9 +9,11 @@ import { SlideSettings } from './text-rail/SlideSettings'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
 import { PhotoTreatmentControls, type TreatmentSpec } from './photo-treatment-controls'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
+import { MultiSelectTypeBar } from './multi-select-type-bar'
 import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
+import type { Selection } from '@/lib/editor/use-selection-model'
 
 /**
  * Phase 50 (D-10): TextEditorPanel is now a composition shell that mounts
@@ -63,6 +65,15 @@ export interface TextEditorPanelProps {
   onWatermarkLogoUpload?: (file: File) => void
   onWatermarkLogoRemove?: () => void
   isWatermarkPending?: boolean
+  /** Phase 60 (SEL-12): canonical multi-select state. When N>=2, the panel
+      replaces ActiveTextBoxCard with MultiSelectTypeBar. When N<=1, the
+      legacy single-element flow renders unchanged. Optional — callers that
+      don't pass selection get the legacy single-element rail. */
+  selection?: Selection
+  /** Phase 60 (SEL-12): bulk-delete callback for the TYPE BAR Delete button.
+      Plan 60-05 minimal: routes through existing per-id remove helpers
+      (custom-only — Phase 64 ships a bulk-delete reducer action). */
+  onBulkDelete?: (ids: string[]) => void
 }
 
 export function TextEditorPanel({
@@ -84,6 +95,8 @@ export function TextEditorPanel({
   onWatermarkLogoUpload,
   onWatermarkLogoRemove,
   isWatermarkPending,
+  selection,
+  onBulkDelete,
 }: TextEditorPanelProps) {
   const textBoxes = slide.text_boxes ?? []
 
@@ -116,12 +129,24 @@ export function TextEditorPanel({
         onAdd={() => onTextBoxAction({ type: 'ADD_TEXT_BOX', role: 'custom' })}
       />
 
-      <ActiveTextBoxCard
-        textBox={activeTextBox}
-        onUpdate={updateActiveTextBox}
-        template={template}
-        brandKit={brandKit}
-      />
+      {/* Phase 60 (SEL-12): when N >= 2 replaced ActiveTextBoxCard with the
+          minimal TYPE BAR (count + breakdown + Delete). N <= 1 falls back to
+          the legacy single-element flow unchanged. Plan 60-05 mount-conditional
+          pattern (PATTERNS.md §multi-select-type-bar). */}
+      {selection && selection.ids.length >= 2 && onBulkDelete ? (
+        <MultiSelectTypeBar
+          slide={slide}
+          selection={selection}
+          onBulkDelete={onBulkDelete}
+        />
+      ) : (
+        <ActiveTextBoxCard
+          textBox={activeTextBox}
+          onUpdate={updateActiveTextBox}
+          template={template}
+          brandKit={brandKit}
+        />
+      )}
 
       <SlideSettings
         slide={slide}
