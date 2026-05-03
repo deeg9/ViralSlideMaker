@@ -28,8 +28,8 @@ export const POST = withApiAuth(async (req, ctx) => {
   }
 
   // Validate required fields
-  if (typeof topic !== 'string' || topic.length === 0 || topic.length > 500) {
-    return apiError('VALIDATION_ERROR', 'topic must be a string between 1 and 500 characters', 400)
+  if (typeof topic !== 'string' || topic.length === 0 || topic.length > 2000) {
+    return apiError('VALIDATION_ERROR', 'topic must be a string between 1 and 2000 characters', 400)
   }
   if (typeof templateId !== 'string' || templateId.length === 0) {
     return apiError('VALIDATION_ERROR', 'templateId is required and must be a non-empty string', 400)
