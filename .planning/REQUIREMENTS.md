@@ -20,8 +20,8 @@
 - [x] **SEL-04**: User can Cmd+click an element to deep-select through groups to the leaf element
 - [ ] **SEL-05**: User can drag-select with a marquee rectangle on canvas whitespace (intersect mode — Figma default)
 - [ ] **SEL-06**: User can hold Shift while marqueeing to add the marqueed elements to existing selection
-- [ ] **SEL-07**: User can press Cmd+A to select all elements on the current slide (slide-scoped only — never cross-slide)
-- [ ] **SEL-08**: User can press Esc to clear selection (first Esc exits group if inside one; second Esc clears)
+- [x] **SEL-07**: User can press Cmd+A to select all elements on the current slide (slide-scoped only — never cross-slide)
+- [x] **SEL-08**: User can press Esc to clear selection (first Esc exits group if inside one; second Esc clears)
 - [ ] **SEL-09**: Click on empty canvas area clears selection
 - [x] **SEL-10**: Selection state clears automatically when user switches slides
 - [x] **SEL-11**: Selection state survives undo/redo with stale IDs reconciled (deleted elements pruned from selection)
@@ -105,10 +105,10 @@
 
 ### Keyboard Handling (KBD)
 
-- [ ] **KBD-01**: `tinykeys@3.0.0` replaces hand-rolled keydown switch at `slide-editor.tsx:340-385`
-- [ ] **KBD-02**: All new shortcuts respect existing `isEditing` guard (skip when `<input>`, `<textarea>`, or `contentEditable` has focus)
-- [ ] **KBD-03**: All new shortcuts call `e.preventDefault()` to prevent browser-default conflicts (Cmd+G = Chrome Find Next; Cmd+] = Chrome tab navigation in some configs)
-- [ ] **KBD-04**: Modifier state (Shift, Cmd, Alt) resets on `window.blur` and `document.visibilitychange`
+- [x] **KBD-01**: `tinykeys@3.0.0` replaces hand-rolled keydown switch at `slide-editor.tsx:340-385`
+- [x] **KBD-02**: All new shortcuts respect existing `isEditing` guard (skip when `<input>`, `<textarea>`, or `contentEditable` has focus)
+- [x] **KBD-03**: All new shortcuts call `e.preventDefault()` to prevent browser-default conflicts (Cmd+G = Chrome Find Next; Cmd+] = Chrome tab navigation in some configs)
+- [x] **KBD-04**: Modifier state (Shift, Cmd, Alt) resets on `window.blur` and `document.visibilitychange`
 - [ ] **KBD-05**: Arrow key (no modifier) nudges selection 1 reference px in arrow direction
 - [ ] **KBD-06**: Shift+Arrow nudges selection 10 reference px
 - [ ] **KBD-07**: Hold Shift during drag constrains motion to dominant axis (read `e.shiftKey` in drag handler)
@@ -194,8 +194,8 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | SEL-04 | Phase 60 | Complete |
 | SEL-05 | Phase 61 | Pending |
 | SEL-06 | Phase 61 | Pending |
-| SEL-07 | Phase 60 | Pending |
-| SEL-08 | Phase 60 | Pending |
+| SEL-07 | Phase 60 | Complete |
+| SEL-08 | Phase 60 | Complete |
 | SEL-09 | Phase 60 | Pending |
 | SEL-10 | Phase 60 | Complete |
 | SEL-11 | Phase 60 | Complete |
@@ -258,10 +258,10 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | LAYERS-08 | Phase 65 | Pending |
 | LAYERS-09 | Phase 65 | Pending |
 | LAYERS-10 | Phase 65 | Pending |
-| KBD-01 | Phase 60 | Pending |
-| KBD-02 | Phase 60 | Pending |
-| KBD-03 | Phase 60 | Pending |
-| KBD-04 | Phase 60 | Pending |
+| KBD-01 | Phase 60 | Complete |
+| KBD-02 | Phase 60 | Complete |
+| KBD-03 | Phase 60 | Complete |
+| KBD-04 | Phase 60 | Complete |
 | KBD-05 | Phase 66 | Pending |
 | KBD-06 | Phase 66 | Pending |
 | KBD-07 | Phase 61 | Pending |
