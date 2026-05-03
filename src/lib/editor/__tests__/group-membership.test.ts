@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest'
 import * as fs from 'fs'
 import * as path from 'path'
 import type { Slide, TextBox, CustomImage, Watermark } from '@/lib/types/slide'
-import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
+import { getGroupMembers, shouldGroupDrag } from '@/lib/editor/transforms/group-membership'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixture helpers (mirrors use-selection-model.test.ts patterns)
@@ -136,5 +136,129 @@ describe('getGroupMembers — purity invariant', () => {
     expect(stripped).not.toMatch(/'use client'/)
     expect(stripped).not.toMatch(/\bdocument\b/)
     expect(stripped).not.toMatch(/\bwindow\b/)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 62 (Plan 62-03, GROUP-09): shouldGroupDrag pure helper.
+//
+// Returns the group member ids to BULK_TRANSLATE on a drag, or null if the
+// drag is a single-element drag (the per-element callback path). Tests
+// SGD1-SGD6 pin the locked decisions:
+//   - inside-group → leaf drag (return null) — currentlyInsideGroup gates this
+//   - selection.ids must be the FULL group set (no partial-group fan-out:
+//     a subset selection is the user's explicit signal that they want only
+//     those elements moved)
+//   - dragged element must carry a groupId (otherwise the drag is on an
+//     ungrouped element — single-element drag)
+//   - selection.ids.length < 2 → null (single-element drag)
+//
+// Pure helper — no React, no DOM, no I/O. Lives alongside getGroupMembers
+// in src/lib/editor/transforms/group-membership.ts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('shouldGroupDrag — Phase 62 Plan 62-03 (GROUP-09)', () => {
+  type Selection = { ids: string[]; primary: string | null }
+
+  test('Test SGD1: 3 grouped text_boxes, all 3 selected, not inside group → returns the 3 ids', () => {
+    const slide = makeSlide({
+      text_boxes: [
+        makeTextBox('id_1', 'g_x'),
+        makeTextBox('id_2', 'g_x'),
+        makeTextBox('id_3', 'g_x'),
+      ],
+    })
+    const selection: Selection = {
+      ids: ['id_1', 'id_2', 'id_3'],
+      primary: 'id_1',
+    }
+    const result = shouldGroupDrag(slide, selection, null, 'id_1')
+    expect(result).not.toBeNull()
+    expect(new Set(result!)).toEqual(new Set(['id_1', 'id_2', 'id_3']))
+  })
+
+  test('Test SGD2: inside group (currentlyInsideGroup=g_x) → null (leaf drag)', () => {
+    const slide = makeSlide({
+      text_boxes: [
+        makeTextBox('id_1', 'g_x'),
+        makeTextBox('id_2', 'g_x'),
+        makeTextBox('id_3', 'g_x'),
+      ],
+    })
+    const selection: Selection = {
+      ids: ['id_1', 'id_2', 'id_3'],
+      primary: 'id_1',
+    }
+    expect(shouldGroupDrag(slide, selection, 'g_x', 'id_1')).toBeNull()
+  })
+
+  test('Test SGD3: selection has only 2 of 3 group members → null (partial-group selection)', () => {
+    const slide = makeSlide({
+      text_boxes: [
+        makeTextBox('id_1', 'g_x'),
+        makeTextBox('id_2', 'g_x'),
+        makeTextBox('id_3', 'g_x'),
+      ],
+    })
+    const selection: Selection = {
+      ids: ['id_1', 'id_2'], // only 2 of 3
+      primary: 'id_1',
+    }
+    expect(shouldGroupDrag(slide, selection, null, 'id_1')).toBeNull()
+  })
+
+  test('Test SGD4: selection includes a non-group element alongside group members → null', () => {
+    const slide = makeSlide({
+      text_boxes: [
+        makeTextBox('id_1', 'g_x'),
+        makeTextBox('id_2', 'g_x'),
+        makeTextBox('unrelated'),
+      ],
+    })
+    const selection: Selection = {
+      ids: ['id_1', 'id_2', 'unrelated'],
+      primary: 'id_1',
+    }
+    expect(shouldGroupDrag(slide, selection, null, 'id_1')).toBeNull()
+  })
+
+  test('Test SGD5: dragged element has no groupId → null', () => {
+    const slide = makeSlide({
+      text_boxes: [
+        makeTextBox('id_1'), // no groupId
+        makeTextBox('id_2', 'g_x'),
+      ],
+    })
+    const selection: Selection = {
+      ids: ['id_1', 'id_2'],
+      primary: 'id_1',
+    }
+    expect(shouldGroupDrag(slide, selection, null, 'id_1')).toBeNull()
+  })
+
+  test('Test SGD6: selection.ids.length < 2 → null (single-element drag)', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBox('id_1', 'g_x'), makeTextBox('id_2', 'g_x')],
+    })
+    const selection: Selection = {
+      ids: ['id_1'],
+      primary: 'id_1',
+    }
+    expect(shouldGroupDrag(slide, selection, null, 'id_1')).toBeNull()
+  })
+
+  test('Test SGD7 (cross-type): grouped text_box + custom_image + watermark, all 3 selected, dragged is the image → returns all 3 ids', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBox('tb1', 'g_x')],
+      custom_images: [makeCustomImage('ci1', 'g_x')],
+      watermark: makeWatermark('w0', 'g_x'),
+    })
+    const selection: Selection = {
+      ids: ['tb1', 'ci1', 'w0'],
+      primary: 'ci1',
+    }
+    const result = shouldGroupDrag(slide, selection, null, 'ci1')
+    expect(result).not.toBeNull()
+    expect(new Set(result!)).toEqual(new Set(['tb1', 'ci1', 'w0']))
   })
 })
