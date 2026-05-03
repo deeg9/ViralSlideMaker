@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
 status: in_progress
-stopped_at: Plan 63-03 complete (Wave 1 parallel — Wave B core). snap-index pure module shipped: buildSnapIndex + findNearestSnap + snapWithHysteresis (sorted edges + O(log N) binary search + asymmetric 5/7-px hysteresis). PERF-05 contract verified by colocated bench. Plans 63-01/02/04/05 still pending.
-last_updated: "2026-05-03T04:19:26.148Z"
-last_activity: "2026-05-03 — Plan 63-03 (Wave 1 parallel — Wave B core) shipped: snap-index pure module (~520 LOC across module + 49 tests). buildSnapIndex (O(N log N) build), findNearestSnap (O(log N) lower_bound binary search), snapWithHysteresis (asymmetric 5/7-px state machine). 49/49 tests pass; PERF-05 budget (<2ms at N=30) verified by colocated bench (PB1..PB4); tsc baseline 17 errors preserved. SNAP-01/02/03/08/10 + PERF-05 marked complete. Plan 63-04 will wire the pure helpers into slide-preview.tsx drag handlers."
+stopped_at: Plans 63-01 + 63-03 complete (Wave 1 parallel — Wave A core + Wave B core). Pure transforms shipped: align.ts (alignElements + distributeElements, integer-rounded, locked/watermark/anchor filtered) + ALIGN/DISTRIBUTE reducer actions; selection-bounds.ts extended to include locked + watermark in bounds (Phase 60-05 read-side gap closed). snap-index.ts (buildSnapIndex + findNearestSnap + snapWithHysteresis). Plans 63-02/04/05 still pending.
+last_updated: "2026-05-03T04:20:00Z"
+last_activity: "2026-05-03 — Plan 63-01 (Wave 1 parallel — Wave A core) shipped: pure align.ts module (245 LOC + 24 tests A1-A16/D1-D6/D7-D8) + ALIGN/DISTRIBUTE reducer actions (single pushHistory, applyDualWrite, ref-equal short-circuit) + computeSelectionBounds extended to include locked + watermark in union AABB (Phase 60-05 gap closed; watermark uses 18%×5% placeholder rect anchored by enum). 14 new reducer tests AR1-AR13; 264/264 editor-suite tests pass; tsc baseline 17 errors preserved. ALIGN-03/04/05/08/09/10 marked complete. Plan 63-02 (toolbar + tinykeys) consumes alignElements + dispatches ALIGN."
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 15
-  completed_plans: 11
-  percent: 73
+  completed_plans: 12
+  percent: 80
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
-Phase: 63 — Alignment / Distribute + Smart Guides **IN PROGRESS** (1/5 plans shipped — Wave 1 parallel partial)
-Plan: 63-03 SHIPPED (Wave 1 parallel — Wave B core: sorted-edge-array snap-index pure module + 49-test suite incl. perf bench, ~520 LOC, 3 commits `40d3cae` / `81e2c09` / `c63d848`). Pending: 63-01 (Wave A core — alignElements / distributeElements pure module, in flight by parallel agent), 63-02 (Wave A wiring — floating toolbar + keyboard bindings), 63-04 (Wave B integration — drag handler wire-up + multi-element + Hold-Cmd disable + equal-spacing), 63-05 (polish — parity test extensions + perf budget verification).
-Status: Phase 63 IN PROGRESS; 6 of 24 Phase 63 reqs marked complete in REQUIREMENTS.md (SNAP-01, SNAP-02, SNAP-03, SNAP-08, SNAP-10, PERF-05). Plan 63-04 has a stable contract to wire from slide-preview.tsx onDragStart / onDrag / onDragStop.
-Last activity: 2026-05-03 — Plan 63-03 ships sorted-edge-array snap math layer: buildSnapIndex (O(N log N) build) + findNearestSnap (O(log N) lower_bound binary search) + snapWithHysteresis (asymmetric 5/7-px enter/exit state machine, per-axis scalar state contract). 45 correctness tests (SI-1..SI-26) + 4 perf budgets (PB1..PB4); PERF-05 verified at <2ms median per 6-query pointer-tick at N=30 elements. Pure module — no React, no DOM. tsc baseline 17 errors preserved.
+Phase: 63 — Alignment / Distribute + Smart Guides **IN PROGRESS** (2/5 plans shipped — Wave 1 parallel done)
+Plan: 63-01 SHIPPED (Wave 1 parallel — Wave A core: pure align.ts + ALIGN/DISTRIBUTE reducer actions + selection-bounds.ts locked+watermark lift, ~929 LOC incl. tests, 6 commits `83a056e` / `5b91272` / `1ed2e3d` / `28943cf` / `15fc5e9` / `b60fb71`); 63-03 SHIPPED (Wave 1 parallel — Wave B core: sorted-edge-array snap-index pure module + 49-test suite incl. perf bench, ~520 LOC, 3 commits `40d3cae` / `81e2c09` / `c63d848`). Pending: 63-02 (Wave A wiring — floating toolbar + keyboard bindings), 63-04 (Wave B integration — drag handler wire-up + multi-element + Hold-Cmd disable + equal-spacing), 63-05 (polish — parity test extensions + perf budget verification).
+Status: Phase 63 IN PROGRESS; 12 of 24 Phase 63 reqs marked complete in REQUIREMENTS.md (ALIGN-03/04/05/08/09/10 + SNAP-01/02/03/08/10 + PERF-05). Plans 63-02 + 63-04 both have stable contracts to wire against (toolbar dispatches ALIGN/DISTRIBUTE; drag handlers consume snap-index helpers).
+Last activity: 2026-05-03 — Plan 63-01 ships Wave A data layer: pure alignElements (6-axis: left/center-h/right/top/center-v/bottom; N=1→canvas, N≥2→selection union AABB) + distributeElements (N≥3 gate, gap-equal spacing per PITFALL-4.6 / Figma + Sketch consensus), integer-rounded via Math.round at the pure-fn boundary (ALIGN-09 / PITFALL-4.4). Locked + watermark + structural-anchor TextBoxes filtered OUT of move candidates (ALIGN-10 single source of truth at pure layer; defense-in-depth at applyAlignPatches reducer helper). ALIGN/DISTRIBUTE reducer cases: single pushHistory per dispatch (ALIGN-08 = PERF-01 carry-forward), applyDualWrite for text_boxes (BL-01), ref-equal short-circuit on empty/all-locked/only-watermark selections. computeSelectionBounds extended to include locked custom_images + watermark placeholder rect (18% × 5%, enum-anchored) — closing Phase 60-05 read-side gap; structural-anchor TextBox height resolution remains the only open Phase 60 gap (Phase 64 lift target). 264/264 editor-suite tests pass; tsc baseline 17 errors preserved.
 
 ### Earlier in v2.11 (carry-over)
 
