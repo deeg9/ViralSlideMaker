@@ -177,9 +177,12 @@ describe('buildSnapIndex — multiple custom-anchor text boxes (SI-4)', () => {
     })
     const idx = buildSnapIndex(slide, new Set())
     // Expected X positions sorted (with canvas edges):
-    // [0, 216, 378, 540, 540, 648, 756, 1080]
+    // tb1 contributes: 216 (left), 378 (center: 216+162), 540 (right: 216+324)
+    // tb2 contributes: 540 (left), 648 (center: 540+108), 756 (right: 540+216)
+    // canvas: 0, 540, 1080
+    // sorted: [0, 216, 378, 540 (tb1 right), 540 (tb2 left), 540 (canvas), 648, 756, 1080]
     expect(positions(idx.xEdges)).toEqual([
-      0, 216, 378, 540, 540, 648, 756, 1080,
+      0, 216, 378, 540, 540, 540, 648, 756, 1080,
     ])
     // Expected Y positions sorted (576 x3 + 1152 x3 + canvas 0/960/1920)
     expect(positions(idx.yEdges)).toEqual([
