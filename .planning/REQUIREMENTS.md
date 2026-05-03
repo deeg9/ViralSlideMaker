@@ -14,21 +14,21 @@
 
 ### Selection Model (SEL)
 
-- [ ] **SEL-01**: User can click an element to select it (single-select; existing behavior preserved)
-- [ ] **SEL-02**: User can Shift+click an element to add it to current selection
-- [ ] **SEL-03**: User can Shift+click a selected element to remove it from selection
-- [ ] **SEL-04**: User can Cmd+click an element to deep-select through groups to the leaf element
+- [x] **SEL-01**: User can click an element to select it (single-select; existing behavior preserved)
+- [x] **SEL-02**: User can Shift+click an element to add it to current selection
+- [x] **SEL-03**: User can Shift+click a selected element to remove it from selection
+- [x] **SEL-04**: User can Cmd+click an element to deep-select through groups to the leaf element
 - [ ] **SEL-05**: User can drag-select with a marquee rectangle on canvas whitespace (intersect mode — Figma default)
 - [ ] **SEL-06**: User can hold Shift while marqueeing to add the marqueed elements to existing selection
 - [ ] **SEL-07**: User can press Cmd+A to select all elements on the current slide (slide-scoped only — never cross-slide)
 - [ ] **SEL-08**: User can press Esc to clear selection (first Esc exits group if inside one; second Esc clears)
 - [ ] **SEL-09**: Click on empty canvas area clears selection
-- [ ] **SEL-10**: Selection state clears automatically when user switches slides
-- [ ] **SEL-11**: Selection state survives undo/redo with stale IDs reconciled (deleted elements pruned from selection)
+- [x] **SEL-10**: Selection state clears automatically when user switches slides
+- [x] **SEL-11**: Selection state survives undo/redo with stale IDs reconciled (deleted elements pruned from selection)
 - [ ] **SEL-12**: Right-rail shows TYPE BAR for multi-selection (shared ops only; "Mixed" placeholder for differing values; no "primary" key-object concept)
 - [ ] **SEL-13**: Selection bounding box (dashed ring) renders around the union AABB of selected elements when N≥2 (`editable={true}` gated)
 - [ ] **SEL-14**: Marquee rect normalizes for all 4 drag directions (top-left → bottom-right, bottom-right → top-left, etc.)
-- [ ] **SEL-15**: Selection model uses `Selection { ids: string[]; primary: string | null }` shape with insertion-order preservation; selection state lives in React state outside reducer history (matches v2.8 pattern)
+- [x] **SEL-15**: Selection model uses `Selection { ids: string[]; primary: string | null }` shape with insertion-order preservation; selection state lives in React state outside reducer history (matches v2.8 pattern)
 
 ### Alignment & Distribute (ALIGN)
 
@@ -139,7 +139,7 @@
 
 ### Performance (PERF)
 
-- [ ] **PERF-01**: Multi-drag dispatches a single `BULK_TRANSLATE` action on `onDragStop` only (NEVER per-frame `onDrag`); strict carry-forward of v2.10's `onResizeStop` rule
+- [x] **PERF-01**: Multi-drag dispatches a single `BULK_TRANSLATE` action on `onDragStop` only (NEVER per-frame `onDrag`); strict carry-forward of v2.10's `onResizeStop` rule
 - [ ] **PERF-02**: Layers panel reorder dispatches reducer on `dragEnd` only; uses local `useState` during drag for visual feedback
 - [ ] **PERF-03**: Smart-guide overlay updates via direct ref + `transform: translate3d` (no React reconciliation per pointer-move)
 - [ ] **PERF-04**: Layer chips wrapped in `React.memo` (covered by LAYERS-09)
@@ -188,21 +188,21 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEL-01 | Phase 60 | Pending |
-| SEL-02 | Phase 60 | Pending |
-| SEL-03 | Phase 60 | Pending |
-| SEL-04 | Phase 60 | Pending |
+| SEL-01 | Phase 60 | Complete |
+| SEL-02 | Phase 60 | Complete |
+| SEL-03 | Phase 60 | Complete |
+| SEL-04 | Phase 60 | Complete |
 | SEL-05 | Phase 61 | Pending |
 | SEL-06 | Phase 61 | Pending |
 | SEL-07 | Phase 60 | Pending |
 | SEL-08 | Phase 60 | Pending |
 | SEL-09 | Phase 60 | Pending |
-| SEL-10 | Phase 60 | Pending |
-| SEL-11 | Phase 60 | Pending |
+| SEL-10 | Phase 60 | Complete |
+| SEL-11 | Phase 60 | Complete |
 | SEL-12 | Phase 60 | Pending |
 | SEL-13 | Phase 60 | Pending |
 | SEL-14 | Phase 61 | Pending |
-| SEL-15 | Phase 60 | Pending |
+| SEL-15 | Phase 60 | Complete |
 | ALIGN-01 | Phase 63 | Pending |
 | ALIGN-02 | Phase 63 | Pending |
 | ALIGN-03 | Phase 63 | Pending |
@@ -280,7 +280,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | PARITY-03 | Phase 63 | Pending |
 | PARITY-04 | Phase 65 | Pending |
 | PARITY-05 | Phase 65 | Pending |
-| PERF-01 | Phase 60 | Pending |
+| PERF-01 | Phase 60 | Complete |
 | PERF-02 | Phase 65 | Pending |
 | PERF-03 | Phase 63 | Pending |
 | PERF-04 | Phase 65 | Pending |
