@@ -623,6 +623,71 @@ export function SlideEditor({
         if (isEditingTarget(e.target)) return
         distributeKeyHandler(e, 'vertical')
       },
+
+      // ────────────────────────────────────────────────────────────────────
+      // Phase 64 Plan 03 (ZORDER-01..07, KBD-02, KBD-03, KBD-09): 4 z-order
+      // bindings. Each dispatches a single Z_ORDER action; the reducer routes
+      // per-scope (text_boxes / custom_images) internally. Multi-selection
+      // iterates +1/-1 individually with array-bound clamping (Figma model —
+      // ZORDER-06).
+      //
+      // ZORDER-05: array splice exclusively; the pure transform's grep gate
+      // forbids any reference to the CSS layering property. Cmd+] / Cmd+[
+      // are browser tab-navigation on some Chrome configs — preventDefault
+      // keeps focus on the canvas. The KBD-02 firewall is INLINED at each
+      // binding so the grep count goes 25 → 29 (Plan 64-01 added +1; this
+      // plan adds +4).
+      //
+      // op mapping:
+      //   $mod+]      → 'forward'    (array splice +1; clamp at length)
+      //   $mod+[      → 'backward'   (array splice -1; clamp at 0)
+      //   $mod+Alt+]  → 'front'      (push to end of array)
+      //   $mod+Alt+[  → 'back'       (unshift to index 0)
+      // ────────────────────────────────────────────────────────────────────
+      '$mod+]': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        dispatch({
+          type: 'Z_ORDER',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          op: 'forward',
+        })
+      },
+      '$mod+[': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        dispatch({
+          type: 'Z_ORDER',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          op: 'backward',
+        })
+      },
+      '$mod+Alt+]': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        dispatch({
+          type: 'Z_ORDER',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          op: 'front',
+        })
+      },
+      '$mod+Alt+[': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (selection.ids.length === 0) return
+        dispatch({
+          type: 'Z_ORDER',
+          slideIndex: selectedIndex,
+          ids: selection.ids,
+          op: 'back',
+        })
+      },
     })
 
     // Phase 63 Plan 02 — closure helpers. Defined INSIDE the useEffect so
