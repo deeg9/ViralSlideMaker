@@ -439,30 +439,35 @@ export function buildSlideElement(
           </div>
         )
       })}
-      {/* Hook text */}
-      <div style={hookStyle}>
-        {renderTextBlock(
-          slide.hook_text,
-          slide.hook_segments,
-          hookBox?.list_type,
-          hookBox?.list_indent,
-          isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
-          accentColor,
-        )}
-      </div>
-      {/* Body text */}
-      <div style={bodyStyle}>
-        {renderTextBlock(
-          slide.body_text,
-          slide.body_segments,
-          bodyBox?.list_type,
-          bodyBox?.list_indent,
-          isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
-          accentColor,
-        )}
-      </div>
-      {/* Custom images (before text so text layers on top in Satori DOM order) */}
-      {(slide.custom_images ?? []).map((ci) => (
+      {/* Hook text — Phase 64 LOCK-07: skip when text_boxes hook entry has hidden=true */}
+      {!hookBox?.hidden && (
+        <div style={hookStyle}>
+          {renderTextBlock(
+            slide.hook_text,
+            slide.hook_segments,
+            hookBox?.list_type,
+            hookBox?.list_indent,
+            isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
+            accentColor,
+          )}
+        </div>
+      )}
+      {/* Body text — Phase 64 LOCK-07: skip when text_boxes body entry has hidden=true */}
+      {!bodyBox?.hidden && (
+        <div style={bodyStyle}>
+          {renderTextBlock(
+            slide.body_text,
+            slide.body_segments,
+            bodyBox?.list_type,
+            bodyBox?.list_indent,
+            isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
+            accentColor,
+          )}
+        </div>
+      )}
+      {/* Custom images (before text so text layers on top in Satori DOM order)
+          Phase 64 LOCK-07: filter ci.hidden === true. */}
+      {(slide.custom_images ?? []).filter((ci) => ci.hidden !== true).map((ci) => (
         <img
           key={ci.id}
           src={ci.url}
@@ -478,8 +483,9 @@ export function buildSlideElement(
           }}
         />
       ))}
-      {/* Brand watermark — rendered after custom_images so it stacks on top in Satori DOM order */}
-      {watermark && (
+      {/* Brand watermark — rendered after custom_images so it stacks on top in Satori DOM order.
+          Phase 64 LOCK-07: also gate on slide.watermark.hidden to suppress hidden watermarks. */}
+      {watermark && !slide.watermark?.hidden && (
         <img
           src={watermark.url}
           style={{
@@ -492,8 +498,13 @@ export function buildSlideElement(
           }}
         />
       )}
-      {/* Custom text boxes */}
-      {(slide.custom_texts ?? []).map((ct) => {
+      {/* Custom text boxes — Phase 64 LOCK-07: hidden flag lives on the text_boxes
+          mirror (Phase 49 dual-write contract). Look up by ct.id and skip when
+          hidden === true. */}
+      {(slide.custom_texts ?? []).filter((ct) => {
+        const ctBox = (slide.text_boxes ?? []).find((tb) => tb.id === ct.id)
+        return ctBox?.hidden !== true
+      }).map((ct) => {
         const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
         const ctEffects = resolvedCt ? satoriEffectStyles(resolvedCt.resolvedEffects) : {}
         const ctHighlight = resolvedCt ? satoriHighlightStyle(resolvedCt.resolvedEffects) : null
