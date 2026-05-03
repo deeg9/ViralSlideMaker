@@ -18,8 +18,8 @@
 - [x] **SEL-02**: User can Shift+click an element to add it to current selection
 - [x] **SEL-03**: User can Shift+click a selected element to remove it from selection
 - [x] **SEL-04**: User can Cmd+click an element to deep-select through groups to the leaf element
-- [ ] **SEL-05**: User can drag-select with a marquee rectangle on canvas whitespace (intersect mode — Figma default)
-- [ ] **SEL-06**: User can hold Shift while marqueeing to add the marqueed elements to existing selection
+- [x] **SEL-05**: User can drag-select with a marquee rectangle on canvas whitespace (intersect mode — Figma default)
+- [x] **SEL-06**: User can hold Shift while marqueeing to add the marqueed elements to existing selection
 - [x] **SEL-07**: User can press Cmd+A to select all elements on the current slide (slide-scoped only — never cross-slide)
 - [x] **SEL-08**: User can press Esc to clear selection (first Esc exits group if inside one; second Esc clears)
 - [x] **SEL-09**: Click on empty canvas area clears selection
@@ -111,7 +111,7 @@
 - [x] **KBD-04**: Modifier state (Shift, Cmd, Alt) resets on `window.blur` and `document.visibilitychange`
 - [ ] **KBD-05**: Arrow key (no modifier) nudges selection 1 reference px in arrow direction
 - [ ] **KBD-06**: Shift+Arrow nudges selection 10 reference px
-- [ ] **KBD-07**: Hold Shift during drag constrains motion to dominant axis (read `e.shiftKey` in drag handler)
+- [x] **KBD-07**: Hold Shift during drag constrains motion to dominant axis (read `e.shiftKey` in drag handler)
 - [ ] **KBD-08**: Keyboard shortcut hints appear in tooltips on alignment toolbar buttons + layer-chip controls
 - [ ] **KBD-09**: All multi-element keyboard ops (align, distribute, group, ungroup, z-order, nudge) dispatch a single `pushHistory` per gesture
 
@@ -192,8 +192,8 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | SEL-02 | Phase 60 | Complete |
 | SEL-03 | Phase 60 | Complete |
 | SEL-04 | Phase 60 | Complete |
-| SEL-05 | Phase 61 | Pending |
-| SEL-06 | Phase 61 | Pending |
+| SEL-05 | Phase 61 | Complete |
+| SEL-06 | Phase 61 | Complete |
 | SEL-07 | Phase 60 | Complete |
 | SEL-08 | Phase 60 | Complete |
 | SEL-09 | Phase 60 | Complete |
@@ -264,7 +264,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | KBD-04 | Phase 60 | Complete |
 | KBD-05 | Phase 66 | Pending |
 | KBD-06 | Phase 66 | Pending |
-| KBD-07 | Phase 61 | Pending |
+| KBD-07 | Phase 61 | Complete |
 | KBD-08 | Phase 66 | Pending |
 | KBD-09 | Phase 62 | Pending |
 | WMARK-01 | Phase 60 | Complete |
