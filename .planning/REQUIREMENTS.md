@@ -45,11 +45,11 @@
 
 ### Group / Ungroup (GROUP)
 
-- [ ] **GROUP-01**: Schema gains optional `groupId?: string` field on `TextBox`, `CustomImage`, and `Watermark` element types
-- [ ] **GROUP-02**: User can press Cmd+G to group selection (forms new group with shared `groupId`)
-- [ ] **GROUP-03**: User can press Cmd+Shift+G to ungroup (clears `groupId` field on each member; absolute positions preserved automatically by flat schema)
-- [ ] **GROUP-04**: Cmd+G with N=0 or N=1 is a no-op (early return; matches Figma)
-- [ ] **GROUP-05**: Cmd+G on a subset of an existing group dissolves prior group memberships and forms a new flat group (no nested groups in v2.11)
+- [x] **GROUP-01**: Schema gains optional `groupId?: string` field on `TextBox`, `CustomImage`, and `Watermark` element types
+- [x] **GROUP-02**: User can press Cmd+G to group selection (forms new group with shared `groupId`)
+- [x] **GROUP-03**: User can press Cmd+Shift+G to ungroup (clears `groupId` field on each member; absolute positions preserved automatically by flat schema)
+- [x] **GROUP-04**: Cmd+G with N=0 or N=1 is a no-op (early return; matches Figma)
+- [x] **GROUP-05**: Cmd+G on a subset of an existing group dissolves prior group memberships and forms a new flat group (no nested groups in v2.11)
 - [ ] **GROUP-06**: Group bounding box ring renders around member AABB when group is selected (`editable={true}` gated)
 - [ ] **GROUP-07**: User can double-click a group member to enter the group (focuses leaf element; right-rail shows leaf properties)
 - [ ] **GROUP-08**: User can press Esc or click outside the group to exit it
@@ -113,7 +113,7 @@
 - [ ] **KBD-06**: Shift+Arrow nudges selection 10 reference px
 - [x] **KBD-07**: Hold Shift during drag constrains motion to dominant axis (read `e.shiftKey` in drag handler)
 - [ ] **KBD-08**: Keyboard shortcut hints appear in tooltips on alignment toolbar buttons + layer-chip controls
-- [ ] **KBD-09**: All multi-element keyboard ops (align, distribute, group, ungroup, z-order, nudge) dispatch a single `pushHistory` per gesture
+- [x] **KBD-09**: All multi-element keyboard ops (align, distribute, group, ungroup, z-order, nudge) dispatch a single `pushHistory` per gesture
 
 ### Watermark Integration (WMARK)
 
@@ -213,11 +213,11 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | ALIGN-08 | Phase 63 | Pending |
 | ALIGN-09 | Phase 63 | Pending |
 | ALIGN-10 | Phase 63 | Pending |
-| GROUP-01 | Phase 62 | Pending |
-| GROUP-02 | Phase 62 | Pending |
-| GROUP-03 | Phase 62 | Pending |
-| GROUP-04 | Phase 62 | Pending |
-| GROUP-05 | Phase 62 | Pending |
+| GROUP-01 | Phase 62 | Complete |
+| GROUP-02 | Phase 62 | Complete |
+| GROUP-03 | Phase 62 | Complete |
+| GROUP-04 | Phase 62 | Complete |
+| GROUP-05 | Phase 62 | Complete |
 | GROUP-06 | Phase 62 | Pending |
 | GROUP-07 | Phase 62 | Pending |
 | GROUP-08 | Phase 62 | Pending |
@@ -266,7 +266,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | KBD-06 | Phase 66 | Pending |
 | KBD-07 | Phase 61 | Complete |
 | KBD-08 | Phase 66 | Pending |
-| KBD-09 | Phase 62 | Pending |
+| KBD-09 | Phase 62 | Complete |
 | WMARK-01 | Phase 60 | Complete |
 | WMARK-02 | Phase 60 | Complete |
 | WMARK-03 | Phase 60 | Complete |
