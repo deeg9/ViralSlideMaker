@@ -499,6 +499,13 @@ export function SlidePreview({
     return normalizeRect(marqueeStart.x, marqueeStart.y, marqueeEnd.x, marqueeEnd.y)
   }, [marqueeStart, marqueeEnd])
 
+  // Phase 64 Plan 01 (LOCK-06): "marquee active" signal — derived from the
+  // existing marqueeStart state. While truthy, locked-element wrappers apply
+  // pointer-events:none so marquee events drill through stacked locked
+  // overlays (Figma + Canva model). Default state (marquee inactive) leaves
+  // pointer-events at auto so click-to-select still works on locked elements.
+  const marqueeActive = marqueeStart !== null
+
   // ESC-cancel during active marquee. Listener is mounted ONLY while DRAGGING
   // (marqueeStart non-null) so it doesn't compete with text-input ESC handlers
   // when no marquee is active. Bypasses isEditingTarget intentionally — ESC
@@ -1355,12 +1362,26 @@ export function SlidePreview({
         <OverlayLayers template={template} ctx={resolveCtx} />
 
         {/* Resizable + Draggable hook text */}
+        {(() => {
+          // Phase 64 Plan 01 (LOCK-04, LOCK-06): resolve hook locked flag
+          // from the canonical text_boxes mirror. disableDragging blocks
+          // both mouse and touch handlers (react-rnd contract); enableResizing
+          // is forced to false when locked. Both overrides are inert when
+          // hookLocked is false so non-locked behavior is byte-identical to
+          // pre-Plan-64. Lock-icon overlay + marquee-gated pointer-events
+          // gate also live here; structurally inside editable={true} branch
+          // so PARITY-01 / TPLREND-05 invariants hold (no chrome leaks to
+          // Satori PNG export).
+          const hookLockedBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+          const hookLocked = hookLockedBox?.locked === true
+          return (
         <Rnd
           position={hookPixels}
           size={{ width: hookWidthPx, height: 'auto' as unknown as number }}
           scale={scale}
           bounds="parent"
-          enableResizing={enableResizing}
+          enableResizing={hookLocked ? false : enableResizing}
+          disableDragging={hookLocked}
           resizeHandleStyles={resizeHandleStyles}
           onDragStart={(_e, data) => {
             // Phase 61 Plan 02 (KBD-07): snapshot drag-start position for
@@ -1578,7 +1599,11 @@ export function SlidePreview({
               onEnterGroup?.(hookBox.id, slide)
             }
           }}
-          style={{ zIndex: 10 }}
+          style={{
+            zIndex: 10,
+            ...(hookLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
+          }}
+          {...(hookLocked ? { 'data-locked': 'true' as const } : {})}
           className={`hover:outline hover:outline-2 hover:outline-white/50 ${hookSelected ? selectionRingClass : ''}`}
         >
           <div
@@ -1595,6 +1620,23 @@ export function SlidePreview({
                 : {}),
             }}
           >
+            {hookLocked && (
+              <div
+                data-testid="lock-icon"
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  width: 12,
+                  height: 12,
+                  opacity: 0.6,
+                  pointerEvents: 'none',
+                  fontSize: 10,
+                  lineHeight: 1,
+                }}
+                aria-hidden="true"
+              >🔒</div>
+            )}
             <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
                 ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
@@ -1602,15 +1644,24 @@ export function SlidePreview({
             </p>
           </div>
         </Rnd>
+          )
+        })()}
 
         {/* Resizable + Draggable body text */}
-        {slide.body_text && (
+        {slide.body_text && (() => {
+          // Phase 64 Plan 01 (LOCK-04, LOCK-06): same shape as hook above —
+          // resolve body locked flag and gate disableDragging + enableResizing
+          // + marquee-active pointer-events override + lock-icon overlay.
+          const bodyLockedBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+          const bodyLocked = bodyLockedBox?.locked === true
+          return (
           <Rnd
             position={bodyPixels}
             size={{ width: bodyWidthPx, height: 'auto' as unknown as number }}
             scale={scale}
             bounds="parent"
-            enableResizing={enableResizing}
+            enableResizing={bodyLocked ? false : enableResizing}
+            disableDragging={bodyLocked}
             resizeHandleStyles={resizeHandleStyles}
             onDragStart={(_e, data) => {
               // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
@@ -1786,7 +1837,11 @@ export function SlidePreview({
                 onEnterGroup?.(bodyBox.id, slide)
               }
             }}
-            style={{ zIndex: 10 }}
+            style={{
+              zIndex: 10,
+              ...(bodyLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
+            }}
+            {...(bodyLocked ? { 'data-locked': 'true' as const } : {})}
             className={`hover:outline hover:outline-2 hover:outline-white/50 ${bodySelected ? selectionRingClass : ''}`}
           >
             <div
@@ -1803,6 +1858,23 @@ export function SlidePreview({
                   : {}),
               }}
             >
+              {bodyLocked && (
+                <div
+                  data-testid="lock-icon"
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 12,
+                    height: 12,
+                    opacity: 0.6,
+                    pointerEvents: 'none',
+                    fontSize: 10,
+                    lineHeight: 1,
+                  }}
+                  aria-hidden="true"
+                >🔒</div>
+              )}
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
                   ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}</span>
@@ -1810,7 +1882,8 @@ export function SlidePreview({
               </p>
             </div>
           </Rnd>
-        )}
+          )
+        })()}
 
         {/* Custom text boxes */}
         {(slide.custom_texts ?? []).map((ct) => {
@@ -1825,6 +1898,13 @@ export function SlidePreview({
           const ctEffectCSS = resolvedCt ? effectToCSS(resolvedCt.resolvedEffects) : {}
           const ctHighlight = resolvedCt?.resolvedEffects.highlight
           const ctBaseColor = ct.color ?? textColor
+          // Phase 64 Plan 01 (LOCK-04, LOCK-06): resolve custom-text locked
+          // flag from the canonical text_boxes mirror (custom-text id ==
+          // text_box id by Phase 49 adapter contract). disableDragging
+          // composes with the existing isEditing override (locked OR editing
+          // both block drag). enableResizing is forced to false when locked.
+          const ctLockedBox = slide.text_boxes?.find((tb) => tb.id === ct.id)
+          const ctLocked = ctLockedBox?.locked === true
 
           return (
             <Rnd
@@ -1833,9 +1913,9 @@ export function SlidePreview({
               size={{ width: ctWidthPx, height: 'auto' as unknown as number }}
               scale={scale}
               bounds="parent"
-              enableResizing={enableResizing}
+              enableResizing={ctLocked ? false : enableResizing}
               resizeHandleStyles={resizeHandleStyles}
-              disableDragging={isEditing}
+              disableDragging={isEditing || ctLocked}
               onDragStart={(_e, data) => {
                 setDraggingElementId(ct.id)
                 // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
@@ -2029,7 +2109,11 @@ export function SlidePreview({
                   onEnterGroup?.(ct.id, slide)
                 }
               }}
-              style={{ zIndex: 15 }}
+              style={{
+                zIndex: 15,
+                ...(ctLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
+              }}
+              {...(ctLocked ? { 'data-locked': 'true' as const } : {})}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
                 // Phase 52 (T-02): unified dashed selection ring driven by
                 // selectedTextBoxId. Legacy blue ring (isSelected via
@@ -2077,6 +2161,23 @@ export function SlidePreview({
                   setEditingCustomTextId(null)
                 }}
               >
+                {ctLocked && (
+                  <div
+                    data-testid="lock-icon"
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      width: 12,
+                      height: 12,
+                      opacity: 0.6,
+                      pointerEvents: 'none',
+                      fontSize: 10,
+                      lineHeight: 1,
+                    }}
+                    aria-hidden="true"
+                  >🔒</div>
+                )}
                 {isEditing ? ct.text : (
                   ctHighlight?.enabled && ctHighlight.style === 'tight'
                     ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}</span>
@@ -2096,6 +2197,14 @@ export function SlidePreview({
           const ciWidthPx = (ci.width / 100) * REF_WIDTH
           const ciHeightPx = (ci.height / 100) * REF_HEIGHT
           const isImageSelected = selectedCustomImageId === ci.id
+          // Phase 64 Plan 01 (LOCK-04, LOCK-06): same shape as the 3 text Rnd
+          // sites — disableDragging blocks both mouse + touch (react-rnd
+          // contract; verified in Plan 61-01 selecto integration), and
+          // enableResizing is forced to false when locked. Lock-icon overlay
+          // + marquee-active pointer-events override are sibling concerns
+          // gated behind `editable={true}` (this whole subtree returns early
+          // for editable=false at line 916).
+          const ciLocked = ci.locked === true
 
           const imageResizeHandleStyle: React.CSSProperties = {
             width: 8,
@@ -2114,7 +2223,8 @@ export function SlidePreview({
               scale={scale}
               bounds="parent"
               lockAspectRatio={true}
-              enableResizing={{
+              disableDragging={ciLocked}
+              enableResizing={ciLocked ? false : {
                 top: true,
                 bottom: true,
                 left: true,
@@ -2276,11 +2386,33 @@ export function SlidePreview({
                   onEnterGroup?.(ci.id, slide)
                 }
               }}
-              style={{ zIndex: 12 }}
+              style={{
+                zIndex: 12,
+                ...(ciLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
+              }}
+              {...(ciLocked ? { 'data-locked': 'true' as const } : {})}
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
                 isImageSelected ? 'outline outline-2 outline-blue-400' : ''
               }`}
             >
+              {ciLocked && (
+                <div
+                  data-testid="lock-icon"
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 12,
+                    height: 12,
+                    opacity: 0.6,
+                    pointerEvents: 'none',
+                    fontSize: 10,
+                    lineHeight: 1,
+                    zIndex: 1,
+                  }}
+                  aria-hidden="true"
+                >🔒</div>
+              )}
               <img
                 src={ci.url}
                 draggable={false}
