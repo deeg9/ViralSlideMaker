@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition, CustomText, TextSegment } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
@@ -14,6 +14,14 @@ import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
 // Pure module — no React/DOM coupling. Editor-only chrome consumer; gated
 // strictly to the editable={true} branch below.
 import { computeSelectionBounds } from '@/lib/editor/transforms/selection-bounds'
+// Phase 61 Plan 02 (SEL-05, SEL-06, SEL-14): marquee selection state machine.
+// Pure helpers from Plan 61-01 — rect canonicalization + Figma-intersect AABB
+// + render-only overlay component. All editor-only chrome; structurally gated
+// to the editable={true} branch (TPLREND-05 / PARITY-01).
+import { normalizeRect } from '@/lib/editor/transforms/normalize-rect'
+import { elementsInRect } from '@/lib/editor/transforms/element-rect-intersect'
+import { MarqueeOverlay } from '@/components/editor/marquee-overlay'
+import { useModifierState } from '@/lib/editor/use-modifier-state'
 import type { Selection } from '@/lib/editor/use-selection-model'
 // Phase 45 — shared resolver that guarantees the React preview renders overlay
 // content + slot anchors + per-segment highlight pills with the SAME source as
@@ -375,6 +383,42 @@ export function SlidePreview({
   const [editingCustomTextId, setEditingCustomTextId] = useState<string | null>(null)
   const [draggingElementId, setDraggingElementId] = useState<string | null>(null)
   const [overTrash, setOverTrash] = useState(false)
+
+  // Phase 61 Plan 02 (SEL-05/SEL-06/SEL-14): marquee selection state. Local
+  // state ONLY — never enters reducer history (CONTEXT.md domain.decisions).
+  // marqueeStart records canvas-local pixel coords at pointerdown; marqueeEnd
+  // updates on pointermove. Both null = no active marquee (IDLE). The
+  // marqueeStartRef avoids stale closures inside event handlers.
+  const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null)
+  const [marqueeEnd, setMarqueeEnd] = useState<{ x: number; y: number } | null>(null)
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null)
+  useEffect(() => { marqueeStartRef.current = marqueeStart }, [marqueeStart])
+  const modifiers = useModifierState()
+
+  // Live marquee rect for the overlay — memoized so identical start/end pairs
+  // don't allocate per render. Coords are SCALED-CANVAS PIXELS (matches the
+  // overlay's parent: the inner scaled wrapper), not %. Plan 61-02 converts
+  // px → % at pointer-up before calling elementsInRect.
+  const marqueeRect = useMemo(() => {
+    if (!marqueeStart || !marqueeEnd) return null
+    return normalizeRect(marqueeStart.x, marqueeStart.y, marqueeEnd.x, marqueeEnd.y)
+  }, [marqueeStart, marqueeEnd])
+
+  // ESC-cancel during active marquee. Listener is mounted ONLY while DRAGGING
+  // (marqueeStart non-null) so it doesn't compete with text-input ESC handlers
+  // when no marquee is active. Bypasses isEditingTarget intentionally — ESC
+  // must always cancel a mid-drag gesture (cross_phase_constraints).
+  useEffect(() => {
+    if (!marqueeStart) return
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setMarqueeStart(null)
+        setMarqueeEnd(null)
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [marqueeStart])
 
   // Color-only templates ignore per-slide color overrides so stale values
   // from a prior template (e.g. hook_text_color: '#FFFFFF' baked in by
@@ -980,17 +1024,103 @@ export function SlidePreview({
     >
       <div
         style={innerStyle}
-        onClick={(e) => {
-          // Click on canvas background clears selections.
-          // Phase 60 (SEL-09): also clear the multi-select model so the union
-          // AABB ring + TYPE BAR disappear. Phase 61 will replace this onClick
-          // with onPointerDown for marquee-start (CONTEXT.md line 81); for now
-          // we keep onClick.
-          if (e.target === e.currentTarget) {
-            onCustomTextSelect?.(null)
-            onCustomImageSelect?.(null)
-            onSelectionChange?.({ ids: [], primary: null })
+        // Phase 61 Plan 02 (SEL-05/SEL-06/SEL-14): canvas-root pointer-event
+        // state machine. Replaces Plan 60-05's onClick at this seam (PITFALL-2.4
+        // touch-parity carry-forward — pointerdown unifies mouse+touch). The
+        // "click-empty-canvas-clears" semantic from Plan 60-05 is preserved as
+        // the no-drag branch in onPointerUp (rect.w<=2 && rect.h<=2).
+        //
+        // PITFALL-2.1: e.target===e.currentTarget gate — pointerdown on a child
+        // element does NOT start a marquee (children have their own onMouseDown
+        // at the per-element Rnd that stopPropagation already; the target check
+        // is the strong gate for pointer events).
+        //
+        // FALLBACK PATH (CONTEXT.md decisions, locked): we own the hit-testing
+        // via elementsInRect + manual px→% conversion using the existing `scale`
+        // factor. selecto package is installed (Plan 61-01) but we don't wire
+        // its hit-tester — avoids the Day-1 setScale debugging surface entirely.
+        onPointerDown={(e) => {
+          if (e.target !== e.currentTarget) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          // Convert client coords → canvas-local pixel coords. The CSS scale
+          // wrapper is at the slide-preview container level; this inner div
+          // shares the same coord space as the unscaled REF canvas via the
+          // existing `scale` factor used by <Rnd> below.
+          const x = (e.clientX - rect.left) / scale
+          const y = (e.clientY - rect.top) / scale
+          setMarqueeStart({ x, y })
+          setMarqueeEnd({ x, y })
+          // Pointer capture so subsequent move/up events fire on this element
+          // even if the pointer leaves canvas bounds. setPointerCapture can
+          // throw on detached elements / lacking pointerId, hence try/catch.
+          try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
+        }}
+        onPointerMove={(e) => {
+          if (!marqueeStartRef.current) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const x = (e.clientX - rect.left) / scale
+          const y = (e.clientY - rect.top) / scale
+          setMarqueeEnd({ x, y })
+        }}
+        onPointerUp={(e) => {
+          const start = marqueeStartRef.current
+          if (!start) return
+          const rectEl = e.currentTarget.getBoundingClientRect()
+          const endX = (e.clientX - rectEl.left) / scale
+          const endY = (e.clientY - rectEl.top) / scale
+          const pixRect = normalizeRect(start.x, start.y, endX, endY)
+          // Read shift from useModifierState ref (Plan 60-04) AND the event
+          // itself — the ref needs a prior keydown to populate; the event
+          // shiftKey is the authoritative read on this gesture. Either truthy
+          // means shift-additive.
+          const shiftHeld =
+            modifiers.get().shift || (e as unknown as { shiftKey?: boolean }).shiftKey === true
+
+          // No-drag branch: Plan 60-05 click-empty-canvas-clears preserved.
+          // 2px threshold catches accidental micro-jitter on click. SEL-06
+          // PITFALL-2.5: shift+click without drag is a no-op (don't clear).
+          if (pixRect.w <= 2 && pixRect.h <= 2) {
+            if (!shiftHeld) {
+              onCustomTextSelect?.(null)
+              onCustomImageSelect?.(null)
+              onSelectionChange?.({ ids: [], primary: null })
+            }
+            setMarqueeStart(null)
+            setMarqueeEnd(null)
+            return
           }
+
+          // Drag branch: convert pixel rect to % canvas coords for
+          // elementsInRect (Plan 61-01 contract: rect coords are % of
+          // REF_WIDTH/REF_HEIGHT, matching CustomImage / TextBox.position).
+          const pctRect = {
+            x: (pixRect.x / REF_WIDTH) * 100,
+            y: (pixRect.y / REF_HEIGHT) * 100,
+            w: (pixRect.w / REF_WIDTH) * 100,
+            h: (pixRect.h / REF_HEIGHT) * 100,
+          }
+          const ids = elementsInRect(slide, pctRect)
+
+          if (shiftHeld) {
+            // SEL-06 additive: union with existing. Empty marquee + shift =
+            // no-op (preserves existing) per CONTEXT.md decisions.
+            if (ids.length > 0) {
+              onSelectionChange?.((prev: Selection) => ({
+                ids: [...prev.ids, ...ids.filter((id) => !prev.ids.includes(id))],
+                primary: ids[ids.length - 1],
+              }))
+            }
+          } else {
+            // SEL-05 default: replace with intersected ids (Figma default).
+            // Empty marquee here also clears existing — matches Figma + spec.
+            onSelectionChange?.({
+              ids,
+              primary: ids.length > 0 ? ids[ids.length - 1] : null,
+            })
+          }
+
+          setMarqueeStart(null)
+          setMarqueeEnd(null)
         }}
       >
         {/* Phase 45 layers 1-3: backgroundMode photo + tint + optional bottom-card.
@@ -1773,6 +1903,15 @@ export function SlidePreview({
             />
           )
         })()}
+
+        {/* Phase 61 Plan 02 (SEL-05, PARITY-01): marquee overlay — render-only,
+            structurally gated by the editable={true} branch via the line-665
+            early return upstream. Coords are scaled-canvas pixels; the overlay
+            sits inside the same scaled wrapper as elements (PITFALL-5.3).
+            MarqueeOverlay returns null when rect is null (IDLE state). The
+            parity test (PARITY-01 marquee gate) asserts the testid is absent
+            in editable={false} render trees. */}
+        <MarqueeOverlay rect={marqueeRect} />
       </div>
     </div>
   )
