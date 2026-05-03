@@ -22,12 +22,18 @@ import { legacyWatermarkToElement } from '@/lib/editor/watermark-adapter'
  */
 function migrateLegacySlides(slides: Slide[]): Slide[] {
   return slides.map((slide, slideIndex) => {
-    const next: Slide = slide.text_boxes
+    let next: Slide = slide.text_boxes
       ? slide
       : { ...slide, text_boxes: legacyToTextBoxes(slide) }
     if (!next.watermark) {
       const wm = legacyWatermarkToElement(next, slideIndex)
-      if (wm) next.watermark = wm
+      if (wm) {
+        // Phase 60 (HIGH-2 review-fix): always shallow-copy before injecting
+        // `watermark`. The fast path above (slide.text_boxes already populated)
+        // had `next === slide`, so `next.watermark = wm` mutated caller data.
+        // Copy here so callers' `initialSlides` references stay pristine.
+        next = { ...next, watermark: wm }
+      }
     }
     return next
   })
