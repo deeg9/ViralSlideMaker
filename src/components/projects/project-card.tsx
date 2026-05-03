@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { deleteProject } from '@/app/(dashboard)/dashboard/actions'
 import { EditVisibilityModal } from './edit-visibility-modal'
+import { SlidePreview } from '@/components/slides/slide-preview'
+import { getTemplate } from '@/lib/render/templates'
 import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
+import type { BrandKit } from '@/lib/types/brand-kit'
 
 export interface ProjectPublishedState {
   publishedId: string
@@ -30,15 +33,33 @@ function relativeTime(dateStr: string): string {
 interface ProjectCardProps {
   project: Project
   publishedState?: ProjectPublishedState | null
+  brandKit?: BrandKit | null
 }
 
-export function ProjectCard({ project, publishedState }: ProjectCardProps) {
+export function ProjectCard({ project, publishedState, brandKit }: ProjectCardProps) {
   const router = useRouter()
   const slides = (project.slide_data ?? []) as Slide[]
   const [menuOpen, setMenuOpen] = useState(false)
   const [visibilityModalOpen, setVisibilityModalOpen] = useState(false)
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const menuWrapperRef = useRef<HTMLDivElement>(null)
   const isPublic = !!publishedState
+  const template = getTemplate(project.template_id ?? 'highlight-bar')
+  const safeIndex = Math.min(currentSlideIndex, Math.max(0, slides.length - 1))
+  const currentSlide = slides[safeIndex]
+  const hasMultipleSlides = slides.length > 1
+  const isFirstSlide = safeIndex === 0
+  const isLastSlide = safeIndex === slides.length - 1
+
+  function handlePrevSlide(e: React.MouseEvent) {
+    e.stopPropagation()
+    setCurrentSlideIndex((i) => Math.max(0, i - 1))
+  }
+
+  function handleNextSlide(e: React.MouseEvent) {
+    e.stopPropagation()
+    setCurrentSlideIndex((i) => Math.min(slides.length - 1, i + 1))
+  }
 
   function handleCardClick() {
     router.push(`/project/${project.id}`)
@@ -81,20 +102,53 @@ export function ProjectCard({ project, publishedState }: ProjectCardProps) {
     <>
     <div className="group cursor-pointer" onClick={handleCardClick}>
       <div className="aspect-[9/16] bg-[#fadbdb] rounded-xl overflow-hidden relative mb-4 transition-all duration-300 group-hover:scale-[1.02]">
-        {slides[0]?.background_url ? (
-          <img
-            src={slides[0].background_url}
-            alt={project.title}
-            className="w-full h-full object-cover"
+        {currentSlide ? (
+          <SlidePreview
+            slide={currentSlide}
+            template={template}
+            index={safeIndex}
+            slideIndex={safeIndex}
+            totalSlides={slides.length}
+            topic={project.topic ?? undefined}
+            editable={false}
+            brandKit={brandKit ?? null}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Icon name="auto_awesome_motion" size="xl" className="text-[#dbc1bc]" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#3d0000]/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#3d0000]/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 pointer-events-none">
           <span className="text-white text-[0.75rem] font-bold uppercase tracking-widest">Open Editor</span>
         </div>
+        {hasMultipleSlides && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrevSlide}
+              disabled={isFirstSlide}
+              aria-label="Previous slide"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-md text-[#3d0000] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0"
+            >
+              <Icon name="chevron_left" size="sm" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNextSlide}
+              disabled={isLastSlide}
+              aria-label="Next slide"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-md text-[#3d0000] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0"
+            >
+              <Icon name="chevron_right" size="sm" />
+            </button>
+            <span
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded-full bg-white/90 text-[#3d0000] text-[0.6rem] font-bold tracking-wider tabular-nums opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              aria-live="polite"
+            >
+              {safeIndex + 1} / {slides.length}
+            </span>
+          </>
+        )}
         {/* More-actions menu (3 dots → Delete) */}
         <div
           ref={menuWrapperRef}
