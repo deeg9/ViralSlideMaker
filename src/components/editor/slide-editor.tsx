@@ -26,6 +26,9 @@ import {
   type WatermarkSpec,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
+import { useSelectionModel } from '@/lib/editor/use-selection-model'
+import { isEditingTarget } from '@/lib/editor/keyboard-utils'
+import { tinykeys } from 'tinykeys'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
@@ -88,6 +91,13 @@ export function SlideEditor({
   // the slide's existing style_overrides.watermark when dispatching UPDATE_SLIDE.
   // (Previously declared further down, near the keyboard-shortcut effect.)
   const currentSlide = slides[selectedIndex]
+
+  // Phase 60 (60-04): canonical multi-select state. Layered ALONGSIDE the
+  // existing legacy `selectedTextBoxId` (Phase 49) so v2.8 single-select
+  // consumers (SlideCanvas, TextEditorPanel) keep working unchanged. Keyboard
+  // handlers below write to BOTH so the new model and the legacy slot stay
+  // in sync until Phase 66 retires the shim.
+  const selection = useSelectionModel({ slideIndex: selectedIndex, presentSlides: slides })
 
   // Phase 57 (D-08): photo-treatment override handling. useTransition keeps
   // the spinner state co-located with the editor; revalidatePath fires from
@@ -327,37 +337,61 @@ export function SlideEditor({
     }
   }, [isDirty, doSave])
 
-  // Phase 52 (T-03): keyboard shortcuts on the editor.
+  // Phase 60 (60-04, KBD-01..04, SEL-07, SEL-08): keyboard shortcuts on the editor.
   //   Cmd/Ctrl+1, +2, +3 → select Nth text box on current slide
   //   Cmd/Ctrl+D         → add a new custom text box and auto-select it
+  //   Cmd/Ctrl+A         → select ALL elements on the current slide (SEL-07)
+  //   Escape             → clear selection (SEL-08; Phase 62 will add
+  //                        group-aware double-press)
   //   Delete / Backspace → remove the selected CUSTOM text box (hook/body are
   //                        structural and silently ignored)
   //
-  // Skip-when-typing: ignored when an input/textarea/contentEditable element
-  // has focus, so users editing text never trigger an accidental shortcut.
-  // Listener is attached to `window` and torn down on unmount/dep change to
-  // prevent double-fire in dev (StrictMode remounts).
+  // Migrated from a hand-rolled meta/ctrl-key switch to a declarative
+  // `tinykeys(window, {...})` map. The `$mod` token cross-resolves to Meta on
+  // macOS and Control on Windows/Linux — no more platform branching here.
+  //
+  // KBD-02 firewall: every binding's first line is `if (isEditingTarget(e.target)) return;`
+  // so shortcuts never override text-input behavior. The guard is inlined per
+  // binding (not factored into a helper) so it's grep-visible — Plan-Checker
+  // verification command #5 asserts at least 6 isEditingTarget calls in this
+  // file. KBD-03: e.preventDefault() is called AFTER the guard returns false,
+  // never unconditionally.
+  //
+  // Listener is attached to `window` (NOT a child div, per RESEARCH §Pitfall 2)
+  // and torn down via the unsubscribe() that tinykeys returns. No manual
+  // removeEventListener.
   useEffect(() => {
-    function handler(e: KeyboardEvent) {
-      const target = document.activeElement as HTMLElement | null
-      const tag = (target?.tagName ?? '').toLowerCase()
-      const isEditing =
-        tag === 'input' ||
-        tag === 'textarea' ||
-        target?.isContentEditable === true
-      if (isEditing) return
+    const textBoxes = currentSlide?.text_boxes ?? []
 
-      const cmd = e.metaKey || e.ctrlKey
-      const textBoxes = currentSlide?.text_boxes ?? []
+    const unsubscribe = tinykeys(window, {
+      '$mod+1': (e) => {
+        if (isEditingTarget(e.target)) return
+        const targetBox = textBoxes[0]
+        if (!targetBox) return
+        e.preventDefault()
+        selection.replaceWith([targetBox.id])
+        // Legacy single-id slot — kept in sync until Phase 66 cleanup.
+        setSelectedTextBoxId(targetBox.id)
+      },
+      '$mod+2': (e) => {
+        if (isEditingTarget(e.target)) return
+        const targetBox = textBoxes[1]
+        if (!targetBox) return
+        e.preventDefault()
+        selection.replaceWith([targetBox.id])
+        setSelectedTextBoxId(targetBox.id)
+      },
+      '$mod+3': (e) => {
+        if (isEditingTarget(e.target)) return
+        const targetBox = textBoxes[2]
+        if (!targetBox) return
+        e.preventDefault()
+        selection.replaceWith([targetBox.id])
+        setSelectedTextBoxId(targetBox.id)
+      },
 
-      if (cmd && (e.key === '1' || e.key === '2' || e.key === '3')) {
-        const idx = parseInt(e.key, 10) - 1
-        const targetBox = textBoxes[idx]
-        if (targetBox) {
-          e.preventDefault()
-          setSelectedTextBoxId(targetBox.id)
-        }
-      } else if (cmd && (e.key === 'd' || e.key === 'D')) {
+      '$mod+d': (e) => {
+        if (isEditingTarget(e.target)) return
         e.preventDefault()
         // Pre-generate the id (same pattern as TextEditorPanel.onTextBoxAction
         // ADD_TEXT_BOX from Phase 50 MR-01) so we can immediately auto-select
@@ -369,20 +403,49 @@ export function SlideEditor({
           role: 'custom',
           defaults: { id: newId },
         })
+        selection.replaceWith([newId])
         setSelectedTextBoxId(newId)
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTextBoxId) {
+      },
+
+      // Phase 60 SEL-07: select all addressable elements on the active slide.
+      '$mod+a': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        if (currentSlide) selection.selectAll(currentSlide)
+      },
+
+      // Phase 60 SEL-08: single-press clear. Phase 62 will layer group-aware
+      // double-press (first Esc = exit group; second Esc = clear).
+      'Escape': (e) => {
+        if (isEditingTarget(e.target)) return
+        e.preventDefault()
+        selection.clear()
+        setSelectedTextBoxId(null)
+      },
+
+      'Delete': (e) => {
+        if (isEditingTarget(e.target)) return
+        if (!selectedTextBoxId) return
         const targetBox = textBoxes.find((tb) => tb.id === selectedTextBoxId)
-        if (targetBox?.role === 'custom') {
-          e.preventDefault()
-          // Route through removeTextBox so selectedTextBoxId is cleared if it
-          // matched. Hook/body deletion is intentionally not supported — they
-          // are structural to legacy compat (hook_text/body_text fields).
-          removeTextBox(selectedIndex, selectedTextBoxId)
-        }
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+        if (targetBox?.role !== 'custom') return
+        e.preventDefault()
+        // Route through removeTextBox so selectedTextBoxId is cleared if it
+        // matched. Hook/body deletion is intentionally not supported — they
+        // are structural to legacy compat (hook_text/body_text fields).
+        // Phase 60 keeps single-select-delete UX; bulk-delete is Phase 64.
+        removeTextBox(selectedIndex, selectedTextBoxId)
+      },
+      'Backspace': (e) => {
+        if (isEditingTarget(e.target)) return
+        if (!selectedTextBoxId) return
+        const targetBox = textBoxes.find((tb) => tb.id === selectedTextBoxId)
+        if (targetBox?.role !== 'custom') return
+        e.preventDefault()
+        removeTextBox(selectedIndex, selectedTextBoxId)
+      },
+    })
+
+    return () => unsubscribe()
   }, [
     currentSlide,
     selectedTextBoxId,
@@ -390,6 +453,7 @@ export function SlideEditor({
     setSelectedTextBoxId,
     removeTextBox,
     dispatch,
+    selection,
   ])
 
   async function handleTemplateChange(newId: string) {
