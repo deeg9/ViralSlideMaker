@@ -38,7 +38,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 - [x] **Phase 63: Alignment / Distribute + Smart Guides (Wave A + Wave B)** — 6-axis align + H/V distribute + floating Figma toolbar (Wave A); sorted-edge-array snap index + 5px threshold + canvas-edge targets + equal-spacing "==" guide + asymmetric hysteresis (Wave B); both ship together (snap engine shared) (5/5 plans complete 2026-05-03 — 24/24 reqs satisfied: ALIGN-01..10 + SNAP-01..10 + DIFF-03 + PERF-03 + PERF-05 + PARITY-03)
 - [x] **Phase 64: Lock / Hide + Z-Order** — `locked?` + `hidden?` semantics live; Cmd+Shift+L lock toggle; lock blocks drag/resize/edit but allows select; hidden skipped by both renderers; Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ z-order via array splice; lock stripped on fork (completed 2026-05-03)
 - [x] **Phase 65: Layers Panel + TPLREND-05 Audit** — New LEFT rail; `react-arborist@3.5.0` (Day-1 StrictMode verification); flat list + group collapse; click-select; lock/visibility toggles; button-based reorder; comprehensive parity test extension; React.memo perf
-- [ ] **Phase 66: Power-User Differentiators + Keyboard Completion + Polish** — Alt-drag duplicate; Cmd+D smart offset; arrow nudge 1px / Shift+Arrow 10px; keyboard tooltips on alignment toolbar + layer chips; final keyboard sweep
+- [x] **Phase 66: Power-User Differentiators + Keyboard Completion + Polish** — Alt-drag duplicate; Cmd+D smart offset; arrow nudge 1px / Shift+Arrow 10px; keyboard tooltips on alignment toolbar + layer chips; final keyboard sweep (2/2 plans complete 2026-05-03 — 5/5 reqs satisfied: DIFF-01 + DIFF-02 + KBD-05 + KBD-06 + KBD-08)
 
 ---
 
@@ -204,7 +204,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 
 **Plans**: 2 plans
 - [x] 66-01-PLAN.md — Arrow nudge bindings (KBD-05, KBD-06) + lastMoveDeltaRef + Cmd+D smart offset (DIFF-02) — SHIPPED 2026-05-03 `95c6fc9` / `39d1d1c`
-- [ ] 66-02-PLAN.md — Alt+drag duplicate reducer + wiring (DIFF-01) + KBD-08 tooltip shortcuts on alignment toolbar + group-row lock + final keyboard sweep verification
+- [x] 66-02-PLAN.md — Alt+drag duplicate reducer + wiring (DIFF-01) + KBD-08 tooltip shortcuts on alignment toolbar + group-row lock + final keyboard sweep verification — SHIPPED 2026-05-03 `63b1df3` / `e8ad7b0` / `1c9c404`
 
 ---
 
@@ -218,7 +218,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 | 63. Alignment / Distribute + Smart Guides | 5/5 | Complete   | 2026-05-03 |
 | 64. Lock / Hide + Z-Order | 3/3 | Complete   | 2026-05-03 |
 | 65. Layers Panel + TPLREND-05 Audit | 3/3 | Complete   | 2026-05-03 |
-| 66. Power-User Differentiators + Polish | 1/2 | In Progress|  |
+| 66. Power-User Differentiators + Polish | 2/2 | Complete   | 2026-05-03 |
 
 ---
 
