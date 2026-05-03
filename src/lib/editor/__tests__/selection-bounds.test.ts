@@ -266,3 +266,70 @@ describe('computeSelectionBounds — Phase 63 (locked + watermark in bounds)', (
     expect(src).not.toMatch(/if\s*\([^)]*\.locked\b/)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 64 Plan 02 (LOCK-07): hidden-skip in computeSelectionBounds. Hidden
+// elements are EXCLUDED from the union AABB so a hidden element does not pad
+// the alignment-target bounds. Locked still INCLUDED (Phase 63 D-01 contract);
+// the two filters are SEPARATE.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('computeSelectionBounds — Phase 64 Plan 02 (LOCK-07): hidden-skip', () => {
+  test('Test SB-H1: hidden custom_image NOT included in union AABB; only the visible image contributes', () => {
+    const hiddenImg: CustomImage = {
+      id: 'hidden-img',
+      url: 'https://example.com/h.png',
+      x: 90,
+      y: 90,
+      width: 5,
+      height: 5,
+      hidden: true,
+    }
+    const slide = makeSlide({
+      custom_images: [makeCustomImage('visible', 10, 10, 20, 20), hiddenImg],
+    })
+    const result = computeSelectionBounds(slide, ['visible', 'hidden-img'])
+    // Only 'visible' contributes — bounds equal its rect (10,10,20,20).
+    expect(result).toEqual<AABB>({ x: 10, y: 10, width: 20, height: 20 })
+  })
+
+  test('Test SB-H2: ALL hidden ids → null bounds (no contributing elements)', () => {
+    const hiddenImg: CustomImage = {
+      id: 'h1',
+      url: 'https://example.com/h.png',
+      x: 10,
+      y: 10,
+      width: 20,
+      height: 20,
+      hidden: true,
+    }
+    const hiddenTb: TextBox = {
+      id: 'h-tb',
+      role: 'custom',
+      text: '',
+      position: { anchor: 'custom', x: 30, y: 30, width: 40 },
+      hidden: true,
+    }
+    const slide = makeSlide({
+      custom_images: [hiddenImg],
+      text_boxes: [hiddenTb],
+    })
+    expect(computeSelectionBounds(slide, ['h1', 'h-tb'])).toBe(null)
+  })
+
+  test('Test SB-H3: hidden custom-anchor TextBox NOT included; visible TextBox contributes', () => {
+    const hiddenTb: TextBox = {
+      id: 'h-tb',
+      role: 'custom',
+      text: '',
+      position: { anchor: 'custom', x: 80, y: 80, width: 15 },
+      hidden: true,
+    }
+    const slide = makeSlide({
+      text_boxes: [makeCustomTextBox('vtb', 5, 5, 40), hiddenTb],
+    })
+    const result = computeSelectionBounds(slide, ['vtb', 'h-tb'])
+    // Only the visible TextBox contributes; rect (5,5,40,0) — height=0 per Phase 60 known gap.
+    expect(result).toEqual<AABB>({ x: 5, y: 5, width: 40, height: 0 })
+  })
+})
