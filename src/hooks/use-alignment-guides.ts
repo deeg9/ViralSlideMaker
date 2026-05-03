@@ -1,5 +1,23 @@
 'use client'
 
+/**
+ * @deprecated Phase 63 retired this hook. The replacement is the pure
+ * sorted-edge-array implementation at src/lib/editor/transforms/snap-index.ts
+ * (buildSnapIndex + findNearestSnap + snapWithHysteresis), wired through
+ * src/components/slides/slide-preview.tsx via direct ref-based DOM updates
+ * (PERF-03). Phase 66 will delete this file. Do NOT re-import.
+ *
+ * Migration:
+ *   - Was:  const { calculateSnap, activeGuides, clearGuides } = useAlignmentGuides()
+ *   - Now:  buildSnapIndex(slide, excludeIds) → snapWithHysteresis(value, edges, prev)
+ *           with a SmartGuideOverlay component for the visual indicators.
+ *
+ * The legacy code below remains intact (not behaviorally changed) so any
+ * stale test that still depends on the contract continues to compile.
+ * Phase 63 Plan 04 retired the slide-preview.tsx consumer; Plan 63-05
+ * verified zero production importers (DEP2 grep gate).
+ */
+
 import { useState, useCallback } from 'react'
 
 const SNAP_THRESHOLD = 10 // reference pixels (~5 screen pixels at typical scale)
@@ -64,7 +82,16 @@ function snapAxis(
   return { snapped: position, matchedGuides: [] }
 }
 
+/** @deprecated See file header. Phase 66 will delete this hook. */
 export function useAlignmentGuides() {
+  if (process.env.NODE_ENV === 'development') {
+    // Hard runtime warning — if a future plan accidentally re-imports, dev
+    // mode shouts. Silenced under test/production to avoid log noise on the
+    // legacy contract tests that still exercise this hook.
+    console.warn(
+      'useAlignmentGuides is deprecated; use src/lib/editor/transforms/snap-index.ts. Phase 66 will delete this file.',
+    )
+  }
   const [activeGuides, setActiveGuides] = useState<GuideLine[]>([])
 
   const calculateSnap = useCallback(
