@@ -109,8 +109,8 @@
 - [x] **KBD-02**: All new shortcuts respect existing `isEditing` guard (skip when `<input>`, `<textarea>`, or `contentEditable` has focus)
 - [x] **KBD-03**: All new shortcuts call `e.preventDefault()` to prevent browser-default conflicts (Cmd+G = Chrome Find Next; Cmd+] = Chrome tab navigation in some configs)
 - [x] **KBD-04**: Modifier state (Shift, Cmd, Alt) resets on `window.blur` and `document.visibilitychange`
-- [ ] **KBD-05**: Arrow key (no modifier) nudges selection 1 reference px in arrow direction
-- [ ] **KBD-06**: Shift+Arrow nudges selection 10 reference px
+- [x] **KBD-05**: Arrow key (no modifier) nudges selection 1 reference px in arrow direction
+- [x] **KBD-06**: Shift+Arrow nudges selection 10 reference px
 - [x] **KBD-07**: Hold Shift during drag constrains motion to dominant axis (read `e.shiftKey` in drag handler)
 - [ ] **KBD-08**: Keyboard shortcut hints appear in tooltips on alignment toolbar buttons + layer-chip controls
 - [x] **KBD-09**: All multi-element keyboard ops (align, distribute, group, ungroup, z-order, nudge) dispatch a single `pushHistory` per gesture
@@ -126,7 +126,7 @@
 ### Power-User Differentiators (DIFF)
 
 - [ ] **DIFF-01**: User can hold Alt while dragging to drop a copy of the selection at the new location (Figma Alt-drag duplicate pattern)
-- [ ] **DIFF-02**: Cmd+D duplicates selection with smart offset (matches direction + magnitude of last move; falls back to ~20px offset on first use)
+- [x] **DIFF-02**: Cmd+D duplicates selection with smart offset (matches direction + magnitude of last move; falls back to ~20px offset on first use)
 - [x] **DIFF-03**: Equal-spacing "==" guide rendering covered by SNAP-04 (DIFF cross-reference)
 
 ### TPLREND-05 Parity (PARITY)
@@ -262,8 +262,8 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | KBD-02 | Phase 60 | Complete |
 | KBD-03 | Phase 60 | Complete |
 | KBD-04 | Phase 60 | Complete |
-| KBD-05 | Phase 66 | Pending |
-| KBD-06 | Phase 66 | Pending |
+| KBD-05 | Phase 66 | Complete |
+| KBD-06 | Phase 66 | Complete |
 | KBD-07 | Phase 61 | Complete |
 | KBD-08 | Phase 66 | Pending |
 | KBD-09 | Phase 62 | Complete |
@@ -273,7 +273,7 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | WMARK-04 | Phase 60 | Complete |
 | WMARK-05 | Phase 60 | Complete |
 | DIFF-01 | Phase 66 | Pending |
-| DIFF-02 | Phase 66 | Pending |
+| DIFF-02 | Phase 66 | Complete |
 | DIFF-03 | Phase 63 | Complete |
 | PARITY-01 | Phase 60 | Complete |
 | PARITY-02 | Phase 65 | Complete |
