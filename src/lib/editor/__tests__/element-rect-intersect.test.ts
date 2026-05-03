@@ -243,3 +243,42 @@ describe('elementsInRect — hitRate=0 contract (any overlap counts)', () => {
     expect(elementsInRect(slide, rect)).toEqual(['img1'])
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 64 Plan 01 (LOCK-05): elementsInRect skips elements with locked === true.
+// Closes the Phase 61 documented gap. Figma + Canva model — locked elements
+// remain selectable via direct click but are excluded from marquee results so
+// users can drag-select around them without disturbing locked decoration.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('elementsInRect — Phase 64 Plan 01 (LOCK-05): locked-skip filter', () => {
+  test('Test LR1: locked custom-anchor TextBox NOT in marquee result', () => {
+    const slide = makeSlide({
+      text_boxes: [
+        // identical AABB to Test 6, but with locked=true → must NOT appear.
+        { ...makeCustomTextBox('tb-locked', 10, 10, 20), locked: true },
+      ],
+    })
+    const rect: Rect = { x: 0, y: 0, w: 50, h: 50 }
+    expect(elementsInRect(slide, rect)).toEqual([])
+  })
+
+  test('Test LR2: locked custom_image NOT in marquee result', () => {
+    const slide = makeSlide({
+      custom_images: [{ ...makeCustomImage('img-locked', 20, 20, 10, 10), locked: true }],
+    })
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 100 }
+    expect(elementsInRect(slide, rect)).toEqual([])
+  })
+
+  test('Test LR3: marquee with [unlocked, locked, unlocked] returns only the two unlocked ids; source-order preserved', () => {
+    const slide = makeSlide({
+      custom_images: [
+        makeCustomImage('a', 0, 0, 10, 10),
+        { ...makeCustomImage('b', 20, 20, 10, 10), locked: true },
+        makeCustomImage('c', 40, 40, 10, 10),
+      ],
+    })
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 100 }
+    expect(elementsInRect(slide, rect)).toEqual(['a', 'c'])
+  })
+})
