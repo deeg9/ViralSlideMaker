@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
-status: executing
-stopped_at: Plan 60-04 complete. Waves 1-3 (60-01 schema + 60-02 watermark adapter + 60-03 selection model + 60-04 keyboard firewall) all landed. Plan 60-05 (selection bounds + union ring) is the only remaining Phase 60 work.
-last_updated: "2026-05-03T01:45:00.000Z"
-last_activity: "2026-05-03 — Plan 60-04 keyboard firewall: tinykeys@3.0.0 + isEditingTarget helper + useModifierState hook + slide-editor.tsx migration to declarative tinykeys map (6 bindings). 185/185 editor + component tests green."
+status: phase_60_complete
+stopped_at: "Phase 60 COMPLETE. All 5 plans landed (60-01 schema + 60-02 watermark adapter + 60-03 selection model + 60-04 keyboard firewall + 60-05 selection ring + TYPE BAR + click-empty-canvas). Ready for Phase 61 (additive marquee selection)."
+last_updated: "2026-05-03T01:54:00.000Z"
+last_activity: "2026-05-03 — Plan 60-05 UX surface: computeSelectionBounds pure helper (10 tests) + MultiSelectTypeBar component (9 tests) + slide-preview.tsx union-AABB ring (data-testid='multi-selection-ring' inside editable=true) + click-empty-canvas-clears (SEL-09) + 4-site Shift-click toggle (SEL-02/03) + PARITY-01 extension with concrete ring-presence assertions. 238/238 tests green across editor + slides + render layers; tsc baseline at 17."
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
-Phase: 60 — Multi-Select Foundation + Watermark Schema Lift (Waves 1-3 complete; Plan 60-05 remaining)
-Plan: 60-01 SHIPPED (schema foundation: 39 LOC, commit `1164c73`); 60-02 SHIPPED (watermark adapter + lazy init + parity gate, ~340 LOC, 3 commits `35b7ce3` / `b67c13a` / `0a7deb9`); 60-03 SHIPPED (useSelectionModel hook + BULK_TRANSLATE action, ~893 LOC incl. tests, 2 commits `082bfe9` / `5f98e5e`); 60-04 SHIPPED (tinykeys keyboard firewall + isEditingTarget + useModifierState + slide-editor.tsx migration, ~408 LOC incl. tests, 4 commits `8bdfc09` / `f62f29d` / `c2a40a2` / `f7760b4`); 60-05 pending (selection bounds + union ring)
-Status: Phase 60 in progress; WMARK-01..05 + PARITY-01 + SEL-01..04 + SEL-07 + SEL-08 + SEL-10 + SEL-11 + SEL-15 + KBD-01..04 + PERF-01 marked complete in REQUIREMENTS.md
-Last activity: 2026-05-03 — Plan 60-04 keyboard firewall: tinykeys@3.0.0 + isEditingTarget helper + useModifierState hook + slide-editor.tsx migration to declarative tinykeys map (6 bindings). 185/185 editor + component tests green; tsc baseline maintained at 17.
+Phase: 60 — Multi-Select Foundation + Watermark Schema Lift **COMPLETE** (5/5 plans shipped — all 4 waves done)
+Plan: 60-01 SHIPPED (schema foundation: 39 LOC, commit `1164c73`); 60-02 SHIPPED (watermark adapter + lazy init + parity gate, ~340 LOC, 3 commits `35b7ce3` / `b67c13a` / `0a7deb9`); 60-03 SHIPPED (useSelectionModel hook + BULK_TRANSLATE action, ~893 LOC incl. tests, 2 commits `082bfe9` / `5f98e5e`); 60-04 SHIPPED (tinykeys keyboard firewall + isEditingTarget + useModifierState + slide-editor.tsx migration, ~408 LOC incl. tests, 4 commits `8bdfc09` / `f62f29d` / `c2a40a2` / `f7760b4`); **60-05 SHIPPED** (selection bounds + MultiSelectTypeBar + union AABB ring + click-empty-canvas + Shift-click toggle + PARITY-01 extension, ~735 LOC incl. tests, 3 commits `2edf43b` / `278a0a4` / `c8ef91b`)
+Status: Phase 60 COMPLETE; SEL-01..04 + SEL-07..13 + SEL-15 + KBD-01..04 + PERF-01 + WMARK-01..05 + PARITY-01 all marked complete in REQUIREMENTS.md (Phase 60 owns 23 reqs)
+Last activity: 2026-05-03 — Plan 60-05 UX surface: pure `computeSelectionBounds` helper at `src/lib/editor/transforms/selection-bounds.ts` (10 unit tests, mirrors text-box-adapter pure-module convention) + `MultiSelectTypeBar` component (9 tests, count + type breakdown + Delete button; no key-object UX per PITFALL-12.3) + slide-preview.tsx wiring: dashed #3d0000 union-AABB ring with `data-testid="multi-selection-ring"` STRUCTURALLY inside editable={true} branch (line 1725 vs non-editable early return at line 665), 4 per-element onMouseDown handlers extended with e.shiftKey toggle vs replace branch (SEL-02/03), canvas-empty onClick clears via onSelectionChange (SEL-09) + extended PARITY-01 with two new tests (editable=false renders no ring even with N>=2 selection passed; editable=true renders no ring when N<2). Added `setSelection(next | (prev) => next)` API to useSelectionModel using ref-mirror pattern. 238/238 tests green; tsc baseline at 17.
 
 ## v2.11 Phase Map
 
@@ -80,6 +80,12 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ### Decisions
 
+- [v2.11 / 60-05]: `computeSelectionBounds(slide, ids)` lives at `src/lib/editor/transforms/selection-bounds.ts` (new directory) — pure module, no React/DOM, importable from server/RPC/MCP. Phase 60 conservative behavior: skip structural-anchor TextBoxes (DOM-ref height resolution arrives in Phase 63) + skip watermark (resolveWatermark owns size at render time, Phase 62/63 may revisit).
+- [v2.11 / 60-05]: Selection ring rendered with `data-testid="multi-selection-ring"` STRUCTURALLY inside editable={true} branch of slide-preview.tsx (line 1725 vs non-editable early return at line 665). PARITY-01 test asserts the testid is absent from editable=false render tree even when selection={{ ids: [...], primary: ... }} is explicitly passed. TPLREND-05 invariant satisfied by construction, not by guard.
+- [v2.11 / 60-05]: 4 per-element onMouseDown sites (hook / body / custom-text / custom-image) extended uniformly: Shift+click toggles membership (SEL-02/03); plain click replaces selection (SEL-01); Cmd+click is a no-op in Phase 60 (deep-select-through-groups arrives in Phase 62).
+- [v2.11 / 60-05]: `MultiSelectTypeBar` Phase 60 minimal surface — count header + type breakdown (text boxes / images / watermark) + Delete button. No font/color/treatment fields (Phase 63 surface). No "primary" / key-object UX (PITFALL-12.3 honored, statically grep-checked in Test 8).
+- [v2.11 / 60-05]: TYPE BAR Delete only routes through removeTextBox (custom only) + handleRemoveCustomImage. Hook/body/watermark are silently skipped (Plan-Checker risk #2 acknowledged); full bulk-delete reducer action arrives in Phase 64.
+- [v2.11 / 60-05]: Added `setSelection(next | (prev) => next)` API to useSelectionModel using ref-mirror pattern (idsRef + primaryRef synced via useEffects). Functional-updater branch reads consistent state synchronously without nested setState (anti-pattern in React strict mode).
 - [v2.11 / 60-04]: `tinykeys@3.0.0` registered to `window` (NOT a child div) replaces hand-rolled keydown switch. Six bindings: `$mod+1/2/3` + `$mod+d` + `$mod+a` + `Escape` + `Delete/Backspace`. Every binding inlines `if (isEditingTarget(e.target)) return; e.preventDefault();` (KBD-02 + KBD-03). `$mod` cross-resolves Meta/Control per-OS — no platform branching in handler.
 - [v2.11 / 60-04]: `isEditingTarget` helper at `src/lib/editor/keyboard-utils.ts` falls back to `document.activeElement` when target isn't an HTMLElement (Window/Document case — covers test fireEvent dispatches and corner cases without focused element). Real bubbled keydowns hit the fast path.
 - [v2.11 / 60-04]: `useModifierState` hook at `src/lib/editor/use-modifier-state.ts` is REFS-ONLY (no useState). Resets on `window.blur` AND `document.visibilitychange` (KBD-04). Phase 63 will read state.cmd inside a 60Hz drag handler — refs are mandatory to avoid re-render cascade through `<Rnd>`.
@@ -143,6 +149,6 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ## Session Continuity
 
-Last activity: 2026-05-03 — Plan 60-04 shipped (commits `8bdfc09` + `f62f29d` + `c2a40a2` + `f7760b4`): tinykeys@3.0.0 installed; isEditingTarget pure helper at `src/lib/editor/keyboard-utils.ts`; useModifierState hook at `src/lib/editor/use-modifier-state.ts` with refs-only contract + window.blur + document.visibilitychange reset (10 unit tests); slide-editor.tsx hand-rolled keydown switch replaced with declarative tinykeys(window, {...}) map — 6 bindings ($mod+1/2/3, $mod+d, $mod+a [SEL-07], Escape [SEL-08], Delete, Backspace), every one wrapping isEditingTarget guard inline (grep count 9, well above ≥6 verification threshold). Auto-fixed deviations: jsdom navigator.platform empty so tests use ctrlKey instead of metaKey for $mod resolution; isEditingTarget falls back to document.activeElement when target isn't HTMLElement; tinykeys exports field omits types condition so a shim was added at src/types/tinykeys.d.ts. 185/185 editor + component tests green; TypeScript baseline unchanged at 17 pre-existing errors.
-Stopped at: Plan 60-04 complete. Waves 1-3 (60-01 schema + 60-02 watermark adapter + 60-03 selection model + 60-04 keyboard firewall) all landed. Plan 60-05 (Wave 4: selection bounds + union AABB ring rendering when N≥2 + click-empty-canvas-clears) is the only remaining Phase 60 work.
-Next: Plan 60-05 (selection bounds helper + MultiSelectTypeBar + union AABB ring inside editable={true} branch + click-empty-canvas-clears + Shift-click toggle + PARITY-01 chrome scan with teeth).
+Last activity: 2026-05-03 — **Plan 60-05 shipped** (commits `2edf43b` + `278a0a4` + `c8ef91b`): pure `computeSelectionBounds` helper at `src/lib/editor/transforms/selection-bounds.ts` (10 unit tests, mirrors text-box-adapter convention; Phase 60 known gaps documented for structural-anchor TextBoxes + watermark); `MultiSelectTypeBar` component at `src/components/editor/multi-select-type-bar.tsx` (9 tests, count + type breakdown + Delete button only — no font/color/treatment fields, no key-object UX); slide-preview.tsx UX wiring — dashed #3d0000 union-AABB ring with `data-testid="multi-selection-ring"` STRUCTURALLY inside editable={true} branch at line 1725 (non-editable early return at line 665), 4 per-element onMouseDown handlers extended with e.shiftKey toggle-vs-replace branch (SEL-02/03), canvas-empty onClick clears via onSelectionChange ({ ids: [], primary: null }) (SEL-09), TextEditorPanel branch ternary on selection.ids.length (N>=2 → MultiSelectTypeBar, N<=1 → ActiveTextBoxCard), slide-canvas + slide-editor selection prop wiring + onBulkDelete handler routing through existing per-id remove helpers; useSelectionModel gained `setSelection(next | (prev) => next)` API via ref-mirror pattern; PARITY-01 test extended with 2 concrete assertions (editable=false renders no ring even with N>=2 selection passed; editable=true renders no ring when N<2). 238/238 tests green across editor + slides + render layers; TypeScript baseline unchanged at 17 pre-existing errors. Phase 60 (Multi-Select Foundation + Watermark Schema Lift) is COMPLETE — all 5 plans across 4 waves landed.
+Stopped at: Phase 60 complete. Ready for Phase 61 (Marquee Selection — selecto@1.26.3 install + window-scoped marquee handler + additive Shift behavior consuming Plan 60-04's useModifierState).
+Next: Plan Phase 61 — additive marquee selection. Depends on Phase 60 (selection model, useModifierState, click-empty-canvas seam — all in place).

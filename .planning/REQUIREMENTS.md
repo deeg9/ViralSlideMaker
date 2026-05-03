@@ -22,11 +22,11 @@
 - [ ] **SEL-06**: User can hold Shift while marqueeing to add the marqueed elements to existing selection
 - [x] **SEL-07**: User can press Cmd+A to select all elements on the current slide (slide-scoped only — never cross-slide)
 - [x] **SEL-08**: User can press Esc to clear selection (first Esc exits group if inside one; second Esc clears)
-- [ ] **SEL-09**: Click on empty canvas area clears selection
+- [x] **SEL-09**: Click on empty canvas area clears selection
 - [x] **SEL-10**: Selection state clears automatically when user switches slides
 - [x] **SEL-11**: Selection state survives undo/redo with stale IDs reconciled (deleted elements pruned from selection)
-- [ ] **SEL-12**: Right-rail shows TYPE BAR for multi-selection (shared ops only; "Mixed" placeholder for differing values; no "primary" key-object concept)
-- [ ] **SEL-13**: Selection bounding box (dashed ring) renders around the union AABB of selected elements when N≥2 (`editable={true}` gated)
+- [x] **SEL-12**: Right-rail shows TYPE BAR for multi-selection (shared ops only; "Mixed" placeholder for differing values; no "primary" key-object concept)
+- [x] **SEL-13**: Selection bounding box (dashed ring) renders around the union AABB of selected elements when N≥2 (`editable={true}` gated)
 - [ ] **SEL-14**: Marquee rect normalizes for all 4 drag directions (top-left → bottom-right, bottom-right → top-left, etc.)
 - [x] **SEL-15**: Selection model uses `Selection { ids: string[]; primary: string | null }` shape with insertion-order preservation; selection state lives in React state outside reducer history (matches v2.8 pattern)
 
@@ -196,11 +196,11 @@ Maps each REQ-ID → Phase number. Filled by `/gsd-roadmapper` 2026-05-02 after 
 | SEL-06 | Phase 61 | Pending |
 | SEL-07 | Phase 60 | Complete |
 | SEL-08 | Phase 60 | Complete |
-| SEL-09 | Phase 60 | Pending |
+| SEL-09 | Phase 60 | Complete |
 | SEL-10 | Phase 60 | Complete |
 | SEL-11 | Phase 60 | Complete |
-| SEL-12 | Phase 60 | Pending |
-| SEL-13 | Phase 60 | Pending |
+| SEL-12 | Phase 60 | Complete |
+| SEL-13 | Phase 60 | Complete |
 | SEL-14 | Phase 61 | Pending |
 | SEL-15 | Phase 60 | Complete |
 | ALIGN-01 | Phase 63 | Pending |
