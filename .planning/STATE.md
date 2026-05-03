@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
 status: executing
-stopped_at: Plan 60-03 complete (Wave 2). useSelectionModel hook + BULK_TRANSLATE action shape both shipped (commits `082bfe9` + `5f98e5e`). Wave 3 (60-04 tinykeys + 60-05 selection ring) is unblocked.
-last_updated: "2026-05-03T01:20:00.000Z"
-last_activity: "2026-05-03 — Plan 60-03 selection model + BULK_TRANSLATE: useSelectionModel hook (17 tests) + BULK_TRANSLATE reducer action (9 tests). 87/87 editor tests green."
+stopped_at: Plan 60-04 complete. Waves 1-3 (60-01 schema + 60-02 watermark adapter + 60-03 selection model + 60-04 keyboard firewall) all landed. Plan 60-05 (selection bounds + union ring) is the only remaining Phase 60 work.
+last_updated: "2026-05-03T01:45:00.000Z"
+last_activity: "2026-05-03 — Plan 60-04 keyboard firewall: tinykeys@3.0.0 + isEditingTarget helper + useModifierState hook + slide-editor.tsx migration to declarative tinykeys map (6 bindings). 185/185 editor + component tests green."
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
-Phase: 60 — Multi-Select Foundation + Watermark Schema Lift (Wave 2 complete; Wave 3 unblocked)
-Plan: 60-01 SHIPPED (schema foundation: 39 LOC, commit `1164c73`); 60-02 SHIPPED (watermark adapter + lazy init + parity gate, ~340 LOC, 3 commits `35b7ce3` / `b67c13a` / `0a7deb9`); 60-03 SHIPPED (useSelectionModel hook + BULK_TRANSLATE action, ~893 LOC incl. tests, 2 commits `082bfe9` / `5f98e5e`); 60-04 + 60-05 pending (Wave 3)
-Status: Phase 60 in progress; WMARK-01..05 + PARITY-01 + SEL-01..04 + SEL-10 + SEL-11 + SEL-15 + PERF-01 marked complete in REQUIREMENTS.md
-Last activity: 2026-05-03 — Plan 60-03 selection model + BULK_TRANSLATE: useSelectionModel hook (17 tests) + BULK_TRANSLATE reducer action (9 tests). 87/87 editor tests green.
+Phase: 60 — Multi-Select Foundation + Watermark Schema Lift (Waves 1-3 complete; Plan 60-05 remaining)
+Plan: 60-01 SHIPPED (schema foundation: 39 LOC, commit `1164c73`); 60-02 SHIPPED (watermark adapter + lazy init + parity gate, ~340 LOC, 3 commits `35b7ce3` / `b67c13a` / `0a7deb9`); 60-03 SHIPPED (useSelectionModel hook + BULK_TRANSLATE action, ~893 LOC incl. tests, 2 commits `082bfe9` / `5f98e5e`); 60-04 SHIPPED (tinykeys keyboard firewall + isEditingTarget + useModifierState + slide-editor.tsx migration, ~408 LOC incl. tests, 4 commits `8bdfc09` / `f62f29d` / `c2a40a2` / `f7760b4`); 60-05 pending (selection bounds + union ring)
+Status: Phase 60 in progress; WMARK-01..05 + PARITY-01 + SEL-01..04 + SEL-07 + SEL-08 + SEL-10 + SEL-11 + SEL-15 + KBD-01..04 + PERF-01 marked complete in REQUIREMENTS.md
+Last activity: 2026-05-03 — Plan 60-04 keyboard firewall: tinykeys@3.0.0 + isEditingTarget helper + useModifierState hook + slide-editor.tsx migration to declarative tinykeys map (6 bindings). 185/185 editor + component tests green; tsc baseline maintained at 17.
 
 ## v2.11 Phase Map
 
@@ -80,6 +80,12 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ### Decisions
 
+- [v2.11 / 60-04]: `tinykeys@3.0.0` registered to `window` (NOT a child div) replaces hand-rolled keydown switch. Six bindings: `$mod+1/2/3` + `$mod+d` + `$mod+a` + `Escape` + `Delete/Backspace`. Every binding inlines `if (isEditingTarget(e.target)) return; e.preventDefault();` (KBD-02 + KBD-03). `$mod` cross-resolves Meta/Control per-OS — no platform branching in handler.
+- [v2.11 / 60-04]: `isEditingTarget` helper at `src/lib/editor/keyboard-utils.ts` falls back to `document.activeElement` when target isn't an HTMLElement (Window/Document case — covers test fireEvent dispatches and corner cases without focused element). Real bubbled keydowns hit the fast path.
+- [v2.11 / 60-04]: `useModifierState` hook at `src/lib/editor/use-modifier-state.ts` is REFS-ONLY (no useState). Resets on `window.blur` AND `document.visibilitychange` (KBD-04). Phase 63 will read state.cmd inside a 60Hz drag handler — refs are mandatory to avoid re-render cascade through `<Rnd>`.
+- [v2.11 / 60-04]: Plan-Checker Warning 1 resolved via Option A — explicit per-binding isEditingTarget guards (final grep count 9, well above ≥6 threshold). Headroom for Phase 62/64 binding additions without re-doing verification math.
+- [v2.11 / 60-04]: `useSelectionModel` layered ALONGSIDE legacy `selectedTextBoxId` from `useSlideEditor`. Keyboard handlers write to BOTH so v2.8 single-select consumers (SlideCanvas, TextEditorPanel) keep working unchanged. Phase 66 retires the dual-write once selection-aware props ship in Plan 60-05+.
+- [v2.11 / 60-04]: `src/types/tinykeys.d.ts` ambient module shim — tinykeys@3.0.0 ships .d.ts but its `exports` field has no `types` condition, so under tsconfig `moduleResolution: "bundler"` TS resolves to .module.js and reports TS7016. Shim re-declares the public surface; can be deleted if upstream publishes a fix.
 - [v2.11 / 60-03]: `useSelectionModel` lives at `src/lib/editor/use-selection-model.ts`. Mutator API exposes 6 ops (replaceWith / addToSelection / removeFromSelection / toggleInSelection / clear / selectAll) returning ref-stable references via `useMemo`. Selection state never enters reducer history.
 - [v2.11 / 60-03]: `Selection.primary` clears (NOT auto-promotes) when invalidated by stale-id pruning — matches PITFALLS-12.3 no-key-object UX.
 - [v2.11 / 60-03]: SEL-10 slide-switch reset is INDEPENDENT of stale-id pruning — slide-switch ALWAYS clears, even if a selected id would have remained valid on the new slide.
@@ -136,6 +142,6 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ## Session Continuity
 
-Last activity: 2026-05-03 — Plan 60-03 shipped (commits `082bfe9` + `5f98e5e`): useSelectionModel hook with insertion-ordered Selection { ids, primary } + 6 mutator ops + slide-switch reset + stale-id pruning + ref-stable API (17 unit tests); BULK_TRANSLATE reducer action declared with single-pushHistory + applyDualWrite + locked/anchor/watermark skips (9 reducer tests). 87/87 editor tests green; TypeScript baseline unchanged at 17 pre-existing errors.
-Stopped at: Plan 60-03 complete. Wave 2 fully landed (60-01 schema + 60-02 watermark adapter + 60-03 selection model). Wave 3 (60-04 tinykeys keyboard firewall + 60-05 selection bounds/union ring) is unblocked.
-Next: Plan 60-04 (tinykeys keyboard firewall: Cmd+A → selectAll, Esc → clear, click-empty-canvas → clear, modifier-state hook with blur reset) → Plan 60-05 (selection bounds + union AABB ring rendering when N≥2 + editable={true} gate).
+Last activity: 2026-05-03 — Plan 60-04 shipped (commits `8bdfc09` + `f62f29d` + `c2a40a2` + `f7760b4`): tinykeys@3.0.0 installed; isEditingTarget pure helper at `src/lib/editor/keyboard-utils.ts`; useModifierState hook at `src/lib/editor/use-modifier-state.ts` with refs-only contract + window.blur + document.visibilitychange reset (10 unit tests); slide-editor.tsx hand-rolled keydown switch replaced with declarative tinykeys(window, {...}) map — 6 bindings ($mod+1/2/3, $mod+d, $mod+a [SEL-07], Escape [SEL-08], Delete, Backspace), every one wrapping isEditingTarget guard inline (grep count 9, well above ≥6 verification threshold). Auto-fixed deviations: jsdom navigator.platform empty so tests use ctrlKey instead of metaKey for $mod resolution; isEditingTarget falls back to document.activeElement when target isn't HTMLElement; tinykeys exports field omits types condition so a shim was added at src/types/tinykeys.d.ts. 185/185 editor + component tests green; TypeScript baseline unchanged at 17 pre-existing errors.
+Stopped at: Plan 60-04 complete. Waves 1-3 (60-01 schema + 60-02 watermark adapter + 60-03 selection model + 60-04 keyboard firewall) all landed. Plan 60-05 (Wave 4: selection bounds + union AABB ring rendering when N≥2 + click-empty-canvas-clears) is the only remaining Phase 60 work.
+Next: Plan 60-05 (selection bounds helper + MultiSelectTypeBar + union AABB ring inside editable={true} branch + click-empty-canvas-clears + Shift-click toggle + PARITY-01 chrome scan with teeth).
