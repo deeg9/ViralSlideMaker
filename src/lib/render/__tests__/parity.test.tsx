@@ -1152,3 +1152,255 @@ describe('Phase 60 (PARITY-01, WMARK-04, WMARK-05): watermark schema-lift parity
     expect(endContainer.innerHTML).not.toMatch(/g_rt2/)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 64 Plan 02 (LOCK-07, PARITY-01): both-renderers honor `hidden`.
+//
+// TPLREND-05 invariant: a slide with hidden elements MUST produce identical
+// "absent" output across both renderers — React preview (slide-preview.tsx)
+// and Satori PNG export (render-slide-satori.tsx) — at the SAME iteration
+// sites with the SAME predicate (`element.hidden === true` skips).
+//
+// Tests render BOTH renderer trees and assert absence of hidden element DOM.
+// PH5 also pins Plan 64-01's contract: locked alone renders normally.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Phase 64 Plan 02 (LOCK-07, PARITY-01): both renderers honor `hidden`', () => {
+  // Helper: render Satori tree to static HTML for absence-probe assertions.
+  // Avoids requiring the full Satori → SVG → PNG pipeline (which is exercised
+  // by the integration tests). Module is loaded lazily so this describe block
+  // doesn't pay the import cost when other PARITY-01 cases run.
+  async function renderSatoriHtml(slide: Slide): Promise<string> {
+    const { buildSlideElement } = await import('@/lib/render/render-slide-satori')
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const element = buildSlideElement(slide, getTemplate('highlight-bar'))
+    return renderToStaticMarkup(element)
+  }
+
+  it('PH1: hidden hook text_box → React preview AND Satori both omit hook text node', async () => {
+    const slide: Slide = {
+      hook_text: 'HIDDEN_HOOK_MARKER',
+      body_text: 'Body shows',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      text_boxes: [
+        { id: 'tb-hook', role: 'hook', text: 'HIDDEN_HOOK_MARKER', position: { anchor: 'top' }, hidden: true },
+        { id: 'tb-body', role: 'body', text: 'Body shows', position: { anchor: 'bottom' } },
+      ],
+    }
+    const { container: previewC } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    const satoriHtml = await renderSatoriHtml(slide)
+    // React preview: hook text marker absent (hidden hook skipped).
+    expect(previewC.innerHTML).not.toMatch(/HIDDEN_HOOK_MARKER/)
+    // Body still renders as a sanity floor — proves only the hidden node is missing.
+    expect(previewC.innerHTML).toMatch(/Body shows/)
+    // Satori: same absence at the same iteration site.
+    expect(satoriHtml).not.toMatch(/HIDDEN_HOOK_MARKER/)
+    expect(satoriHtml).toMatch(/Body shows/)
+  })
+
+  it('PH2: hidden custom_image → React preview AND Satori both omit image node', async () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        // visible image — sanity floor
+        { id: 'ci-visible', url: 'https://example.com/visible.png', x: 10, y: 10, width: 20, height: 20 },
+        // hidden image — must be absent in both renderers
+        { id: 'ci-hidden', url: 'https://example.com/HIDDEN_IMAGE.png', x: 50, y: 50, width: 20, height: 20, hidden: true },
+      ],
+    }
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container: previewC } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    const satoriHtml = await renderSatoriHtml(slide)
+    // React preview: hidden URL absent, visible URL present.
+    expect(previewC.innerHTML).not.toMatch(/HIDDEN_IMAGE\.png/)
+    expect(previewC.innerHTML).toMatch(/visible\.png/)
+    // Satori: same.
+    expect(satoriHtml).not.toMatch(/HIDDEN_IMAGE\.png/)
+    expect(satoriHtml).toMatch(/visible\.png/)
+  })
+
+  it('PH3: hidden watermark → both renderers omit watermark', async () => {
+    // The watermark resolver (resolve-watermark.ts) reads from the legacy
+    // brandKit slot — supply one so the floor test (slide WITHOUT
+    // hidden:true) actually renders the watermark URL. Then the hidden:true
+    // path must SUPPRESS the same URL through the Plan 64-02 gate.
+    const brandKit = {
+      logo_url: 'https://cdn.example.com/HIDDEN_WMARK.png',
+      logo_position: 'bottom-right' as const,
+      logo_size_pct: 10,
+      logo_opacity_pct: 60,
+    } as unknown as Parameters<typeof SlidePreview>[0]['brandKit']
+
+    const baseSlide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      watermark: {
+        id: 'w_0',
+        enabled: true,
+        position: 'bottom-right',
+      },
+    }
+    baseSlide.text_boxes = legacyToTextBoxes(baseSlide)
+
+    // Floor test: without hidden, watermark URL appears (sanity gate so
+    // the absence-probe below isn't vacuous).
+    const { container: floorC } = render(
+      <SlidePreview
+        slide={baseSlide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        brandKit={brandKit}
+      />,
+    )
+    const floorSatori = await (async () => {
+      const { buildSlideElement } = await import('@/lib/render/render-slide-satori')
+      const { renderToStaticMarkup } = await import('react-dom/server')
+      return renderToStaticMarkup(
+        buildSlideElement(baseSlide, getTemplate('highlight-bar'), brandKit as any),
+      )
+    })()
+    expect(floorC.innerHTML).toMatch(/HIDDEN_WMARK\.png/)
+    expect(floorSatori).toMatch(/HIDDEN_WMARK\.png/)
+
+    // Hidden test: with watermark.hidden = true, both renderers must
+    // omit the watermark URL.
+    const hiddenSlide: Slide = {
+      ...baseSlide,
+      watermark: { ...baseSlide.watermark!, hidden: true },
+    }
+    const { container: hiddenC } = render(
+      <SlidePreview
+        slide={hiddenSlide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+        brandKit={brandKit}
+      />,
+    )
+    const hiddenSatori = await (async () => {
+      const { buildSlideElement } = await import('@/lib/render/render-slide-satori')
+      const { renderToStaticMarkup } = await import('react-dom/server')
+      return renderToStaticMarkup(
+        buildSlideElement(hiddenSlide, getTemplate('highlight-bar'), brandKit as any),
+      )
+    })()
+    expect(hiddenC.innerHTML).not.toMatch(/HIDDEN_WMARK\.png/)
+    expect(hiddenSatori).not.toMatch(/HIDDEN_WMARK\.png/)
+  })
+
+  it('PH4: hidden custom_text → both renderers omit it', async () => {
+    const slide: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_texts: [
+        { id: 'ct-vis', text: 'VISIBLE_CT_MARKER', x: 10, y: 60, width: 30, color: '#fff' },
+        { id: 'ct-hide', text: 'HIDDEN_CT_MARKER', x: 50, y: 60, width: 30, color: '#fff' },
+      ],
+      // Custom-text hidden flag lives on text_boxes mirror (Phase 49 dual-write contract).
+      text_boxes: [
+        { id: 'ct-vis', role: 'custom', text: 'VISIBLE_CT_MARKER', position: { anchor: 'custom', x: 10, y: 60, width: 30 } },
+        { id: 'ct-hide', role: 'custom', text: 'HIDDEN_CT_MARKER', position: { anchor: 'custom', x: 50, y: 60, width: 30 }, hidden: true },
+      ],
+    }
+    const { container: previewC } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    const satoriHtml = await renderSatoriHtml(slide)
+    // React preview: hidden custom_text absent, visible present.
+    expect(previewC.innerHTML).not.toMatch(/HIDDEN_CT_MARKER/)
+    expect(previewC.innerHTML).toMatch(/VISIBLE_CT_MARKER/)
+    // Satori: same.
+    expect(satoriHtml).not.toMatch(/HIDDEN_CT_MARKER/)
+    expect(satoriHtml).toMatch(/VISIBLE_CT_MARKER/)
+  })
+
+  it('PH5: hidden+locked combo → element hidden (hidden takes precedence over locked); locked alone renders normally', async () => {
+    // Slide A: image hidden+locked → absent in both.
+    const slideHiddenLocked: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'ci-x', url: 'https://example.com/HIDDEN_LOCKED_IMG.png', x: 10, y: 10, width: 20, height: 20, hidden: true, locked: true },
+      ],
+    }
+    slideHiddenLocked.text_boxes = legacyToTextBoxes(slideHiddenLocked)
+
+    const { container: hidLocPreview } = render(
+      <SlidePreview
+        slide={slideHiddenLocked}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    const hidLocSatori = await renderSatoriHtml(slideHiddenLocked)
+    expect(hidLocPreview.innerHTML).not.toMatch(/HIDDEN_LOCKED_IMG\.png/)
+    expect(hidLocSatori).not.toMatch(/HIDDEN_LOCKED_IMG\.png/)
+
+    // Slide B: image locked-only → renders normally in BOTH renderers
+    // (Plan 64-01 contract: locked element renders, just blocks user input).
+    const slideLockedOnly: Slide = {
+      hook_text: 'H',
+      body_text: 'B',
+      image_query: 'q',
+      is_cta: false,
+      background_url: null,
+      pexels_photo_id: null,
+      custom_images: [
+        { id: 'ci-y', url: 'https://example.com/LOCKED_ONLY_IMG.png', x: 10, y: 10, width: 20, height: 20, locked: true },
+      ],
+    }
+    slideLockedOnly.text_boxes = legacyToTextBoxes(slideLockedOnly)
+
+    const { container: lockOnlyPreview } = render(
+      <SlidePreview
+        slide={slideLockedOnly}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable={false}
+      />,
+    )
+    const lockOnlySatori = await renderSatoriHtml(slideLockedOnly)
+    expect(lockOnlyPreview.innerHTML).toMatch(/LOCKED_ONLY_IMG\.png/)
+    expect(lockOnlySatori).toMatch(/LOCKED_ONLY_IMG\.png/)
+  })
+})
