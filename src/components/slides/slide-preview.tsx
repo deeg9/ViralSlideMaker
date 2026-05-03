@@ -1105,14 +1105,22 @@ export function SlidePreview({
             if (!hookBox) return
             if (e.shiftKey && onSelectionChange) {
               // SEL-02 / SEL-03: toggle membership without changing single-select handlers.
-              onSelectionChange((s: Selection) =>
-                s.ids.includes(hookBox.id)
+              // Phase 60 (MED-2 review-fix): also sync the legacy `selectedTextBoxId`
+              // slot to the post-toggle primary so when N transitions 2→1 the right
+              // rail's ActiveTextBoxCard renders the actually-selected element (not
+              // the stale single-id slot). Compute-then-dispatch pattern mirrors
+              // useSelectionModel.setSelection — avoids side-effects inside the
+              // functional updater.
+              onSelectionChange((s: Selection) => {
+                const next: Selection = s.ids.includes(hookBox.id)
                   ? {
                       ids: s.ids.filter((x) => x !== hookBox.id),
                       primary: s.primary === hookBox.id ? null : s.primary,
                     }
-                  : { ids: [...s.ids, hookBox.id], primary: hookBox.id },
-              )
+                  : { ids: [...s.ids, hookBox.id], primary: hookBox.id }
+                onTextBoxSelect?.(next.primary ?? next.ids[0] ?? null)
+                return next
+              })
               return
             }
             // SEL-01: single-click replaces (existing v2.8 behavior preserved).
@@ -1222,14 +1230,18 @@ export function SlidePreview({
               const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
               if (!bodyBox) return
               if (e.shiftKey && onSelectionChange) {
-                onSelectionChange((s: Selection) =>
-                  s.ids.includes(bodyBox.id)
+                // Phase 60 (MED-2 review-fix): keep legacy single-id slot in sync
+                // (see hook handler comment above for full rationale).
+                onSelectionChange((s: Selection) => {
+                  const next: Selection = s.ids.includes(bodyBox.id)
                     ? {
                         ids: s.ids.filter((x) => x !== bodyBox.id),
                         primary: s.primary === bodyBox.id ? null : s.primary,
                       }
-                    : { ids: [...s.ids, bodyBox.id], primary: bodyBox.id },
-                )
+                    : { ids: [...s.ids, bodyBox.id], primary: bodyBox.id }
+                  onTextBoxSelect?.(next.primary ?? next.ids[0] ?? null)
+                  return next
+                })
                 return
               }
               onCustomTextSelect?.(null)
@@ -1365,14 +1377,22 @@ export function SlidePreview({
                 // Phase 60 (SEL-01/02/03): Shift-click toggles; plain click replaces.
                 e.stopPropagation()
                 if (e.shiftKey && onSelectionChange) {
-                  onSelectionChange((s: Selection) =>
-                    s.ids.includes(ct.id)
+                  // Phase 60 (MED-2 review-fix): sync the legacy `selectedTextBoxId`
+                  // slot (which drives the unified ActiveTextBoxCard in the right
+                  // rail) so when N transitions 2→1 the rail renders the actually-
+                  // selected element, not whichever id was clicked first. We do
+                  // NOT touch `selectedCustomTextId` here — the post-toggle primary
+                  // may be a hook/body/image id, and that slot is custom-text-only.
+                  onSelectionChange((s: Selection) => {
+                    const next: Selection = s.ids.includes(ct.id)
                       ? {
                           ids: s.ids.filter((x) => x !== ct.id),
                           primary: s.primary === ct.id ? null : s.primary,
                         }
-                      : { ids: [...s.ids, ct.id], primary: ct.id },
-                  )
+                      : { ids: [...s.ids, ct.id], primary: ct.id }
+                    onTextBoxSelect?.(next.primary ?? next.ids[0] ?? null)
+                    return next
+                  })
                   return
                 }
                 onCustomTextSelect?.(ct.id)
@@ -1528,14 +1548,20 @@ export function SlidePreview({
                 // Phase 60 (SEL-01/02/03): Shift-click toggles; plain click replaces.
                 e.stopPropagation()
                 if (e.shiftKey && onSelectionChange) {
-                  onSelectionChange((s: Selection) =>
-                    s.ids.includes(ci.id)
+                  // Phase 60 (MED-2 review-fix): keep legacy `selectedTextBoxId`
+                  // in sync so the right rail's ActiveTextBoxCard tracks correctly
+                  // on N=2→1 transitions. We do NOT touch `selectedCustomImageId`
+                  // because the post-toggle primary may not be a custom-image id.
+                  onSelectionChange((s: Selection) => {
+                    const next: Selection = s.ids.includes(ci.id)
                       ? {
                           ids: s.ids.filter((x) => x !== ci.id),
                           primary: s.primary === ci.id ? null : s.primary,
                         }
-                      : { ids: [...s.ids, ci.id], primary: ci.id },
-                  )
+                      : { ids: [...s.ids, ci.id], primary: ci.id }
+                    onTextBoxSelect?.(next.primary ?? next.ids[0] ?? null)
+                    return next
+                  })
                   return
                 }
                 onCustomImageSelect?.(ci.id)
