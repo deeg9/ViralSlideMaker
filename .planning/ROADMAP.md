@@ -159,7 +159,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 
 **Plans**: 3 plans
 - [x] 64-01-PLAN.md — LOCK reducer + Cmd+Shift+L + drag/resize/delete prevention + marquee skip-locked + lock-icon overlay (LOCK-01..06)
-- [ ] 64-02-PLAN.md — HIDDEN reducer + both renderers honor hidden + selection-bounds skip-hidden + Fork RPC strip-locked (LOCK-07, LOCK-08)
+- [x] 64-02-PLAN.md — HIDDEN reducer + both renderers honor hidden + selection-bounds skip-hidden + Fork RPC strip-locked (LOCK-07, LOCK-08)
 - [ ] 64-03-PLAN.md — Z_ORDER single action + 4 tinykeys bindings + per-scope routing + multi-selection iteration (ZORDER-01..07)
 **UI hint**: yes
 
@@ -211,7 +211,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 | 61. Marquee Selection | 2/2 | Complete | 2026-05-02 |
 | 62. Group / Ungroup | 3/3 | Complete | 2026-05-03 |
 | 63. Alignment / Distribute + Smart Guides | 4/5 | In Progress|  |
-| 64. Lock / Hide + Z-Order | 1/3 | In Progress|  |
+| 64. Lock / Hide + Z-Order | 2/3 | In Progress|  |
 | 65. Layers Panel + TPLREND-05 Audit | 0/0 | Not started | - |
 | 66. Power-User Differentiators + Polish | 0/0 | Not started | - |
 
