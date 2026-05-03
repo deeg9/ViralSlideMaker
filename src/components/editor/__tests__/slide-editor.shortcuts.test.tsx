@@ -1864,4 +1864,237 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
       expect(arrowBindings.length).toBe(8)
     })
   })
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Phase 66 Plan 01 (DIFF-02): Cmd+D smart-offset.
+  // ──────────────────────────────────────────────────────────────────────
+  //
+  // lastMoveDeltaRef tracks the most recent BULK_TRANSLATE delta (drag-stop
+  // OR arrow-nudge). Cmd+D reads it to position the duplicate at:
+  //   sourcePos + lastMoveDeltaRef.current
+  // When lastMoveDeltaRef.current is null (initial state — no prior move):
+  //   sourcePos + DEFAULT_DUPLICATE_OFFSET_*  (~20 ref-px each axis)
+  //
+  // sourcePos resolution:
+  //   - When selection.primary points to a custom-anchor TextBox → primary's
+  //     position.x / position.y.
+  //   - Otherwise → (0, 0). Falls through naturally for stale-id /
+  //     non-custom-anchor / no-selection cases.
+  //
+  // Mechanism: data-textbox-positions on TextEditorPanel surfaces every
+  // text_box's anchor + x + y. The duplicate is the LAST entry (ADD_TEXT_BOX
+  // appends). We assert its position matches the expected math via
+  // toBeCloseTo (6-decimal precision).
+  describe('Cmd+D smart offset (DIFF-02)', () => {
+    const NUDGE_Y_SMALL_PCT = 100 / 1920
+    const NUDGE_X_LARGE_PCT = 1000 / 1080
+    const DEFAULT_DUPLICATE_OFFSET_X_PCT = 2000 / 1080
+    const DEFAULT_DUPLICATE_OFFSET_Y_PCT = 2000 / 1920
+
+    function readTextBoxPositions(): Array<{
+      id: string
+      anchor: string
+      x: number | null
+      y: number | null
+    }> {
+      const raw =
+        screen.getByTestId('text-editor-panel').getAttribute('data-textbox-positions') ??
+        ''
+      const out: Array<{
+        id: string
+        anchor: string
+        x: number | null
+        y: number | null
+      }> = []
+      for (const entry of raw.split(';').filter(Boolean)) {
+        const parts = entry.split(':')
+        const id = parts[0]
+        const anchor = parts[1]
+        const xy = parts[2] ?? ''
+        const [xs, ys] = xy.split(',')
+        out.push({
+          id,
+          anchor,
+          x: xs === '' ? null : Number(xs),
+          y: ys === '' ? null : Number(ys),
+        })
+      }
+      return out
+    }
+
+    it('SO1 (no prior move + custom-anchor primary): Cmd+D duplicates at primary + DEFAULT_DUPLICATE_OFFSET_*', () => {
+      renderEditor() // default fixture: hook + body + 1 custom (ct-fixed-1 at x=10, y=10)
+      // Cmd+3 selects the third text_box (the custom box) as primary.
+      fireEvent.keyDown(window, { key: '3', ctrlKey: true })
+      const beforeSelected = screen.getByTestId('text-editor-panel')
+        .getAttribute('data-active-id') ?? ''
+      expect(beforeSelected).toBe('ct-fixed-1')
+
+      const beforePositions = readTextBoxPositions()
+      expect(beforePositions.length).toBe(3)
+      const primaryBefore = beforePositions.find((tb) => tb.id === 'ct-fixed-1')
+      expect(primaryBefore?.anchor).toBe('custom')
+      expect(primaryBefore?.x).toBe(10)
+      expect(primaryBefore?.y).toBe(10)
+
+      // Fire Cmd+D — no prior move-delta → falls back to DEFAULT_DUPLICATE_OFFSET_*.
+      fireEvent.keyDown(window, { key: 'd', ctrlKey: true })
+
+      const afterPositions = readTextBoxPositions()
+      expect(afterPositions.length).toBe(4)
+      const duplicate = afterPositions[afterPositions.length - 1]
+      expect(duplicate.anchor).toBe('custom')
+      expect(duplicate.x).toBeCloseTo(10 + DEFAULT_DUPLICATE_OFFSET_X_PCT, 6)
+      expect(duplicate.y).toBeCloseTo(10 + DEFAULT_DUPLICATE_OFFSET_Y_PCT, 6)
+    })
+
+    it('SO2 (after ArrowDown nudge): Cmd+D duplicates at sourceAfterNudge + lastMoveDelta (no horizontal offset)', () => {
+      renderEditor()
+      // Select the custom box as primary.
+      fireEvent.keyDown(window, { key: '3', ctrlKey: true })
+      // ArrowDown: BULK_TRANSLATE { deltaX: 0, deltaY: NUDGE_Y_SMALL_PCT } —
+      // the custom box (anchor='custom') translates AND lastMoveDeltaRef
+      // records the delta. hook + body are skipped (anchor != custom).
+      fireEvent.keyDown(window, { key: 'ArrowDown' })
+
+      // Source position post-nudge: ct-fixed-1 is now at y = 10 + NUDGE_Y_SMALL_PCT.
+      const afterNudge = readTextBoxPositions()
+      const sourceAfter = afterNudge.find((tb) => tb.id === 'ct-fixed-1')
+      expect(sourceAfter?.x).toBeCloseTo(10, 6) // x unchanged
+      expect(sourceAfter?.y).toBeCloseTo(10 + NUDGE_Y_SMALL_PCT, 6)
+
+      // Cmd+D: smart offset reads lastMoveDeltaRef = { x: 0, y: NUDGE_Y_SMALL_PCT }.
+      // Duplicate lands at source + lastMoveDelta = (10, 10 + 2*NUDGE_Y_SMALL_PCT).
+      fireEvent.keyDown(window, { key: 'd', ctrlKey: true })
+
+      const after = readTextBoxPositions()
+      expect(after.length).toBe(4)
+      const duplicate = after[after.length - 1]
+      expect(duplicate.anchor).toBe('custom')
+      expect(duplicate.x).toBeCloseTo(10 + 0, 6)
+      expect(duplicate.y).toBeCloseTo(10 + NUDGE_Y_SMALL_PCT + NUDGE_Y_SMALL_PCT, 6)
+    })
+
+    it('SO3 (after Shift+ArrowRight): Cmd+D duplicates with LARGE horizontal offset (no vertical)', () => {
+      renderEditor()
+      fireEvent.keyDown(window, { key: '3', ctrlKey: true })
+      // Shift+ArrowRight: deltaX = NUDGE_X_LARGE_PCT, deltaY = 0.
+      fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true })
+
+      const afterNudge = readTextBoxPositions()
+      const sourceAfter = afterNudge.find((tb) => tb.id === 'ct-fixed-1')
+      expect(sourceAfter?.x).toBeCloseTo(10 + NUDGE_X_LARGE_PCT, 6)
+      expect(sourceAfter?.y).toBeCloseTo(10, 6)
+
+      // Cmd+D: duplicate at source + lastMoveDelta = (10 + 2*LARGE, 10).
+      fireEvent.keyDown(window, { key: 'd', ctrlKey: true })
+
+      const after = readTextBoxPositions()
+      const duplicate = after[after.length - 1]
+      expect(duplicate.x).toBeCloseTo(10 + NUDGE_X_LARGE_PCT + NUDGE_X_LARGE_PCT, 6)
+      expect(duplicate.y).toBeCloseTo(10 + 0, 6)
+    })
+
+    it('SO4 (drag-stop write path — structural): onGroupDrag wrapper writes lastMoveDeltaRef before dispatching BULK_TRANSLATE', () => {
+      // The onGroupDrag wrapper at slide-editor.tsx writes lastMoveDeltaRef
+      // identically to the arrow-nudge handlers — it's a plain assignment
+      // before dispatch. Direct invocation of onGroupDrag from the test
+      // would require seeding selection through a mocked SlidePreview drag
+      // gesture, which is out-of-scope for the shortcuts-suite scaffold
+      // (the SlideCanvas mock here doesn't propagate the prop).
+      //
+      // SO2 and SO3 prove the read-path (Cmd+D consumes lastMoveDeltaRef)
+      // via the arrow-nudge write-path; the drag-stop write-path is a
+      // structural mirror documented in the source. We pin that mirror
+      // here via a source-text grep — the wrapper MUST write the ref before
+      // dispatching BULK_TRANSLATE so a Phase 67+ refactor can't silently
+      // regress the DIFF-02 contract for drag gestures.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require('fs')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const path = require('path')
+      const file = fs.readFileSync(
+        path.resolve(__dirname, '../slide-editor.tsx'),
+        'utf-8',
+      ) as string
+      // Verify the onGroupDrag wrapper writes lastMoveDeltaRef before
+      // dispatching BULK_TRANSLATE.
+      const onGroupDragBlock = file.match(
+        /onGroupDrag=\{[\s\S]*?lastMoveDeltaRef\.current = \{[^}]*\}[\s\S]*?dispatch\(\{[^}]*BULK_TRANSLATE/,
+      )
+      expect(onGroupDragBlock).not.toBeNull()
+    })
+
+    it('SO-PREV (Cmd+D preventDefault preserved): firewall returns false → preventDefault called', () => {
+      renderEditor()
+      const ev = new KeyboardEvent('keydown', {
+        key: 'd',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      const pd = vi.spyOn(ev, 'preventDefault')
+      window.dispatchEvent(ev)
+      expect(pd).toHaveBeenCalled()
+    })
+
+    it('SO-NSEL (Cmd+D with N=0 selected): falls back to (0,0) + DEFAULT_DUPLICATE_OFFSET_*', () => {
+      renderEditor()
+      fireEvent.keyDown(window, { key: 'Escape' }) // clear selection
+      const selectedIds = screen.getByTestId('text-editor-panel')
+        .getAttribute('data-selected-ids') ?? ''
+      expect(selectedIds).toBe('')
+
+      const beforeCount = parseInt(
+        screen.getByTestId('text-editor-panel')
+          .getAttribute('data-textbox-count') ?? '0',
+        10,
+      )
+
+      fireEvent.keyDown(window, { key: 'd', ctrlKey: true })
+
+      const after = readTextBoxPositions()
+      expect(after.length).toBe(beforeCount + 1)
+      const duplicate = after[after.length - 1]
+      // primary === null → sourcePos = (0,0); offset = DEFAULT_DUPLICATE_OFFSET_*.
+      expect(duplicate.anchor).toBe('custom')
+      expect(duplicate.x).toBeCloseTo(0 + DEFAULT_DUPLICATE_OFFSET_X_PCT, 6)
+      expect(duplicate.y).toBeCloseTo(0 + DEFAULT_DUPLICATE_OFFSET_Y_PCT, 6)
+    })
+
+    it('SO-IE (Cmd+D inside textarea): firewall preserved — no ADD_TEXT_BOX dispatch', () => {
+      renderEditor()
+      const beforeCount = parseInt(
+        screen.getByTestId('text-editor-panel')
+          .getAttribute('data-textbox-count') ?? '0',
+        10,
+      )
+
+      const textarea = document.createElement('textarea')
+      document.body.appendChild(textarea)
+      textarea.focus()
+
+      const ev = new KeyboardEvent('keydown', {
+        key: 'd',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(ev, 'target', { value: textarea })
+      const pd = vi.spyOn(ev, 'preventDefault')
+      window.dispatchEvent(ev)
+
+      // Firewall returns BEFORE preventDefault.
+      expect(pd).not.toHaveBeenCalled()
+
+      const afterCount = parseInt(
+        screen.getByTestId('text-editor-panel')
+          .getAttribute('data-textbox-count') ?? '0',
+        10,
+      )
+      expect(afterCount).toBe(beforeCount) // no duplicate added.
+
+      document.body.removeChild(textarea)
+    })
+  })
 })
