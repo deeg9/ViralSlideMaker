@@ -36,7 +36,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 - [x] **Phase 61: Marquee Selection** — `selecto@1.26.3` rubber-band marquee on canvas whitespace; intersect mode (Figma); Shift-additive; rect normalization for all 4 drag directions; pointer-events seam (2/2 plans complete: 61-01 SHIPPED 2026-05-02 — pure helpers + MarqueeOverlay + selecto install; 61-02 SHIPPED 2026-05-02 — marquee state machine + KBD-07 axis-constrain + PARITY-01 marquee scan)
 - [x] **Phase 62: Group / Ungroup** — `groupId?` semantics live; Cmd+G / Cmd+Shift+G; group bounding box visualization; double-click enter / Esc exit; group drag fans out delta to members; first multi-element reducer action with single `pushHistory` (3/3 plans complete 2026-05-03)
 - [x] **Phase 63: Alignment / Distribute + Smart Guides (Wave A + Wave B)** — 6-axis align + H/V distribute + floating Figma toolbar (Wave A); sorted-edge-array snap index + 5px threshold + canvas-edge targets + equal-spacing "==" guide + asymmetric hysteresis (Wave B); both ship together (snap engine shared) (5/5 plans complete 2026-05-03 — 24/24 reqs satisfied: ALIGN-01..10 + SNAP-01..10 + DIFF-03 + PERF-03 + PERF-05 + PARITY-03)
-- [ ] **Phase 64: Lock / Hide + Z-Order** — `locked?` + `hidden?` semantics live; Cmd+Shift+L lock toggle; lock blocks drag/resize/edit but allows select; hidden skipped by both renderers; Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ z-order via array splice; lock stripped on fork
+- [x] **Phase 64: Lock / Hide + Z-Order** — `locked?` + `hidden?` semantics live; Cmd+Shift+L lock toggle; lock blocks drag/resize/edit but allows select; hidden skipped by both renderers; Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ z-order via array splice; lock stripped on fork (completed 2026-05-03)
 - [ ] **Phase 65: Layers Panel + TPLREND-05 Audit** — New LEFT rail; `react-arborist@3.5.0` (Day-1 StrictMode verification); flat list + group collapse; click-select; lock/visibility toggles; button-based reorder; comprehensive parity test extension; React.memo perf
 - [ ] **Phase 66: Power-User Differentiators + Keyboard Completion + Polish** — Alt-drag duplicate; Cmd+D smart offset; arrow nudge 1px / Shift+Arrow 10px; keyboard tooltips on alignment toolbar + layer chips; final keyboard sweep
 
@@ -160,7 +160,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 **Plans**: 3 plans
 - [x] 64-01-PLAN.md — LOCK reducer + Cmd+Shift+L + drag/resize/delete prevention + marquee skip-locked + lock-icon overlay (LOCK-01..06)
 - [x] 64-02-PLAN.md — HIDDEN reducer + both renderers honor hidden + selection-bounds skip-hidden + Fork RPC strip-locked (LOCK-07, LOCK-08)
-- [ ] 64-03-PLAN.md — Z_ORDER single action + 4 tinykeys bindings + per-scope routing + multi-selection iteration (ZORDER-01..07)
+- [x] 64-03-PLAN.md — Z_ORDER single action + 4 tinykeys bindings + per-scope routing + multi-selection iteration (ZORDER-01..07)
 **UI hint**: yes
 
 ---
@@ -211,7 +211,7 @@ These constraints apply to **every phase** that touches editor chrome, drag/resi
 | 61. Marquee Selection | 2/2 | Complete | 2026-05-02 |
 | 62. Group / Ungroup | 3/3 | Complete | 2026-05-03 |
 | 63. Alignment / Distribute + Smart Guides | 4/5 | In Progress|  |
-| 64. Lock / Hide + Z-Order | 2/3 | In Progress|  |
+| 64. Lock / Hide + Z-Order | 3/3 | Complete   | 2026-05-03 |
 | 65. Layers Panel + TPLREND-05 Audit | 0/0 | Not started | - |
 | 66. Power-User Differentiators + Polish | 0/0 | Not started | - |
 

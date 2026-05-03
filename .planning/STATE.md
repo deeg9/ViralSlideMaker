@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.11
 milestone_name: Full Editor Parity
 status: completed
-stopped_at: "Plan 64-02 complete (HIDDEN reducer + both-renderer hidden filter + selection-bounds hidden-skip + Fork RPC strip-locked migration). Phase 64 2/3 plans shipped. Ready for Plan 64-03 (Z-Order — Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ array-splice within-array reorder; closes ZORDER-01..07). Plan 64-02 inherits stable seams: SET_LOCKED → SET_HIDDEN reducer cluster pattern reusable for Z_ORDER (single-dispatch + applyDualWrite + ref-equal short-circuit); both-renderer byte-identical filter idiom (TPLREND-05); renderToStaticMarkup PARITY harness; pure SQL helper for fork-time scrubbing."
-last_updated: "2026-05-03T06:18:00.000Z"
-last_activity: "2026-05-03 — Plan 64-02 ships HIDDEN reducer + both-renderer hidden filter + selection-bounds hidden-skip + Fork RPC strip-locked migration: SET_HIDDEN action variant + reducer case mirroring SET_LOCKED verbatim with `locked` → `hidden` field swap (single pushHistory + applyDualWrite + ref-equal short-circuit; 5 new SH1..SH5 reducer tests). selection-bounds.ts hidden-skip filter — `tb.hidden === true / ci.hidden === true / watermark.hidden !== true` gates BEFORE the existing structural-anchor / push checks; module header extended documenting Phase 64 LOCK-07 separation-of-semantics (hidden EXCLUDED from union AABB; locked still INCLUDED per Phase 63 D-01); 3 new SB-H1..SB-H3 bounds tests. render-slide-satori.tsx 5 hidden-filter sites: hook+body JSX gates, custom_images.filter, watermark logical-and gate extended, custom_texts.filter via text_boxes mirror lookup. slide-preview.tsx 8 hidden-filter sites total — editable hook/body Rnd JSX gates + custom_text/custom_image .filter calls + watermark closure early-return; non-editable hook/body JSX gates + custom_text/custom_image .filter + watermark closure early-return; symmetric for TPLREND-05 byte-identity. PARITY-01 PH1..PH5 tests pin byte-identity via renderToStaticMarkup absence-probe — PH1 hook absent / PH2 image absent / PH3 watermark absent (with brand-kit floor test proving non-vacuous) / PH4 custom_text absent / PH5 hidden+locked combo + locked-only sanity. supabase/migrations/20260502_fork_strip_locked.sql NEW — IMMUTABLE+non-DEFINER helper `_strip_locked_from_slide_data(jsonb)` walks every slide's text_boxes / custom_images / custom_texts arrays and watermark slot, removing `locked` via `jsonb #- '{locked}'`; fork_published_carousel re-declared with helper invocation between fetch + INSERT (post-merge action: `npx supabase db push`). 784/784 editor + slides + render full regression green (+39 vs Plan 64-01's 745); tsc baseline 17 preserved. 5 atomic commits `bbd5cb2` / `3f2ec3f` / `5fd2763` / `329e964` / `0fa44bb`."
+stopped_at: "Plan 64-03 complete (Phase 64 final wave — Z-Order). Phase 64 fully shipped (3/3 plans; LOCK-01..08 + ZORDER-01..07 = all 15 reqs). Ready for Phase 65 (Layers Panel + TPLREND-05 audit). Phase 65 inherits the established 64-cluster patterns: single-dispatch-on-element-set + ref-equal short-circuit + applyDualWrite for text_boxes routing. Layers panel UI dispatches Z_ORDER (drag-to-reorder) + SET_LOCKED (lock toggle) + SET_HIDDEN (visibility toggle) — all 3 reducer cases reusable; both renderers already honor hidden + locked semantics."
+last_updated: "2026-05-03T06:36:31Z"
+last_activity: "2026-05-03 — Plan 64-03 ships Z-Order: pure transform `applyZOrderToArray` (src/lib/editor/transforms/z-order.ts; 109 LOC) + Z_ORDER EditorAction variant + reducer case (per-scope routing across text_boxes ∪ custom_images; watermark single-slot handled implicitly via no-op short-circuit) + 4 tinykeys bindings ($mod+] / $mod+[ / $mod+Alt+] / $mod+Alt+[) all dispatching the single Z_ORDER action with op-discriminator. Figma multi-selection model with adjacent-selected guard (PITFALL-6.3 — selected windows at edges stay intact); DESC sort for forward/front, ASC for backward/back. ZORDER-05 array-splice invariant pinned by purity grep gate (zero CSS layering references in z-order.ts AND editor-reducer.ts; documentary phrasing rephrases the prohibition as 'the CSS layering property' so strict literal grep returns 0). 33 new tests (16 ZA pure transform + 1 ZOrderOp probe + 8 ZR reducer + 8 KZ keyboard) + KL6 grep gate bumped 25→29 (4 new firewall sites). 817/817 plan-spec tests green; tsc baseline 17 preserved. 6 atomic TDD commits `5be61eb` / `def0cff` / `c266d7a` / `ec3b240` / `4c26dd0` / `aae7e2c`. Phase 64 COMPLETE — all 15 reqs (LOCK-01..08 + ZORDER-01..07) closed."
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 18
   completed_plans: 18
-  percent: 94
+  percent: 100
 ---
 
 # Project State
@@ -26,10 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approv
 
 ## Current Position
 
-Phase: 64 — Lock / Hide + Z-Order **IN PROGRESS** (2/3 plans shipped)
+Phase: 64 — Lock / Hide + Z-Order **COMPLETE** (3/3 plans shipped — all 15 phase reqs closed)
 Plan: 64-01 SHIPPED (LOCK reducer + Cmd+Shift+L + 4-Rnd-site drag/resize prevention + marquee skip-locked + 12×12 lock-icon overlay; closes LOCK-01..06; ~600 LOC incl. tests; 6 atomic commits `a881982` / `5196e98` / `0f4c7ea` / `27e62ba` / `181e804` / `421659a`).
 Plan: 64-02 SHIPPED (HIDDEN reducer + both-renderer hidden filter + selection-bounds hidden-skip + Fork RPC strip-locked migration; closes LOCK-07 + LOCK-08; ~500 LOC incl. tests; 5 atomic commits `bbd5cb2` / `3f2ec3f` / `5fd2763` / `329e964` / `0fa44bb`; post-merge action: `npx supabase db push`).
-Status: Phase 64 LOCK-01..08 complete (8/15 phase reqs). Ready for Plan 64-03 (Z-Order — Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[ array-splice within-array reorder; closes ZORDER-01..07). Plan 64-03 inherits the SET_LOCKED/SET_HIDDEN reducer cluster pattern (single-dispatch toggle on element set with applyDualWrite + ref-equal short-circuit) — Z_ORDER's per-id walk follows the same skeleton with op-based per-array splice instead of per-element field assignment.
+Plan: 64-03 SHIPPED (Z_ORDER reducer + 4 tinykeys bindings + applyZOrderToArray pure transform with Figma multi-selection model + adjacent-selected guard + ZORDER-05 array-splice invariant; closes ZORDER-01..07; ~500 LOC incl. tests; 6 atomic commits `5be61eb` / `def0cff` / `c266d7a` / `ec3b240` / `4c26dd0` / `aae7e2c`; isEditingTarget grep count 25→29).
+Status: Phase 64 COMPLETE; ALL 15 Phase 64 reqs marked complete in REQUIREMENTS.md (LOCK-01..08 + ZORDER-01..07). Ready for Phase 65 (layers panel — drag-to-reorder UI dispatches Z_ORDER + lock/hide-toggle UI dispatches SET_LOCKED/SET_HIDDEN; reducer + transform reusable). Phase 65 inherits the established 64-cluster patterns: single-dispatch-on-element-set + ref-equal short-circuit + applyDualWrite for text_boxes routing.
 
 ### Earlier in v2.11
 
@@ -97,7 +98,7 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 **v2.11 Progress:**
 
-7 phases planned (60–66). 4/7 complete (Phases 60 + 61 + 62 + 63); Phase 64 in progress (2/3 plans). 70/97 requirements satisfied (23 Phase 60 + 4 Phase 61 + 11 Phase 62 + 24 Phase 63 + 8 Phase 64: LOCK-01..08). Phase 64 progress: Plan 64-01 ~32 min / 6 commits / ~600 LOC; Plan 64-02 ~9 min / 5 commits / ~500 LOC + 13 new tests (5 SH1..SH5 reducer + 3 SB-H1..SB-H3 bounds + 5 PH1..PH5 parity); 784/784 in-scope regression green (+39 vs Plan 64-01's 745); tsc baseline 17 preserved.
+7 phases planned (60–66). 5/7 complete (Phases 60 + 61 + 62 + 63 + 64); Phase 65 not yet started. 77/97 requirements satisfied (23 Phase 60 + 4 Phase 61 + 11 Phase 62 + 24 Phase 63 + 15 Phase 64: LOCK-01..08 + ZORDER-01..07). Phase 64 fully complete: Plan 64-01 ~32 min / 6 commits / ~600 LOC; Plan 64-02 ~9 min / 5 commits / ~500 LOC + 13 new tests; Plan 64-03 ~14 min / 6 commits / ~500 LOC + 33 new tests (16 ZA pure transform + 1 ZOrderOp probe + 8 ZR reducer + 8 KZ keyboard) + KL6 grep-count bump 25→29. 817/817 in-scope regression green (+33 vs Plan 64-02's 784); tsc baseline 17 preserved.
 
 ## Accumulated Context
 
