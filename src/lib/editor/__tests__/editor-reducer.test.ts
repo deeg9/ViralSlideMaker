@@ -1347,3 +1347,107 @@ describe('editorReducer — Phase 62 (GROUP-03, KBD-09): UNGROUP', () => {
     ])
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 62 (Plan 62-03): GROUP → BULK_TRANSLATE → UNGROUP round-trip pin.
+//
+// PG1 verifies that the full Phase 62 user gesture chain (form group → drag
+// the group → ungroup) is lossless against the legacy custom_texts mirror
+// (BL-01 / applyDualWrite invariant). The reducer is correct by Plan 62-01 +
+// Plan 60-03 contracts; this test pins the cross-action interaction so a
+// future regression in either applyDualWrite or BULK_TRANSLATE skip rules
+// is caught at the integration boundary.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('editorReducer — Phase 62 Plan 03: GROUP → BULK_TRANSLATE → UNGROUP round-trip', () => {
+  test('Test PG1: cycle preserves custom_texts mirror byte-correctness; positions reflect translate', () => {
+    const initial = makeState([
+      makeSlide({
+        hook_text: 'Hook',
+        body_text: 'Body',
+        text_boxes: [
+          { id: 'tb-hook', role: 'hook', text: 'Hook', position: { anchor: 'top' } },
+          { id: 'tb-body', role: 'body', text: 'Body', position: { anchor: 'bottom' } },
+          {
+            id: 'tb-c1',
+            role: 'custom',
+            text: 'CT1',
+            position: { anchor: 'custom', x: 10, y: 10, width: 50 },
+          },
+          {
+            id: 'tb-c2',
+            role: 'custom',
+            text: 'CT2',
+            position: { anchor: 'custom', x: 30, y: 30, width: 50 },
+          },
+        ],
+      }),
+    ])
+
+    // Step 1: GROUP the 2 customs.
+    const afterGroup = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb-c1', 'tb-c2'],
+      groupId: 'g_pg1',
+    })
+    expect(afterGroup.past.length).toBe(1)
+    const groupedC1 = afterGroup.present[0].text_boxes!.find((tb) => tb.id === 'tb-c1')!
+    const groupedC2 = afterGroup.present[0].text_boxes!.find((tb) => tb.id === 'tb-c2')!
+    expect(groupedC1.groupId).toBe('g_pg1')
+    expect(groupedC2.groupId).toBe('g_pg1')
+
+    // Step 2: BULK_TRANSLATE both members by +5%/+5%.
+    const afterTranslate = editorReducer(afterGroup, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['tb-c1', 'tb-c2'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(afterTranslate.past.length).toBe(2) // GROUP + BULK_TRANSLATE
+    const translatedC1 = afterTranslate.present[0].text_boxes!.find((tb) => tb.id === 'tb-c1')!
+    const translatedC2 = afterTranslate.present[0].text_boxes!.find((tb) => tb.id === 'tb-c2')!
+    expect(translatedC1.position.x).toBe(15)
+    expect(translatedC1.position.y).toBe(15)
+    expect(translatedC2.position.x).toBe(35)
+    expect(translatedC2.position.y).toBe(35)
+    // groupId preserved across translate.
+    expect(translatedC1.groupId).toBe('g_pg1')
+    expect(translatedC2.groupId).toBe('g_pg1')
+
+    // Step 3: UNGROUP — clears groupId; positions stay at the translated
+    // values. Legacy custom_texts mirror reflects new positions + no groupId.
+    const afterUngroup = editorReducer(afterTranslate, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['tb-c1', 'tb-c2'],
+    })
+    expect(afterUngroup.past.length).toBe(3)
+    const finalC1 = afterUngroup.present[0].text_boxes!.find((tb) => tb.id === 'tb-c1')!
+    const finalC2 = afterUngroup.present[0].text_boxes!.find((tb) => tb.id === 'tb-c2')!
+    expect(finalC1.groupId).toBeUndefined()
+    expect(finalC2.groupId).toBeUndefined()
+    expect(finalC1.position.x).toBe(15)
+    expect(finalC1.position.y).toBe(15)
+    expect(finalC2.position.x).toBe(35)
+    expect(finalC2.position.y).toBe(35)
+    // Legacy custom_texts mirror reflects translated positions; no groupId
+    // leaks into the legacy field projection.
+    expect(afterUngroup.present[0].custom_texts).toBeDefined()
+    expect(afterUngroup.present[0].custom_texts!.length).toBe(2)
+    const legacyC1 = afterUngroup.present[0].custom_texts!.find((c) => c.id === 'tb-c1')!
+    const legacyC2 = afterUngroup.present[0].custom_texts!.find((c) => c.id === 'tb-c2')!
+    expect(legacyC1.x).toBe(15)
+    expect(legacyC1.y).toBe(15)
+    expect(legacyC2.x).toBe(35)
+    expect(legacyC2.y).toBe(35)
+    // PITFALL-3.6: groupId is editor-only — it MUST NOT appear on the legacy
+    // custom_texts projection (CustomText type doesn't declare it; verify by
+    // shape).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((legacyC1 as any).groupId).toBeUndefined()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((legacyC2 as any).groupId).toBeUndefined()
+  })
+})
