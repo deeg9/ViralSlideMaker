@@ -1451,3 +1451,367 @@ describe('editorReducer — Phase 62 Plan 03: GROUP → BULK_TRANSLATE → UNGRO
     expect((legacyC2 as any).groupId).toBeUndefined()
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 63 (ALIGN-03..05, ALIGN-08, ALIGN-09, ALIGN-10): ALIGN + DISTRIBUTE
+// reducer single-dispatch contract. Both actions:
+//   - call pushHistory exactly once per dispatch (ALIGN-08 = PERF-01)
+//   - apply patches from the pure align.ts layer (locked + watermark +
+//     structural-anchor pre-filtered there — defense-in-depth at reducer)
+//   - route text_boxes through applyDualWrite (BL-01)
+//   - integer-rounded inputs (Math.round at the pure-fn boundary; reducer
+//     does NOT re-round — would double-round)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('editorReducer — Phase 63 (ALIGN-08): ALIGN single-dispatch contract', () => {
+  test('Test AR1 (ALIGN-08 / PERF-01): one ALIGN → past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'ci1', url: 'u', x: 10, y: 20, width: 30, height: 40 },
+        ],
+      }),
+    ])
+    expect(initial.past.length).toBe(0)
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['ci1'],
+      axis: 'left',
+      target: 'canvas',
+    })
+    expect(next.past.length).toBe(1)
+    expect(next.future.length).toBe(0)
+  })
+
+  test('Test AR2 (ALIGN-03): N=3 selection axis=left → all 3 elements get bounds.x', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 10, y: 10, width: 20, height: 20 },
+          { id: 'b', url: 'u', x: 30, y: 30, width: 20, height: 20 },
+          { id: 'c', url: 'u', x: 50, y: 50, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['a', 'b', 'c'],
+      axis: 'left',
+      target: 'selection',
+    })
+    const imgs = next.present[0].custom_images!
+    // bounds.x = leftmost = 10; all 3 patched to x=10
+    expect(imgs.find((i) => i.id === 'a')!.x).toBe(10)
+    expect(imgs.find((i) => i.id === 'b')!.x).toBe(10)
+    expect(imgs.find((i) => i.id === 'c')!.x).toBe(10)
+    // y untouched on horizontal axis
+    expect(imgs.find((i) => i.id === 'a')!.y).toBe(10)
+    expect(imgs.find((i) => i.id === 'b')!.y).toBe(30)
+    expect(imgs.find((i) => i.id === 'c')!.y).toBe(50)
+  })
+
+  test('Test AR3 (ALIGN-10): N=3 with one locked → bounds includes locked, locked element x unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 10, y: 10, width: 20, height: 20, locked: true },
+          { id: 'b', url: 'u', x: 30, y: 30, width: 20, height: 20 },
+          { id: 'c', url: 'u', x: 50, y: 50, width: 20, height: 20 },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['a', 'b', 'c'],
+      axis: 'left',
+      target: 'selection',
+    })
+    const imgs = next.present[0].custom_images!
+    // locked 'a' unchanged
+    expect(imgs.find((i) => i.id === 'a')!.x).toBe(10)
+    // bounds.x = 10 (from locked 'a') → b + c moved to 10
+    expect(imgs.find((i) => i.id === 'b')!.x).toBe(10)
+    expect(imgs.find((i) => i.id === 'c')!.x).toBe(10)
+  })
+
+  test('Test AR4 (ALIGN-10): watermark in selection → bounds includes watermark, watermark.position enum unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'img', url: 'u', x: 50, y: 50, width: 20, height: 20 },
+        ],
+        watermark: { id: 'w_0', enabled: true, position: 'top-left' },
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['w_0', 'img'],
+      axis: 'left',
+      target: 'selection',
+    })
+    // watermark placeholder rect: top-left → (0,0,18,5) → bounds.x = 0
+    // img patched to x=0; watermark.position enum unchanged
+    expect(next.present[0].custom_images![0].x).toBe(0)
+    expect(next.present[0].watermark).toEqual({
+      id: 'w_0',
+      enabled: true,
+      position: 'top-left',
+    })
+  })
+
+  test('Test AR5 (ALIGN-09): every post-dispatch x/y is an integer', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 30.7777, y: 40.1234, width: 20.3333, height: 20 },
+        ],
+        text_boxes: [
+          {
+            id: 'tb',
+            role: 'custom',
+            text: 'X',
+            position: { anchor: 'custom', x: 10.5, y: 20.5, width: 60 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['a', 'tb'],
+      axis: 'center-h',
+      target: 'canvas',
+    })
+    const ci = next.present[0].custom_images![0]
+    const tb = next.present[0].text_boxes![0]
+    expect(Number.isInteger(ci.x)).toBe(true)
+    expect(Number.isInteger(tb.position.x as number)).toBe(true)
+  })
+
+  test('Test AR6 (BL-01): ALIGN moving custom-anchor text_box dual-writes to legacy custom_texts', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'tb',
+            role: 'custom',
+            text: 'X',
+            position: { anchor: 'custom', x: 30, y: 40, width: 50 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['tb'],
+      axis: 'left',
+      target: 'canvas',
+    })
+    const tb = next.present[0].text_boxes![0]
+    expect(tb.position.x).toBe(0)
+    // Legacy custom_texts mirror reflects the move.
+    expect(next.present[0].custom_texts).toBeDefined()
+    const legacy = next.present[0].custom_texts!.find((c) => c.id === 'tb')!
+    expect(legacy.x).toBe(0)
+    expect(legacy.y).toBe(40) // y untouched
+  })
+
+  test('Test AR7: ALIGN with empty ids → state ref unchanged; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [{ id: 'a', url: 'u', x: 10, y: 10, width: 20, height: 20 }],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: [],
+      axis: 'left',
+      target: 'canvas',
+    })
+    expect(next).toBe(initial) // ref equality
+    expect(next.past.length).toBe(0)
+  })
+
+  test('Test AR7b: ALIGN where every id is locked → state ref unchanged; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 10, y: 10, width: 20, height: 20, locked: true },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['a'],
+      axis: 'left',
+      target: 'canvas',
+    })
+    // No movable candidates → no patches → ref-equal short-circuit → no pushHistory
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(0)
+  })
+})
+
+describe('editorReducer — Phase 63 (ALIGN-08): DISTRIBUTE single-dispatch contract', () => {
+  test('Test AR8 (ALIGN-08): one DISTRIBUTE → past.length grows by exactly 1', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 0, y: 0, width: 10, height: 10 },
+          { id: 'b', url: 'u', x: 30, y: 0, width: 10, height: 10 },
+          { id: 'c', url: 'u', x: 80, y: 0, width: 10, height: 10 },
+        ],
+      }),
+    ])
+    expect(initial.past.length).toBe(0)
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['a', 'b', 'c'],
+      axis: 'horizontal',
+    })
+    expect(next.past.length).toBe(1)
+  })
+
+  test('Test AR9: DISTRIBUTE with N<3 → state ref unchanged; past.length unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 0, y: 0, width: 10, height: 10 },
+          { id: 'b', url: 'u', x: 90, y: 0, width: 10, height: 10 },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['a', 'b'],
+      axis: 'horizontal',
+    })
+    expect(next).toBe(initial)
+    expect(next.past.length).toBe(0)
+  })
+
+  test('Test AR10 (ALIGN-04, ALIGN-05): DISTRIBUTE horizontal N=3 — inner element gets equal-gap x', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 0, y: 0, width: 10, height: 10 },
+          { id: 'b', url: 'u', x: 30, y: 0, width: 10, height: 10 },
+          { id: 'c', url: 'u', x: 80, y: 0, width: 10, height: 10 },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['a', 'b', 'c'],
+      axis: 'horizontal',
+    })
+    const imgs = next.present[0].custom_images!
+    // Outermost two pinned; middle.x = 0 + 10 + 30 = 40
+    expect(imgs.find((i) => i.id === 'a')!.x).toBe(0)
+    expect(imgs.find((i) => i.id === 'b')!.x).toBe(40)
+    expect(imgs.find((i) => i.id === 'c')!.x).toBe(80)
+  })
+
+  test('Test AR11: DISTRIBUTE vertical N=3 — inner element gets equal-gap y', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 0, y: 0, width: 10, height: 10 },
+          { id: 'b', url: 'u', x: 0, y: 30, width: 10, height: 10 },
+          { id: 'c', url: 'u', x: 0, y: 80, width: 10, height: 10 },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['a', 'b', 'c'],
+      axis: 'vertical',
+    })
+    const imgs = next.present[0].custom_images!
+    expect(imgs.find((i) => i.id === 'a')!.y).toBe(0)
+    expect(imgs.find((i) => i.id === 'b')!.y).toBe(40)
+    expect(imgs.find((i) => i.id === 'c')!.y).toBe(80)
+  })
+
+  test('Test AR12 (ALIGN-10): DISTRIBUTE with locked + watermark — both unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        custom_images: [
+          { id: 'a', url: 'u', x: 0, y: 0, width: 10, height: 10 },
+          { id: 'b', url: 'u', x: 30, y: 0, width: 10, height: 10, locked: true },
+          { id: 'c', url: 'u', x: 50, y: 0, width: 10, height: 10 },
+          { id: 'd', url: 'u', x: 90, y: 0, width: 10, height: 10 },
+        ],
+        watermark: { id: 'w_0', enabled: true, position: 'bottom-right' },
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['a', 'b', 'c', 'd', 'w_0'],
+      axis: 'horizontal',
+    })
+    const imgs = next.present[0].custom_images!
+    // 'b' is locked → unchanged at x=30; 'w_0' watermark filtered out.
+    // After filter, candidates are [a, c, d] → outermost a + d pinned;
+    //   inner_span = 100 - 30 = 70; gap = 35; c.x = 0 + 10 + 35 = 45
+    expect(imgs.find((i) => i.id === 'a')!.x).toBe(0)
+    expect(imgs.find((i) => i.id === 'b')!.x).toBe(30) // locked unchanged
+    expect(imgs.find((i) => i.id === 'c')!.x).toBe(45)
+    expect(imgs.find((i) => i.id === 'd')!.x).toBe(90)
+    // Watermark.position enum unchanged
+    expect(next.present[0].watermark!.position).toBe('bottom-right')
+  })
+
+  test('Test AR13 (BL-01): DISTRIBUTE moving text_boxes dual-writes to legacy custom_texts', () => {
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [
+          {
+            id: 'a',
+            role: 'custom',
+            text: 'A',
+            position: { anchor: 'custom', x: 0, y: 0, width: 10 },
+          },
+          {
+            id: 'b',
+            role: 'custom',
+            text: 'B',
+            position: { anchor: 'custom', x: 30, y: 0, width: 10 },
+          },
+          {
+            id: 'c',
+            role: 'custom',
+            text: 'C',
+            position: { anchor: 'custom', x: 80, y: 0, width: 10 },
+          },
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['a', 'b', 'c'],
+      axis: 'horizontal',
+    })
+    const tb = next.present[0].text_boxes!.find((t) => t.id === 'b')!
+    // gap math: total inner span = (80+10) - 0 - (10+10+10) = 60; gap = 30
+    //   middle.x = 0 + 10 + 30 = 40
+    expect(tb.position.x).toBe(40)
+    // Legacy custom_texts mirror reflects the move.
+    expect(next.present[0].custom_texts).toBeDefined()
+    const legacyB = next.present[0].custom_texts!.find((c) => c.id === 'b')!
+    expect(legacyB.x).toBe(40)
+  })
+})
