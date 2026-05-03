@@ -831,6 +831,13 @@ export function SlideEditor({
           selectedTextBoxId={selectedTextBoxId}
           selection={{ ids: selection.ids, primary: selection.primary }}
           onSelectionChange={selection.setSelection}
+          // Phase 62 (GROUP-06, GROUP-07, GROUP-08, GROUP-10): group-state
+          // wiring. selection.currentlyInsideGroup / enterGroup / exitGroup
+          // were added by Plan 62-01 (useSelectionModel extension); SlideCanvas
+          // forwards verbatim to SlidePreview's ring + click handlers.
+          currentlyInsideGroup={selection.currentlyInsideGroup}
+          onEnterGroup={selection.enterGroup}
+          onExitGroup={selection.exitGroup}
         />
 
         {/* Right panel: Editor controls */}
