@@ -2,6 +2,11 @@ import { GoogleGenAI, Type, type Schema } from '@google/genai'
 import {
   CarouselSchema,
   DecorationSchema,
+  DecorationEmitSchema,
+  AI_LUCIDE_ALLOWLIST,
+  AI_COLOR_TOKENS,
+  AI_POSITION_ANCHORS,
+  AI_SHAPE_KINDS,
   parseDecorationsArraySafe,
   type Carousel,
   type SlideContent,
@@ -17,6 +22,8 @@ export type { DecorationContent }
 import { buildSystemPrompt } from './prompts'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import { resolveAIDecoration } from './resolve-ai-decoration'
+import { getTemplate } from '@/lib/render/templates'
 import type { Slide, TextBox } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -90,6 +97,53 @@ const responseSchema: Schema = {
             description:
               'Optional per-slide template_id override for visual rhythm. Leave unset to use the project template. Closed enum — invalid IDs silently stripped server-side.',
           },
+          // Phase 71 (AI-01, AI-02): Optional 0–2 decorations per slide.
+          // CLOSED-ENUM AI EMIT — AI emits NAMED COLOR TOKENS (never raw hex)
+          // and SEMANTIC POSITION ANCHORS (never raw % coords). Server-side
+          // resolveAIDecoration maps tokens → hex + anchors → safe-zone
+          // % coords. Triple-layer silent-drop on per-entry validation
+          // failure: DecorationEmitSchema → resolveAIDecoration → final
+          // DecorationSchema gate. maxItems=2 is the SOFT cap (Gemini-side);
+          // post-parse `resolved.length < 2` while-bound is the HARD cap.
+          decorations: {
+            type: Type.ARRAY,
+            description:
+              'Optional 0..2 decorations per slide. Closed-enum lucideName + named color tokens + semantic position anchors. Server-side resolved to explicit hex + safe-zone % coords.',
+            // @google/genai types maxItems as string (gRPC int64 wire format).
+            maxItems: '2',
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                kind: { type: Type.STRING, enum: ['icon', 'shape'] },
+                lucideName: {
+                  type: Type.STRING,
+                  enum: [...AI_LUCIDE_ALLOWLIST],
+                  description: "Required when kind='icon'. PascalCase Lucide name from the closed allowlist.",
+                },
+                shapeKind: {
+                  type: Type.STRING,
+                  enum: [...AI_SHAPE_KINDS],
+                  description: "Required when kind='shape'.",
+                },
+                color: {
+                  type: Type.STRING,
+                  enum: [...AI_COLOR_TOKENS],
+                  description:
+                    "Named color token. 'accent'=template accent, 'palette-vibrant'=photo palette[0], 'palette-dark-muted'=palette[4], 'palette-light'=palette[5], 'on-light'/'on-dark'=fixed contrast pair.",
+                },
+                position: {
+                  type: Type.STRING,
+                  enum: [...AI_POSITION_ANCHORS],
+                  description:
+                    "Semantic anchor. Resolved to safe-zone % coords that don't occlude central hook+body band.",
+                },
+                rotation: { type: Type.NUMBER, description: 'Optional rotation -180..180.' },
+                cornerRadius: { type: Type.NUMBER, description: "Optional rect rounded corner radius (shape only)." },
+                points: { type: Type.NUMBER, description: 'Optional polygon point count (shape only).' },
+              },
+              required: ['kind', 'color', 'position'],
+            },
+          },
         },
         required: ['hook_text', 'body_text', 'image_query', 'is_cta', 'role'],
       },
@@ -106,7 +160,15 @@ const responseSchema: Schema = {
  * adapter delivers identical state with zero regression risk to v2.7's audit-passed
  * premium tier.
  */
-export type SlideContentWithTextBoxes = SlideContent & { text_boxes: TextBox[] }
+// Phase 71 (AI-01..04): the public output replaces the loose
+// `decorations?: unknown[]` from SlideContentSchema with the canonical
+// resolved Decoration[] (DecorationContent — full DecorationSchema-validated
+// hex + rect + id). Slides that emitted 0 valid decorations have
+// `decorations === undefined` (Phase 67 PTF16 idempotent-absence baseline).
+export type SlideContentWithTextBoxes = Omit<SlideContent, 'decorations'> & {
+  text_boxes: TextBox[]
+  decorations?: DecorationContent[]
+}
 export type CarouselWithTextBoxes = Omit<Carousel, 'slides'> & {
   slides: SlideContentWithTextBoxes[]
 }
@@ -189,12 +251,66 @@ export async function generateSlideContent(
   // Validate final shape with Zod (schema gate — separate from validateAndRepair).
   const parsedCarousel = CarouselSchema.parse(data)
 
+  // Phase 71 (AI-01..04): server-side decorations ingest. AI emits named
+  // tokens + semantic anchors via DecorationEmitSchema; we resolve to
+  // explicit hex + safe-zone % coords; silent-drop on any per-entry
+  // validation failure. Triple-layer silent-drop pipeline:
+  //   1. DecorationEmitSchema.safeParse — closed-enum gate (lucideName,
+  //      color token, position anchor, shapeKind, kind discriminator)
+  //   2. resolveAIDecoration wrapped in try/catch — defense in depth
+  //   3. DecorationSchema.safeParse — final canonical-shape gate
+  //   4. resolved.length < 2 while-bound — hard maxItems=2 clamp
+  //      (Gemini schema's responseSchema.items.maxItems = 2 is the soft cap)
+  // Mirror v2.9 D-08 template_id_override defaulting pattern. Slides
+  // emitting 0 valid decorations preserve `decorations === undefined`
+  // (Phase 67 PTF16 idempotent-absence baseline).
+  const slidesWithDecorations = parsedCarousel.slides.map((slide, slideIndex) => {
+    const rawEmitted = (slide as { decorations?: unknown }).decorations
+    // Drop the raw passthrough field unconditionally — only canonical resolved
+    // DecorationContent[] survive past the ingest boundary. When no valid
+    // entries resolve, the field is omitted entirely (preserves Phase 67
+    // PTF16 idempotent-absence baseline: `decorations === undefined`).
+    const { decorations: _rawDrop, ...slideWithoutRaw } =
+      slide as SlideContent & { decorations?: unknown }
+    void _rawDrop
+
+    if (!Array.isArray(rawEmitted) || rawEmitted.length === 0) {
+      return slideWithoutRaw
+    }
+
+    const slideTemplateId = (slide as { template_id_override?: string }).template_id_override ?? templateId
+    const template = slideTemplateId ? getTemplate(slideTemplateId) : getTemplate('highlight-bar')
+
+    const resolved: DecorationContent[] = []
+    for (let i = 0; i < rawEmitted.length && resolved.length < 2; i++) {
+      const emitParse = DecorationEmitSchema.safeParse(rawEmitted[i])
+      if (!emitParse.success) continue
+      try {
+        const fullDeco = resolveAIDecoration(
+          emitParse.data,
+          slide as unknown as Slide,
+          template,
+          slideIndex,
+          i,
+        )
+        const finalParse = DecorationSchema.safeParse(fullDeco)
+        if (finalParse.success) resolved.push(finalParse.data)
+        // else: silent drop — defense in depth for any divergence between
+        // DecorationEmitSchema and the canonical DecorationSchema.
+      } catch {
+        // Never throw at AI ingest — silent drop (AI-04 contract).
+      }
+    }
+    if (resolved.length === 0) return slideWithoutRaw
+    return { ...slideWithoutRaw, decorations: resolved }
+  })
+
   // Phase 51: populate `text_boxes[]` server-side at the AI-ingest boundary so every
   // path that hits Supabase carries the unified shape. `legacyToTextBoxes` only reads
   // hook_text/body_text/hook_segments/body_segments/style_overrides/custom_texts —
   // all of which are present (or safely undefined) on `SlideContent`. We cast to the
   // structural minimum the adapter requires; the adapter is defensive on missing fields.
-  const slidesWithTextBoxes: SlideContentWithTextBoxes[] = parsedCarousel.slides.map(
+  const slidesWithTextBoxes: SlideContentWithTextBoxes[] = slidesWithDecorations.map(
     (slide) => ({
       ...slide,
       text_boxes: legacyToTextBoxes(slide as unknown as Slide),
