@@ -3910,3 +3910,637 @@ describe('Phase 68 Plan 02: BULK_TRANSLATE/BULK_DELETE/DUPLICATE/GROUP/UNGROUP d
     expect(next.present[0].decorations![0].groupId).toBeUndefined()
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 02 Task 3: SET_LOCKED / SET_HIDDEN / ALIGN / DISTRIBUTE /
+// Z_ORDER decorations branch — completes the 10 EXTENDED reducer cases.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Phase 68 Plan 02 Task 3: SET_LOCKED/SET_HIDDEN/ALIGN/DISTRIBUTE/Z_ORDER decorations branch', () => {
+  // ─── SET_LOCKED ─────────────────────────────────────────────────────────
+
+  test('SL-1: SET_LOCKED on [decoration_id] with locked:true sets decoration.locked = true', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['d1'],
+      locked: true,
+    })
+    expect(next.present[0].decorations![0].locked).toBe(true)
+  })
+
+  test('SL-2: SET_LOCKED with locked:false toggles locked decoration off', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['d1'],
+      locked: false,
+    })
+    expect(next.present[0].decorations![0].locked).toBe(false)
+  })
+
+  test('SL-3: SET_LOCKED on mixed [text_box, decoration] applies to both', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      locked: true,
+    })
+    expect(next.present[0].text_boxes![0].locked).toBe(true)
+    expect(next.present[0].decorations![0].locked).toBe(true)
+  })
+
+  test('SL-4: SET_LOCKED single pushHistory per dispatch', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['d1'],
+      locked: true,
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('SL-5: SET_LOCKED with empty ids → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: [],
+      locked: true,
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('SL-6: SET_LOCKED with no-change (already locked, locked:true) → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['d1'],
+      locked: true,
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('SL-7: SET_LOCKED preserves OTHER scopes ref-equal when only decoration ids supplied', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const ci = { id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        custom_images: [ci],
+        decorations: [makeIconDecoration('d1')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['d1'],
+      locked: true,
+    })
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+  })
+
+  test('SL-8: SET_LOCKED with stale id silently no-ops on that id', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_LOCKED',
+      slideIndex: 0,
+      ids: ['stale'],
+      locked: true,
+    })
+    expect(next).toBe(initial)
+  })
+
+  // ─── SET_HIDDEN ─────────────────────────────────────────────────────────
+
+  test('SH-1: SET_HIDDEN on [decoration_id] with hidden:true sets decoration.hidden = true', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['d1'],
+      hidden: true,
+    })
+    expect(next.present[0].decorations![0].hidden).toBe(true)
+  })
+
+  test('SH-2: SET_HIDDEN with hidden:false toggles hidden decoration off', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { hidden: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['d1'],
+      hidden: false,
+    })
+    expect(next.present[0].decorations![0].hidden).toBe(false)
+  })
+
+  test('SH-3: SET_HIDDEN on mixed [text_box, decoration] applies to both', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      hidden: true,
+    })
+    expect(next.present[0].text_boxes![0].hidden).toBe(true)
+    expect(next.present[0].decorations![0].hidden).toBe(true)
+  })
+
+  test('SH-4: SET_HIDDEN single pushHistory per dispatch', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['d1'],
+      hidden: true,
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('SH-5: SET_HIDDEN with empty ids → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: [],
+      hidden: true,
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('SH-6: SET_HIDDEN with no-change (already hidden, hidden:true) → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { hidden: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['d1'],
+      hidden: true,
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('SH-7: SET_HIDDEN preserves OTHER scopes ref-equal when only decoration ids supplied', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const ci = { id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        custom_images: [ci],
+        decorations: [makeIconDecoration('d1')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['d1'],
+      hidden: true,
+    })
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+  })
+
+  test('SH-8: SET_HIDDEN with stale id silently no-ops', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'SET_HIDDEN',
+      slideIndex: 0,
+      ids: ['stale'],
+      hidden: true,
+    })
+    expect(next).toBe(initial)
+  })
+
+  // ─── ALIGN ──────────────────────────────────────────────────────────────
+
+  test('AL-R1: ALIGN axis=left, target=canvas, ids=[decoration_id] sets decoration.position.x = 0', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { position: { x: 25, y: 25, width: 15, height: 15 } })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['d1'],
+      axis: 'left',
+      target: 'canvas',
+    })
+    expect(next.present[0].decorations![0].position.x).toBe(0)
+  })
+
+  test('AL-R2: ALIGN target=selection on [text_box, decoration] aligns both to union AABB left edge', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 5, y: 0, width: 30 } }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        decorations: [makeIconDecoration('d1', { position: { x: 50, y: 50, width: 15, height: 15 } })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      axis: 'left',
+      target: 'selection',
+    })
+    // Selection bounds left = 5 (tb1.x); both move there
+    expect(next.present[0].text_boxes![0].position.x).toBe(5)
+    expect(next.present[0].decorations![0].position.x).toBe(5)
+  })
+
+  test('AL-R3: ALIGN with locked decoration in selection — decoration position unchanged but contributes to bounds', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1', { position: { x: 0, y: 0, width: 10, height: 10 } }),
+          makeIconDecoration('d2', { position: { x: 50, y: 50, width: 15, height: 15 }, locked: true }),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['d1', 'd2'],
+      axis: 'left',
+      target: 'selection',
+    })
+    // d1 moves; d2 (locked) does not — but d2's bounds contributed (left edge = 0 = d1.x)
+    expect(next.present[0].decorations![1].position.x).toBe(50) // unchanged
+    expect(next.present[0].decorations![0].position.x).toBe(0)  // already at left
+  })
+
+  test('AL-R4: ALIGN dispatch emits exactly one pushHistory', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { position: { x: 25, y: 25, width: 15, height: 15 } })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['d1'],
+      axis: 'left',
+      target: 'canvas',
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('AL-R5: ALIGN with all-locked selection → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { locked: true })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['d1'],
+      axis: 'left',
+      target: 'canvas',
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('AL-R6: ALIGN with empty ids → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: [],
+      axis: 'left',
+      target: 'canvas',
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('AL-R7: ALIGN preserves OTHER scopes ref-equal when only decoration ids supplied', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        decorations: [makeIconDecoration('d1', { position: { x: 25, y: 25, width: 15, height: 15 } })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['d1'],
+      axis: 'left',
+      target: 'canvas',
+    })
+    // text_boxes untouched — applyAlignPatches only mutates the changed scope
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+  })
+
+  test('AL-R8: ALIGN axis=center-h on decoration centers position.x = (100 - width) / 2', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { position: { x: 0, y: 0, width: 20, height: 20 } })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ALIGN',
+      slideIndex: 0,
+      ids: ['d1'],
+      axis: 'center-h',
+      target: 'canvas',
+    })
+    expect(next.present[0].decorations![0].position.x).toBe(40)  // (100-20)/2
+  })
+
+  // ─── DISTRIBUTE ─────────────────────────────────────────────────────────
+
+  test('DS-1: DISTRIBUTE 3 decorations along axis=horizontal produces patches on middle decoration only', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1', { position: { x: 0, y: 0, width: 10, height: 10 } }),
+          makeIconDecoration('d2', { position: { x: 30, y: 0, width: 10, height: 10 } }),
+          makeIconDecoration('d3', { position: { x: 60, y: 0, width: 10, height: 10 } }),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['d1', 'd2', 'd3'],
+      axis: 'horizontal',
+    })
+    // outer two pinned; only d2 patched
+    expect(next.present[0].decorations![0].position.x).toBe(0)
+    expect(next.present[0].decorations![2].position.x).toBe(60)
+  })
+
+  test('DS-2: DISTRIBUTE on N<3 → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2'),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['d1', 'd2'],
+      axis: 'horizontal',
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('DS-3: DISTRIBUTE single pushHistory per dispatch', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1', { position: { x: 0, y: 0, width: 10, height: 10 } }),
+          makeIconDecoration('d2', { position: { x: 30, y: 0, width: 10, height: 10 } }),
+          makeIconDecoration('d3', { position: { x: 60, y: 0, width: 10, height: 10 } }),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['d1', 'd2', 'd3'],
+      axis: 'horizontal',
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('DS-7: DISTRIBUTE with no-op result (empty patches) → state ref-equal', () => {
+    // 1 decoration cannot distribute (N<3)
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['d1'],
+      axis: 'horizontal',
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('DS-8: DISTRIBUTE axis=vertical on 3 decorations produces y-axis patches', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1', { position: { x: 0, y: 0, width: 10, height: 10 } }),
+          makeIconDecoration('d2', { position: { x: 0, y: 30, width: 10, height: 10 } }),
+          makeIconDecoration('d3', { position: { x: 0, y: 60, width: 10, height: 10 } }),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DISTRIBUTE',
+      slideIndex: 0,
+      ids: ['d1', 'd2', 'd3'],
+      axis: 'vertical',
+    })
+    expect(next.present[0].decorations![0].position.y).toBe(0)
+    expect(next.present[0].decorations![2].position.y).toBe(60)
+  })
+
+  // ─── Z_ORDER ────────────────────────────────────────────────────────────
+
+  test('ZO-1: Z_ORDER op=forward on a decoration id swaps it with the next decoration in slide.decorations[]', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2'),
+          makeIconDecoration('d3'),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['d1'],
+      op: 'forward',
+    })
+    expect(next.present[0].decorations!.map((d) => d.id)).toEqual(['d2', 'd1', 'd3'])
+  })
+
+  test('ZO-2: Z_ORDER op=back moves a decoration to position [0]', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2'),
+          makeIconDecoration('d3'),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['d3'],
+      op: 'back',
+    })
+    expect(next.present[0].decorations!.map((d) => d.id)).toEqual(['d3', 'd1', 'd2'])
+  })
+
+  test('ZO-3: Z_ORDER on a decoration id leaves slide.custom_images ref-equal pre/post (PRS7 precursor)', () => {
+    const ci = { id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }
+    const initial = makeState([
+      makeSlide({
+        custom_images: [ci],
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2'),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['d1'],
+      op: 'forward',
+    })
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+  })
+
+  test('ZO-4: Z_ORDER routes per-scope: text_box_id touches text_boxes only; decoration_id touches decorations only', () => {
+    const tb1 = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const tb2 = { id: 'tb2', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 5, y: 5, width: 50 } }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb1, tb2],
+        decorations: [makeIconDecoration('d1'), makeIconDecoration('d2')],
+      }),
+    ])
+    const nextTb = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['tb1'],
+      op: 'forward',
+    })
+    expect(nextTb.present[0].text_boxes!.map((t) => t.id)).toEqual(['tb2', 'tb1'])
+    // decorations untouched (element-level identity preserved)
+    expect(nextTb.present[0].decorations![0]).toBe(initial.present[0].decorations![0])
+
+    const nextDec = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['d1'],
+      op: 'forward',
+    })
+    expect(nextDec.present[0].decorations!.map((d) => d.id)).toEqual(['d2', 'd1'])
+    // text_boxes content unchanged at element level
+    expect(nextDec.present[0].text_boxes![0]).toBe(initial.present[0].text_boxes![0])
+  })
+
+  test('ZO-5: Z_ORDER adjacent-selected-at-front guard: state ref-equal when ids already at front for op=front', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2'),
+          makeIconDecoration('d3'),
+        ],
+      }),
+    ])
+    // d3 already at "front" (last) — front op is a no-op
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['d3'],
+      op: 'front',
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('ZO-6: Z_ORDER single pushHistory per dispatch', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1'), makeIconDecoration('d2')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['d1'],
+      op: 'forward',
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('ZO-7: Z_ORDER on undefined slide.decorations → no-op for decorations scope', () => {
+    const tb1 = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const tb2 = { id: 'tb2', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 5, y: 5, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb1, tb2] }),  // no decorations array
+    ])
+    expect(initial.present[0].decorations).toBeUndefined()
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['stale-decoration-id'],
+      op: 'forward',
+    })
+    // stale id matches no scope → no-op overall
+    expect(next).toBe(initial)
+  })
+
+  test('ZO-8: Z_ORDER targeting decorations preserves text_boxes / custom_images element-equal pre/post', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const ci = { id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        custom_images: [ci],
+        decorations: [makeIconDecoration('d1'), makeIconDecoration('d2')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'Z_ORDER',
+      slideIndex: 0,
+      ids: ['d1'],
+      op: 'forward',
+    })
+    // Z_ORDER preserves array reference for non-touched scopes (no .map())
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+  })
+})

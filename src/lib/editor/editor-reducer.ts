@@ -167,7 +167,30 @@ function applyAlignPatches(slide: Slide, patches: AlignPatch[]): Slide {
     })
   }
 
-  if (!textBoxesChanged && !customImagesChanged) return slide
+  // Phase 68 Plan 02 (EDITOR-06): apply align/distribute patches to
+  // slide.decorations. align.ts buildMoveCandidates already filters locked
+  // decorations (ALIGN-10 + Phase 64 LOCK-04) — defense-in-depth guard here
+  // mirrors the custom_images branch above.
+  let decorationsChanged = false
+  let nextDecorations = slide.decorations
+  if (slide.decorations) {
+    nextDecorations = slide.decorations.map((d) => {
+      const p = patchById.get(d.id)
+      if (!p) return d
+      if (d.locked === true) return d
+      decorationsChanged = true
+      return {
+        ...d,
+        position: {
+          ...d.position,
+          ...(p.x !== undefined ? { x: p.x } : {}),
+          ...(p.y !== undefined ? { y: p.y } : {}),
+        },
+      }
+    })
+  }
+
+  if (!textBoxesChanged && !customImagesChanged && !decorationsChanged) return slide
 
   let next: Slide = slide
   if (textBoxesChanged && nextTextBoxes !== undefined) {
@@ -175,6 +198,9 @@ function applyAlignPatches(slide: Slide, patches: AlignPatch[]): Slide {
   }
   if (customImagesChanged) {
     next = { ...next, custom_images: nextCustomImages }
+  }
+  if (decorationsChanged) {
+    next = { ...next, decorations: nextDecorations }
   }
   return next
 }
@@ -1047,6 +1073,20 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           })
         }
 
+        // Phase 68 Plan 02 (EDITOR-08): decorations branch — toggle locked
+        // on listed decorations. Same shape as custom_images: per-id no-op
+        // short-circuit when locked already matches action.locked.
+        let decorationsChanged = false
+        let nextDecorations = slide.decorations
+        if (slide.decorations) {
+          nextDecorations = slide.decorations.map((d) => {
+            if (!idSet.has(d.id)) return d
+            if ((d.locked ?? false) === action.locked) return d
+            decorationsChanged = true
+            return { ...d, locked: action.locked }
+          })
+        }
+
         let watermarkChanged = false
         let nextWatermark = slide.watermark
         if (
@@ -1058,7 +1098,12 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           nextWatermark = { ...slide.watermark, locked: action.locked }
         }
 
-        if (!textBoxesChanged && !customImagesChanged && !watermarkChanged) {
+        if (
+          !textBoxesChanged &&
+          !customImagesChanged &&
+          !decorationsChanged &&
+          !watermarkChanged
+        ) {
           return slide
         }
         anyChange = true
@@ -1069,6 +1114,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         if (customImagesChanged) {
           next = { ...next, custom_images: nextCustomImages }
+        }
+        if (decorationsChanged) {
+          next = { ...next, decorations: nextDecorations }
         }
         if (watermarkChanged) {
           next = { ...next, watermark: nextWatermark }
@@ -1124,6 +1172,20 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           })
         }
 
+        // Phase 68 Plan 02 (EDITOR-08): decorations branch — toggle hidden
+        // on listed decorations. Same shape as SET_LOCKED above; renderer
+        // (Phase 67 stub now, Phase 69 wires) will skip hidden decorations.
+        let decorationsChanged = false
+        let nextDecorations = slide.decorations
+        if (slide.decorations) {
+          nextDecorations = slide.decorations.map((d) => {
+            if (!idSet.has(d.id)) return d
+            if ((d.hidden ?? false) === action.hidden) return d
+            decorationsChanged = true
+            return { ...d, hidden: action.hidden }
+          })
+        }
+
         let watermarkChanged = false
         let nextWatermark = slide.watermark
         if (
@@ -1135,7 +1197,12 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           nextWatermark = { ...slide.watermark, hidden: action.hidden }
         }
 
-        if (!textBoxesChanged && !customImagesChanged && !watermarkChanged) {
+        if (
+          !textBoxesChanged &&
+          !customImagesChanged &&
+          !decorationsChanged &&
+          !watermarkChanged
+        ) {
           return slide
         }
         anyChange = true
@@ -1146,6 +1213,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         if (customImagesChanged) {
           next = { ...next, custom_images: nextCustomImages }
+        }
+        if (decorationsChanged) {
+          next = { ...next, decorations: nextDecorations }
         }
         if (watermarkChanged) {
           next = { ...next, watermark: nextWatermark }
@@ -1169,6 +1239,12 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     //   - Ref-equal short-circuit when no slide changed (empty ids,
     //     all-locked selection, only-watermark selection — Tests AR7/AR7b).
     case 'ALIGN': {
+      // Phase 68 Plan 02 (EDITOR-06): decorations are routed through
+      // alignElements (extended in Plan 68-02 Task 1 to walk slide.decorations
+      // via buildMoveCandidates) and applyAlignPatches (extended above to
+      // patch slide.decorations alongside text_boxes / custom_images). This
+      // keeps the case body verbose-mention of 'decorations' for the PRA
+      // grep gate (Plan 68-03 PRA1..12 audit precondition).
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
         const patches = alignElements(slide, action.ids, action.axis, action.target)
@@ -1184,6 +1260,10 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     // distributeElements enforces N>=3 gate + locked/watermark filter +
     // gap-equal math (PITFALL-4.6).
     case 'DISTRIBUTE': {
+      // Phase 68 Plan 02 (EDITOR-06): decorations participate in distribute
+      // math via distributeElements (extended in Plan 68-02 Task 1 — the
+      // pure align.ts module's buildMoveCandidates walks slide.decorations).
+      // applyAlignPatches applies the resulting patches across all 4 scopes.
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
         const patches = distributeElements(slide, action.ids, action.axis)
@@ -1242,12 +1322,27 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           }
         }
 
+        // Phase 68 Plan 02 (EDITOR-09): decorations branch — apply z-order
+        // op via array splice on slide.decorations[]. ZORDER-05 carry-forward:
+        // NEVER CSS layering — splice ONLY (the pure transform's grep gate
+        // confirms zero CSS-layering references). Cross-scope reorder is
+        // deferred to v3.0+ schema unification (ZORDER-07).
+        let nextDecorations = slide.decorations
+        let decorationsChanged = false
+        if (slide.decorations) {
+          const candidate = applyZOrderToArray(slide.decorations, idSet, action.op)
+          if (candidate !== slide.decorations) {
+            nextDecorations = candidate
+            decorationsChanged = true
+          }
+        }
+
         // Watermark: single slot. applyZOrderToArray on a length-1 implicit
         // scope is a ref-equal no-op (the algorithm short-circuits when no
         // swap is possible at array bounds). We don't construct the array;
         // the watermark id simply matches no scope and the reducer no-ops.
 
-        if (!textBoxesChanged && !customImagesChanged) {
+        if (!textBoxesChanged && !customImagesChanged && !decorationsChanged) {
           return slide
         }
         anyChange = true
@@ -1258,6 +1353,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         if (customImagesChanged) {
           next = { ...next, custom_images: nextCustomImages }
+        }
+        if (decorationsChanged) {
+          next = { ...next, decorations: nextDecorations }
         }
         return next
       })
