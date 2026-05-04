@@ -85,8 +85,10 @@ const SAFE_ZONE = {
 }
 
 // News-carousel layouts — mirrors NEWS_LAYOUT in render-slide.ts / render-slide-satori.tsx
+// 260503: cover.bodyY bumped 80 → 84 to give long-hook wraps a vertical safety
+// margin before they could collide with the body zone.
 const NEWS_LAYOUT = {
-  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 80 },
+  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 84 },
   body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
 } as const
 
@@ -732,13 +734,14 @@ export function SlidePreview({
     fontStyle: hookFontStyle === 'italic' ? 'italic' : (template.hookStyle === 'italic' ? 'italic' : undefined),
     textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
     color: hookTextColor,
-    // Wrap inside the hook container — AI segment-rendered hooks must respect
-    // the hook box width and not bleed past the slide canvas.
-    // quick-260502-j14: `wordBreak: 'break-word'` is a deprecated alias that
-    // browsers treat as `overflow-wrap: anywhere`, breaking words mid-character
-    // even when they'd fit on the next line. Stick to `overflow-wrap: break-word`.
-    whiteSpace: 'normal',
-    overflowWrap: 'break-word',
+    // 260503: flex-wrap mirrors render-slide-satori.tsx hookStyle (TPLREND-05
+    // parity contract — slide-preview.tsx:97-101). Satori only breaks between
+    // flex items (segment spans); the previous browser-only `whiteSpace:normal
+    // + overflowWrap:break-word` produced denser word/char-level breaks in the
+    // editor that did not match the exported PNG, hiding hook overflow bugs.
+    display: 'flex',
+    flexWrap: 'wrap',
+    width: '100%',
   }
   const bodyTextStyle: React.CSSProperties = {
     fontSize: `${bodyFontSize}px`,
@@ -1001,11 +1004,11 @@ export function SlidePreview({
               ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
               : {}),
           }}>
-            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
+            <div style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
                 ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
                 : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
-            </p>
+            </div>
           </div>
           )}
 
@@ -1049,6 +1052,11 @@ export function SlidePreview({
               }}
             />
           ))}
+
+          {/* Phase 67 (DECOR-01) layer 5.5: decoration iteration site (non-editable).
+              See render-slide-satori.tsx for the full contract; both renderers
+              are kept in lockstep at this layer (TPLREND-05). */}
+          {(slide.decorations ?? []).filter((d) => d.hidden !== true).map((_d) => null)}
 
           {/* Brand watermark (non-editable) — coords resolved at REF canvas size; CSS scale handles container size */}
           {/* Phase 60 (WMARK-04): the lazy initializer in use-slide-editor.ts mirrors
@@ -1720,11 +1728,11 @@ export function SlidePreview({
                 aria-hidden="true"
               >🔒</div>
             )}
-            <p className="" style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
+            <div style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
                 ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
                 : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
-            </p>
+            </div>
           </div>
         </Rnd>
           )
@@ -2612,6 +2620,14 @@ export function SlidePreview({
             </Rnd>
           )
         })}
+
+        {/* Phase 67 (DECOR-01) layer 5.5: decoration iteration site (editable view).
+            Symmetric with the non-editable path + render-slide-satori. The
+            editable rendering of decorations (selection chrome, Rnd wrapper,
+            handles) is owned by Phase 69+; Plan 67-01 only owns the null-safe
+            iteration shape so reducer extensions in Phase 68 + the renderer
+            body in Phase 69 can drop into a single contract (TPLREND-05). */}
+        {(slide.decorations ?? []).filter((d) => d.hidden !== true).map((_d) => null)}
 
         {/* Brand watermark (editable view) — non-interactive, sits above custom images.
             Phase 64 LOCK-07: gate render on slide.watermark.hidden so a hidden
