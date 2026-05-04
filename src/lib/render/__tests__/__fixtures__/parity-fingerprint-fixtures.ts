@@ -15,6 +15,11 @@
 // v2.11-trailing-edge baseline; future milestones diff against them.
 
 import type { Slide } from '@/lib/types/slide'
+import type {
+  IconDecoration,
+  ShapeDecoration,
+  ShapeKind,
+} from '@/lib/types/decoration'
 
 /**
  * Single fixture slide reused across every template. Contains:
@@ -218,4 +223,114 @@ export const decorationsUndefinedFixtureSlide: Slide = {
 export const decorationsEmptyArrayFixtureSlide: Slide = {
   ...fingerprintFixtureSlide,
   decorations: [],
+}
+
+// =====================================================================
+// Phase 69 Plan 03 (PARITY-06 / PARITY-07 / PARITY-11): decoration-bearing
+// fixture builders for PTF13 (10 Lucide icons), PTF14 (8 shapeKinds × 2
+// variants), and PTF18 (non-uniform 1.5×1.0 scale icon).
+//
+// All builders compose on top of `fingerprintFixtureSlide` so the surrounding
+// template content (hook / body / custom_image / watermark) is identical
+// across every PTF13/14/18 fixture — the ONLY differential is the appended
+// decoration. This keeps the fingerprint diff focused on the decoration's
+// rendering byte-identity (TPLREND-05 invariant under test).
+// =====================================================================
+
+/**
+ * Phase 69 Plan 03 (PARITY-06 / PTF13): build a fixture slide carrying a single
+ * IconDecoration whose lucideName, color, strokeWidth, position are caller-controlled.
+ * Spread on top of fingerprintFixtureSlide so existing template content is unchanged.
+ *
+ * Defaults aim for visible-but-deterministic output:
+ *   - color: '#FF0000' (red — distinct from any template accent color)
+ *   - strokeWidth: 2 (Lucide default)
+ *   - position: { x: 40, y: 40, width: 20, height: 20 } (mid-canvas, square)
+ */
+export function makeIconDecorationFixture(
+  lucideName: string,
+  opts: {
+    color?: string
+    strokeWidth?: number
+    position?: { x: number; y: number; width: number; height: number }
+    id?: string
+  } = {},
+): Slide {
+  const deco: IconDecoration = {
+    kind: 'icon',
+    id: opts.id ?? `ptf13-${lucideName}`,
+    lucideName,
+    color: opts.color ?? '#FF0000',
+    strokeWidth: opts.strokeWidth ?? 2,
+    position: opts.position ?? { x: 40, y: 40, width: 20, height: 20 },
+  }
+  return { ...fingerprintFixtureSlide, decorations: [deco] }
+}
+
+/**
+ * Phase 69 Plan 03 (PARITY-07 / PTF14): build a fixture slide carrying a single
+ * ShapeDecoration. `outlined: true` adds a stroke; `outlined: false` leaves
+ * stroke undefined. Defaults aim for visible-but-deterministic output:
+ *   - fill: '#00FF00' (green)
+ *   - strokeColor: '#0000FF' (blue), strokeWidth: 4 (when outlined)
+ *   - position: { x: 30, y: 30, width: 25, height: 25 }
+ *
+ * Per-shapeKind defaults:
+ *   - rect: cornerRadius=8 (visible rounding, not extreme)
+ *   - polygon: points=5 (one of picker-allowed values)
+ *   - star: points=5 (one of picker-allowed values)
+ */
+export function makeShapeDecorationFixture(
+  shapeKind: ShapeKind,
+  opts: {
+    outlined: boolean
+    fill?: string
+    strokeColor?: string
+    strokeWidth?: number
+    cornerRadius?: number
+    points?: number
+    position?: { x: number; y: number; width: number; height: number }
+    id?: string
+  },
+): Slide {
+  const base: ShapeDecoration = {
+    kind: 'shape',
+    id: opts.id ?? `ptf14-${shapeKind}-${opts.outlined ? 'outlined' : 'filled'}`,
+    shapeKind,
+    fill: opts.fill ?? '#00FF00',
+    position: opts.position ?? { x: 30, y: 30, width: 25, height: 25 },
+    ...(shapeKind === 'rect' ? { cornerRadius: opts.cornerRadius ?? 8 } : {}),
+    ...(shapeKind === 'polygon' || shapeKind === 'star'
+      ? { points: opts.points ?? 5 }
+      : {}),
+  }
+  if (opts.outlined) {
+    base.stroke = {
+      color: opts.strokeColor ?? '#0000FF',
+      width: opts.strokeWidth ?? 4,
+      style: 'solid',
+    }
+  }
+  return { ...fingerprintFixtureSlide, decorations: [base] }
+}
+
+/**
+ * Phase 69 Plan 03 (PARITY-11 / PTF18): non-uniform-scale icon fixture.
+ *
+ * `scale.x: 1.5, scale.y: 1.0` translates to position width=1.5*base,
+ * height=1.0*base with a square base of 10 (so width=15, height=10) — confirms
+ * the renderer respects width and height % independently of intrinsic SVG
+ * aspect ratio. The KEY POINT is width !== height — a square Lucide icon
+ * (24×24 viewBox) stretched to a 3:2 box must produce identical fingerprints
+ * across both render paths.
+ */
+export function makeNonUniformScaleIconFixture(
+  lucideName: string,
+  scale: { x: number; y: number },
+): Slide {
+  const base = 10
+  return makeIconDecorationFixture(lucideName, {
+    id: `ptf18-${lucideName}-scale-${scale.x}x${scale.y}`,
+    position: { x: 40, y: 40, width: base * scale.x, height: base * scale.y },
+  })
 }
