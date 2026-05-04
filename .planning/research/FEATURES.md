@@ -1,413 +1,569 @@
-# Feature Research — v2.11 Full Editor Parity
+# Feature Research — v2.12 Shapes & Icons (Decoration Primitives)
 
-**Domain:** Multi-element editor (Figma/Canva-grade) for TikTok carousel slideshows
-**Researched:** 2026-05-02
-**Confidence:** HIGH (Figma/Canva docs cited per row; some edge cases MEDIUM)
-**Scope:** NEW v2.11 capabilities only — assumes the existing single-element editor (drag, side+corner resize, click-select, right-rail inspector, Layer Strip, ⌘1/⌘2/⌘3/⌘D/Delete shortcuts, alignment guides during single-element drag, photo treatment, watermark) is intact and already shipped.
+**Domain:** Decoration primitives (Lucide icon picker + editable Canva-style shapes) integrated into the v2.11 multi-element editor for TikTok carousel slideshows
+**Researched:** 2026-05-03
+**Confidence:** HIGH (Canva/Figma/Lucide/Beautiful.ai docs cited per row; AI-emit recommendations MEDIUM where surveyed products are opaque about prompts)
+**Scope:** NEW v2.12 capabilities only — assumes v2.11 multi-element editor (multi-select, marquee, group, alignment, smart guides, lock/hide, z-order, layers panel, alt-drag duplicate, Cmd+D smart offset, arrow nudge) is intact and shipped. Decoration elements MUST be first-class peers of TextBox / CustomImage / Watermark in every v2.11 surface — never re-build that surface.
 
 ---
 
 ## How to read this file
 
-Each row in the capability matrix uses these conventions:
-
-- **Pattern**: how leading tools (Figma/Canva/Keynote/Photoshop) ship the feature — exact gesture, modifier, shortcut
-- **Visual feedback**: what users see during the operation
-- **Edge cases**: tricky behaviors verified across tools
-- **Class**: one of `TS` (table stakes — must ship in v2.11), `DIFF` (differentiator — consider for v2.11), `ANTI` (skip), `DEFER` (out of v2.11 scope)
-- **Complexity** (vs. our existing editor): `LOW` (≤0.5d), `MED` (0.5–2d), `HIGH` (≥2d, schema/architecture impact)
-- **Source**: cited URL or doc
+- **Pattern**: how leading tools ship the feature — exact gesture/modifier/shortcut, verified
+- **Class**: `TS` (table stakes — must ship), `DIFF` (differentiator — strong consider), `ANTI` (skip with reason), `DEFER` (out of v2.12)
+- **Complexity**: `S` (≤0.5d, additive on existing v2.11 surface), `M` (0.5–2d, new module but no schema risk), `L` (≥2d, schema/architecture impact)
+- **v2.11 dependency**: which existing v2.11 surface the feature rides on — recommendations NEVER rebuild
+- **Source**: cited URL with confidence
 
 ---
 
-## Feature Landscape
+## Section 1 — ICON PICKER (Lucide-powered)
 
-### Table Stakes (Users Expect These)
+### Table Stakes
 
-Features the user has already named OR features every surveyed tool ships in lockstep with the named ones. Missing any of these in v2.11 will make the editor feel less mature than v2.10 plus a ribbon.
+| # | Feature | Pattern (verified) | Class | Complexity | v2.11 dep | Source |
+|---|---------|--------------------|-------|------------|-----------|--------|
+| I1 | Search-first picker (no category UI v1) | Canva, Iconify, Sanity Lucide Picker, shadcn-iconpicker — all default to a search input as primary affordance. Fuse.js / metadata `tags[]` fuzzy match against name + tags + aliases. | **TS** | M | New right-rail or modal panel; mounts via existing right-rail composition pattern (mirrors v2.8 `SlideSettings` composition). | [Sanity Lucide Picker](https://www.sanity.io/plugins/lucide), [Lucide tags+aliases metadata](https://deepwiki.com/lucide-icons/lucide/2.2-icon-metadata), [shadcn-iconpicker](https://github.com/alan-crts/shadcn-iconpicker), [Iconify Figma plugin](https://www.figma.com/community/plugin/735098390272716381/iconify) |
+| I2 | Debounced search (250–300ms) | Industry consensus 300–500ms; design-tool sweet spot ~250ms (smaller datasets, instant feel). Canva does not publish exact value but observable ~300ms. Algolia/eleken UX articles confirm 300–500ms band. | **TS** | S | None | [debounce 300-500ms band](https://dev.to/abhirupa/the-art-of-smooth-ux-debouncing-and-throttling-for-a-more-performant-ui-m0h), [Algolia search UX](https://www.algolia.com/blog/ux/how-to-streamline-your-search-ux-design) |
+| I3 | Virtualized infinite-scroll grid | 1,500+ icons cannot all mount at once — every surveyed open-source picker uses virtualization. Sanity Lucide Picker explicitly cites "virtualized rendering" + "tree shaking to only include imported icons." Mantine icon-picker uses react-window. shadcn-iconpicker uses TanStack Virtual. | **TS** | M | Independent — virtualization library wraps picker grid only. | [Sanity Lucide Picker virtualization](https://www.contentwrap.io/blog/sanity-lucide-icon-picker-plugin), [mantine-icon-picker uses react-window](https://www.npmjs.com/package/mantine-icon-picker), [shadcn-iconpicker uses TanStack Virtual](https://github.com/alan-crts/shadcn-iconpicker) |
+| I4 | Click icon → insert at slide center | Canva model: click element from picker → drops at canvas center. Adobe Express + Figma Iconify drag-OR-click-to-import. For modal-picker UX (smaller surface than left rail), click-to-insert is the primary affordance. | **TS** | S | Dispatches new `ADD_DECORATION` reducer action; selection model auto-selects the new id (mirrors v2.11 alt-drag-duplicate auto-select pattern). | [Iconify Figma plugin click-or-drag](https://hanai.xyz/en/articles/59/), [Canva Elements click-to-insert](https://8designers.com/blog/where-can-i-find-icons-in-canva) |
+| I5 | Keyboard nav: arrow keys = grid traversal, Enter = insert, Esc = close | W3C WAI-ARIA grid pattern: arrows traverse cells, Enter activates, Esc dismisses. Universal across composable design tools. **Critical for v2.12** because the v2.11 keyboard firewall (tinykeys + 33 inline isEditingTarget guards) means picker MUST own its keyboard scope while open. | **TS** | M | Picker is its own keyboard scope; existing tinykeys map MUST suspend while picker open (mirrors v2.8 isEditingText guard). | [WAI-ARIA Grid keyboard pattern](https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/), [WebAIM keyboard accessibility](https://webaim.org/techniques/keyboard/) |
+| I6 | Highlight matched substring in icon name (search affordance) | Algolia / eleken / pencilandpaper search-UX — when search returns N icons, hover state shows icon name with matched substring bolded. Lucide-icons icons are kebab-case (`arrow-right`, `chevron-down`) — match against name + tags. | **TS** | S | None | [highlight matching terms](https://www.eleken.co/blog-posts/search-bar-examples), [Lucide kebab-case naming](https://lucide.dev/) |
+| I7 | Lucide icon stored as kebab-case string ID | `decorations[i].kind = 'icon'`, `decorations[i].iconName = 'arrow-right'`. Sanity Plugin pattern, lucide-react `<DynamicIcon name="arrow-right" />` resolves at render time. **Schema-light** — string ref, not embedded SVG. | **TS** | S | Schema lift only. | [Lucide kebab-case + DynamicIcon](https://www.contentwrap.io/blog/sanity-lucide-icon-picker-plugin) |
+| I8 | Empty-state on zero results | "No icons match 'xyz'" with empty grid + maybe show "Try: arrow, heart, star" suggestions OR fall back to popular icons. Canva shows "No matches" + featured set. | **TS** | S | None | [search empty state UX](https://www.algolia.com/blog/ux/how-to-streamline-your-search-ux-design) |
 
-| # | Feature | Pattern (verified) | Visual feedback | Class | Complexity | Source |
-|---|---------|--------------------|-----------------|-------|------------|--------|
-| A1 | Single-click select | Click element → becomes the only selection. Already shipped in our editor. | Dashed `#3d0000` selection ring (existing). Right rail mirrors. | TS (existing) | — (shipped) | Internal — `slide-canvas.tsx` |
-| A2 | Shift-click add to selection | Shift+click an unselected element → joins selection. Shift+click a selected element → removes from selection (Figma model). | Selection ring drawn around new bounding box. | **TS** | MED — selection becomes a `Set<id>`; ring renderer needs union bounds. | [Figma Help — Select layers](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects) (verbatim: "To remove an object from the selection, hold down the Shift key and click on the object."); [Canva Help — multi-select](https://www.canva.com/help/layer-group-align/) |
-| A3 | Cmd/Ctrl-click toggle selection (Figma deep-select, Canva nested) | In Figma, **Cmd+click** is "deep select" — selects through groups/frames to the topmost intersected leaf. Shift remains add/remove. **Canva** uses Cmd-click only inside groups (post double-click enter). | Same selection ring; in groups, ring tightens to the leaf. | **TS** (Figma model — Cmd as deep-select; Shift remains add/remove). Reason: matches industry mental model and our hit-testing already needs to hit-test all elements when groups land. | MED | [Figma — Cmd+click for nested marquee](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects); [Figma forum — deep select](https://forum.figma.com/t/deep-select-how-to-select-something-that-is-below-an-group/28300) |
-| A4 | Marquee (drag-to-select rectangle) | Click empty canvas → drag → rectangle. **Figma default = INTERSECT** (any element touching the marquee gets selected). Sketch default = CONTAIN (Option key adds intersect). Canva = INTERSECT (no contain mode). | Dashed/translucent rectangle from start point to cursor. Selected elements get rings. | **TS** — match Figma (intersect by default). Skip the contain modifier — single-axis design space, low value. | MED | [Figma forum — intersect default vs Sketch contain](https://forum.figma.com/t/need-a-drag-selection-that-selects-only-layers-totally-inside-the-marquee/30177); [Canva — drag selection box](https://www.canva.com/help/layer-group-align/) |
-| A5 | Cmd+A select all on current slide | Cmd+A → all elements on the **current slide** selected (NOT cross-slide). Figma scopes to current page; we scope to current slide. | All elements ringed; bounding box around union. | **TS** | LOW | [Figma Help — Select all](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects) ("⌘A selects everything on the canvas") |
-| A6 | Esc deselect | Esc → clear selection. If inside a group, first Esc exits the group; second Esc clears. | Rings disappear; right rail returns to slide-settings empty state. | **TS** | LOW (already half-shipped — slide switch clears) | [Figma forum — Esc back out](https://forum.figma.com/suggest-a-feature-11/esc-key-to-back-out-1-level-35091) |
-| A7 | Click empty canvas to deselect | Click on bare canvas (`#fff8f7` background, no element under cursor) → clear selection. | Same as Esc. | **TS** | LOW | Universal — Figma/Canva/Keynote default |
-| B10 | Align left / center-h / right | Toolbar buttons + Figma-style shortcuts: **Alt+A** (left), **Alt+H** (center horizontal), **Alt+D** (right). | Selected elements snap to the alignment edge. No animation needed; instant snap. | **TS** | MED — math is simple but needs to handle pct-coordinates + canvas size + per-element width. Existing TextBox uses pct `position.x/y/width`; CustomImage uses pct. | [Figma — alignment shortcuts](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions); [Canva — Position dropdown](https://www.canva.com/help/layer-group-align/) |
-| B11 | Align top / center-v / bottom | **Alt+W** (top), **Alt+V** (center vertical), **Alt+S** (bottom). | Same as B10 on Y-axis. | **TS** | MED (paired with B10) | Same as B10 |
-| B12 | Align to canvas vs selection (toggle) | **Default behavior** (Figma + Canva + Adobe Express): **single selection → align to canvas/parent; multiple selection → align to selection bounds**. No explicit toggle in Figma/Canva (the toggle exists in Photoshop/Illustrator via Align panel "Align to" dropdown — Selection / Canvas / Key Object). | None (implicit from selection count). For v2.11 — match Figma: single = canvas, 2+ = selection bounds. | **TS** (no UI toggle needed; behavior derived from selection count) | LOW (decision rule, not UI) | [Figma — alignment behavior single vs multi](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions) ("Single object → align to parent. Multiple → align in relation to each other or parent"); [Photoshop align-to dropdown](https://helpx.adobe.com/photoshop/using/aligning-layers.html) |
-| B13 | Distribute horizontal | Distribute = equal **gaps between adjacent edges** (NOT equal-spacing-of-centers — that's a different operation). Figma shortcut: **Cmd+Alt+H** (Mac) / Ctrl+Alt+H (Win). Requires **3+ elements**. With 2 elements, it's a no-op. | Outermost elements stay anchored; middle elements move to make all gaps equal. | **TS** | MED — need to sort by X, compute total span minus widths, divide by (n-1) gaps, place each. | [Figma — distribute spacing shortcuts](https://forum.figma.com/t/help-distribute-horizontal-spacing-shortcut-not-working-bug/24136); [Canva — Space Evenly](https://hubdigitalcontent.com/tools/canva/how-to-space-evenly-in-canva/) |
-| B14 | Distribute vertical | **Cmd+Alt+V** (Mac) / Ctrl+Alt+V (Win). Same model on Y-axis. Requires 3+ elements. | Same as B13 vertically. | **TS** | MED (paired with B13) | Same as B13 |
-| C17 | Snap to other elements (edges, centers) — DURING MULTI-ELEMENT DRAG | When dragging element(s), snap to other elements' left/center/right edges (X) and top/middle/bottom edges (Y). Existing single-element guides (v1.3) cover the single case — multi-element drag needs snapping for the **selection bounding box** as a whole. | Pink/red/colored guide lines drawn from snapped edge through both elements. | **TS** | MED — extends the existing single-element guide engine to consume a union bounding box. | [Figma — smart guides](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions); [Canva — bright pink lines](https://www.storylane.io/tutorials/how-to-turn-off-snapping-in-canva) |
-| C18 | Snap to canvas edges + center | Snap to canvas left/right/top/bottom edges and the canvas horizontal/vertical center. Already partial — single-element guides hit canvas centers. Extend to multi-element drag. | Guide lines extending across the entire canvas. | **TS** | LOW (extension of existing) | Figma + Canva universal |
-| C19 | Snap threshold (px) | Figma uses ~**8px viewport threshold** (community-reported, not officially documented). Canva similar. Hold Cmd/Ctrl to disable snap. | None (threshold is invisible). | **TS** | LOW — already wired in single-element snap; reuse the constant. | [Figma forum — Hold Ctrl to disable snapping (LAUNCHED)](https://forum.figma.com/archive-21/launched-hold-ctrl-to-temporarily-disable-all-snapping-24942); [Canva — Cmd to disable snap](https://www.storylane.io/tutorials/how-to-turn-off-snapping-in-canva) |
-| C21 | Hold Cmd/Ctrl to disable snap | While dragging, hold Cmd/Ctrl → snapping turns off temporarily; release → snapping resumes. | Guides disappear while held. | **TS** | LOW | [Figma — Hold Ctrl to disable snapping](https://forum.figma.com/archive-21/launched-hold-ctrl-to-temporarily-disable-all-snapping-24942); [Canva — Cmd to disable snap](https://www.magicslides.app/blog/how-to-change-snap-options-on-canva) |
-| D24 | Group (Cmd+G) | Cmd+G with multi-selection → wraps selected elements in a group. Group is a single selectable unit. **Figma**: Cmd+G makes a Group; Cmd+Alt+G makes a Frame (different concept — see D29). **Canva**: Cmd+G is the only group concept. **Keynote**: Cmd+Opt+G. | Group bounding box (single ring around all members) on selection. | **TS** | **HIGH** — schema change. See ARCHITECTURE.md for the schema-extension proposal. Need: (a) `group_id?: string` on every element (TextBox + CustomImage) so any element can claim membership; OR (b) flat `groups: Group[]` array per slide referencing element IDs. Latter is closer to Figma's tree but heavier; former is closer to "tag-based grouping" and minimally invasive. | [Figma — Group keyboard shortcut Cmd+G](https://www.figma.com/best-practices/groups-versus-frames/); [Canva — Group Cmd+G](https://www.canva.com/help/layer-group-align/) |
-| D25 | Ungroup (Cmd+Shift+G) | Cmd+Shift+G → dissolves group, **preserves children's absolute on-canvas positions**. Children become independently selectable again. | Group ring dissolves to per-element rings. | **TS** | MED (math: derive each child's absolute pos from group + relative; write back as flat element pos). | [Figma — Ungroup](https://www.figma.com/best-practices/groups-versus-frames/); [Canva — Ungroup Cmd+Shift+G](https://www.canva.com/help/layer-group-align/) |
-| D27 | Enter group (double-click) | Double-click on a group → "enters" the group. Subsequent clicks select children directly without re-clicking through the group. **Figma**: double-click = one level deeper; can also use Enter key. **Canva**: double-click = enter group. | Group ring becomes a "you are inside" border (subtle). Selected child gets its own ring. | **TS** | MED — selection state needs an `enteredGroupId` slot. | [Figma — double-click select inside group](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects); [Canva — double-click to edit inside group](https://www.canva.com/help/layer-group-align/) |
-| D28 | Exit group (Esc / click outside) | Esc → exit one level up. Click outside group on canvas → exit. **Figma uses both**. | "Inside" border disappears. | **TS** | LOW (paired with D27) | [Figma forum — Esc to back out](https://forum.figma.com/suggest-a-feature-11/esc-key-to-back-out-1-level-35091) |
-| E32 | Bring to front / send to back | **Cmd+Alt+]** (front) / **Cmd+Alt+[** (back). Reorders within slide's element stack. | Element jumps to top/bottom of z-order. | **TS** | LOW — existing slide schema renders elements in array order; this is a reorder. | [Figma — z-order shortcuts](https://forum.figma.com/ask-the-community-7/changing-bring-forward-bring-to-front-hotkeys-47717); [Canva — Cmd+Opt+] / Cmd+Opt+[](https://justclickhere.co.uk/wp-content/uploads/2020/01/Canva-shortcuts-table-watermarked-1.pdf) |
-| E33 | Bring forward / send backward (one step) | **Cmd+]** / **Cmd+[**. Same as E32 but one step. | One-step swap with neighbor. | **TS** | LOW (paired with E32) | Same as E32 |
-| E34 | Z-order keyboard shortcuts | Mac: Cmd+] / Cmd+[ / Cmd+Alt+] / Cmd+Alt+[. Windows: Ctrl-equivalents. | — | **TS** | LOW | Same as E32 |
-| F36 | Arrow = small nudge | Arrow keys → 1px nudge of selected element(s). Acts on multi-selection as a unit. | Selection ring + each element shift by 1px in arrow direction. | **TS** | LOW — extension of single-element drag. | [Figma — Set small and big nudge values](https://help.figma.com/hc/en-us/articles/4404575206295-Set-small-and-big-nudge-values); [Canva — 1px nudge](https://justclickhere.co.uk/wp-content/uploads/2020/01/Canva-shortcuts-table-watermarked-1.pdf) |
-| F37 | Shift+Arrow = big nudge | Shift+Arrow → **10px** (Figma/Canva default; Figma is configurable). | Same as F36 ×10. | **TS** | LOW (paired with F36) | [Figma — small=1, big=10 default](https://help.figma.com/hc/en-us/articles/4404575206295-Set-small-and-big-nudge-values); [Canva — Shift+Arrow = 10px](https://justclickhere.co.uk/wp-content/uploads/2020/01/Canva-shortcuts-table-watermarked-1.pdf) |
-| F40 | Hold Shift while dragging = constrain to axis | While dragging, hold Shift → movement constrained to dominant axis (horizontal OR vertical, whichever the cursor moved more in). | Element follows axis-locked cursor. | **TS** | LOW — pointer-event hook reads `e.shiftKey`. | Universal across Figma, Canva, Keynote, Photoshop |
+### Differentiators (Strong Consider)
 
-### Differentiators (Strong Consider for v2.11)
-
-Not strictly required to feel "finished" but every surveyed tool ships them. Including 1–2 of these makes the editor feel polished.
-
-| # | Feature | Pattern | Visual feedback | Class | Complexity | Source |
-|---|---------|---------|-----------------|-------|------------|--------|
-| C20 | Equal-spacing guide ("==" indicator when 3+ elements have equal gaps) | Figma's pink "==" markers between elements during drag, indicating the selection now matches the inferred grid spacing of nearby elements. | Pink double-equals icons between adjacent elements. | **DIFF** — high polish, but adds rendering complexity. Recommend YES for v2.11 once basic snap C17/C18 ships. | MED | [Figma — smart guides equal spacing](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions) |
-| C22 | Object-to-object distance hint (red number) | When an element is selected and another is hovered (or during drag), Figma draws a red line + numeric distance between them. | Red line + "24" pixel-distance label. | **DIFF** — high engineering cost (live measurement during drag) for moderate user value in our domain. Recommend NO for v2.11. | HIGH | [Figma — measure distances](https://help.figma.com/hc/en-us/articles/360039956974-Measure-distances-between-layers); [Figma forum — red distance numbers](https://forum.figma.com/t/red-auto-measurement-thingy/2929) |
-| F39 | Alt+drag = duplicate | Hold Alt while dragging → duplicates element instead of moving. **Figma**: works mid-drag (start dragging → press Alt → ghost duplicate appears). | Original stays in place; ghost duplicate follows cursor. | **DIFF** — replaces 50% of Cmd+D usage with one gesture. Worth shipping. | MED — drag handler branches on `e.altKey`; need to dispatch ADD then move the new id. | [Figma — Alt+drag to duplicate](https://forum.figma.com/ask-the-community-7/holding-alt-key-when-mouse-drag-does-not-duplicate-selection-in-chrome-16007); [Figma — drag/duplicate behavior](https://medium.com/cva-design/stop-wasting-clicks-14-figma-shortcuts-thatll-save-you-hours-2031f0d038ac) |
-| G41 | Cmd+D duplicate (smart offset) | Cmd+D duplicates currently-selected element(s). **Figma's "smart offset"**: if the user moved the previous duplicate by (Δx, Δy), the next Cmd+D applies the same offset — enabling rapid grid-by-keyboard. Without prior move, default offset is +20px / +20px (visible-but-not-centered). | New element appears, becomes selection. | **DIFF** — basic Cmd+D is TS-adjacent (very common); smart offset is the differentiator. Ship basic; defer smart offset to v2.12+. | LOW (basic) / MED (smart offset) | [Figma — Cmd+D smart offset](https://forum.figma.com/t/when-pasting-or-duplicating-offset-the-new-elements-position-and-add-descriptor-like-copy-to-the-name/4227) |
-| H45 | Lock element | Locked element can't be dragged, resized, or deleted, but **CAN still be selected and inspected** (Figma model). Canva = locked element can't be selected at all (stricter). Recommend Figma model — better UX. **Cmd+Shift+L** to toggle (Figma + Canva — Canva uses Alt+Shift+L). | Padlock icon overlaid on element; cursor stays pointer (not move) on hover. | **DIFF** — useful for power users; not table-stakes for first multi-element shipping. | MED — schema needs `locked?: boolean` on every element type. | [Figma — Lock layers](https://help.figma.com/hc/en-us/articles/360041596573-Lock-and-unlock-layers); [Canva — Lock Alt+Shift+L](https://justclickhere.co.uk/wp-content/uploads/2020/01/Canva-shortcuts-table-watermarked-1.pdf) |
-| I48 | Layers panel (basic) | Tree (or flat) list of slide elements. Click → select. Drag → reorder z-order. | Inline list at right rail or left rail. | **DIFF** — would deeply benefit groups (D24) but our existing Layer Strip (v2.8 Phase 50) covers ~80% of single-slide cases. Recommend EXTEND Layer Strip with an expand-to-list disclosure rather than a new panel — preserves consistency. | MED-HIGH | [Figma — Rename layers](https://help.figma.com/hc/en-us/articles/360039958934-Rename-Layers); CANVAS-03 from PROJECT.md was deferred for the same reason. |
-| J59 | Multi-select rotation | Rotate handle on union bounding box rotates all selected elements around the **selection's geometric center** (Figma default). | Curved rotation cursor at corners. | **DIFF/DEFER** — single-element rotation is itself deferred (ROTATE-01 in v2.10 deferral list). Block this on rotation shipping first. | DEFER | [Figma — multi rotation around center](https://wpdean.com/how-to-rotate-in-figma/) |
-| F38 | Cmd+Arrow nudge variant | **Figma does NOT use Cmd+Arrow for nudging** — Cmd+Arrow is z-order in some shortcut maps and Cmd+Alt+Arrow rotates. Verified inconsistent across Figma versions. | — | **DIFF** — skip for v2.11. Industry hasn't settled. | — | [Figma forum — Cmd+Alt+Arrow rotation conflict](https://forum.figma.com/report-a-problem-6/problem-bring-forward-shortrcut-cmd-alt-up-down-rotates-the-object-46254) |
+| # | Feature | Pattern | Class | Complexity | v2.11 dep | Source |
+|---|---------|---------|-------|------------|-----------|--------|
+| I9 | Drag from picker onto canvas | Iconify Figma + Canva both support drag-out. Picker icon → canvas drop point. | **DIFF — recommend NO for v2.12** | M | Would need DnD scaffolding distinct from react-rnd (which is on-canvas only). The v2.11 alt-drag duplicate / Cmd+D smart offset pattern already covers "place at predictable spot." | [Iconify drag-import](https://hanai.xyz/en/articles/59/) |
+| I10 | Tooltip on hover with full kebab-case name | shadcn-iconpicker, Canva all show tooltip on hover. Useful when icon glyph is ambiguous. | **DIFF — ship in v2.12** | S | None — pure CSS tooltip on the picker grid cell. | [shadcn-iconpicker tooltips](https://github.com/alan-crts/shadcn-iconpicker) |
+| I11 | Lazy import (tree-shake) | Don't bundle all 1,500 icons; lazy-load via `lucide-react`'s per-icon import OR use `<DynamicIcon name>` which lazy-resolves. Avoids ~150KB bundle hit. | **DIFF — strongly recommend** | M | Bundle/render only; doesn't touch v2.11 surfaces. | [Lucide tree-shaking](https://www.contentwrap.io/blog/sanity-lucide-icon-picker-plugin), [lucide-react package](https://www.npmjs.com/package/lucide-react) |
 
 ### Anti-Features (Skip with Reason)
 
-Features that seem expected but explicitly NOT shipping in v2.11.
-
-| # | Feature | Why Requested | Why Skip | Alternative | Source |
-|---|---------|---------------|----------|-------------|--------|
-| A8 | Tab cycle through elements | Power-user keyboard nav. Figma binds Tab to "select next sibling in parent." | **Tab is a global focus key** — overriding it on canvas conflicts with form-element focus elsewhere on the page (right rail, slide nav). Our editor has chrome around the canvas; hijacking Tab is hostile. Figma's canvas is full-screen so the tradeoff is different. | Existing ⌘1/⌘2/⌘3 already cover hook/body/first-custom. Layer Strip covers the rest. | [Figma forum — Tab to select next sibling](https://forum.figma.com/t/feature-request-tab-key-selects-next-sibling-when-multiple-frames-are-selected/26355) |
-| A9 | Right-click context menu | "I want to right-click and align." | Custom right-click menus are a major UX project — accessibility, mobile parity, contextual variation. **Defer to v2.12+.** Toolbar buttons + keyboard shortcuts cover the entire alignment surface. | Toolbar exposes all align/distribute/group/order. Right-click can wait. | Universal; e.g. [Figma — Quick Actions](https://figtowp.com/how-to-use-actions-menu-in-figma-design/) |
-| B15 | "Tidy Up" / smart layout auto-arrange | Figma's `Cmd+Shift+T`: auto-arranges selection into a clean row/column/grid based on detected layout. | Powerful but **only valuable when users are routinely arranging 6+ elements**. Our slides cap at ~3-4 text boxes + 1-2 custom images + 1 watermark. Distribute-evenly (B13/B14) covers the typical case. | Distribute H/V (B13/B14). | [Figma — Tidy up Cmd+Shift+T](https://forum.figma.com/t/help-distribute-horizontal-spacing-shortcut-not-working-bug/24136) |
-| C18b | Snap to thirds / golden ratio | Some tools (Procreate) snap to rule-of-thirds for photo composition. | Off-pattern for design-tool ecosystem. Figma/Canva don't ship it. The user has IG 4:5 safe-zone overlay (v2.9 EDITOR-03) for composition aid — that's enough. | IG safe-zone overlay (existing). | — |
-| D26 | Nested groups (group of groups) | Figma + Canva both support. | **Skip in v2.11 first cut**. Single-level groups cover 95% of carousel use cases. Nested = significant schema + selection + Tab navigation complexity. **Defer to v2.12+.** | Single-level groups only; ungroup must work cleanly so users can reorganize. | [Figma — Group of groups via Cmd+G again](https://www.figma.com/best-practices/groups-versus-frames/) |
-| D29 | Frames vs Groups distinction | Figma's Frame (with constraints, layout grids, clipping) vs Group (just a selection union). Canva does NOT have this distinction. | Frame semantics presume constraints + layout grids — concepts our slide schema doesn't model. **Match Canva: only "Group" exists.** | "Group" = Figma Group semantics. | [Figma — Frames vs Groups](https://help.figma.com/hc/en-us/articles/360039832054-The-difference-between-frames-and-groups) |
-| D31 | Group rename in layers panel | Layers panel feature. | Without a full layers panel (I48 deferred), nothing to rename in. Group ID is opaque. | None — defer with I48. | — |
-| G42 | Cmd+C / Cmd+V | Copy/paste elements. **Universal in design tools.** | **DEFERRED, NOT skipped — but not v2.11**: needs cross-slide paste rules, schema-merge logic for groups, security review (paste from external apps?). Cmd+D (duplicate) covers in-slide use case for v2.11. | Cmd+D for now. | [Figma — Cmd+C / Cmd+V paste positioning](https://help.figma.com/hc/en-us/articles/4409078832791-Copy-and-paste-objects) |
-| G43 | Copy style / paste style (Cmd+Alt+C / Cmd+Alt+V) | Power-user feature. | Our style surface (font, color, effects) is small enough that the right rail covers it in 2 clicks. Implementing properly means defining "style" precisely (font? size? color? effects? all?) — that's a separate UX project. | Use right rail; defer to v2.12+. | [Figma — Copy/paste properties](https://help.figma.com/hc/en-us/articles/4412765442967-Copy-and-paste-properties-between-layers) |
-| G44 | Copy as image / SVG | Figma exports selection as PNG/SVG via Cmd+Shift+C. | Off-pattern for our domain — output is the **whole slide**, not arbitrary selections. ZIP export already covers full-slide download. | Existing ZIP/PNG export. | [Figma — Export](https://help.figma.com/hc/en-us/articles/4409078832791-Copy-and-paste-objects) |
-| H46 | Visibility toggle (hide element) | Figma: Cmd+Shift+H per layer. | Hiding text boxes that the AI-generated is **off-pattern** for content-driven slides — users expect the text they see to be the text they ship. Adds confusion. Better UX: delete the element. (Hook/body have schema-protected delete already.) | Delete button (existing); for hook/body, edit text to empty string. | [Figma — Cmd+Shift+H toggle visibility](https://help.figma.com/hc/en-us/articles/360041112614-Toggle-visibility-to-hide-layers) |
-| I50 | Layers panel search/filter | Search box in layers panel. | Cap is ~6-8 elements per slide. Search adds zero value at this scale. | None needed. | — |
-| J57 | Multi-select across slides | Reasonable wish but breaks our model. | Slides are **independent render units** for parity with PNG export (TPLREND-05). Cross-slide selection breaks the "one slide = one render input" invariant. Hard NO. | Within-slide only. | Internal — TPLREND-05 invariant from PROJECT.md |
-| J58 | Aspect-ratio-lock during multi-resize | Shift hold during corner-resize maintains AR. | Single-element corner resize (v2.10) is text-box-focused — corner = font scale. Multi-element corner-resize is a different gesture. **Don't ship multi-resize at all in v2.11** (too risky for AI-generated content; one wrong drag scales every text 50%). | Resize only one element at a time (existing). | [Figma — Shift to lock AR](https://forum.figma.com/share-your-feedback-26/aspect-ratio-no-longer-auto-locks-with-shift-key-37508) |
-
-### Deferred to v2.12+ (Out of Scope)
-
-Cleanly defined but explicitly out of scope for v2.11.
-
-- **D26 nested groups** — start with single-level
-- **D30 lock group as a unit** — paired with H45 (lock element); ship lock first if at all
-- **G42 Cmd+C/V cross-slide paste** — needs design work
-- **G43 Copy/paste style** — needs "what is style?" UX scoping
-- **I48–I53 full layers panel** — Layer Strip extension covers single-slide; full tree is post-PMF
-- **J59 multi-select rotation** — blocked on single-element rotation (ROTATE-01 deferred from v2.10)
-- **A9 right-click context menu** — universal toolbar coverage in v2.11
+| # | Feature | Why Requested | Why Skip | Alternative |
+|---|---------|---------------|----------|-------------|
+| I12 | User favorites | Canva ships heart-icon favorites. Sticky for power users. | **Anti for v2.12** — pre-PMF, no DB schema for per-user state, adds Supabase migration + RLS complexity for low-validation feature. User explicitly named NO this milestone. AI generation handles "tasteful default selection" upstream — power users picking their own favorites is a v3+ feature. | None — fuzzy search alone covers ~95% of needs. Lucide has 1,703 icons; with good name+tag matching, search finds anything in 2-3 keystrokes. |
+| I13 | Recent/MRU strip | Canva + Iconify both show recent icons strip. Reduces friction on repeat insertion. | **Anti for v2.12** — same reasoning as I12. Per-user persistence has the same Supabase cost. **Localized session-only "recent" strip is acceptable v3+ if needed**, but skip in v2.12. | Cmd+D duplicates the previous decoration (existing v2.11), which covers the dominant repeat-icon pattern. |
+| I14 | Category browse UI (sidebar tree) | Lucide has metadata categories; Iconify exposes them. | **Anti for v2.12** — adds significant UI surface for low value. Lucide category names are inconsistent and overlap heavily (an icon belongs to ≥3 categories). User explicitly named NO categories this milestone. | Search-only, with strong tag matching. Lucide tags are well-curated — searching `food` matches all food icons via tag, not category. |
+| I15 | Icon variants (filled vs outline) | Lucide icons are outline-only; Heroicons / Phosphor offer paired sets. | **Anti** — Lucide is outline-only by design. Don't add a second icon library to "match" Phosphor; that's library shopping mid-milestone. | Outline-only Lucide. Stroke width / fill are styled at decoration level (see Section 4). |
 
 ---
 
-## Feature Dependencies
+## Section 2 — SHAPES LIBRARY
+
+### Table Stakes
+
+| # | Feature | Pattern (verified) | Class | Complexity | v2.11 dep | Source |
+|---|---------|--------------------|-------|------------|-----------|--------|
+| S1 | Basic primitives: rectangle, circle/ellipse, triangle, line | Universal in Figma (R/O), Canva (R, C, L), Adobe Express. Triangle is a degenerate-N polygon in Figma; Canva ships it as a discrete shape. | **TS** | M | New shape rendering modules for Satori (SVG) AND React preview (SVG). Both renderers MUST consume from same module — TPLREND-05 invariant (mirror v2.9 `resolve-overlay.ts` pattern). | [Figma Shape tools R/O/Polygon/Star](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools), [Canva R/C/L shortcuts](https://justclickhere.co.uk/canva-keyboard-shortcuts-for-working-with-shapes/) |
+| S2 | Polygon (regular N-gon, sides configurable) | Figma Polygon tool — default 3 sides (triangle), points configurable in inspector. | **TS** | M | Same shared SVG render module. Schema: `decorations[i].kind = 'shape'`, `shape: 'polygon'`, `sides: number`. | [Figma Polygon tool](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools) |
+| S3 | Star (point count + inner radius configurable) | Figma Star tool — default 5 points, ratio configurable. | **TS** | M | Same shared SVG render module. Schema: `shape: 'star'`, `points: number`, `innerRadius: number`. | [Figma Star tool — 5 points default](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools) |
+| S4 | Arrow (Shift+L in Figma) | Figma `Shift+L` for Arrow shape. Canva ships pre-baked arrow shapes in Elements. **For TikTok carousel use case, arrows are a high-value feature** (annotations, before/after callouts). | **TS** | M | Schema: `shape: 'arrow'`, `direction: 'right'/'left'/etc`, `headStyle`. Stored as parameterized SVG, not free-path. | [Figma Arrow shape Shift+L](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools) |
+| S5 | Fill color | Universal — Canva, Figma, Adobe Express, Beautiful.ai all expose fill picker. | **TS** | S | Reuses existing v2.8 color picker component (used for text effects in EffectRow). | [Canva Add and edit shapes — fill](https://www.canva.com/help/add-edit-shapes/) |
+| S6 | Stroke (border) — color, width, style (solid/dashed/dotted) | Canva exposes "Border style, weight, color." Figma full stroke + dash pattern + alignment. For v2.12 ship solid + dashed + dotted (3 styles), 0–32px width. **Skip alignment (inside/center/outside)** — inside is sane default, off-pattern complexity for our domain. | **TS** | S | Same color picker; new numeric slider (mirror existing text-shadow size slider). | [Canva stroke weight + style](https://graphicdesignresource.com/how-to-make-stroke-layer-effect-in-canva/) |
+| S7 | Opacity 0–100% | Canva "Transparency 0–100." Figma: per-fill + per-stroke opacity, plus layer opacity. v2.12 ship single layer-opacity slider; per-fill opacity is overkill. | **TS** | S | Mirror existing text-effect opacity controls. | [Canva opacity 0-100](https://brendacadman.com/canva-tip-how-to-use-shapes-transparency-to-create-better-designs/) |
+| S8 | Corner radius (rect only) | Canva: "round its sharp corners." Figma: per-corner-radius via inspector. v2.12 ship single-radius slider (all 4 corners), 0–50% of min(width,height). | **TS** | S | Numeric slider. | [Canva corner rounding](https://bringyourownlaptop.com/blog/how-to-customize-shapes-in-canva-tutorial) |
+| S9 | Drop shadow (X/Y/blur/color/opacity) | Canva Effects → Shadow. Figma effects panel. Critical for "popping" decorative elements off photo backgrounds. | **TS** | S | **Reuse v2.1 text-shadow component** verbatim — already shipping `TextShadowEffect` schema with x/y/blur/color/opacity. | [Canva Effects](https://www.canva.com/help/add-edit-shapes/), v2.1 PROJECT.md |
+| S10 | Shape stored as parameterized SVG (NOT path) | All decorations are parameterized: `{kind:'shape', shape:'rect', width:200, height:120, fill:'#3d0000', stroke:{color, width, style}, cornerRadius:8, opacity:1}`. Render-time SVG generation. **NEVER store free-path SVG `d` attribute** — that opens the door to vector path editing (S15 anti-feature). | **TS** | M | Schema design decision; constrains future. | Internal architecture — keeps Satori parity simple |
+
+### Differentiators (Strong Consider)
+
+| # | Feature | Pattern | Class | Complexity | v2.11 dep | Source |
+|---|---------|---------|-------|------------|-----------|--------|
+| S11 | Connectors (line with optional arrow heads on each end) | Figma + Canva ship connectors but they're orthogonal to slide-design use case (better for diagrams). For TikTok carousels, **a configurable Line with optional arrowhead is the high-value feature** — covers "draw an underline," "point at a thing," etc. | **DIFF — ship simplified version** | M | Schema: `shape: 'line'`, `startArrow: bool`, `endArrow: bool`. Reuse arrow-head SVG paths from S4. | [Figma Line Shift+L](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools) |
+| S12 | Keyboard shortcuts (R for rect, C for circle, L for line) | Canva ships `R`, `C`, `L` single-letter inserts. Figma `R`, `O`, `Shift+L`. **High value if shipped — power users insert shapes 10× faster.** | **DIFF — strongly recommend ship 3 shortcuts (R/C/L)** | S | Tinykeys map already exists from v2.11; isEditingTarget firewall already prevents single-letter conflicts. Mirrors v2.11 binding pattern. | [Canva R/C/L shortcuts](https://justclickhere.co.uk/canva-keyboard-shortcuts-for-working-with-shapes/) |
+| S13 | Hold Shift while resizing = constrain to square/circle | Universal: Figma/Canva/Adobe. Already partially shipped via v2.10 corner-resize Shift escape (but v2.10 is text-box-specific). | **DIFF — ship for shapes** | S | Wires into existing react-rnd resize handlers; mirrors v2.10 pattern. | [Figma Shift to constrain](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools) |
+| S14 | Hold Alt while drawing = draw from center | Figma: "Hold down Option / Alt to create and resize shapes from their center." Useful but **only matters if user can DRAW shapes by drag-on-canvas**. Our model is click-to-insert from picker (Canva) → so this is irrelevant unless we add draw-on-canvas. | **DIFF — DEFER** (depends on S20 draw-on-canvas, also deferred) | S | None | [Figma Alt to draw from center](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools) |
+
+### Anti-Features (Skip with Reason)
+
+| # | Feature | Why Requested | Why Skip | Alternative |
+|---|---------|---------------|----------|-------------|
+| S15 | Vector path editing (Pen tool, edit anchor points) | Figma ships full vector edit. | **Off-pattern for TikTok carousel.** Vector path editing is a separate UX project (selection of anchor points, handles, edit mode toggle, smooth/sharp anchor types). User flagged as likely OUT of scope; confirmed. The whole point of stocking Lucide icons is to avoid users needing to draw. | Lucide icons (Section 1) cover the "I need a custom shape" use case. |
+| S16 | Boolean operations (union/subtract/intersect/exclude) | Figma ships all four. Powerful for custom shapes. | **Off-pattern.** Same reasoning as S15 — boolean ops only matter if vector path editing is in scope. Beautiful.ai/Tome/Gamma do NOT ship these (they're slide tools, not vector editors). | Lucide icons + parameterized shapes. |
+| S17 | Gradient fill | Canva ships gradient fills. | **DEFER to v3+** — adds significant Satori-rendering risk (gradient SVG syntax is fiddly under Satori; vercel/satori has multiple open issues on gradient stops). Not high-value for early carousels (solid + opacity covers most). | Solid fill + opacity. |
+| S18 | Pattern fill / image fill (frame-as-shape) | Figma + Canva: drop image into shape as fill. | **DEFER** — overlaps with existing CustomImage element. If user wants "image in a circle," cropping CustomImage to a circle is the right primitive (different feature, also deferred). v2.12 shapes are decoration-first. | CustomImage stays as-is; shape fill is solid color only. |
+| S19 | Custom polygon by clicking points (Pen tool) | Figma. | **Anti** — see S15. | Pre-baked polygon (S2). |
+| S20 | Draw-on-canvas (click-drag to size) | Figma + Canva: select shape tool, drag on canvas. | **Anti for v2.12 first cut**. Click-to-insert (S1) ships first; drag-on-canvas requires distinct pointer state machine that fights v2.11 marquee + element drag. **Defer to v2.13+.** | Click-to-insert + resize handles (S13). |
+| S21 | Smart shapes / connectors that auto-route | Figma ships smart connectors. | **Off-pattern.** Auto-routing is a flow-diagram feature (like Whimsical). Carousel slides aren't flow diagrams. | None — manual position. |
+| S22 | Mask / clipping | Figma + Canva. | **Anti for v2.12.** Distinct UX surface; conflicts with z-order semantics; off-pattern for carousel decorations. | Drop shadow (S9) + opacity (S7) cover most "depth" needs. |
+
+---
+
+## Section 3 — DECORATIONS AS FIRST-CLASS v2.11 PEERS
+
+This section enumerates EVERY v2.11 surface the new `decorations[]` array MUST integrate with. The cardinal rule: **never re-build v2.11 multi-element editor capability — only extend the existing dispatch shape to consume an additional element kind.**
+
+### Table Stakes
+
+| # | Feature | Pattern (verified in v2.11) | Class | Complexity | v2.11 dep |
+|---|---------|------------------------------|-------|------------|-----------|
+| D1 | Single-click select decoration | Existing v2.11 click-select handler (`useSelectionModel`). Decoration wrapper participates as 4th element kind alongside text_box / custom_image / watermark. | **TS** | S | `useSelectionModel.click` already accepts arbitrary `id` strings; just register decoration ids. |
+| D2 | Shift-click add to selection | v2.11 Phase 60 multi-select foundation. `Selection { ids[]; primary }` model. | **TS** | S | Zero changes — selection model is `Set<string>`. |
+| D3 | Cmd-click deep-select | v2.11 Phase 60 (D-01 Cmd as deep-select). | **TS** | S | Zero changes. |
+| D4 | Marquee selection includes decorations | v2.11 Phase 61 selecto. AABB intersect computed against all element wrappers. **Must add decoration wrapper to the registered selecto target list.** | **TS** | S | Add `[data-element-kind="decoration"]` to selecto's selectable set. |
+| D5 | Cmd+A select all (current slide) | v2.11. Iterates all element ids in slide. | **TS** | S | Extend existing iteration to include `decorations[]`. |
+| D6 | Click empty canvas → deselect | v2.11. | **TS** | S | Zero changes. |
+| D7 | Esc deselect (group-aware) | v2.11 Phase 62. | **TS** | S | Zero changes. |
+| D8 | Drag (single + multi) via react-rnd | v2.11 + v2.10 react-rnd@10.5.3. Decoration wrapper is a 4th `<Rnd>`. | **TS** | M | New `<DecorationRnd>` wrapper component mirroring `<TextBoxRnd>` / `<CustomImageRnd>` pattern. |
+| D9 | Side-handle resize (width/height) | v2.10 corner+side handles. **For shapes**: corner+side resize is the natural primitive (no font-scale escape hatch needed; shape is geometrically pure). | **TS** | M | react-rnd config flip — corners + sides enabled; top/bottom enabled (different from text-box). |
+| D10 | Shift+resize = constrain aspect ratio | v2.10 Shift escape. **For shapes**: extends naturally — Shift = lock AR (square / circle from rect / ellipse). | **TS** | S | Reuse v2.10 onResize handler; flip the modifier branch. |
+| D11 | Group with text/image/watermark via Cmd+G | v2.11 Phase 62 flat-schema `groupId?` semantics. | **TS** | S | Add optional `groupId?: string` to decoration schema (mirrors Watermark/TextBox/CustomImage). |
+| D12 | Ungroup via Cmd+Shift+G | v2.11. | **TS** | S | Zero changes. |
+| D13 | Alignment + distribute (6-axis + H/V) | v2.11 Phase 63. `computeSelectionBounds` aware of all kinds. | **TS** | S | Extend `computeSelectionBounds` to include decorations in union calc. |
+| D14 | Smart guides during drag (incl. equal-spacing ==) | v2.11 Phase 63 sorted-edge-array snap index. | **TS** | S | Add decoration edges to snap index; same module. |
+| D15 | Lock element (Cmd+Shift+L) | v2.11 Phase 64. | **TS** | S | Add optional `locked?: boolean` to decoration schema. |
+| D16 | Hide element | v2.11 Phase 64 — both renderers skip `hidden=true`. | **TS** | S | Add `hidden?: boolean`; add to 13 symmetric filter sites. |
+| D17 | Z-order (Cmd+] / [ / Alt variants) | v2.11 Phase 64 single Z_ORDER reducer routes per-scope via array splice. **MUST add `decorations[]` as 4th routing scope.** | **TS** | M | Reducer extension. |
+| D18 | Layers panel chip | v2.11 Phase 65 vanilla flat-list. | **TS** | M | Add LayerChip variant for decoration kind (icon glyph or shape silhouette). |
+| D19 | Alt-drag duplicate | v2.11 Phase 66 DUPLICATE_ELEMENTS_AT. | **TS** | S | Reducer iterates element kinds; add decoration branch. |
+| D20 | Cmd+D smart offset | v2.11 Phase 66. | **TS** | S | Same. |
+| D21 | Arrow nudge (1/10 ref-px) | v2.11 Phase 66 BULK_TRANSLATE. | **TS** | S | BULK_TRANSLATE already kind-agnostic (operates on ids); just register decoration ids. |
+| D22 | Right-rail decoration card on selection | v2.8 right-rail composition pattern (`SlideSettings`/`ActiveTextBoxCard` model). New `<ActiveDecorationCard>` mirrors that shape. | **TS** | M | Right-rail switches to decoration card when `selection.primary.kind === 'decoration'` (mirrors v2.8 active-text-box-card). |
+
+### Anti-Features (DO NOT extend v2.11 surfaces this way)
+
+| # | Feature | Why Skip |
+|---|---------|----------|
+| D23 | Rotate decoration | Single-element rotation (ROTATE-01) was deferred from v2.10 → v2.11 → still not shipped. Decorations should NOT introduce rotation. **Defer to v3+ as a unified rotation feature for ALL element kinds.** |
+| D24 | Decoration-specific multi-select rotation | Same as D23 — blocked. |
+| D25 | Cross-slide decoration paste | TPLREND-05 invariant says each slide renders independently. Cross-slide selection was hard-NO in v2.11 (J57); same applies to v2.12. |
+| D26 | Decoration as group container (group-of-groups) | v2.11 explicitly skipped nested groups. Decorations participate in flat groups via `groupId?` only — same constraint. |
+
+---
+
+## Section 4 — RIGHT-RAIL DECORATION CARD (Editor controls)
+
+When a decoration is the `selection.primary`, the right rail shows `<ActiveDecorationCard>` (mirrors v2.8 `<ActiveTextBoxCard>`).
+
+### Table Stakes (controls)
+
+| # | Control | Pattern | Class | Complexity | v2.11 dep |
+|---|---------|---------|-------|------------|-----------|
+| C1 | Position (X/Y in pct) | Numeric inputs OR drag handles. Mirror existing TextBox card. | **TS** | S | Same numeric input component as v2.10 size controls. |
+| C2 | Size (W/H in pct) | Same. | **TS** | S | Same. |
+| C3 | Fill color picker | Reuse v2.8 EffectRow color picker. | **TS** | S | Existing component. |
+| C4 | Stroke (color, width 0–32px, style) | Color picker + slider + 3-button toggle (solid/dashed/dotted). | **TS** | S | New small component; reuse atoms. |
+| C5 | Opacity slider 0–100% | Single slider. | **TS** | S | Reuse v2.1 effects opacity slider atom. |
+| C6 | Drop shadow (toggle + color + X/Y/blur/spread) | Reuse v2.1 EffectRow Shadow toggle pattern verbatim. | **TS** | S | **Reuse v2.1 component, no new code beyond schema field.** |
+| C7 | Corner radius (rect only) | Conditional slider (only render when `shape === 'rect'`). | **TS** | S | New conditional component. |
+| C8 | Polygon sides / Star points (conditional) | Conditional inputs. | **TS** | S | Same. |
+| C9 | Lock toggle | Mirror v2.11 LayerChip lock button. | **TS** | S | Existing reducer action. |
+| C10 | Visibility toggle | Same. | **TS** | S | Existing reducer action. |
+| C11 | Delete button | Mirror existing TextBox card delete. | **TS** | S | Existing reducer action. |
+| C12 | Icon swap (icon decorations only) | "Replace icon" → reopens icon picker, swaps `iconName` in place. Preserves position/fill/stroke. | **TS** | S | Reopens picker modal in "swap mode"; dispatch UPDATE_DECORATION with new iconName. |
+
+### Differentiators
+
+| # | Control | Pattern | Class | Complexity |
+|---|---------|---------|-------|------------|
+| C13 | Quick color swatches (template accent colors) | Show 4-6 color swatches matching active template's accent palette + slide's `derived_palette` (from v2.9 node-vibrant). One-click recolor. | **DIFF — strong consider** | S |
+| C14 | "Reset to default" per control | Restore initial fill/stroke/etc. | **DIFF — DEFER**. Cmd+Z covers this. | S |
+
+---
+
+## Section 5 — AI EMIT (Gemini → decorations[])
+
+The AI-emit story is the **most uncertain area** (LOW confidence on prompt-pattern internals of Gamma/Beautiful.ai/Tome — these are private). Recommendations are derived from observed product behavior + ViralSlideMaker's existing v2.9 `role` schema lift.
+
+### What surveyed AI-slide tools actually do
+
+**Beautiful.ai's "Smart Slide" model** (verified): Pre-built slide templates with reserved icon slots. Adding text triggers auto-placement into pre-defined geometry. Icon picker emits one icon at a time; placement is template-driven, not AI-decided. **Layout decisions are template-encoded, not LLM-decided.** ([Beautiful.ai Smart Slides](https://www.beautiful.ai/smart-slides), [Icon Slide template](https://www.beautiful.ai/templates/icon-slide))
+
+**Gamma** (verified): "Suggests a layout and flow that fits your content automatically" — RAG over content. Specific icon/shape placement algorithm is not public. Empirically, Gamma generates slides in fixed grid layouts (hero, 2-col, 3-col, image+text) and drops 1-2 icons per slide as accent elements, not per-bullet. ([Gamma AI](https://gamma.app/products/presentations))
+
+**Tome** (verified): Shut down Slides feature April 2025 — no longer reference. ([Beautiful.ai vs Tome 2026](https://www.beautiful.ai/comparison/tome-vs-gamma)) **Drop Tome from research synthesis.**
+
+**Common pattern across surviving tools**: Templates with reserved decoration slots. AI fills slots with content-relevant icons (1-2 per slide, NEVER 5+). Color/style is template-determined, not AI-determined.
+
+### Implications for v2.12 AI emit
+
+| # | Pattern | Recommendation | Confidence | Rationale |
+|---|---------|----------------|------------|-----------|
+| A1 | Schema: AI emits `decorations[]` per slide | **TS — ship** | HIGH | Mirrors v2.9 `role` enum + `template_id_override` lift. Gemini gets `decorations: Array<{kind: 'icon'\|'shape', ...}>` in JSON schema. |
+| A2 | Per-slide AI discretion (NOT template slot-based) | **Ship — but with constraints** | MEDIUM | Beautiful.ai is template-slot-driven (rigid). ViralSlideMaker is already template-aware (v2.7 + v2.9) but slide-by-slide AI authoring of `text_boxes[]` is the working pattern. **Apply the same lift to decorations.** Constraints below (A4, A5, A6) prevent the chaos this could otherwise cause. |
+| A3 | AI emits 0–2 decorations per slide max | **TS — enforce in schema** | HIGH | Empirical: Beautiful.ai/Gamma drop 1-2 max per slide. **Hard-cap at 2 in Gemini JSON schema** (`maxItems: 2`). Prevents "icon spam" — see A4. |
+| A4 | Advisory monoculture gate (carry-over from v2.9 trigram pattern) | **TS — ship as advisory** | MEDIUM | v2.9 shipped `hookOpeningTrigram` advisory gate — exact precedent. Apply same pattern: detect when ≥4 of N slides use the same `iconName` OR same `shape`. ADVISORY in v2.12 (logs warning, does NOT fail CI), wire live if observed in production. Mirrors v2.9 D-14 deferral. |
+| A5 | Icon name validation against Lucide registry | **TS** | HIGH | Gemini emits string `iconName` — validate against `lucide-react` exported names. Closed enum at server boundary; on miss, drop the decoration (do NOT throw — graceful degradation, mirrors v2.9 role-default-fallback pattern). |
+| A6 | Color tokens from template palette | **TS** | HIGH | Gemini emits color names (`'accent'`, `'palette-vibrant'`, `'#hex'`). Resolver maps named tokens → `template.accentColor` OR `slide.style_overrides.derived_palette.Vibrant`. **NEVER let AI emit raw hex.** Mirrors v2.9 `paletteMode: 'palette-dominant'` resolution. |
+| A7 | Position emitted as semantic anchors, not pct | **DIFF — strongly consider** | MEDIUM | Instead of AI emitting `{x: 23.4, y: 67.1}`, emit `{anchor: 'top-right', offset: 'small'}` and resolve server-side to numeric pct. Reduces AI-spam noise (LLMs are bad at exact numerics). Beautiful.ai's slot model is conceptually similar. **Trade-off**: limited expression vs. quality. Recommend for v2.12 + open `position: {x,y}` for editor user override. |
+| A8 | `aiVoiceNote` per template (already in v2.7) gets decoration guidance | **TS** | HIGH | Extend existing v2.7 `aiVoiceNote: string` field on `SlideTemplate` to include "decoration tone" guidance: e.g. for `notes-app-chic`, "decorations should feel handmade — circles + stars + simple icons; no arrows or polygons; opacity ≤ 80%." |
+| A9 | Per-template decoration whitelist | **TS — ship as opt-in template field** | MEDIUM | New optional `SlideTemplate.decorationWhitelist?: string[]` (e.g. `magazine-bold` → `['arrow-right', 'check', 'sparkle']`). When present, AI restricted to that subset. When absent, full 1,500-icon Lucide is fair game. Prevents "Notes-App-Chic with a tech-corporate icon" mismatch. |
+| A10 | Dual-renderer parity for AI-emitted decorations | **TS — ship in PARITY-04** | HIGH | v2.11 Phase 65 PTF1..PTF12 dual-renderer fingerprint suite. Extend with PTF13..PTF18: 6 new fingerprints for decoration-bearing slides across both renderers. **TPLREND-05 invariant must extend to decorations.** |
+
+### What "icon spam" / monoculture looks like in this domain
+
+Observed risks (verified by inspection of low-quality AI-slide outputs on social media + Reddit):
+
+1. **Same icon repeated on every slide** ("checkmark on slide 1, 2, 3, 4, 5"). Prevention: A4 advisory gate.
+2. **Generic-feeling decoration set** ("rocket + lightning bolt + chart + arrow on every slide"). Prevention: A8 + A9 per-template guidance + whitelist.
+3. **Color clash with template palette** (lime decoration on cream notes-app-chic background). Prevention: A6 named-token color emission.
+4. **AI panics and adds 5+ decorations on one slide** ("kitchen sink"). Prevention: A3 maxItems=2.
+5. **Position-anchor confusion** (AI emits `{x: 50, y: 50}` literally, decoration covers hook text). Prevention: A7 semantic anchors + server-side resolution to safe zones away from text-box bounds.
+
+These are concrete heuristics — implementation is a v2.12 phase deliverable. Ship A4 + A5 + A6 as TS; A7/A9 as DIFF; A3/A8/A10 as TS.
+
+---
+
+## Section 6 — Feature Dependencies
 
 ```
-[A2 Shift-click] ─┐
-[A3 Cmd-click]   ─┤
-[A4 Marquee]     ─┼──> SELECTION SET (Set<id> + bounding-box compute)
-[A5 Cmd+A]       ─┘                │
-                                    ├──> [B10–B14 Align/Distribute] (needs union bounds + per-element coords)
-                                    ├──> [F36–F37 Multi-element nudge] (move every selected by Δ)
-                                    ├──> [F40 Shift-axis-constrain drag] (extends single drag)
-                                    ├──> [E32–E34 Z-order] (reorders selected — works on single OR multi)
-                                    └──> [D24 Group] (creates a new group from selection set)
-                                              │
-                                              ├──> [D25 Ungroup] (inverse — needs group structure)
-                                              ├──> [D27–D28 Enter/Exit group] (selection mode state)
-                                              └──> [I48 Layers panel] (groups need somewhere to live in UI)
-
-[C17 Multi-element snap] ──extends──> existing v1.3 single-element guides
-[C18 Canvas snap]        ──extends──> existing single-element guides
-[C19 Snap threshold]     ──reuses──>  same constant
-[C21 Cmd-disable-snap]   ──extends──> single-element disable
-
-[F39 Alt-drag duplicate] ──depends──> drag handler hook (existing)
-                                       (does NOT depend on selection set)
-
-[H45 Lock element] ──independent of selection but interacts with [A4 Marquee]
-                                       (locked elements should be skipped in marquee, kept in Cmd+A — Figma rule)
+[ICON PICKER (Section 1)] ────┐
+                              │
+[SHAPES LIBRARY (Section 2)] ─┼──> [unified decorations[] schema] (S10, A1, A5)
+                              │              │
+                              │              ├──> [v2.11 multi-element peers (Section 3)]
+                              │              │       │
+                              │              │       ├──> [Right-rail decoration card (Section 4)]
+                              │              │       └──> [Layers panel decoration chip (D18)]
+                              │              │
+                              │              └──> [AI emit (Section 5)]
+                              │                      │
+                              │                      ├──> [advisory monoculture gate (A4)]
+                              │                      ├──> [per-template whitelist (A9)]
+                              │                      └──> [dual-renderer parity tests (A10)]
+                              │
+[Lucide-react package] ───────┘
+[lucide-react@0.x DynamicIcon]
+[react-window OR TanStack Virtual]
 ```
 
-### Dependency Notes
+### Dependency notes
 
-- **All alignment/distribute (B10–B14) require multi-select (A2/A4) first.** Sequencing the phases: ship A2/A3/A4/A5/A6/A7 first as the "Selection Foundation" phase, then B10–B14 ride on top.
-- **Group (D24) requires the selection set already work end-to-end.** The reducer dispatch needs to consume an array of element IDs.
-- **Snap engine (C17/C18) is technically independent** — could be shipped before multi-select if needed. But the highest-value deployment is "snap during multi-element drag," so phase it AFTER selection foundation.
-- **Lock (H45) interacts subtly with marquee (A4)**: Figma rule = locked elements are skipped by marquee but DO get included in Cmd+A. Replicate.
-- **Ungroup (D25) preserves child positions** — math: child's stored position is RELATIVE to the group's top-left (or absolute if we store absolute). Decision needed in ARCHITECTURE.md, but ungroup correctness depends on it.
-
----
-
-## MVP Definition for v2.11
-
-### Ship in v2.11 (Table Stakes)
-
-Sequenced by dependency:
-
-**Phase A — Selection Foundation**
-- [ ] A2 Shift-click add/remove from selection
-- [ ] A3 Cmd-click deep-select (nested elements through groups, when groups land)
-- [ ] A4 Marquee drag-select (intersect mode, Figma default)
-- [ ] A5 Cmd+A select all on current slide
-- [ ] A6 Esc deselect (with group-exit semantics)
-- [ ] A7 Click-empty-canvas deselect
-
-**Phase B — Alignment & Distribution**
-- [ ] B10 Align L / center-H / R (Alt+A / Alt+H / Alt+D)
-- [ ] B11 Align T / center-V / B (Alt+W / Alt+V / Alt+S)
-- [ ] B12 Implicit canvas-vs-selection (single = canvas, 2+ = selection)
-- [ ] B13 Distribute horizontal (Cmd+Alt+H, requires 3+)
-- [ ] B14 Distribute vertical (Cmd+Alt+V, requires 3+)
-
-**Phase C — Multi-element snapping & guides**
-- [ ] C17 Snap to other elements during multi-drag (extends single-element)
-- [ ] C18 Snap to canvas edges + center
-- [ ] C19 Snap threshold (reuse single-element constant)
-- [ ] C21 Hold Cmd disables snap
-
-**Phase D — Group / Ungroup (single level)**
-- [ ] D24 Group (Cmd+G) — single-level only
-- [ ] D25 Ungroup (Cmd+Shift+G) — preserves child absolute positions
-- [ ] D27 Enter group (double-click)
-- [ ] D28 Exit group (Esc / click outside)
-
-**Phase E — Z-order**
-- [ ] E32 Bring to front / send to back (Cmd+Alt+] / Cmd+Alt+[)
-- [ ] E33 Bring forward / send backward (Cmd+] / Cmd+[)
-
-**Phase F — Keyboard nudge**
-- [ ] F36 Arrow = 1px nudge (multi-selection-aware)
-- [ ] F37 Shift+Arrow = 10px nudge
-- [ ] F40 Shift-hold during drag = constrain to dominant axis
-
-### Strong Consider (Differentiators — pick 1–2)
-
-In recommendation order:
-1. **F39 Alt-drag duplicate** — high UX delight, MED complexity, replaces 50% of Cmd+D use
-2. **C20 Equal-spacing "==" guide** — high polish payoff once C17 ships, MED complexity
-3. **G41 Cmd+D smart offset** — power-user delight, MED complexity for the smart-offset half
-4. **H45 Lock element** — useful for "lock background image while editing text," MED, schema impact
-
-### Defer to v2.12+
-
-- D26 nested groups
-- D30 lock group as unit
-- G42 Cmd+C/V cross-slide paste
-- G43 Copy/paste style
-- I48 full layers panel (extend Layer Strip first)
-- J59 multi-select rotation (blocked on ROTATE-01)
-- A9 right-click context menu
+- **decorations[] schema (S10) is the keystone.** Every other feature in the milestone rides on it. Ship schema first — `kind: 'icon' | 'shape'` discriminated union, additive lift identical to how v2.11 added `groupId?/locked?/hidden?` (PROJECT.md v2.11 Phase 60).
+- **Both-renderer parity (A10) is non-negotiable.** v2.11 Phase 65 audit suite (PTF1..PTF12) MUST be extended in v2.12 (PTF13..PTF18) before merge — TPLREND-05 invariant has held since v2.7 and must hold through v2.12.
+- **Right-rail decoration card depends on selection model recognizing decoration kind.** Section 3 D1–D7 must ship before Section 4 is testable end-to-end.
+- **AI emit depends on schema being stable.** Don't ship AI emit (Section 5) before sections 1+2+3 are wired and round-tripping in editor.
+- **Icon picker keyboard scope (I5) MUST suspend the v2.11 tinykeys map while open** — this is the one place where v2.12 has to TOUCH a v2.11 surface (the keyboard firewall). Mirror v2.8 `isEditingText` pattern; do not invent a new pattern.
 
 ---
 
-## "Maybe more" — features the user didn't name but EVERY surveyed tool ships
+## Section 7 — MVP Definition for v2.12
 
-The user said "we don't want to act like we know what we're doing — research and replicate." Here are the features the survey surfaced as universal across Figma + Canva + Keynote + Adobe Express + Photoshop:
+### Phase A — Schema Foundation (must ship first)
 
-| Feature | All tools? | Class for v2.11 | Reason |
-|---------|-----------|-----------------|--------|
-| **Esc / click-outside to deselect** (A6, A7) | YES | TS — ship it | Already half-shipped (slide switch clears); extending costs nothing. |
-| **Cmd+A select all (current slide scope)** (A5) | YES | TS — ship it | One-line addition. |
-| **Z-order (Cmd+] / Cmd+[)** (E32–E34) | YES | TS — ship it | Universal expectation; medium-low cost. |
-| **Arrow-key nudge with Shift big-nudge** (F36, F37) | YES | TS — ship it | Every tool. Trivial in pointer/keyboard handler. |
-| **Hold-Shift-during-drag axis constrain** (F40) | YES | TS — ship it | Very low cost — read e.shiftKey in drag handler. |
-| **Lock element** (H45) | YES | DIFF — strong consider | Power-user feature; not table-stakes for first multi-element shipping but every tool ships it. |
-| **Hold-Cmd to disable snap** (C21) | YES | TS — ship it | Costs nothing once C17/C18 land. |
+- [ ] S10 `decorations[]` array on Slide schema, discriminated union (`kind: 'icon' | 'shape'`)
+- [ ] I7 Icon decoration shape: `{kind:'icon', iconName: string, position, size, fill, stroke?, opacity, shadow?, hidden?, locked?, groupId?}`
+- [ ] Shape decoration shape: `{kind:'shape', shape: 'rect'|'circle'|'ellipse'|'triangle'|'polygon'|'star'|'arrow'|'line', ...params, position, size, fill, stroke?, opacity, cornerRadius?, shadow?, hidden?, locked?, groupId?}`
+- [ ] Adapter / migration: legacy slides remain byte-identical with empty `decorations: []` (mirror v2.11 watermark schema lift adapter pattern)
 
-**Of these, the user's named features (multi-select, alignment, group/ungroup) imply ALL of A1–A7, B10–B14, D24/D25/D27/D28, F36/F37 must ship.** The "maybe more" extras worth adding:
+### Phase B — Both-Renderer Render Module
 
-- **E32–E34 z-order** — universally expected, low cost, big "feels finished" payoff
-- **C17–C21 snapping during multi-element drag** — extends existing single-element guides, makes multi-element drag feel right
-- **F40 Shift-axis-constrain** — universal, near-zero cost
-- **F39 Alt-drag duplicate** — non-named but universally shipped; high delight
+- [ ] B1 Shared `src/lib/render/resolve-decoration.tsx` (pattern mirror of v2.9 `resolve-overlay.ts`)
+- [ ] B2 Satori PNG render path consumes module
+- [ ] B3 React preview consumes module
+- [ ] B4 PARITY-04 extended: PTF13..PTF18 fingerprint snapshots for decoration-bearing slides
 
-**Skip even though universal:**
-- Tab cycle (A8) — conflicts with our chrome
-- Right-click menu (A9) — UX project of its own
-- Full layers panel (I48) — Layer Strip already covers single-slide use cases
-- Visibility toggle (H46) — anti-pattern for AI-generated content domain
+### Phase C — Icon Picker
 
----
+- [ ] I1 Search-first picker UI (modal OR right-rail expand)
+- [ ] I2 Debounced search (250ms)
+- [ ] I3 Virtualized infinite-scroll grid (react-window)
+- [ ] I4 Click-to-insert (auto-select new decoration)
+- [ ] I5 Keyboard nav (arrows / Enter / Esc) — picker scope suspends tinykeys
+- [ ] I6 Highlight matched substring
+- [ ] I8 Empty state on zero results
+- [ ] I10 Hover tooltip (DIFF — recommend ship)
+- [ ] I11 Lazy-import lucide-react (DIFF — strongly recommend)
 
-## Feature Prioritization Matrix
+### Phase D — Shapes Library
 
-| Feature | User Value | Implementation Cost | Priority | Notes |
-|---------|------------|---------------------|----------|-------|
-| A2 Shift-click | HIGH | LOW-MED | P1 | Foundation for all multi-select |
-| A4 Marquee | HIGH | MED | P1 | Foundation; needs hit-testing on all elements |
-| A5 Cmd+A | MEDIUM | LOW | P1 | Trivial after A2/A4 land |
-| A6 Esc deselect | HIGH | LOW | P1 | Half-shipped |
-| A7 Click-empty deselect | HIGH | LOW | P1 | Universal expectation |
-| B10/B11 Align (6-axis) | HIGH | MED | P1 | The user's named feature |
-| B13/B14 Distribute | MEDIUM | MED | P1 | Named feature |
-| C17/C18 Multi-snap | HIGH | MED | P1 | Multi-element drag without snap = bad UX |
-| C19/C21 Snap threshold + Cmd-disable | MEDIUM | LOW | P1 | Reuse existing |
-| D24/D25 Group/Ungroup | HIGH | HIGH | P1 | Named feature; schema-impact |
-| D27/D28 Enter/Exit group | MEDIUM | MED | P1 | Group is unusable without these |
-| E32–E34 Z-order | MEDIUM | LOW | P1 | Universal "finishing touch" |
-| F36/F37 Nudge | HIGH | LOW | P1 | Universal |
-| F40 Shift-axis-constrain | MEDIUM | LOW | P1 | Tiny cost |
-| F39 Alt-drag duplicate | HIGH | MED | **P2** | Strong differentiator |
-| C20 Equal-spacing == | MEDIUM | MED | **P2** | Polish |
-| G41 Cmd+D basic | MEDIUM | LOW | **P2** | Trivial; smart-offset half = P3 |
-| H45 Lock element | MEDIUM | MED | P3 | Power-user; defer if time tight |
-| D26 Nested groups | LOW | HIGH | P3 (DEFER) | Single-level covers 95% |
-| I48 Full layers panel | LOW (Layer Strip exists) | HIGH | P3 (DEFER) | Layer Strip covers cases |
-| A8 Tab cycle | LOW | LOW | P3 (SKIP) | Conflicts with chrome |
-| A9 Right-click menu | MEDIUM | HIGH | P3 (DEFER) | UX project |
-| G42 Cmd+C/V | MEDIUM | HIGH | P3 (DEFER) | Cross-slide paste rules |
-| J57 Cross-slide multi-select | — | — | P3 (HARD NO) | Breaks TPLREND-05 invariant |
+- [ ] S1–S4 7 shape primitives (rect, circle/ellipse, triangle, polygon, star, arrow, line)
+- [ ] S5–S9 Editor controls: fill, stroke, opacity, corner radius, shadow
+- [ ] S12 Keyboard shortcuts R/C/L (DIFF — strongly recommend)
+- [ ] S13 Shift-resize constrains AR (DIFF — natural extension)
 
----
+### Phase E — v2.11 Editor Integration (D1–D22)
 
-## Edge Cases (Non-Trivial)
+- [ ] D1–D6 Selection model recognizes decoration kind
+- [ ] D8–D10 react-rnd wrapper for decoration
+- [ ] D11–D12 Group/ungroup includes decorations (groupId? schema lift)
+- [ ] D13–D14 Alignment + smart guides include decorations
+- [ ] D15–D16 Lock + hide for decorations (locked? hidden? schema lifts)
+- [ ] D17 Z-order for decorations (4th routing scope in Z_ORDER reducer)
+- [ ] D18 Layers panel chip variant for decoration
+- [ ] D19–D21 Alt-drag duplicate, Cmd+D, arrow nudge for decorations
+- [ ] D22 Right-rail card switches to decoration when primary
 
-These are the gotchas v2.11 implementation MUST handle correctly, sourced from Figma forums + Canva help.
+### Phase F — Right-Rail Decoration Card
 
-### J54 Multi-select containing locked element (when H45 ships)
-- **Figma rule**: Drag of a multi-selection containing a locked element moves ALL elements (locked element drags too — selection wins). But marquee SKIPS locked elements (you can't accidentally pick them up).
-- **Canva rule**: Locked elements can't be selected at all, so the issue doesn't arise.
-- **Recommendation for v2.11**: If H45 lock ships, follow **Figma rule** — locked elements are skippable by marquee but draggable as part of an explicit selection. This is more useful for "lock the background, multi-edit text on top" workflows.
-- **Source**: [Figma — locked layer selection](https://help.figma.com/hc/en-us/articles/360041596573-Lock-and-unlock-layers)
+- [ ] C1–C12 All TS controls
+- [ ] C13 Template-palette quick swatches (DIFF — strong consider)
 
-### J55 Group containing nested group (deferred but document for future)
-- Figma: Cmd+G inside a group creates a sub-group. Cmd+Shift+G dissolves only the closest level.
-- v2.11 ships single-level only — nesting attempts return early with no-op or merge. Document the chosen behavior in Architecture.
+### Phase G — AI Emit
 
-### J56 Selection survives slide switch?
-- **Figma per-page**: NO — selection clears on page switch.
-- **v2.11 rule (already shipped pattern)**: NO — `useEffect([selectedIndex])` clears `selectedTextBoxId`/`selectedCustomImageId` on slide change. Extend this to clear the multi-selection set. Verified in `slide-editor.tsx:267-278`.
+- [ ] A1 Gemini schema lift for decorations[]
+- [ ] A3 maxItems=2 cap
+- [ ] A5 Icon name validation against Lucide registry
+- [ ] A6 Named color token resolution
+- [ ] A8 aiVoiceNote per template extended for decorations
+- [ ] A4 Advisory monoculture gate (does NOT fail CI in v2.12 — mirrors v2.9 D-14 advisory)
+- [ ] A10 PARITY-04 extended for AI-emitted decorations
+- [ ] A7 Semantic position anchors (DIFF — strong consider)
+- [ ] A9 Per-template decoration whitelist (DIFF — strong consider)
 
-### J57 Multi-select across slides
-- **Hard NO** — breaks TPLREND-05 (each slide must render independently from its own slide object).
-- Selection state lives in the editor component scoped to the active slide.
+### Strong DIFF picks for v2.12
 
-### J58 Aspect-ratio-lock during multi-resize
-- **Don't ship multi-resize in v2.11.** Single-element corner-resize already exists (v2.10); union-bounding-box resize for multi-selection is a different feature with non-obvious semantics (does each element scale by same factor? font scales?).
+In recommendation order (highest leverage first):
+1. **I11 lazy-import lucide-react** — bundle-size hygiene, near-zero engineering cost, prevents 150KB hit
+2. **S12 R/C/L shortcuts** — 10-line tinykeys addition, massive power-user UX win
+3. **A7 semantic position anchors** — reduces AI noise, qualitatively better outputs
+4. **A9 per-template decoration whitelist** — prevents template/decoration tone mismatch
+5. **C13 template-palette quick swatches** — small UI, big perceived polish
+6. **I10 picker hover tooltip** — pure CSS, helps icon disambiguation
 
-### J59 Rotation handle on multi-select bounding box
-- **Defer** — single-element rotation isn't shipped (ROTATE-01 deferred from v2.10).
+### Defer to v2.13+
 
-### J60 Empty selection state behavior
-- **Figma + Canva**: Right rail shows page/canvas-level properties (no element-specific UI).
-- **v2.11**: Right rail should show `SlideSettings` (overlay/news layout/watermark — already extracted in v2.8 Phase 50). Already wired correctly when `selectedTextBoxId === null`.
+- I12 favorites
+- I13 recents
+- I14 categories
+- S11 connectors with smart routing (line ships, smart routing defers)
+- S20 draw-on-canvas (click-drag to size)
+- D23–D24 rotation (blocked on ROTATE-01 deferral chain)
+- C14 reset-to-default
 
-### Marquee on already-selected-set
-- **Figma**: Drag from inside a selected element MOVES the selection. Drag from canvas-empty starts a new marquee that REPLACES selection (unless Shift is held, which adds to selection).
-- **v2.11**: Implement this exactly. Pointer-down on bare canvas + Shift = additive marquee; without Shift = clears prior selection then marquees.
+### Hard NO (skip indefinitely)
 
-### Distribute with N=2 (no-op vs error)
-- **Figma**: Distribute is **disabled** in the toolbar with N=2 (button greyed). Keyboard shortcut is silently ignored.
-- **v2.11**: Replicate — gate the keyboard shortcut on `selection.length >= 3`.
-
-### Alignment with 1 element (canvas or selection?)
-- **Figma**: 1 element → align to **parent (canvas/frame)**. So pressing Alt+A with 1 element selected aligns it to the canvas left edge.
-- **v2.11**: Replicate — single-element alignment uses canvas bounds.
-
-### Alignment with rotated elements
-- **Figma**: Aligns the **rotated bounding box** (axis-aligned bounding rectangle of the rotated shape) to the alignment edge. The element keeps its rotation; only its rotated-bounding-box edge snaps.
-- **v2.11**: Moot for now — rotation isn't shipped. When rotation lands, follow this rule.
-
-### Cmd+G on a single element
-- **Figma**: Wraps the single element in a group. Visually looks the same; programmatically the element is now a child of a group.
-- **Canva**: No-op (you need 2+ to "group").
-- **v2.11**: Recommend **no-op** (Canva model). Single-element groups are accidental complexity for our small-canvas domain.
-
-### Ungroup with currently-active text-edit
-- If a user double-clicks into a text box inside a group to edit, then hits Cmd+Shift+G — what happens?
-- **Figma**: Text-edit mode wins (Cmd+Shift+G is consumed by the OS as ungroup but Figma protects against it during text-edit).
-- **v2.11**: Replicate — keyboard handler must check `isEditingText` before processing group/ungroup shortcuts. Existing handler at `slide-editor.tsx:341-348` already gates on `isEditing` — extend the gate to cover the new shortcuts.
+- I15 second icon library beyond Lucide
+- S15 vector path editing
+- S16 boolean ops
+- S17 gradient fill (until Satori gradient bugs resolve)
+- S19 custom polygon by clicking points
+- S21 smart connectors (off-pattern for carousels)
+- S22 mask/clipping
+- D25 cross-slide decoration paste (TPLREND-05 invariant)
+- D26 nested groups (v2.11 hard NO)
 
 ---
 
-## Competitor Feature Matrix (named features only)
+## Section 8 — Feature Prioritization Matrix
 
-| Feature | Figma | Canva | Keynote | Adobe Express | Our v2.11 plan |
-|---------|-------|-------|---------|---------------|----------------|
-| Multi-select via Shift-click | YES | YES | YES | YES | YES |
-| Marquee selection | YES (intersect default) | YES (intersect) | YES | YES | YES (intersect) |
-| Cmd+A | YES | YES | YES | YES | YES (current-slide scope) |
-| Align 6-axis | YES (Alt+W/A/S/D/H/V) | YES (Position dropdown) | YES (Format sidebar) | YES | YES (Figma shortcuts) |
-| Distribute H/V | YES (Cmd+Alt+H/V) | YES (Space Evenly in Position) | YES | YES | YES (Figma shortcuts) |
-| Smart guides during drag | YES (pink + red) | YES (pink) | YES | YES | YES (extend existing) |
-| Hold Cmd to disable snap | YES | YES | YES | YES | YES |
-| Group / Ungroup | YES (Cmd+G / Cmd+Shift+G) | YES (Cmd+G / Cmd+Shift+G) | YES (Cmd+Opt+G / Cmd+Opt+Shift+G) | YES | YES (Cmd+G / Cmd+Shift+G — Figma model) |
-| Nested groups | YES | YES | YES | YES | **NO (single-level v2.11)** |
-| Frame/Group distinction | YES | NO | NO | NO | **NO (Canva model — Group only)** |
-| Z-order Cmd+] / Cmd+[ | YES | YES | YES | YES | YES |
-| Bring to front Cmd+Alt+] | YES | YES | YES | YES | YES |
-| Arrow nudge 1px / Shift+Arrow 10px | YES | YES | YES | YES | YES |
-| Alt+drag duplicate | YES | NO (uses Cmd+D) | YES | YES | **DIFF — strong consider** |
-| Cmd+D duplicate (smart offset) | YES (smart) | YES (basic) | YES (basic) | YES (basic) | Basic in v2.11; smart offset in v2.12+ |
-| Lock element | YES | YES | YES | YES | DIFF — consider |
-| Layers panel | YES (full tree) | YES (Position > Layers) | YES (Arrange) | YES | DEFER (Layer Strip exists) |
-| Right-click context menu | YES | YES | YES | YES | DEFER |
-| Tidy Up / smart layout | YES (Cmd+Shift+T) | YES (Alt+Shift+T) | NO | NO | NO |
-| Equal-spacing == guide | YES | NO | NO | NO | DIFF — consider |
+| Feature | User Value | Cost | v2.11 Surface Reuse | Priority |
+|---------|------------|------|---------------------|----------|
+| S10 decorations[] schema | HIGH | MED | — (foundation) | **P1** |
+| B1–B4 both-renderer parity module | HIGH | MED | mirrors v2.9 resolve-overlay | **P1** |
+| I1–I8 icon picker (search/virtualized/click-insert) | HIGH | MED | new modal | **P1** |
+| S1–S4 shape primitives (7 shapes) | HIGH | MED | new render module | **P1** |
+| S5–S9 shape controls (fill/stroke/opacity/radius/shadow) | HIGH | LOW | reuses v2.1+v2.8 components | **P1** |
+| D1–D22 v2.11 editor integration (decoration as 4th element kind) | HIGH | MED | extends every v2.11 surface | **P1** |
+| C1–C12 right-rail decoration card | HIGH | LOW | mirror v2.8 active-text-box-card | **P1** |
+| A1, A3, A5, A6, A8, A10 AI emit core | HIGH | MED | mirror v2.9 role lift | **P1** |
+| A4 advisory monoculture gate | MED | LOW | mirror v2.9 trigram gate | **P1** (advisory) |
+| I11 lazy-import lucide-react | MED | LOW | bundle hygiene | **P2** |
+| S12 R/C/L keyboard shortcuts | MED | LOW | extends v2.11 tinykeys | **P2** |
+| A7 semantic position anchors | MED | MED | quality lift | **P2** |
+| A9 per-template decoration whitelist | MED | LOW | extends v2.7 aiVoiceNote | **P2** |
+| C13 palette quick swatches | LOW | LOW | reuses v2.9 derived_palette | **P2** |
+| I10 picker tooltip | LOW | LOW | CSS only | **P3** |
+| C7/C8 conditional shape controls (corner radius / sides / points) | MED | LOW | conditional render | **P2** |
+| I12 favorites / I13 recents / I14 categories | LOW (pre-PMF) | HIGH (DB schema) | — | **P3 — DEFER** |
+| S15/S16 vector edit + boolean ops | LOW (off-pattern) | HIGH | — | **HARD NO** |
+| S20 draw-on-canvas | MED | HIGH | conflicts with marquee/drag | **P3 — DEFER** |
+| D23/D24 rotation | LOW (no precedent) | HIGH | unblocked-on-ROTATE-01 | **DEFER** |
 
 ---
 
-## Sources
+## Section 9 — Surveyed Product Comparison Matrix
 
-### Figma (primary references — HIGH confidence)
-- [Help: Select layers and objects](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects) — marquee, Shift-click, Cmd+A
-- [Help: Adjust alignment, rotation, position, and dimensions](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions) — Alt+A/W/S/D + canvas-vs-selection rule
-- [Help: Lock and unlock layers](https://help.figma.com/hc/en-us/articles/360041596573-Lock-and-unlock-layers) — lock semantics
-- [Help: Toggle visibility to hide layers](https://help.figma.com/hc/en-us/articles/360041112614-Toggle-visibility-to-hide-layers) — Cmd+Shift+H
-- [Help: Set small and big nudge values](https://help.figma.com/hc/en-us/articles/4404575206295-Set-small-and-big-nudge-values) — 1px / 10px defaults
-- [Help: Copy and paste objects](https://help.figma.com/hc/en-us/articles/4409078832791-Copy-and-paste-objects) — paste positioning
-- [Help: Copy and paste properties between layers](https://help.figma.com/hc/en-us/articles/4412765442967-Copy-and-paste-properties-between-layers) — Cmd+Alt+C/V
-- [Help: Rename Layers](https://help.figma.com/hc/en-us/articles/360039958934-Rename-Layers) — layers panel inline rename
-- [Help: Measure distances between layers](https://help.figma.com/hc/en-us/articles/360039956974-Measure-distances-between-layers) — red distance line
-- [Best Practices: Frames vs Groups](https://www.figma.com/best-practices/groups-versus-frames/) — semantic distinction
-- [Help: Frames vs Groups (canonical)](https://help.figma.com/hc/en-us/articles/360039832054-The-difference-between-frames-and-groups)
-- [Help: Scale layers while maintaining proportions](https://help.figma.com/hc/en-us/articles/360040451453-Scale-layers-while-maintaining-proportions) — Shift to AR-lock
-- [Forum: Hold Ctrl to disable snapping (LAUNCHED)](https://forum.figma.com/archive-21/launched-hold-ctrl-to-temporarily-disable-all-snapping-24942)
-- [Forum: Z-order shortcuts](https://forum.figma.com/ask-the-community-7/changing-bring-forward-bring-to-front-hotkeys-47717)
-- [Forum: Marquee — intersect vs Sketch contain](https://forum.figma.com/t/need-a-drag-selection-that-selects-only-layers-totally-inside-the-marquee/30177)
-- [Forum: Smart offset on Cmd+D](https://forum.figma.com/t/when-pasting-or-duplicating-offset-the-new-elements-position-and-add-descriptor-like-copy-to-the-name/4227)
-- [Forum: Tab cycle siblings](https://forum.figma.com/t/feature-request-tab-key-selects-next-sibling-when-multiple-frames-are-selected/26355)
-- [Forum: Esc back out one level](https://forum.figma.com/suggest-a-feature-11/esc-key-to-back-out-1-level-35091)
-- [Forum: Distribute spacing shortcut bug](https://forum.figma.com/t/help-distribute-horizontal-spacing-shortcut-not-working-bug/24136) — confirms Cmd+Alt+H
+| Feature | Canva | Figma | Adobe Express | Beautiful.ai | Gamma | CapCut | v2.12 plan |
+|---------|-------|-------|---------------|--------------|-------|--------|------------|
+| Icon picker (search-first) | YES | YES (plugin: Iconify) | YES (Noun Project) | YES | YES | LIMITED | YES (Lucide) |
+| Icon library size | 100K+ | depends on plugin | ~3M (Noun) | ~10K | ~3K | ~1K (sticker) | 1,703 (Lucide) |
+| Icon search debounce | ~300ms | ~200-300ms | ~300ms | unknown | unknown | — | 250ms |
+| Icon favorites | YES | NO | NO | NO | NO | NO | **NO** |
+| Icon recents | YES | YES (Iconify) | YES | NO | NO | NO | **NO** |
+| Icon categories | YES | YES | YES | NO | NO | YES | **NO** |
+| Shape primitives (rect/circle/triangle/line) | YES | YES | YES | YES | YES | YES | YES |
+| Polygon (N-sides) | YES | YES | YES | NO | YES | NO | YES |
+| Star | YES | YES | YES | NO | NO | NO | YES |
+| Arrow shape | YES | YES (Shift+L) | YES | YES | YES | YES | YES |
+| Connectors / smart routing | NO | YES | NO | NO | NO | NO | NO (line-only) |
+| Vector path edit | NO | YES | NO | NO | NO | NO | **NO (anti)** |
+| Boolean ops | NO | YES | NO | NO | NO | NO | **NO (anti)** |
+| Fill color | YES | YES | YES | YES | YES | YES | YES |
+| Stroke (color/width/style) | YES | YES (full) | YES | YES | YES | LIMITED | YES |
+| Opacity | YES | YES | YES | YES | YES | YES | YES |
+| Corner radius | YES | YES (per-corner) | YES | YES | YES | YES | YES (single radius) |
+| Drop shadow | YES | YES | YES | YES | YES | YES | YES (reuse v2.1) |
+| Gradient fill | YES | YES | YES | YES | YES | NO | **NO (Satori risk)** |
+| Image fill / mask | YES | YES | YES | NO | YES | NO | **NO (defer)** |
+| Keyboard insert (R/C/L) | YES | YES (R/O/Shift+L) | LIMITED | NO | NO | NO | YES (R/C/L) |
+| Draw-on-canvas (drag-size) | YES | YES | YES | NO | NO | NO | **NO (defer)** |
+| AI auto-place icons/shapes | LIMITED | NO | YES (template gen) | YES (slot-based) | YES (RAG) | NO | YES (Gemini) |
+| AI per-slide discretion | NO (template slots) | — | YES | NO (slots) | YES (LLM) | — | YES |
+| Decoration monoculture prevention | unknown | — | unknown | template-enforced | unknown | — | YES (advisory gate) |
 
-### Canva (primary references — HIGH confidence)
-- [Help: Group, layer, and align elements](https://www.canva.com/help/layer-group-align/) — Cmd+G, multi-select, lock
-- [Canva keyboard shortcuts (Windows PDF)](https://justclickhere.co.uk/wp-content/uploads/2020/01/Canva-shortcuts-table-watermarked-1.pdf) — full shortcut table
-- [Help center: shortcuts](https://www.canva.com/help/canva-keyboard-shortcuts/)
-- [How to Space Evenly in Canva](https://hubdigitalcontent.com/tools/canva/how-to-space-evenly-in-canva/) — distribute
-- [How to Turn Off Snapping in Canva (Cmd to disable)](https://www.storylane.io/tutorials/how-to-turn-off-snapping-in-canva)
+---
 
-### Keynote (Apple official — HIGH confidence)
-- [Layer, group, and lock objects (Mac)](https://support.apple.com/guide/keynote/layer-group-and-lock-objects-tan003ee8980/mac)
-- [Position and align objects](https://support.apple.com/guide/keynote/position-and-align-objects-tanb46504b79/mac)
-- [Keyboard shortcuts](https://support.apple.com/guide/keynote/keyboard-shortcuts-tanfde4a3e6d/mac)
+## Section 10 — Edge cases (gotchas v2.12 must handle)
 
-### Adobe Express + Photoshop + Illustrator (HIGH confidence)
-- [Adobe Express: keyboard shortcuts](https://helpx.adobe.com/au/express/using/keyboard-shortcuts.html)
-- [Adobe Express: Group/ungroup](https://helpx.adobe.com/express/web/organize-your-designs/arrange-layers-and-pages/group-ungroup-objects.html)
-- [Photoshop: Align and distribute layers](https://helpx.adobe.com/photoshop/using/aligning-layers.html) — canvas/selection/key-layer toggle
-- [Illustrator: Align and distribute objects](https://helpx.adobe.com/illustrator/desktop/manage-objects/arrange-objects/align-and-distribute-objects.html) — Align panel Shift+F7
+### EC1 — Icon picker keyboard scope clash with v2.11 tinykeys
 
-### Cross-tool references (MEDIUM confidence — secondary sources)
-- [UseTheKeyboard — Figma shortcut catalog](https://usethekeyboard.com/figma/)
-- [Domestika — 110 essential Figma shortcuts](https://www.domestika.org/en/blog/9913-110-essential-figma-shortcuts-for-designers)
-- [Figma Shortcuts site](https://www.figmashortcuts.com/)
+The v2.11 tinykeys map handles ⌘+G/⌘+]/Alt+H/etc globally on the editor. **When picker is open, those shortcuts MUST be suppressed** — pressing R inside the search box should type "r," not insert a rectangle.
+
+**Solution**: Picker mounts a tinykeys "scope" or sets a ref-based `pickerOpen` flag that the v2.11 keyboard handlers check first (mirror existing 33 `isEditingTarget` firewalls). The picker has its own arrow/Enter/Esc handlers active only while open.
+
+### EC2 — Icon decoration on a template with no `derived_palette`
+
+If template doesn't enable `paletteMode: 'palette-dominant'` (some legacy templates), AI-emitted color tokens like `'palette-vibrant'` resolve to undefined.
+
+**Solution**: Resolver falls back to `template.accentColor`, then to `#000000`. Mirrors v2.9 named-role palette extraction null-handling pattern. Document in resolver.
+
+### EC3 — Both-renderer divergence on rounded-corner ellipse
+
+Satori's SVG renderer has known issues with `rx`/`ry` on `<ellipse>` (vercel/satori). The React preview renders it natively.
+
+**Solution**: For ellipse, force `cornerRadius: 0` at schema level (rounded ellipse is geometrically odd anyway). PARITY-04 catches divergences via fingerprint snapshot.
+
+### EC4 — Decoration inside group when group dragged
+
+v2.11 Phase 62 fans out group drag delta via single BULK_TRANSLATE. Decoration's react-rnd wrapper must respect the BULK_TRANSLATE result identically to TextBox/CustomImage.
+
+**Solution**: Decoration wrapper consumes position from reducer, not local state. Same pattern as v2.11 wrappers. Test in Phase E.
+
+### EC5 — Locked decoration in marquee
+
+v2.11 rule: marquee skips locked elements (Figma model). Decoration with `locked: true` must be skipped by selecto.
+
+**Solution**: Locked decoration wrapper sets `pointer-events: none` only when marquee is active (mirrors v2.11 lock wrapper pattern).
+
+### EC6 — AI emits an iconName not in lucide-react
+
+`'arrow-right-circle-fill'` (Phosphor name) emitted by AI; not in Lucide.
+
+**Solution**: Server-side validation against Lucide export list. On miss, drop the decoration silently (graceful degradation, mirrors v2.9 role-default-fallback). Log advisory for monitoring.
+
+### EC7 — AI emits 5 decorations on one slide despite maxItems=2
+
+Gemini has been known to violate JSON schema constraints under prompt pressure.
+
+**Solution**: Server-side post-parse validator clamps `decorations[]` to length 2 (drops items 3+). Same defensive posture as v2.9 ZIP metadata strip.
+
+### EC8 — Decoration with `position.x = 50%, y = 50%` covers hook text
+
+If AI emits center position blindly, decoration occludes hook.
+
+**Solution**: A7 semantic anchors solve this — if shipping A7, AI emits `'top-left'`/`'bottom-right'`/etc and resolver places in safe-zone offset from text-box bounds. If A7 deferred, accept the risk (user can drag in editor).
+
+### EC9 — TPLREND-05 fingerprint drift on decoration pseudoelement
+
+If React preview renders decoration with `outline` (selection ring) and Satori doesn't, fingerprint test fails.
+
+**Solution**: Existing v2.11 PCL1..PCL10 chrome-leak gate (selection/marquee/guide/lock-icon classNames) extends to decoration kind. Add `*decoration-handle*` / `*decoration-ring*` to grep list.
+
+### EC10 — Picker shows icons too small to identify
+
+1,703 icons in 6-col × infinite grid — at default tile size, icons could be 24px. Some Lucide icons are visually similar at small sizes (`circle` vs `circle-dashed`).
+
+**Solution**: Tile size 48px minimum (mirror Iconify default). Tooltip on hover (I10) for disambiguation.
+
+---
+
+## Section 11 — Sources
+
+### Lucide
+- [Lucide Icons (1,703 icons)](https://lucide.dev/icons/)
+- [Lucide for React — lucide-react package](https://lucide.dev/guide/packages/lucide-react)
+- [Icon Metadata + tags + categories + aliases](https://deepwiki.com/lucide-icons/lucide/2.2-icon-metadata)
+- [Lucide Categories page](https://lucide.dev/icons/categories)
+- [lucide-react on npm](https://www.npmjs.com/package/lucide-react)
+- [GitHub: lucide-icons/lucide](https://github.com/lucide-icons/lucide)
+
+### Open-source icon picker references
+- [Sanity Lucide Icon Picker plugin (1,600+ icons, virtualized)](https://www.sanity.io/plugins/lucide)
+- [Sanity plugin — virtualization + lazy-load + tree-shake](https://www.contentwrap.io/blog/sanity-lucide-icon-picker-plugin)
+- [shadcn-iconpicker (Next.js + Lucide + TanStack Virtual)](https://github.com/alan-crts/shadcn-iconpicker)
+- [Icon Picker Component — Raul Carini blog](https://www.raulcarini.dev/blog/icon-picker)
+- [Open-Source React Icon Picker — DEV.to](https://dev.to/modall/open-source-react-icon-picker-lightweight-customizable-and-built-with-shadcn-tailwindcss-pnl)
+- [mantine-icon-picker (react-window)](https://www.npmjs.com/package/mantine-icon-picker)
+- [react-lucide-icon-picker](https://socket.dev/npm/package/react-lucide-icon-picker)
+
+### Canva (icons + shapes)
+- [Canva — Icons, Categories, Search, Favorites](https://8designers.com/blog/where-can-i-find-icons-in-canva)
+- [Canva Icons + Symbols Guide](https://techwiser.com/canva-icons-and-symbols-meaning/)
+- [Canva — Add and edit shapes](https://www.canva.com/help/add-edit-shapes/)
+- [Canva — Customizing shapes (fill, stroke, opacity, corner radius)](https://bringyourownlaptop.com/blog/how-to-customize-shapes-in-canva-tutorial)
+- [Canva — Stroke layer effect](https://graphicdesignresource.com/how-to-make-stroke-layer-effect-in-canva/)
+- [Canva — Working with Shapes](https://maschituts.com/canva-shapes/)
+- [Canva — Transparency for Better Designs](https://brendacadman.com/canva-tip-how-to-use-shapes-transparency-to-create-better-designs/)
+- [Canva — Keyboard Shortcuts (R / C / L)](https://justclickhere.co.uk/canva-keyboard-shortcuts-for-working-with-shapes/)
+- [Canva — Personal Starring (favorites)](https://www.canva.com/help/personal-starring/)
+- [Canva.dev — Creating Shapes (developer docs)](https://www.canva.dev/docs/apps/creating-shapes/)
+- [Canva.dev — Icon design guidelines](https://www.canva.dev/docs/apps/design-guidelines/icons/)
+
+### Figma (shapes + boolean ops + plugin ecosystem)
+- [Figma Help — Shape tools (R/O/Polygon/Star/Arrow Shift+L)](https://help.figma.com/hc/en-us/articles/360040450133-Shape-tools)
+- [Figma Help — Boolean operations (union/subtract/intersect/exclude)](https://help.figma.com/hc/en-us/articles/360039957534-Boolean-operations)
+- [The Basics of Shapes in Figma — Bootcamp](https://medium.com/design-bootcamp/the-basics-of-shapes-in-figma-36b66752abff)
+- [Iconify Figma plugin](https://www.figma.com/community/plugin/735098390272716381/iconify)
+- [Iconify Figma plugin — usage walkthrough](https://hanai.xyz/en/articles/59/)
+- [Iconify Figma plugin — 2024 redesign rationale](https://iconify.design/docs/design/figma/update-2024.html)
+- [Top 10 Icon Plugins for Figma](https://uxplanet.org/top-10-icon-plugins-for-figma-6e6081c7c3d7)
+- [Iconify Icons Library Figma plugin](https://www.figma.com/community/plugin/1498729606631593833/iconify-icons-library)
+- [Iconify 2 Million Icons Library Figma plugin](https://www.figma.com/community/plugin/1511632993696481931/iconify-2-million-icons-library)
+
+### Adobe Express
+- [Adobe Express — Free Icons + Noun Project integration](https://www.adobe.com/uk/express/discover/examples/icon)
+- [Adobe Express — Add Icons feature](https://www.adobe.com/express/feature/design/add-icons)
+- [Adobe Express — AI Template Generator](https://www.adobe.com/express/create/ai/template-generator)
+- [Adobe Express — AI Assistant overview](https://helpx.adobe.com/in/express/web/ai-assistant/adobe-express-ai-assistant-overview.html)
+- [Adobe Express + Noun Project blog](https://blog.thenounproject.com/create-with-adobe-express-and-noun-project/)
+- [Adobe Illustrator — generate icons via AI](https://helpx.adobe.com/illustrator/desktop/use-generative-ai/generate-scenes-subjects-and-icons.html)
+
+### Beautiful.ai (Smart Slides)
+- [Beautiful.ai — Smart Slides explained](https://www.beautiful.ai/smart-slides)
+- [Beautiful.ai — Icon Slide template](https://www.beautiful.ai/templates/icon-slide)
+- [Beautiful.ai — Customizing Smart Slides](https://www.beautiful.ai/blog/our-slides-your-style-a-step-by-step-guide-to-customizing-smart-slides)
+- [Beautiful.ai vs Gamma comparison 2026](https://www.beautiful.ai/comparison/beautiful-ai-vs-gamma)
+- [Beautiful.ai — Custom Theme Builder + brand kit](https://www.beautiful.ai/blog/lock-in-branding-with-the-custom-theme-builder-and-new-collection-colors)
+- [Plus AI alternatives roundup](https://plusai.com/blog/best-ai-presentation-makers)
+
+### Gamma
+- [Gamma — AI Deck Generator](https://gamma.app/products/presentations)
+- [Gamma — Layout customization guide](https://gamma.app/es/explore/content/guides/gamma-ai-presentation-tool-flexible-layout-customization-guide)
+
+### Tome (shut down April 2025 — historical only)
+- [Tome vs Gamma 2026 comparison (notes April 2025 shutdown)](https://www.beautiful.ai/comparison/tome-vs-gamma)
+- [Tome AI presentation tool tutorial (legacy)](https://skywork.ai/blog/slide/tome-ai-presentation-tool/)
+
+### CapCut + VEED (TikTok-adjacent reference)
+- [CapCut — Instagram Carousel Templates](https://www.capcut.com/resource/instagram-carousel-template)
+- [CapCut — Carousel Pics Template](https://www.capcut.com/explore/carousel-pics-template)
+- [VEED-style carousel makers roundup](https://www.capcut.com/resource/instagram-carousel-maker)
+
+### AI slide tools — icon spam / monoculture
+- [AI slop — Wikipedia](https://en.wikipedia.org/wiki/AI_slop)
+- [Tips For Using AI-Generated Images In Slides — thoughtbot](https://thoughtbot.com/blog/tips-for-using-ai-generated-images-in-your-slides)
+- [SlideSpeak — AI-Generated Icons in Presentations](https://slidespeak.co/blog/2024/08/23/new-ai-generated-icons-in-presentations-%F0%9F%91%80/)
+- [AI Generated Presentation review (Medium)](https://medium.com/@Kerstint/my-horrible-ai-generated-presentation-raises-some-questions-ae7e3a878237)
+
+### Search UX / debounce / fuzzy
+- [Algolia — Search UX best practices](https://www.algolia.com/blog/ux/how-to-streamline-your-search-ux-design)
+- [Pencil & Paper — Search UX Best Practices](https://www.pencilandpaper.io/articles/search-ux)
+- [Eleken — Search Bar Examples + UX Tips](https://www.eleken.co/blog-posts/search-bar-examples)
+- [DEV.to — Debouncing + Throttling for UX](https://dev.to/abhirupa/the-art-of-smooth-ux-debouncing-and-throttling-for-a-more-performant-ui-m0h)
+- [DesignMonks — Master Search UX 2026](https://www.designmonks.co/blog/search-ux-best-practices)
+- [Meilisearch — Fuzzy search guide](https://www.meilisearch.com/blog/fuzzy-search)
+
+### Keyboard accessibility (WAI-ARIA grid)
+- [W3C WAI-ARIA — Keyboard Interface practices](https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/)
+- [W3C — Layout Grid examples](https://www.w3.org/TR/2017/WD-wai-aria-practices-1.1-20170628/examples/grid/LayoutGrids.html)
+- [WebAIM — Keyboard Accessibility](https://webaim.org/techniques/keyboard/)
+- [UXPin — Keyboard Navigation Patterns for Complex Widgets](https://www.uxpin.com/studio/blog/keyboard-navigation-patterns-complex-widgets/)
 
 ### Internal references
-- `.planning/PROJECT.md` — project context, existing v2.10 deferral list, TPLREND-05 invariant
-- `src/lib/types/slide.ts` — current schema (TextBox, CustomImage, no element-id-set yet)
-- `src/components/editor/slide-canvas.tsx` — current pointer entry point
-- `src/components/editor/slide-editor.tsx:267-278` — slide-switch selection clear (extend for multi-select)
-- `src/components/editor/slide-editor.tsx:341-393` — current keyboard shortcut wiring (⌘1/⌘2/⌘3, ⌘D, Delete) + skip-when-typing pattern to inherit
+- `.planning/PROJECT.md` — v2.7/v2.8/v2.9/v2.10/v2.11 milestone history; TPLREND-05 invariant; v2.12 active scope
+- `.planning/MILESTONES.md` — v2.11 23-plan / 49-task accomplishments (multi-select / marquee / group / alignment / lock+hide / z-order / layers panel)
+- v2.7 `resolve-overlay.ts` — pattern for shared both-renderer modules
+- v2.8 `text-box-adapter.ts` — adapter / migration pattern (mirror for decorations)
+- v2.9 `role` / `template_id_override` / `aiVoiceNote` / `derived_palette` — AI-emit precedents
+- v2.11 Phase 60 watermark schema lift — minimal-invasive `groupId?/locked?/hidden?` pattern (mirror for decorations)
+- v2.11 Phase 65 PTF1..PTF12 dual-renderer fingerprint suite — extend with PTF13..PTF18 for decorations
 
 ---
 
-*Feature research for: v2.11 Full Editor Parity (TikTok carousel multi-element editor)*
-*Researched: 2026-05-02*
+*Feature research for: v2.12 Shapes & Icons (Decoration Primitives)*
+*Researched: 2026-05-03*
 *Author: gsd researcher (parallel run with STACK / ARCHITECTURE / PITFALLS)*
