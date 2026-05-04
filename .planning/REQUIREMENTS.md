@@ -110,7 +110,7 @@
 
 - [ ] **PARITY-06**: PTF13 — ~10 representative Lucide icons (Heart/Star/Check/Zap/ArrowRight/X/Plus/Crown/Sparkles/Circle) byte-identical React preview vs Satori PNG fingerprint
 - [ ] **PARITY-07**: PTF14 — 8 shape kinds × filled + outlined = 16 shape fingerprints byte-identical
-- [ ] **PARITY-08**: PTF15 — 45°-rotated arrow shape byte-identical (rotation edge case)
+- [x] **PARITY-08**: PTF15 — 45°-rotated arrow shape byte-identical (rotation edge case)
 - [x] **PARITY-09**: PTF16 — `decorations === undefined` slide PNG byte-identical to pre-v2.12 baseline (idempotent-absence gate; verified across all 11 legacy templates)
 - [x] **PARITY-10**: PTF17 — AI-emitted decoration on decoration-bearing slide dual-renderer byte-identical
 - [ ] **PARITY-11**: PTF18 — Non-uniform scale (1.5×1.0 icon) byte-identical
@@ -232,7 +232,7 @@ Every requirement maps to exactly one phase (100% coverage; 81/81 reqs).
 | AI-05 | Gemini AI Emit | Phase 71 | Complete |
 | PARITY-06 | TPLREND-05 Parity Audit | Phase 69 | Pending |
 | PARITY-07 | TPLREND-05 Parity Audit | Phase 69 | Pending |
-| PARITY-08 | TPLREND-05 Parity Audit | Phase 72 | Pending |
+| PARITY-08 | TPLREND-05 Parity Audit | Phase 72 | Complete |
 | PARITY-09 | TPLREND-05 Parity Audit | Phase 67 | Pending |
 | PARITY-10 | TPLREND-05 Parity Audit | Phase 71 | Complete |
 | PARITY-11 | TPLREND-05 Parity Audit | Phase 69 | Pending |
