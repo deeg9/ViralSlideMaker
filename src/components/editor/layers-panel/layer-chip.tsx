@@ -2,6 +2,8 @@
 
 import { memo, useRef } from 'react'
 import { Icon } from '@/components/ui/icon'
+import { renderDecoration } from '@/lib/render/decoration-renderer'
+import type { Decoration } from '@/lib/types/decoration'
 import type { LayerChipProps, LayerElementType } from './types'
 
 /**
@@ -42,7 +44,31 @@ import type { LayerChipProps, LayerElementType } from './types'
 function elementTypeIcon(type: LayerElementType): string {
   if (type === 'text') return 'text_fields'
   if (type === 'image') return 'image'
+  // Phase 70 Plan 05: 'decoration' fallback (when decoration prop is null/stale).
+  // Material 'category' = stack-of-shapes glyph; signals "decoration" generically.
+  if (type === 'decoration') return 'category'
   return 'branding_watermark'
+}
+
+/**
+ * Phase 70 Plan 05 (PARITY-18 / TPLREND-05): render a 16×16 miniature
+ * decoration glyph by re-using Phase 69 renderDecoration. The wrapper's
+ * absolute % positioning means the same renderer fills any container —
+ * we override position to fill the 16×16 box by passing a fixture with
+ * x:0, y:0, width:100, height:100 (all percentage of the container). The
+ * registry's LRU cache on the icon SVG path keeps the chip render cost
+ * fractional; shape-asset path is already a static <img> + <div>.
+ *
+ * No mutation of the source Decoration — we shallow-clone with the
+ * fixture position; effects (shadow), rotation, opacity all carry through
+ * to the chip glyph (chip viewers see the same visual style as canvas).
+ */
+function renderMiniatureDecoration(d: Decoration) {
+  const fixture: Decoration = {
+    ...d,
+    position: { x: 0, y: 0, width: 100, height: 100 },
+  } as Decoration
+  return renderDecoration(fixture, {})
 }
 
 export function LayerChipImpl({
@@ -57,8 +83,11 @@ export function LayerChipImpl({
   onLockToggle,
   onVisibilityToggle,
   onReorder,
+  decoration,
 }: LayerChipProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const showDecorationGlyph =
+    row.elementType === 'decoration' && decoration != null
 
   return (
     <div
@@ -83,11 +112,20 @@ export function LayerChipImpl({
         row.groupId ? 'pl-6' : '',
       ].join(' ')}
     >
-      <Icon
-        name={elementTypeIcon(row.elementType)}
-        size="sm"
-        className="text-[#795e5e]"
-      />
+      {showDecorationGlyph && decoration ? (
+        <span
+          data-testid={`chip-decoration-glyph-${row.id}`}
+          className="relative inline-block w-4 h-4 overflow-hidden flex-shrink-0"
+        >
+          {renderMiniatureDecoration(decoration)}
+        </span>
+      ) : (
+        <Icon
+          name={elementTypeIcon(row.elementType)}
+          size="sm"
+          className="text-[#795e5e]"
+        />
+      )}
       {isEditing ? (
         <input
           ref={inputRef}
@@ -204,7 +242,12 @@ export function areEqual(prev: LayerChipProps, next: LayerChipProps): boolean {
     prev.row.groupId === next.row.groupId &&
     prev.selected === next.selected &&
     prev.primary === next.primary &&
-    prev.isEditing === next.isEditing
+    prev.isEditing === next.isEditing &&
+    // Phase 70 Plan 05: ref-equal short-circuit on the decoration prop.
+    // useSlideEditor's reducer is immutable — when nothing about a decoration
+    // changes, slide.decorations[i] is ref-stable; LayersPanel's
+    // useMemo'd map preserves that stability into the prop.
+    prev.decoration === next.decoration
     // Function refs (onSelect, onStartRename, onCommitRename,
     // onCancelRename) are intentionally NOT included in areEqual — the
     // parent (LayersPanel) wraps them in useCallback so identity stays
