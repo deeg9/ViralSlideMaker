@@ -45,7 +45,11 @@
  */
 
 import type { Slide } from '@/lib/types/slide'
-import { computeSelectionBounds, type AABB } from './selection-bounds'
+import {
+  computeRotatedAABB,
+  computeSelectionBounds,
+  type AABB,
+} from './selection-bounds'
 
 export type AlignAxis =
   | 'left'
@@ -121,15 +125,29 @@ function buildMoveCandidates(slide: Slide, ids: string[]): MoveCandidate[] {
   // semantics). Locked decorations are EXCLUDED from move candidates per
   // ALIGN-10 + Phase 64 LOCK-04 (locked elements participate in selection
   // bounds — see selection-bounds.ts — but never receive an alignment patch).
+  // Phase 72 EDITOR-07 (LIFTED): each decoration contributes its rotation-
+  // aware AABB so alignment 'right' uses the rotated width and 'bottom' uses
+  // the rotated height — alignment math snaps the visible rotated footprint
+  // to the target edge instead of the un-rotated position.x / position.y.
+  // Fast-path is identity for rotation undefined / 0 / 360 (regression-safe).
   for (const d of slide.decorations ?? []) {
     if (!idSet.has(d.id)) continue
     if (d.locked === true) continue
+    const aabb = computeRotatedAABB(
+      {
+        x: d.position.x,
+        y: d.position.y,
+        width: d.position.width,
+        height: d.position.height,
+      },
+      d.rotation,
+    )
     out.push({
       id: d.id,
-      x: d.position.x,
-      y: d.position.y,
-      width: d.position.width,
-      height: d.position.height,
+      x: aabb.x,
+      y: aabb.y,
+      width: aabb.width,
+      height: aabb.height,
     })
   }
 

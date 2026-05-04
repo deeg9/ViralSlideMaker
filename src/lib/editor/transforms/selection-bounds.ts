@@ -22,6 +22,11 @@
  * ('top-left' / 'bottom-left' / 'bottom-right'). True schema-derived
  * freeform watermark sizing is a Phase 64 task.
  *
+ * Phase 72 EDITOR-07 (LIFTED): decorations contribute their rotation-aware
+ * AABB via computeRotatedAABB — multi-selection union now correctly encloses
+ * rotated-decoration extents at canonical angles (45° / 30° / etc.). Pure 2D
+ * cos/sin transform around element center; no DOM ref required.
+ *
  * Phase 60 known gap STILL OPEN:
  *  - Structural-anchor TextBoxes (anchor !== 'custom') are SKIPPED — height
  *    resolution requires DOM ref via the rendered-height observer pattern at
@@ -50,6 +55,70 @@ export interface AABB {
  */
 const WATERMARK_PLACEHOLDER_WIDTH = 18
 const WATERMARK_PLACEHOLDER_HEIGHT = 5
+
+/**
+ * Phase 72 Plan 01 (ROTATE-04, EDITOR-07): pure rotation-aware AABB helper.
+ *
+ * Returns the axis-aligned bounding box of `rect` after rotation around its
+ * center. Implementation detail: rotates the 4 corners of `rect` around
+ * (cx, cy) where cx = rect.x + rect.width / 2, cy = rect.y + rect.height / 2,
+ * then takes min/max of the rotated x and y components.
+ *
+ * Fast-path: rotation undefined / 0 / multiple of 360 → returns a fresh copy
+ * of the input rect (purity invariant — caller may freely mutate the result).
+ *
+ * NO integer rounding at this layer. Subpixel precision is REQUIRED for
+ * downstream union math; the rounding boundary is align.ts (ALIGN-09 /
+ * PITFALL-4.4). The pure helper does NOT clamp — corners may rotate past
+ * canvas edges and produce negative coords.
+ *
+ * Coordinate space: same % units as the input rect. Both renderers translate
+ * to px at REF dimensions (1080×1920) downstream.
+ *
+ * Math reference (standard 2D rotation around a point):
+ *   nx = cx + (px - cx) * cos(θ_rad) - (py - cy) * sin(θ_rad)
+ *   ny = cy + (px - cx) * sin(θ_rad) + (py - cy) * cos(θ_rad)
+ *   θ_rad = rotationDeg * π / 180
+ */
+export function computeRotatedAABB(
+  rect: AABB,
+  rotationDeg: number | undefined,
+): AABB {
+  // Fast-path: identity rotation (undefined, 0, or any multiple of 360).
+  if (rotationDeg === undefined || rotationDeg % 360 === 0) {
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  }
+
+  const cx = rect.x + rect.width / 2
+  const cy = rect.y + rect.height / 2
+  const rad = (rotationDeg * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+
+  // 4 corners (TL, TR, BR, BL).
+  const corners: Array<[number, number]> = [
+    [rect.x, rect.y],
+    [rect.x + rect.width, rect.y],
+    [rect.x + rect.width, rect.y + rect.height],
+    [rect.x, rect.y + rect.height],
+  ]
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const [px, py] of corners) {
+    const dx = px - cx
+    const dy = py - cy
+    const nx = cx + dx * cos - dy * sin
+    const ny = cy + dx * sin + dy * cos
+    if (nx < minX) minX = nx
+    if (nx > maxX) maxX = nx
+    if (ny < minY) minY = ny
+    if (ny > maxY) maxY = ny
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
 
 function watermarkPlaceholderRect(
   position: 'top-left' | 'bottom-left' | 'bottom-right' | undefined,
@@ -119,17 +188,24 @@ export function computeSelectionBounds(
   // shape — Decoration.position is a 4-tuple {x, y, width, height} of % units.
   // Phase 64 LOCK-07: hidden EXCLUDED. Phase 63 D-01: locked INCLUDED in
   // bounds (move-side filter is in align.ts buildMoveCandidates).
-  // Rotation-aware corner expansion is Phase 72 EDITOR-07 lift target — this
-  // phase computes a rectilinear AABB only.
+  // Phase 72 EDITOR-07 (LIFTED): rotated decorations contribute their
+  // rotation-aware AABB via computeRotatedAABB — fast-path returns the raw
+  // rect when rotation is undefined / 0 / 360 (identity), so non-rotated
+  // decorations have byte-identical contributions to the pre-Phase-72 union.
   for (const d of slide.decorations ?? []) {
     if (!idSet.has(d.id)) continue
     if (d.hidden === true) continue
-    rects.push({
-      x: d.position.x,
-      y: d.position.y,
-      width: d.position.width,
-      height: d.position.height,
-    })
+    rects.push(
+      computeRotatedAABB(
+        {
+          x: d.position.x,
+          y: d.position.y,
+          width: d.position.width,
+          height: d.position.height,
+        },
+        d.rotation,
+      ),
+    )
   }
 
   // Phase 63 D-01: watermark contributes a placeholder rect derived from
