@@ -104,7 +104,7 @@ const DecorationBaseFields = {
   hidden: z.boolean().optional(),
   name: z.string().optional(),
   rotation: z.number().optional(),
-  opacity: z.number().optional(),
+  opacity: z.number().min(0).max(1).optional(),
   effects: DecorationEffectsSchema.optional(),
 } as const
 

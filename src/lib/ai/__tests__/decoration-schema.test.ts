@@ -99,4 +99,31 @@ describe('Phase 67 (DECOR-05): DecorationSchema Zod validator', () => {
     expect(parseDecorationsArraySafe(undefined)).toEqual([])
     expect(parseDecorationsArraySafe('not an array')).toEqual([])
   })
+
+  // WR-01: DecorationBase.opacity Zod range guard (0..1 CSS-native scale)
+  it('WR-01-A: opacity=0.5 accepted (valid CSS fraction)', () => {
+    expect(DecorationSchema.safeParse({ ...validIcon, opacity: 0.5 }).success).toBe(true)
+  })
+
+  it('WR-01-B: opacity=0 accepted (fully transparent, boundary)', () => {
+    expect(DecorationSchema.safeParse({ ...validIcon, opacity: 0 }).success).toBe(true)
+  })
+
+  it('WR-01-C: opacity=1 accepted (fully opaque, boundary)', () => {
+    expect(DecorationSchema.safeParse({ ...validIcon, opacity: 1 }).success).toBe(true)
+  })
+
+  it('WR-01-D: opacity=1.5 rejected (exceeds 0..1 ceiling)', () => {
+    expect(DecorationSchema.safeParse({ ...validIcon, opacity: 1.5 }).success).toBe(false)
+  })
+
+  it('WR-01-E: opacity=-0.1 rejected (below 0 floor)', () => {
+    expect(DecorationSchema.safeParse({ ...validIcon, opacity: -0.1 }).success).toBe(false)
+  })
+
+  it('WR-01-F: opacity=undefined accepted (optional field)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { opacity: _op, ...withoutOpacity } = { ...validIcon, opacity: undefined }
+    expect(DecorationSchema.safeParse(withoutOpacity).success).toBe(true)
+  })
 })

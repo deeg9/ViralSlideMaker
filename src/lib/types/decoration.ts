@@ -35,7 +35,9 @@ export interface DecorationBase {
   /** Rotation in degrees, default 0. CSS transform: rotate() at render time
       (Phase 69 wires renderer; Phase 72 wires interactive handle). */
   rotation?: number
-  /** Opacity 0..1, default 1. CSS opacity at render time. */
+  /** Opacity 0..1, default 1. CSS-native scale — DIFFERENT from CustomImage.opacity (0..100).
+      Renderer uses this value directly as a CSS opacity; do NOT divide by 100.
+      Zod guard: z.number().min(0).max(1) in schemas.ts (WR-01). */
   opacity?: number
   /** Effects (drop shadow only this milestone). CSS box-shadow on wrapping
       <div> at render time — never SVG <filter> (vercel/satori#573). */
