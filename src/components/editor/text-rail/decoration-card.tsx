@@ -308,6 +308,17 @@ export function DecorationCard({
           )}
       </div>
 
+      {/* CARD-06: Rotation numeric input. Range -180..180; commits on blur/Enter
+          (KBD-09 carry-forward — NEVER per-keystroke). Round-trips with the
+          canvas drag handle (DecorationRotationHandle / Plan 72-02 Task 2):
+          handle drag commits via BULK_ROTATE; this input commits via the
+          existing onUpdate({rotation}) → UPDATE_DECORATION channel. Both
+          produce single pushHistory entries per gesture. */}
+      <RotationField
+        rotation={typeof d.rotation === 'number' ? d.rotation : 0}
+        onCommit={(rotation) => onUpdate({ rotation })}
+      />
+
       {/* Per-shape extras */}
       {d.kind === 'shape' && (
         <PerShapeControls decoration={d as ShapeDecoration} onUpdate={onUpdate} />
@@ -370,6 +381,77 @@ function PositionField({
         className="flex-1 bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] rounded px-2 py-1 text-xs text-[#3d0000] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#3d0000] focus:ring-offset-1"
       />
     </label>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RotationField (CARD-06) — Phase 72 Plan 02. Numeric rotation input with
+// commit-on-blur/Enter, [-180, 180] clamp, and round-trip prop re-sync. Mirrors
+// the PositionField shape so the visual/interaction grammar is identical to
+// W/H/X/Y. Empty input = no-op revert (don't dispatch). Out-of-range = clamp
+// BEFORE dispatch (T-72-03 mitigation — defense-in-depth against future
+// non-React dispatch sources at the reducer boundary).
+// ─────────────────────────────────────────────────────────────────────────────
+function RotationField({
+  rotation,
+  onCommit,
+}: {
+  rotation: number
+  onCommit: (rotation: number) => void
+}) {
+  const [draft, setDraft] = useState<string>(String(Math.round(rotation)))
+
+  // Round-trip: re-sync draft when the prop changes (handle drag commits etc).
+  useEffect(() => {
+    setDraft(String(Math.round(rotation)))
+  }, [rotation])
+
+  function commit() {
+    const trimmed = draft.trim()
+    if (trimmed === '') {
+      // Revert to current value — never dispatch on empty input.
+      setDraft(String(Math.round(rotation)))
+      return
+    }
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(Math.round(rotation)))
+      return
+    }
+    const clamped = Math.max(-180, Math.min(180, parsed))
+    if (clamped === rotation) {
+      // No-op when value unchanged — don't pollute history.
+      setDraft(String(Math.round(rotation)))
+      return
+    }
+    onCommit(clamped)
+    setDraft(String(clamped))
+  }
+
+  return (
+    <div className="space-y-2">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+        Rotation (°)
+      </span>
+      <input
+        type="number"
+        min={-180}
+        max={180}
+        step={1}
+        data-testid="decoration-input-rotation"
+        aria-label="Decoration rotation in degrees"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            commit()
+          }
+        }}
+        className="w-full bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] rounded px-2 py-1 text-xs text-[#3d0000] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#3d0000] focus:ring-offset-1"
+      />
+    </div>
   )
 }
 
