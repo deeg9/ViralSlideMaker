@@ -150,7 +150,7 @@
 | Cross-slide decoration paste | TPLREND-05 cross-slide invariant; same hard-NO as v2.11 J57 |
 | Nested groups | v2.11 hard-NO; decorations join flat groups only |
 | `lucide-react/dynamic` `<DynamicIcon>` | Maintainer-documented anti-pattern for non-CMS apps; bundle bomb risk |
-| Inline `<svg><circle/>` JSX in Satori | Satori `presets.ts` does not list SVG shape elements; pre-baked assets is the only parity-safe path |
+| Inline `<svg><circle/></svg>` JSX in Satori | Satori `presets.ts` does not list SVG shape elements; pre-baked assets is the only parity-safe path |
 | `react-xarrows` for connectors | Unmaintained; off-pattern |
 | `konva` / `fabric.js` canvas substrate | Wrong substrate; destroys TPLREND-05 invariant |
 | CSS `filter:` / `backdrop-filter:` on decorations | vercel/satori#573 silent drop (burned in v2.9) |
@@ -160,8 +160,106 @@
 
 ## Traceability
 
-(Filled by roadmapper — every requirement maps to exactly one phase.)
+Every requirement maps to exactly one phase (100% coverage; 81/81 reqs).
+
+| Requirement | Category | Phase | Status |
+|---|---|---|---|
+| DECOR-01 | Schema Foundation | Phase 67 | Pending |
+| DECOR-02 | Schema Foundation | Phase 67 | Pending |
+| DECOR-03 | Schema Foundation | Phase 67 | Pending |
+| DECOR-04 | Schema Foundation | Phase 67 | Pending |
+| DECOR-05 | Schema Foundation | Phase 67 | Pending |
+| DEPS-01 | Stack Additions | Phase 67 | Pending |
+| DEPS-02 | Stack Additions | Phase 70 | Pending |
+| DEPS-03 | Stack Additions | Phase 70 | Pending |
+| DEPS-04 | Stack Additions | Phase 70 | Pending |
+| DEPS-05 | Stack Additions | Phase 70 | Pending |
+| PICKER-01 | Lucide Icon Picker UI | Phase 70 | Pending |
+| PICKER-02 | Lucide Icon Picker UI | Phase 70 | Pending |
+| PICKER-03 | Lucide Icon Picker UI | Phase 70 | Pending |
+| PICKER-04 | Lucide Icon Picker UI | Phase 70 | Pending |
+| PICKER-05 | Lucide Icon Picker UI | Phase 70 | Pending |
+| PICKER-06 | Lucide Icon Picker UI | Phase 70 | Pending |
+| PICKER-07 | Lucide Icon Picker UI | Phase 70 | Pending |
+| PICKER-08 | Lucide Icon Picker UI | Phase 70 | Pending |
+| SHAPES-01 | Shapes Library | Phase 70 | Pending |
+| SHAPES-02 | Shapes Library | Phase 70 | Pending |
+| SHAPES-03 | Shapes Library | Phase 70 | Pending |
+| SHAPES-04 | Shapes Library | Phase 70 | Pending |
+| SHAPES-05 | Shapes Library | Phase 70 | Pending |
+| SHAPES-06 | Shapes Library | Phase 70 | Pending |
+| SHAPES-07 | Shapes Library | Phase 70 | Pending |
+| SHAPES-08 | Shapes Library | Phase 70 | Pending |
+| SHAPES-09 | Shapes Library | Phase 70 | Pending |
+| RENDER-01 | Both-Renderer Integration | Phase 69 | Pending |
+| RENDER-02 | Both-Renderer Integration | Phase 69 | Pending |
+| RENDER-03 | Both-Renderer Integration | Phase 69 | Pending |
+| RENDER-04 | Both-Renderer Integration | Phase 69 | Pending |
+| RENDER-05 | Both-Renderer Integration | Phase 69 | Pending |
+| RENDER-06 | Both-Renderer Integration | Phase 69 | Pending |
+| RENDER-07 | Both-Renderer Integration | Phase 69 | Pending |
+| EDITOR-01 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-02 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-03 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-04 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-05 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-06 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-07 | v2.11 Editor Parity | Phase 72 | Pending |
+| EDITOR-08 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-09 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-10 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-11 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-12 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-13 | v2.11 Editor Parity | Phase 68 | Pending |
+| EDITOR-14 | v2.11 Editor Parity | Phase 68 | Pending |
+| CARD-01 | Right-Rail Decoration Controls | Phase 70 | Pending |
+| CARD-02 | Right-Rail Decoration Controls | Phase 70 | Pending |
+| CARD-03 | Right-Rail Decoration Controls | Phase 70 | Pending |
+| CARD-04 | Right-Rail Decoration Controls | Phase 70 | Pending |
+| CARD-05 | Right-Rail Decoration Controls | Phase 70 | Pending |
+| CARD-06 | Right-Rail Decoration Controls | Phase 72 | Pending |
+| ROTATE-01 | Rotation | Phase 72 | Pending |
+| ROTATE-02 | Rotation | Phase 72 | Pending |
+| ROTATE-03 | Rotation | Phase 72 | Pending |
+| ROTATE-04 | Rotation | Phase 72 | Pending |
+| KBD-10 | Keyboard Shortcuts | Phase 70 | Pending |
+| KBD-11 | Keyboard Shortcuts | Phase 70 | Pending |
+| KBD-12 | Keyboard Shortcuts | Phase 70 | Pending |
+| AI-01 | Gemini AI Emit | Phase 71 | Pending |
+| AI-02 | Gemini AI Emit | Phase 71 | Pending |
+| AI-03 | Gemini AI Emit | Phase 71 | Pending |
+| AI-04 | Gemini AI Emit | Phase 71 | Pending |
+| AI-05 | Gemini AI Emit | Phase 71 | Pending |
+| PARITY-06 | TPLREND-05 Parity Audit | Phase 69 | Pending |
+| PARITY-07 | TPLREND-05 Parity Audit | Phase 69 | Pending |
+| PARITY-08 | TPLREND-05 Parity Audit | Phase 72 | Pending |
+| PARITY-09 | TPLREND-05 Parity Audit | Phase 67 | Pending |
+| PARITY-10 | TPLREND-05 Parity Audit | Phase 71 | Pending |
+| PARITY-11 | TPLREND-05 Parity Audit | Phase 69 | Pending |
+| PARITY-12 | TPLREND-05 Parity Audit | Phase 70 | Pending |
+| PARITY-13 | TPLREND-05 Parity Audit | Phase 69 | Pending |
+| PARITY-14 | TPLREND-05 Parity Audit | Phase 69 | Pending |
+| PARITY-15 | TPLREND-05 Parity Audit | Phase 68 | Pending |
+| PARITY-16 | TPLREND-05 Parity Audit | Phase 68 | Pending |
+| PARITY-17 | TPLREND-05 Parity Audit | Phase 68 | Pending |
+| PARITY-18 | TPLREND-05 Parity Audit | Phase 70 | Pending |
+| MIGR-01 | Migration + Fork RPC | Phase 71 | Pending |
+| MIGR-02 | Migration + Fork RPC | Phase 67 | Pending |
+
+### Reverse mapping (Phase → Requirements)
+
+| Phase | Reqs | Count |
+|---|---|---|
+| **Phase 67** — Schema + Null-Decoration Baseline | DECOR-01, DECOR-02, DECOR-03, DECOR-04, DECOR-05, DEPS-01, PARITY-09, MIGR-02 | 8 |
+| **Phase 68** — Reducer Extensions + Selection Model | EDITOR-01, EDITOR-02, EDITOR-03, EDITOR-04, EDITOR-05, EDITOR-06, EDITOR-08, EDITOR-09, EDITOR-10, EDITOR-11, EDITOR-12, EDITOR-13, EDITOR-14, PARITY-15, PARITY-16, PARITY-17 | 16 |
+| **Phase 69** — Renderers + DecorationRenderer | RENDER-01, RENDER-02, RENDER-03, RENDER-04, RENDER-05, RENDER-06, RENDER-07, PARITY-06, PARITY-07, PARITY-11, PARITY-13, PARITY-14 | 12 |
+| **Phase 70** — Editor UI: Picker + Card + Layers + Shapes | DEPS-02, DEPS-03, DEPS-04, DEPS-05, PICKER-01, PICKER-02, PICKER-03, PICKER-04, PICKER-05, PICKER-06, PICKER-07, PICKER-08, SHAPES-01, SHAPES-02, SHAPES-03, SHAPES-04, SHAPES-05, SHAPES-06, SHAPES-07, SHAPES-08, SHAPES-09, KBD-10, KBD-11, KBD-12, CARD-01, CARD-02, CARD-03, CARD-04, CARD-05, PARITY-12, PARITY-18 | 31 |
+| **Phase 71** — AI Emit + Fork RPC + Final Audit | AI-01, AI-02, AI-03, AI-04, AI-05, PARITY-10, MIGR-01 | 7 |
+| **Phase 72** — Rotation Handles + AABB Lift | ROTATE-01, ROTATE-02, ROTATE-03, ROTATE-04, EDITOR-07, CARD-06, PARITY-08 | 7 |
+| **Total** | | **81** |
+
+**Coverage check:** 81/81 reqs mapped to exactly one phase. No orphans. No duplicates.
 
 ---
 
-*Generated 2026-05-04 from `.planning/research/SUMMARY.md`. Continues phase numbering from v2.11 (last phase: 66). Total reqs: ~70 across 12 categories.*
+*Generated 2026-05-04 from `.planning/research/SUMMARY.md`. Continues phase numbering from v2.11 (last phase: 66). Total reqs: 81 across 12 categories. Roadmap: `.planning/ROADMAP.md` (Phases 67–72).*

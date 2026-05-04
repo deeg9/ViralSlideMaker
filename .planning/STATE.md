@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
 status: planning
-last_updated: "2026-05-04T00:53:28.692Z"
+last_updated: "2026-05-04T01:30:00.000Z"
 last_activity: 2026-05-04
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 67 — Schema Foundation + Null-Decoration TPLREND-05 Baseline (ready to plan)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-04 — Milestone v2.12 started
+Status: Roadmap defined; ready for /gsd-plan-phase 67
+Last activity: 2026-05-04 — v2.12 ROADMAP.md created (6 phases, 67–72; 81/81 reqs mapped at 100% coverage)
 
 ### Phase 65 carry-over
 
@@ -69,6 +69,21 @@ Phase: 60 — Multi-Select Foundation + Watermark Schema Lift **COMPLETE** (5/5 
 Plan: 60-01 SHIPPED (schema foundation: 39 LOC, commit `1164c73`); 60-02 SHIPPED (watermark adapter + lazy init + parity gate, ~340 LOC, 3 commits `35b7ce3` / `b67c13a` / `0a7deb9`); 60-03 SHIPPED (useSelectionModel hook + BULK_TRANSLATE action, ~893 LOC incl. tests, 2 commits `082bfe9` / `5f98e5e`); 60-04 SHIPPED (tinykeys keyboard firewall + isEditingTarget + useModifierState + slide-editor.tsx migration, ~408 LOC incl. tests, 4 commits `8bdfc09` / `f62f29d` / `c2a40a2` / `f7760b4`); 60-05 SHIPPED (selection bounds + MultiSelectTypeBar + union AABB ring + click-empty-canvas + Shift-click toggle + PARITY-01 extension, ~735 LOC incl. tests, 3 commits `2edf43b` / `278a0a4` / `c8ef91b`)
 Phase 60 status: COMPLETE; SEL-01..04 + SEL-07..13 + SEL-15 + KBD-01..04 + PERF-01 + WMARK-01..05 + PARITY-01 all marked complete in REQUIREMENTS.md (Phase 60 owns 23 reqs).
 
+## v2.12 Phase Map
+
+| Phase | Name | Reqs | Depends |
+|-------|------|------|---------|
+| 67 | Schema Foundation + Null-Decoration TPLREND-05 Baseline | 8 | — |
+| 68 | Reducer Extensions + Selection Model | 16 | 67 |
+| 69 | Renderers + DecorationRenderer + First Parity Proof | 12 | 67, 68 |
+| 70 | Editor UI: Picker + DecorationCard + Layers Panel + Shapes Library | 31 | 67, 68, 69 |
+| 71 | AI Emit + Fork RPC + Comprehensive Parity Audit | 7 | 67, 68, 69, 70 |
+| 72 | Interactive Rotation Handles + Rotation-Aware AABB | 7 | 67, 68, 69, 70 |
+
+**Total:** 81 reqs across 12 categories (DECOR / DEPS / PICKER / SHAPES / RENDER / EDITOR / CARD / ROTATE / KBD / AI / PARITY / MIGR). 100% coverage; no orphans.
+
+**Build-order constraints (non-negotiable):** Schema (DECOR) precedes reducer (EDITOR) precedes renderers (RENDER) precedes editor UI (PICKER/SHAPES/CARD) precedes AI emit (AI). Phase 72 (rotation + AABB lift) is decomposed separately because rotation-aware AABB cross-cuts every selection-bounds surface — folding into 70 would bloat the editor-UI phase past UX scope.
+
 ## v2.11 Phase Map
 
 | Phase | Name | Reqs | Depends |
@@ -92,6 +107,19 @@ Phase 60 status: COMPLETE; SEL-01..04 + SEL-07..13 + SEL-15 + KBD-01..04 + PERF-
 | Modifier state resets on blur | KBD-04 + SNAP-05 | `window.blur` + `visibilitychange` |
 | Z-order = array splice | ZORDER-05 + Satori invariant | Never CSS `z-index` |
 | Selection state outside reducer history | SEL-15 + v2.8 pattern | React state only |
+
+### v2.12 carry-forward additions (apply to every Phase 67–72 plan)
+
+| Constraint | Source | Notes |
+|------------|--------|-------|
+| `(slide.decorations ?? []).map(...)` at every render+transform site | TPLREND-05 + idempotent absence | Never `slide.decorations.map(...)` |
+| Explicit hex in every schema color field | A.2 + PCL12 grep gate | No `currentColor`, no `inherit`, no CSS vars |
+| CSS `box-shadow` for shadow effects on decorations | A.3 + PCL13 grep gate + v2.1 reuse | Never SVG `<filter>` |
+| Per-icon static imports OR `dynamicIconImports` | B.1 + CI bundle gate | Never barrel `import * as LucideIcons` (7+ MB landmine) |
+| `isPickerOpenRef` second short-circuit on all tinykeys firewalls | H.1 SWEEP-1..4 carry-forward | Picker keyboard scope MUST suspend editor scope |
+| `AddressableScope` exhaustive type + PRA1..PRA12 source-grep audit | G.1 reducer symmetry | Locked at Phase 68 before reducer cases merge |
+| `onRotateStop` only (matches v2.10 onDragStop/onResizeStop pattern) | PERF-01 carry-forward | BULK_ROTATE dispatched once per gesture |
+| Decorations participate as 4th `AddressableScope` ('text_boxes' \| 'custom_images' \| 'watermark' \| 'decorations') | EDITOR-01 | Compile-time exhaustive switch |
 
 ## Deferred Items
 
@@ -118,6 +146,13 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 
 ### Decisions
 
+- [v2.12 / roadmap]: 6 phases (67–72), not the research-recommended 5. ROTATE-01..04 (interactive rotation handles + rotation-aware AABB lift across selection-bounds.ts) is significant cross-cutting scope the research synthesis did NOT account for (research punted handles to v3+). Folding rotation into Phase 70 would bloat editor-UI past UX scope; folding into Phase 68 would pollute reducer-extension with transform-math sub-work. Phase 72 dedicated to rotation handles + AABB lift + final rotation parity proof — clean dependency edges, single coherent goal.
+- [v2.12 / roadmap]: Phase 67 locks PARITY-09 (PTF16 — `decorations === undefined` slide PNG byte-identical to pre-v2.12 baseline) BEFORE any feature work. Mirror of v2.11 Phase 60 watermark schema-lift discipline + Phase 65 audit baseline. Idempotent absence (`(slide.decorations ?? []).map(...)`) is the structural guarantee; PTF16 is the test gate.
+- [v2.12 / roadmap]: Phase 68 ships PRA1..PRA12 reducer per-scope source-grep audit gate at the START, not the end. Every multi-select reducer action body must mention all 4 AddressableScopes (`text_boxes`, `custom_images`, `watermark`, `decorations`) — fails CI on missing scope. Mirror of v2.11 Phase 65 PCL/PTF/PRS audit pattern, applied early to prevent G.1 symmetry-bug class.
+- [v2.12 / roadmap]: Phase 69 has the highest TPLREND-05 risk. Pre-phase Context7 lookup against `vercel/satori` for `<svg>`/`<polygon>`/`transform: rotate()`/`borderRadius`/`box-shadow` support matrix on the current Satori version in `next/og`. 15-minute check; HIGH risk if skipped. Resolved in plan-time, not build-time.
+- [v2.12 / roadmap]: Phase 70 is the ONLY phase with novel net-new dependencies (DEPS-02..05: tanstack-virtual + ufuzzy + react-colorful + CI bundle gate). DEPS-01 (lucide-react upgrade) lands earlier in Phase 67 because the schema's lucideName closed-enum registry consumes lucide-static at type-build time.
+- [v2.12 / roadmap]: AI emit (Phase 71) follows v2.9 Phase 58's "advisory monoculture gate" pattern verbatim — `decorationDiversityCheck()` mirrors `hookOpeningTrigram` exactly. Does NOT fail CI in v2.12 (advisory only); promotes to fail-CI in v3.0+ if production data shows monoculture. Same posture as v2.9 D-14 deferral.
+- [v2.12 / roadmap]: 81 v2.12 reqs across 12 categories (DECOR / DEPS / PICKER / SHAPES / RENDER / EDITOR / CARD / ROTATE / KBD / AI / PARITY / MIGR). 100% mapped to phases 67–72. Coverage: 67=8, 68=16, 69=12, 70=31, 71=7, 72=7.
 - [v2.11 / 65-03]: Two-layer chrome-leak gate per surface — runtime DOM scan (querySelector against editable={false} render) + source-code grep (read render-slide-satori.tsx as text, line-comment-stripped, assert zero literal occurrence of class/data-testid). Defense-in-depth catches dynamically-injected class names that the runtime scan would miss with the wrong fixture. Mirror of Plan 64-03's ZA16 z-order purity gate pattern. PCL10 combined kitchen-sink + positive control (editable=true surfaces 5+ chrome testids with same fixture) prevents false-negative class.
 - [v2.11 / 65-03]: Snapshot baseline IS the v2.11 trailing-edge anchor, not a retroactive pre-Phase-60 baseline. Phases 60..64 already shipped — a "pre-v2.11 snapshot" cannot be reconstructed from git. Future milestones (v2.12, v2.13) diff against THIS file. Retroactive validation that Phases 60..64 didn't break legacy contracts is covered by the regression sweep (PRS1..PRS5), which DOES have committed historical contracts to re-run.
 - [v2.11 / 65-03]: Registry-driven fingerprint suite via `templates.forEach((template, idx) => { describe(\`PTF\${idx+1}…\`, …) })`. PTF labels generated dynamically at test load time. When v2.12 ships a 13th template, PTF13a/b appear automatically — single first-run captures the new snapshot; no test-file edit needed.
