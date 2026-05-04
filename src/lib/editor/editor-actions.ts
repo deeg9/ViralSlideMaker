@@ -238,5 +238,27 @@ export type EditorAction =
       ids: string[]      // text_boxes ∪ custom_images ∪ watermark ids
       op: ZOrderOp
     }
+  // Phase 72 Plan 01 (ROTATE-03, EDITOR-07, KBD-09 / PERF-01): bulk multi-
+  // element rotate. Single dispatch on onPointerUp only — never per-tick
+  // (mirrors BULK_TRANSLATE precedent). The reducer:
+  //   - calls pushHistory() exactly once per dispatch (PERF-01),
+  //   - skips locked decorations (Phase 64 LOCK-04 honor — mirrors
+  //     BULK_TRANSLATE skip rule),
+  //   - sets each addressed decoration's `rotation` field to the dispatched
+  //     value (range -180..180; the threat-model T-72-01 clamp documented in
+  //     72-01-PLAN normalizes via `((rotation % 360) + 540) % 360 - 180`
+  //     defense-in-depth against future MCP/RPC dispatch sources).
+  //
+  // v2.12 SCOPE NOTE: ONLY decorations participate. text_boxes /
+  // custom_images / watermark are documented as deferred no-op stubs in the
+  // reducer body (block comments preserve PRA13 grep gate coverage). Future
+  // milestones may extend rotation to those scopes when the schema gains
+  // a freeform rotation field on those element types.
+  | {
+      type: 'BULK_ROTATE'
+      slideIndex: number
+      ids: string[]      // decorations ids (other-scope ids silently no-op)
+      rotation: number   // degrees, range -180..180
+    }
   | { type: 'UNDO' }
   | { type: 'REDO' }

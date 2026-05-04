@@ -124,7 +124,7 @@ function mentionsScope(body: string, scope: string): boolean {
   return body.includes(scope)
 }
 
-describe('Phase 68 PARITY-15: reducer scope-symmetry audit (PRA1..PRA12)', () => {
+describe('Phase 68 PARITY-15: reducer scope-symmetry audit (PRA1..PRA13)', () => {
   // ---------------------------------------------------------------------------
   // PRA1..PRA3: 3 NEW decoration-only actions (Plan 68-01).
   // These are SINGLE-SCOPE by design — they only need to mention 'decorations'.
@@ -146,13 +146,18 @@ describe('Phase 68 PARITY-15: reducer scope-symmetry audit (PRA1..PRA12)', () =>
   }
 
   // ---------------------------------------------------------------------------
-  // PRA4..PRA12: 9 multi-scope actions (Plan 68-02 EXTENDED cases).
-  // Each case body MUST mention all 4 AddressableScope values. Watermark
-  // mentions are typically inside `/* */` block comments (v2.11 documents
-  // watermark as a no-op for several actions because its position is enum-
-  // only — no freeform x/y to translate / align). Block comments are
-  // PRESERVED by the slicer (only `//` line comments are stripped). This
-  // matches PRA12 plan note: "watermark = no-op comment counts as mention".
+  // PRA4..PRA13: 10 multi-scope actions (Plan 68-02 EXTENDED cases + Plan 72-01
+  // BULK_ROTATE PRA13). Each case body MUST mention all 4 AddressableScope
+  // values. Watermark mentions are typically inside `/* */` block comments
+  // (v2.11 documents watermark as a no-op for several actions because its
+  // position is enum-only — no freeform x/y to translate / align). Block
+  // comments are PRESERVED by the slicer (only `//` line comments are
+  // stripped). This matches PRA12 plan note: "watermark = no-op comment counts
+  // as mention".
+  //
+  // PRA13 (BULK_ROTATE — Phase 72 Plan 01): for v2.12 ONLY decorations
+  // participate; text_boxes / custom_images / watermark are documented as
+  // deferred no-op stubs via block comments so the gate counts the mentions.
   // ---------------------------------------------------------------------------
   const MULTI_SCOPE_ACTIONS = [
     ['PRA4', 'BULK_TRANSLATE'],
@@ -164,6 +169,7 @@ describe('Phase 68 PARITY-15: reducer scope-symmetry audit (PRA1..PRA12)', () =>
     ['PRA10', 'SET_HIDDEN'],
     ['PRA11', 'ALIGN'],
     ['PRA12', 'Z_ORDER'],
+    ['PRA13', 'BULK_ROTATE'],
   ] as const
 
   for (const [pra, action] of MULTI_SCOPE_ACTIONS) {

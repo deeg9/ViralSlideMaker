@@ -1392,6 +1392,78 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, slides) // KBD-09: exactly one pushHistory
     }
 
+    // Phase 72 Plan 01 (ROTATE-03, EDITOR-07, PERF-01, KBD-09): single-
+    // dispatch bulk rotate. Mirrors BULK_TRANSLATE shape — single
+    // pushHistory per dispatch; locked decorations skipped (LOCK-04 honor);
+    // per-id no-op when the rotation already equals action.rotation
+    // (preserves ref-equality on the `decorations` array — PRS9 / Phase 68
+    // PARITY-16 cross-scope ref-equality contract).
+    //
+    // v2.12 SCOPE: ONLY decorations participate. The other 3 AddressableScope
+    // values are documented below as deferred no-op stubs via block comments
+    // — block-comment form preserves the PRA13 grep gate count (the slicer
+    // strips `//` line comments but RETAINS `/* */` block comments; see
+    // reducer-scope-symmetry.test.ts:121 stripLineComments contract).
+    //
+    // Threat T-72-01 (Tampering): clamp `action.rotation` to [-180, 180] via
+    // the normalization `((r % 360) + 540) % 360 - 180`. This is defense-in-
+    // depth against a future MCP/RPC dispatch source that bypasses the React
+    // UI's numeric input clamp. In-process React dispatch already validates,
+    // but the reducer is the trust boundary for any non-React caller.
+    case 'BULK_ROTATE': {
+      if (action.ids.length === 0) return state // empty-ids ref-equal short-circuit
+      // Threat-model T-72-01: clamp rotation to [-180, 180]. Values already
+      // in-range pass through identically (so 180 round-trips as 180, -180
+      // as -180). Out-of-range inputs are normalized via the canonical
+      // `((r % 360) + 540) % 360 - 180` map (e.g. 270 → -90, -270 → 90,
+      // 540 → 180). Defense-in-depth against future MCP/RPC dispatch sources.
+      const clamped =
+        action.rotation >= -180 && action.rotation <= 180
+          ? action.rotation
+          : ((action.rotation % 360) + 540) % 360 - 180
+
+      let anyChange = false
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        if (!slide.decorations) return slide
+        const idSet = new Set(action.ids)
+
+        /* text_boxes: NO-OP in v2.12 — TextBox schema does not carry a
+           rotation field today. Deferred to a future milestone when the
+           schema lift lands. Block-comment form preserves PRA13 grep gate
+           mention of 'text_boxes'. */
+
+        /* custom_images: NO-OP in v2.12 — CustomImage schema does not carry
+           a rotation field today. Deferred to a future milestone. Block-
+           comment form preserves PRA13 grep gate mention of 'custom_images'. */
+
+        // decorations branch — actual rotate. Locked decorations are skipped
+        // (Phase 64 LOCK-04 honor; mirrors BULK_TRANSLATE skip rule). Hidden
+        // decorations DO rotate (hidden ≠ locked — mirror v2.11 contract from
+        // BULK_TRANSLATE / SET_HIDDEN-doesn't-block-mutate).
+        let decorationsChanged = false
+        const nextDecorations = slide.decorations.map((d) => {
+          if (!idSet.has(d.id)) return d
+          if (d.locked === true) return d                  // LOCK-04 honor
+          if ((d.rotation ?? 0) === clamped) return d      // per-id no-op
+          decorationsChanged = true
+          return { ...d, rotation: clamped }
+        })
+
+        /* watermark: NO-OP in v2.12 — Watermark schema does not carry a
+           rotation field today (enum-only position). Deferred to a future
+           milestone. Block-comment form preserves PRA13 grep gate mention
+           of 'watermark'. */
+
+        if (!decorationsChanged) return slide
+        anyChange = true
+        return { ...slide, decorations: nextDecorations }
+      })
+
+      if (!anyChange) return state
+      return pushHistory(state, slides) // PERF-01: exactly one pushHistory
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state
       const previous = state.past[state.past.length - 1]
