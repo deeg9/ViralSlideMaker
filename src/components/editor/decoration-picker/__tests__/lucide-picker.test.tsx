@@ -242,3 +242,59 @@ describe('PICKER-01..06 LucidePicker modal', () => {
     expect(tiles.length).toBe(0)
   })
 })
+
+// ============================================================
+// PICKER-08 Dynamic wrapper contract (Task 3)
+// ============================================================
+
+describe('PICKER-08 LucidePickerDynamic next/dynamic wrapper', () => {
+  it('Test 16: LucidePickerDynamic is exported as a renderable component', async () => {
+    const mod = await import('../lucide-picker.dynamic')
+    // next/dynamic returns a React component (function OR forwardRef object
+    // depending on Next.js version). Accept either: must be a usable React
+    // component handle (truthy + not the eager component reference).
+    expect(mod.LucidePickerDynamic).toBeTruthy()
+    const t = typeof mod.LucidePickerDynamic
+    expect(t === 'function' || t === 'object').toBe(true)
+    // It must NOT be the eager LucidePicker function itself (would defeat the
+    // lazy-load contract — that's a regression signal).
+    const eager = await import('../lucide-picker')
+    expect(mod.LucidePickerDynamic).not.toBe(eager.LucidePicker)
+  })
+
+  it('Test 17: barrel index.ts exports LucidePickerDynamic but NOT the eager LucidePicker', async () => {
+    // Read the barrel source as text to assert the contract — runtime
+    // exports might be bundled; the source-level contract is the shipped one.
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const barrelPath = path.join(
+      process.cwd(),
+      'src/components/editor/decoration-picker/index.ts',
+    )
+    const barrelSrc = await fs.readFile(barrelPath, 'utf-8')
+
+    // Must export the dynamic wrapper
+    expect(barrelSrc).toMatch(/export\s+\{[^}]*LucidePickerDynamic[^}]*\}/)
+
+    // Must NOT export the eager LucidePicker as a value (only the props type
+    // is allowed via `export type`). The eager component would break the
+    // PICKER-08 lazy-load contract if a consumer imported it from the barrel.
+    const eagerExportRe = /export\s+\{[^}]*\bLucidePicker\b(?!Dynamic)[^}]*\}\s+from\s+['"]\.\/lucide-picker['"]/
+    expect(barrelSrc).not.toMatch(eagerExportRe)
+  })
+
+  it('Test 18: dynamic wrapper source uses next/dynamic with loading: () => null + ssr: false', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const dynPath = path.join(
+      process.cwd(),
+      'src/components/editor/decoration-picker/lucide-picker.dynamic.tsx',
+    )
+    const dynSrc = await fs.readFile(dynPath, 'utf-8')
+    expect(dynSrc).toMatch(/from\s+['"]next\/dynamic['"]/)
+    expect(dynSrc).toMatch(/loading:\s*\(\)\s*=>\s*null/)
+    expect(dynSrc).toMatch(/ssr:\s*false/)
+    // Imports the eager picker via the dynamic () => import('./lucide-picker') form
+    expect(dynSrc).toMatch(/import\(['"]\.\/lucide-picker['"]\)/)
+  })
+})
