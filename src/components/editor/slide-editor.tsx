@@ -30,6 +30,16 @@ import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { useSelectionModel } from '@/lib/editor/use-selection-model'
 import { isEditingTarget } from '@/lib/editor/keyboard-utils'
 import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
+// Phase 70 Plan 03 (PICKER-07 + KBD-10 + KBD-11): decoration picker mounts +
+// R/C/L direct-insert + I/S picker-open shortcuts. The barrel re-exports the
+// LAZY LucidePickerDynamic (next/dynamic, ssr:false) — never import the eager
+// LucidePicker directly (DEPS-05 lazy-load contract).
+import {
+  LucidePickerDynamic,
+  ShapePicker,
+  buildDefaultShapeDecoration,
+} from '@/components/editor/decoration-picker'
+import type { Decoration } from '@/lib/types/decoration'
 // Phase 63 Plan 02 (ALIGN-01..06): types for the 6-axis align + 2-axis distribute
 // dispatch shape. Imported here so both the tinykeys handlers and the handleAlign
 // callback wired to SlideCanvas.onAlign use the SAME ALIGN/DISTRIBUTE action
@@ -137,6 +147,39 @@ export function SlideEditor({
   // must NEVER trigger re-renders (PERF-01 carry-forward — refs for hot-path
   // state, matching Plan 60-04 useModifierState pattern).
   const lastMoveDeltaRef = useRef<{ x: number; y: number } | null>(null)
+
+  // Phase 70 Plan 03 (PICKER-07 + KBD-11): picker open state + ref-only firewall.
+  // openPicker is React state (drives JSX mount/unmount); isPickerOpenRef
+  // mirrors `openPicker !== null` and is read INSIDE every tinykeys binding
+  // body as a SECOND short-circuit `if (isEditingTarget(e.target) ||
+  // isPickerOpenRef.current) return`. Refs-only contract from v2.11 SWEEP-1..4
+  // — useRef avoids the re-render churn that useState would trigger on every
+  // open/close, which matters because the keyboard handler closure captures
+  // every render's snapshot of the binding map. setOpenPicker updates BOTH
+  // the state and the ref synchronously to avoid the "stale ref read" race
+  // that would happen if the ref only updated on next render.
+  //
+  // Single state-machine shape (`'lucide' | 'shape' | null`) was chosen over
+  // two parallel boolean states because it makes the firewall sync trivial
+  // and forbids the impossible "both pickers open simultaneously" state.
+  const [openPicker, _setOpenPicker] = useState<'lucide' | 'shape' | null>(null)
+  const isPickerOpenRef = useRef<boolean>(false)
+  const setOpenPicker = useCallback((next: 'lucide' | 'shape' | null) => {
+    _setOpenPicker(next)
+    isPickerOpenRef.current = next !== null
+  }, [])
+
+  // Phase 70 Plan 03 (PICKER-05 D-CLICK-INSERT carry-forward): the shared
+  // onAddDecoration handler. Both pickers (LucidePicker + ShapePicker) call
+  // this to dispatch ADD_DECORATION + auto-select the new id via
+  // selection.replaceWith. Single pushHistory entry per insert (Phase 68
+  // reducer invariant + KBD-09 carry-forward). The R/C/L direct-insert
+  // bindings inline this same flow (they don't go through the picker so the
+  // useCallback identity is irrelevant there).
+  const onPickerAddDecoration = useCallback((d: Decoration) => {
+    dispatch({ type: 'ADD_DECORATION', slideIndex: selectedIndex, decoration: d })
+    selection.replaceWith([d.id])
+  }, [dispatch, selectedIndex, selection])
 
   // Phase 57 (D-08): photo-treatment override handling. useTransition keeps
   // the spinner state co-located with the editor; revalidatePath fires from
@@ -886,7 +929,7 @@ export function SlideEditor({
         })
       },
       'Shift+ArrowRight': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = +NUDGE_X_LARGE_PCT
@@ -899,6 +942,59 @@ export function SlideEditor({
           deltaX,
           deltaY,
         })
+      },
+
+      // ────────────────────────────────────────────────────────────────────
+      // Phase 70 Plan 03 (KBD-10 / KBD-11 / PICKER-07): direct-insert + picker-
+      // open shortcuts. Each binding inlines BOTH firewall short-circuits
+      // (isEditingTarget BEFORE isPickerOpenRef BEFORE preventDefault) so
+      // typing 'R' in a hook editor preserves native input AND re-pressing 'I'
+      // while the picker is open is a silent no-op (state-machine invariant —
+      // only one picker open at a time, no remount race).
+      //
+      // R/C/L call buildDefaultShapeDecoration (Plan 70-01) for byte-identical
+      // defaults to the ShapePicker tile click; auto-select via
+      // selection.replaceWith mirrors onPickerAddDecoration.
+      //
+      // I/S route through setOpenPicker which updates BOTH the React state
+      // (drives JSX mount) and isPickerOpenRef (drives all tinykeys
+      // short-circuits) in one synchronous call.
+      //
+      // Convention: bare lowercase letters per Canva/Figma — tinykeys
+      // disambiguates by modifier set so this never collides with $mod+L
+      // (lock toggle). KBD-02 firewall ordering: editing-target check first
+      // (PITFALL-9.2 caret-preservation), then picker-open check, then
+      // preventDefault, then dispatch. ────────────────────────────────────
+      'r': (e) => {
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
+        e.preventDefault()
+        const d = buildDefaultShapeDecoration('rect')
+        dispatch({ type: 'ADD_DECORATION', slideIndex: selectedIndex, decoration: d })
+        selection.replaceWith([d.id])
+      },
+      'c': (e) => {
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
+        e.preventDefault()
+        const d = buildDefaultShapeDecoration('circle')
+        dispatch({ type: 'ADD_DECORATION', slideIndex: selectedIndex, decoration: d })
+        selection.replaceWith([d.id])
+      },
+      'l': (e) => {
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
+        e.preventDefault()
+        const d = buildDefaultShapeDecoration('line')
+        dispatch({ type: 'ADD_DECORATION', slideIndex: selectedIndex, decoration: d })
+        selection.replaceWith([d.id])
+      },
+      'i': (e) => {
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
+        e.preventDefault()
+        setOpenPicker('lucide')
+      },
+      's': (e) => {
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
+        e.preventDefault()
+        setOpenPicker('shape')
       },
     })
 
@@ -945,6 +1041,9 @@ export function SlideEditor({
     removeTextBox,
     dispatch,
     selection,
+    // Phase 70 Plan 03 (KBD-11): setOpenPicker is a useCallback with empty
+    // deps so its identity is stable; included explicitly for the lint rule.
+    setOpenPicker,
   ])
 
   async function handleTemplateChange(newId: string) {
@@ -1695,6 +1794,30 @@ export function SlideEditor({
           </div>
         </aside>
       </div>
+
+      {/* Phase 70 Plan 03 (PICKER-01 + SHAPES-02): picker mounts. Outside the
+          three-panel grid so the modal/popover float above the editor.
+          LucidePickerDynamic uses next/dynamic (ssr:false) so the eager
+          editor route chunk doesn't pull in the lucide-static corpus +
+          tanstack-virtual + ufuzzy until the user opens the picker
+          (DEPS-05). ShapePicker is small + eager (8 tiles, no heavy deps).
+          Both call onPickerAddDecoration → ADD_DECORATION dispatch +
+          selection.replaceWith — single pushHistory entry per insert
+          (KBD-09 / Phase 68 reducer invariant).
+
+          PCL11 chrome-leak invariant honored: picker DOM is OFF-canvas
+          modal chrome — never enters the Satori path or the non-editable
+          preview path (the slide-editor's own surface is editable=true). */}
+      <LucidePickerDynamic
+        open={openPicker === 'lucide'}
+        onClose={() => setOpenPicker(null)}
+        onAddDecoration={onPickerAddDecoration}
+      />
+      <ShapePicker
+        open={openPicker === 'shape'}
+        onClose={() => setOpenPicker(null)}
+        onAddDecoration={onPickerAddDecoration}
+      />
 
     </div>
   )
