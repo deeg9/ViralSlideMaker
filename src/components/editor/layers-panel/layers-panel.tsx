@@ -52,12 +52,28 @@ export default function LayersPanel({
 }: LayersPanelProps) {
   const rows = useMemo(
     () => synthesizeRows(slide),
-    // Memo deps: the three element-bearing slots. Reference-stable when
+    // Memo deps: the four element-bearing slots. Reference-stable when
     // the reducer doesn't mutate. useSlideEditor's reducer always returns
     // new array references on mutation (immutable pattern), so this
     // memo invalidates exactly when content changes.
-    [slide.text_boxes, slide.custom_images, slide.watermark],
+    // Phase 70 Plan 05: include slide.decorations so decoration adds /
+    // removes / mutations invalidate the row synthesis.
+    [slide.text_boxes, slide.custom_images, slide.decorations, slide.watermark],
   )
+
+  // Phase 70 Plan 05 (PARITY-18): id → Decoration lookup so each
+  // decoration chip can render its miniature glyph via Phase 69
+  // renderDecoration. useMemo'd map keyed on slide.decorations preserves
+  // ref-stability of each Decoration value across LayersPanel re-renders;
+  // LayerChip's areEqual short-circuits on `prev.decoration === next.decoration`
+  // when the underlying decoration is unchanged.
+  const decorationById = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof slide.decorations>[number]>()
+    for (const d of slide.decorations ?? []) {
+      map.set(d.id, d)
+    }
+    return map
+  }, [slide.decorations])
 
   // Group-collapse state — keyed by groupId; default false (collapsed)
   // per CONTEXT D-02 ("Collapsed: shows 'Group (N members)'").
@@ -181,6 +197,10 @@ export default function LayersPanel({
             const selected = selectedSet.has(row.id)
             const primary = selection.primary === row.id
             const isEditing = editingId === row.id
+            const chipDecoration =
+              row.elementType === 'decoration'
+                ? (decorationById.get(row.id) ?? null)
+                : null
             return (
               <LayerChip
                 key={`chip-${row.id}-${idx}`}
@@ -195,6 +215,7 @@ export default function LayersPanel({
                 onLockToggle={handleChipLockToggle}
                 onVisibilityToggle={handleChipVisToggle}
                 onReorder={handleChipReorder}
+                decoration={chipDecoration}
               />
             )
           })}

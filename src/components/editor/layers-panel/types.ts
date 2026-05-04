@@ -1,4 +1,5 @@
 import type { Slide } from '@/lib/types/slide'
+import type { Decoration } from '@/lib/types/decoration'
 import type { SelectionModel } from '@/lib/editor/use-selection-model'
 
 /**
@@ -109,6 +110,14 @@ export interface LayerChipProps {
       reducer ref-equal short-circuits on no-op (e.g. clicking up on
       the top element, or watermark single-slot per Plan 64-03 D-03). */
   onReorder: (elementId: string, op: 'forward' | 'backward') => void
+  /** Phase 70 Plan 05 (PARITY-18): when row.elementType === 'decoration',
+      LayersPanel resolves the actual Decoration object via slide.decorations
+      lookup and passes it here. The chip then renders a 16×16 miniature glyph
+      via Phase 69 renderDecoration (single source of truth — TPLREND-05).
+      When null/undefined (stale id, e.g. the element was deleted but a row
+      reference still exists in transit), the chip falls back to the material
+      'category' icon. */
+  decoration?: Decoration | null
 }
 
 /** Per-group-row props. Group-collapse state lives in panel-local
