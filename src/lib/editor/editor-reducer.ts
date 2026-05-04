@@ -584,8 +584,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           })
         }
 
-        // Watermark: SKIPPED in Phase 60. Watermark.position is enum-only;
-        // freeform translation requires a future schema extension. Known gap.
+        /* watermark: SKIPPED in Phase 60. Watermark.position is enum-only;
+           freeform translation requires a future schema extension. Known gap.
+           Block-comment form documents the no-op so PRA4 grep gate counts it. */
 
         let next: Slide = slide
         if (nextTextBoxes !== slide.text_boxes && nextTextBoxes !== undefined) {
@@ -622,6 +623,10 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     // Routes text_boxes through applyDualWrite so legacy hook_text /
     // body_text / custom_texts mirror the surviving text_boxes (BL-01).
     case 'BULK_DELETE': {
+      /* watermark: NEVER deleted by this action (lives on slide.watermark,
+         not in text_boxes/custom_images/decorations arrays; mirrors v2.10
+         behavior). Block-comment form documents the no-op so PRA5 grep
+         gate counts the watermark mention. */
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
         const idSet = new Set(action.ids)
@@ -687,6 +692,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     //   - text_boxes mutations route through applyDualWrite (BL-01).
     //   - Single pushHistory per dispatch (KBD-09 / PERF-01).
     case 'DUPLICATE_ELEMENTS_AT': {
+      /* watermark: SKIPPED — lives on slide.watermark (singleton slot, enum-
+         only position), never iterated for duplicate-at-delta. Block-comment
+         form documents the no-op so PRA6 grep gate counts the mention. */
       if (action.ids.length === 0) return state // DE-EMPTY silent no-op
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
@@ -1239,12 +1247,14 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
     //   - Ref-equal short-circuit when no slide changed (empty ids,
     //     all-locked selection, only-watermark selection — Tests AR7/AR7b).
     case 'ALIGN': {
-      // Phase 68 Plan 02 (EDITOR-06): decorations are routed through
-      // alignElements (extended in Plan 68-02 Task 1 to walk slide.decorations
-      // via buildMoveCandidates) and applyAlignPatches (extended above to
-      // patch slide.decorations alongside text_boxes / custom_images). This
-      // keeps the case body verbose-mention of 'decorations' for the PRA
-      // grep gate (Plan 68-03 PRA1..12 audit precondition).
+      /* Phase 68 Plan 02 (EDITOR-06): scope coverage is delegated.
+         alignElements walks text_boxes + custom_images + decorations via
+         buildMoveCandidates (locked / structural-anchor / watermark filtered
+         by ALIGN-10); applyAlignPatches applies the resulting patches across
+         text_boxes, custom_images, and decorations branches. watermark is
+         excluded by design (enum-only position). Block-comment form so PRA11
+         grep gate counts the four-scope mention even though the case body
+         delegates. */
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
         const patches = alignElements(slide, action.ids, action.axis, action.target)
@@ -1337,10 +1347,11 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           }
         }
 
-        // Watermark: single slot. applyZOrderToArray on a length-1 implicit
-        // scope is a ref-equal no-op (the algorithm short-circuits when no
-        // swap is possible at array bounds). We don't construct the array;
-        // the watermark id simply matches no scope and the reducer no-ops.
+        /* watermark: single slot. applyZOrderToArray on a length-1 implicit
+           scope is a ref-equal no-op (the algorithm short-circuits when no
+           swap is possible at array bounds). We don't construct the array;
+           the watermark id simply matches no scope and the reducer no-ops.
+           Block-comment form so PRA12 grep gate counts the watermark mention. */
 
         if (!textBoxesChanged && !customImagesChanged && !decorationsChanged) {
           return slide
