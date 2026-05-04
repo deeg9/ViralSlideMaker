@@ -22,19 +22,27 @@ describe('hook-fit registry', () => {
   it('news templates fit single-line into 78%-canvas hook container', () => {
     // baseSize 110 — re-tightened 2026-05-02 to enforce single-line fit so
     // AI-generated segment hooks don't bleed past the canvas.
+    // 260503: long-hook step tightened to 0.45 / 0.38 — at the previous 0.52
+    // (57px) the 27-char segment "IS OUTSOURCING THINKING TO" still rendered
+    // wider than the 842px container in Satori, overflowing the cover-layout
+    // hook zone and crashing into the body.
     expect(getHookFontSize('news-drop', 'SHORT', 110)).toBe(110) // 5 chars → 1.0
     expect(getHookFontSize('news-drop', 'A'.repeat(14), 110)).toBe(110) // 14 chars → 1.0
     expect(getHookFontSize('news-drop', 'A'.repeat(15), 110)).toBe(88) // 15 chars → 0.80
     expect(getHookFontSize('news-drop', 'A'.repeat(22), 110)).toBe(88) // 22 chars → 0.80
     expect(getHookFontSize('news-drop', 'A'.repeat(23), 110)).toBe(72) // 23 chars → 0.65
     expect(getHookFontSize('news-drop', 'A'.repeat(32), 110)).toBe(72) // 32 chars → 0.65
-    expect(getHookFontSize('news-drop', 'A'.repeat(33), 110)).toBe(57) // 33 chars → 0.52
-    expect(getHookFontSize('news-drop', 'A'.repeat(48), 110)).toBe(57) // 48 chars → 0.52
-    expect(getHookFontSize('news-drop', 'A'.repeat(80), 110)).toBe(46) // 49+ chars → 0.42
+    expect(getHookFontSize('news-drop', 'A'.repeat(33), 110)).toBe(50) // 33 chars → 0.45
+    expect(getHookFontSize('news-drop', 'A'.repeat(48), 110)).toBe(50) // 48 chars → 0.45
+    expect(getHookFontSize('news-drop', 'A'.repeat(80), 110)).toBe(42) // 49+ chars → 0.38
     // Real samples from the regression bug report
-    expect(getHookFontSize('news-cyan', 'AMAZON FACES PRICE-FIXING ALLEGATIONS', 110)).toBe(57) // 37 chars → 0.52
+    expect(getHookFontSize('news-cyan', 'AMAZON FACES PRICE-FIXING ALLEGATIONS', 110)).toBe(50) // 37 chars → 0.45
     expect(getHookFontSize('news-cyan', 'VIRALITY WAS HER ONLY HOPE', 110)).toBe(72) // 26 chars → 0.65
     expect(getHookFontSize('news-cyan', 'THIS IS A HUGE PROBLEM', 110)).toBe(88) // 22 chars → 0.80
+    // Regression lock for the original failing case ("YOUR BRAIN IS
+    // OUTSOURCING THINKING TO AI" — 41 chars). Must drop below the previous
+    // 57px so the long inner segment fits the 842px container in Satori.
+    expect(getHookFontSize('news-cyan', 'YOUR BRAIN IS OUTSOURCING THINKING TO AI', 110)).toBe(50)
   })
 
   it('scales premium template hooks (Plus Jakarta Sans, tighter curve for bottom-card layouts)', () => {

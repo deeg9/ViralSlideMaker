@@ -77,11 +77,14 @@ describe('Phase 59 (FONTSCALE-04): hook-fit auto-shrink override regression', ()
       />,
     )
 
-    // The hook is rendered as a <p> with inline fontSize style. Find it via the
-    // text content and assert the inline style contains '80px'.
+    // The hook is rendered as a styled <div> (260503 parity change) with inline
+    // fontSize. Find it via the text content and assert the inline style contains '80px'.
     const hookEl = screen.getByText(/STOP SCROLLING/i)
-    // Walk to the styled <p> ancestor (or the element itself if it carries the style)
-    const styled = hookEl.tagName === 'P' ? hookEl : hookEl.closest('p') ?? hookEl.parentElement
+    // 260503: hook container changed from <p> to <div display:flex flex-wrap:wrap> for
+    // Satori parity. Walk up to the first ancestor carrying inline fontSize.
+    let styled: HTMLElement | null = hookEl as HTMLElement
+    while (styled && !styled.style?.fontSize) styled = styled.parentElement
+
     expect(styled).not.toBeNull()
     const fontSize = (styled as HTMLElement).style.fontSize
     expect(fontSize).toBe('80px')
@@ -118,7 +121,11 @@ describe('Phase 59 (FONTSCALE-04): hook-fit auto-shrink override regression', ()
     )
 
     const hookEl = screen.getByText(/STOP SCROLLING/i)
-    const styled = hookEl.tagName === 'P' ? hookEl : hookEl.closest('p') ?? hookEl.parentElement
+    // 260503: hook container changed from <p> to <div display:flex flex-wrap:wrap> for
+    // Satori parity. Walk up to the first ancestor carrying inline fontSize.
+    let styled: HTMLElement | null = hookEl as HTMLElement
+    while (styled && !styled.style?.fontSize) styled = styled.parentElement
+
     const fontSize = (styled as HTMLElement).style.fontSize
     // The control assertion: if the override path were broken and silently
     // emitted '80px' for the no-override case too, we'd see it here. Assert

@@ -19,8 +19,11 @@ const SAFE = {
 // Returned values are percentages (0-100) on the 1080x1920 canvas.
 // Cover layout: image takes ~55% top, hook+body sit in the lower-middle (not the very bottom)
 // so neither the headline nor the wrapped body lines get pushed off-canvas.
+// 260503: cover.bodyY bumped 80 → 84 to give long-hook wraps a vertical safety
+// margin before they could collide with the body zone. Mirrors the same change
+// in render-slide-satori.tsx and slide-preview.tsx.
 const NEWS_LAYOUT = {
-  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 80 },
+  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 84 },
   body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
 } as const
 
