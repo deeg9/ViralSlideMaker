@@ -1,5 +1,19 @@
 import { GoogleGenAI, Type, type Schema } from '@google/genai'
-import { CarouselSchema, type Carousel, type SlideContent } from './schemas'
+import {
+  CarouselSchema,
+  DecorationSchema,
+  parseDecorationsArraySafe,
+  type Carousel,
+  type SlideContent,
+  type DecorationContent,
+} from './schemas'
+
+// Phase 67 (DECOR-05): re-export the Decoration validator at the AI-ingest
+// boundary so Phase 71 (AI-01..05) can wire Gemini emit + post-parse silent
+// drop without modifying this file's import surface. Plan 67-01 only
+// registers the schema — there is no consumer yet.
+export { DecorationSchema, parseDecorationsArraySafe }
+export type { DecorationContent }
 import { buildSystemPrompt } from './prompts'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'

@@ -63,3 +63,103 @@ export const CarouselSchema = z.object({
 export type TextSegmentContent = z.infer<typeof TextSegmentSchema>
 export type SlideContent = z.infer<typeof SlideContentSchema>
 export type Carousel = z.infer<typeof CarouselSchema>
+
+// Phase 67 (DECOR-05): Decoration discriminated-union Zod schema. Registered
+// at the AI-ingest boundary; Phase 71 will wire Gemini emit to consume this.
+// Plan 67-01 lands the schema only — no runtime consumer yet.
+//
+// Silent-drop pattern (mirrors v2.9 D-08 template_id_override): unknown
+// lucideName (or any other malformed entry) is dropped from the array via
+// parseDecorationsArraySafe — never throws. The closed-enum lucideName
+// allowlist is a Phase 71 concern; this layer accepts any non-empty string.
+
+export const DecorationPositionSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+})
+
+export const DecorationStrokeSchema = z.object({
+  color: z.string(),
+  width: z.number(),
+  style: z.enum(['solid', 'dashed', 'dotted']),
+})
+
+export const DecorationShadowEffectSchema = z.object({
+  enabled: z.boolean(),
+  color: z.string(),
+  size: z.enum(['sm', 'md', 'lg']),
+})
+
+export const DecorationEffectsSchema = z.object({
+  shadow: DecorationShadowEffectSchema.optional(),
+})
+
+const DecorationBaseFields = {
+  id: z.string(),
+  position: DecorationPositionSchema,
+  groupId: z.string().optional(),
+  locked: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+  name: z.string().optional(),
+  rotation: z.number().optional(),
+  opacity: z.number().optional(),
+  effects: DecorationEffectsSchema.optional(),
+} as const
+
+export const IconDecorationSchema = z.object({
+  kind: z.literal('icon'),
+  ...DecorationBaseFields,
+  lucideName: z.string().min(1),
+  color: z.string(),
+  strokeWidth: z.number(),
+})
+
+export const ShapeDecorationSchema = z.object({
+  kind: z.literal('shape'),
+  ...DecorationBaseFields,
+  shapeKind: z.enum([
+    'rect',
+    'circle',
+    'ellipse',
+    'triangle',
+    'polygon',
+    'star',
+    'arrow',
+    'line',
+  ]),
+  fill: z.string(),
+  stroke: DecorationStrokeSchema.optional(),
+  cornerRadius: z.number().optional(),
+  points: z.number().optional(),
+})
+
+export const DecorationSchema = z.discriminatedUnion('kind', [
+  IconDecorationSchema,
+  ShapeDecorationSchema,
+])
+
+/**
+ * Phase 67 (DECOR-05): silent-drop array parser. Per-entry safeParse; malformed
+ * entries are filtered without throwing. Mirrors v2.9 D-08 template_id_override
+ * defaulting pattern. Phase 71 will additionally clamp to maxItems: 2 and
+ * gate lucideName against the closed-enum allowlist — both layered ON TOP of
+ * this base validator.
+ */
+export function parseDecorationsArraySafe(
+  input: unknown,
+): z.infer<typeof DecorationSchema>[] {
+  if (!Array.isArray(input)) return []
+  const out: z.infer<typeof DecorationSchema>[] = []
+  for (const entry of input) {
+    const result = DecorationSchema.safeParse(entry)
+    if (result.success) out.push(result.data)
+    // else: silent drop — never throws (DECOR-05)
+  }
+  return out
+}
+
+export type DecorationContent = z.infer<typeof DecorationSchema>
+export type IconDecorationContent = z.infer<typeof IconDecorationSchema>
+export type ShapeDecorationContent = z.infer<typeof ShapeDecorationSchema>
