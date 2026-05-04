@@ -35,7 +35,7 @@
 - [x] **Phase 68: Reducer Extensions + Selection Model** — Every multi-select reducer action + selection model + alignment + marquee + group + layers walkers know about decorations; reducer-level tests prove correctness without UI. (completed 2026-05-04)
 - [ ] **Phase 69: Renderers + DecorationRenderer + First Parity Proof** — Shared `decoration-renderer.tsx` consumed by BOTH Satori + React preview; hand-injected fixture decorations render byte-identical PNG/DOM across all 8 shapeKinds + 10 representative Lucide icons.
 - [x] **Phase 70: Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library** — Lucide modal picker (virtualized + fuzzy + keyboard nav) + 8-shape popover + DecorationCard right-rail + layers panel chips + R/C/L/I/S keyboard insert shortcuts. (completed 2026-05-04)
-- [ ] **Phase 71: AI Emit + Fork RPC + Comprehensive Parity Audit** — Gemini emits `decorations[]` per slide with closed-enum allowlist + named color tokens + semantic anchors + advisory monoculture gate; fork RPC migration; final R1–R10 parity audit.
+- [x] **Phase 71: AI Emit + Fork RPC + Comprehensive Parity Audit** — Gemini emits `decorations[]` per slide with closed-enum allowlist + named color tokens + semantic anchors + advisory monoculture gate; fork RPC migration; final R1–R10 parity audit. (completed 2026-05-04)
 - [ ] **Phase 72: Interactive Rotation Handles + Rotation-Aware AABB** — Drag-to-rotate handle on selected decoration; new `BULK_ROTATE` reducer action; rotation-aware AABB lift across `selection-bounds.ts` / alignment / smart guides / marquee intersect.
 
 ## Phase Details
@@ -114,10 +114,10 @@
   2. AI-emitted decoration names outside the closed-enum allowlist (e.g. Phosphor `'arrow-right-circle-fill'`) are silently dropped at the AI-ingest boundary in `generate-slides.ts` post-Zod-parse; AI emitting >2 decorations per slide is server-side-clamped to the first 2; decoration on decoration-bearing slide renders byte-identical across renderers (PTF17).
   3. Across a 20-prompt diversity corpus, advisory `decorationDiversityCheck()` logs warning if ≥60% of generated slides share the same `lucideName` or `shapeKind` (mirror v2.9 `hookOpeningTrigram` pattern); does NOT fail CI in v2.12; carry-forward to fail-gate in v3.0+ if production data shows monoculture.
   4. User forks a published carousel containing locked decorations → `fork_published_carousel` RPC strips `locked` flag from decorations[] (mirror v2.11 `20260502_fork_strip_locked.sql` SQL helper); forker inherits decoration positions/colors but NOT lock state.
-**Plans:** 1/3 plans executed
-- [x] 71-01-PLAN.md — DecorationEmitSchema + resolveAIDecoration + Gemini ingest adapter (AI-01..04; ~35 unit tests)
-- [ ] 71-02-PLAN.md — Advisory monoculture gate + Fork RPC SQL migration (AI-05, MIGR-01; ~17 tests)
-- [ ] 71-03-PLAN.md — PTF17 AI-emit parity audit + 71-V2.12-SHIP-GATES.md doc (PARITY-10; ≥5 tests + ship-gate doc)
+**Plans:** 3/3 plans executed
+- [x] 71-01-PLAN.md — DecorationEmitSchema + resolveAIDecoration + Gemini ingest adapter (AI-01..04; 35 unit tests)
+- [x] 71-02-PLAN.md — Advisory monoculture gate + Fork RPC SQL migration (AI-05, MIGR-01; 20 tests)
+- [x] 71-03-PLAN.md — PTF17 AI-emit parity audit + 71-V2.12-SHIP-GATES.md doc (PARITY-10; 7 tests + ship-gate doc enumerating 42 gates × 275 tests GREEN)
 **UI hint**: no
 
 ### Phase 72: Interactive Rotation Handles + Rotation-Aware AABB

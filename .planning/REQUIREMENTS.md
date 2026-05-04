@@ -104,7 +104,7 @@
 - [x] **AI-02**: `maxItems: 2` per slide enforced in Gemini schema AND server-side clamp at AI-ingest boundary (`generate-slides.ts` post-Zod-parse, mirror `legacyToTextBoxes` adapter)
 - [x] **AI-03**: AI emits color as named token (`'accent'` / `'palette-vibrant'` / `'palette-dark-muted'`) → resolved server-side to explicit hex via `resolveAIColor(token, slide.template, slide.style_overrides.derived_palette)` — never raw hex from AI
 - [x] **AI-04**: AI emits position as semantic anchor (`'top-right'` / `'bottom-left'` / `'center'` / etc.) → resolved server-side to safe-zone % coords; falls back to slide-center on unknown anchor
-- [ ] **AI-05**: Advisory monoculture gate — `decorationDiversityCheck()` mirror v2.9 `hookOpeningTrigram` pattern; logs warning if ≥60% of slides share lucideName/shapeKind across the carousel; does NOT fail CI in v2.12
+- [x] **AI-05**: Advisory monoculture gate — `decorationDiversityCheck()` mirror v2.9 `hookOpeningTrigram` pattern; logs warning if ≥60% of slides share lucideName/shapeKind across the carousel; does NOT fail CI in v2.12
 
 ### TPLREND-05 Parity Audit Extension (PARITY)
 
@@ -112,7 +112,7 @@
 - [ ] **PARITY-07**: PTF14 — 8 shape kinds × filled + outlined = 16 shape fingerprints byte-identical
 - [ ] **PARITY-08**: PTF15 — 45°-rotated arrow shape byte-identical (rotation edge case)
 - [x] **PARITY-09**: PTF16 — `decorations === undefined` slide PNG byte-identical to pre-v2.12 baseline (idempotent-absence gate; verified across all 11 legacy templates)
-- [ ] **PARITY-10**: PTF17 — AI-emitted decoration on decoration-bearing slide dual-renderer byte-identical
+- [x] **PARITY-10**: PTF17 — AI-emitted decoration on decoration-bearing slide dual-renderer byte-identical
 - [ ] **PARITY-11**: PTF18 — Non-uniform scale (1.5×1.0 icon) byte-identical
 - [x] **PARITY-12**: PCL11 — chrome-leak grep: decoration render paths contain no `*selection*` / `*marquee*` / `*guide*` / `*lock-icon*` / `*decoration-ring*` classNames
 - [ ] **PARITY-13**: PCL12 — color-cascade grep: zero `currentColor` references in `src/lib/render/` production code
@@ -124,7 +124,7 @@
 
 ### Migration + Fork RPC (MIGR)
 
-- [ ] **MIGR-01**: Supabase migration `20260YYY_fork_strip_decoration_locked.sql` — fork RPC strips `locked` flag on decorations (mirror v2.11 `20260502_fork_strip_locked.sql` pattern)
+- [x] **MIGR-01**: Supabase migration `20260YYY_fork_strip_decoration_locked.sql` — fork RPC strips `locked` flag on decorations (mirror v2.11 `20260502_fork_strip_locked.sql` pattern)
 - [x] **MIGR-02**: Eager-on-load schema migration handles existing 53+ projects transparently — `decorations === undefined` is the natural baseline; no backfill required (additive-only schema)
 
 ---
@@ -225,16 +225,16 @@ Every requirement maps to exactly one phase (100% coverage; 81/81 reqs).
 | KBD-10 | Keyboard Shortcuts | Phase 70 | Pending |
 | KBD-11 | Keyboard Shortcuts | Phase 70 | Pending |
 | KBD-12 | Keyboard Shortcuts | Phase 70 | Pending |
-| AI-01 | Gemini AI Emit | Phase 71 | Pending |
-| AI-02 | Gemini AI Emit | Phase 71 | Pending |
-| AI-03 | Gemini AI Emit | Phase 71 | Pending |
-| AI-04 | Gemini AI Emit | Phase 71 | Pending |
-| AI-05 | Gemini AI Emit | Phase 71 | Pending |
+| AI-01 | Gemini AI Emit | Phase 71 | Complete |
+| AI-02 | Gemini AI Emit | Phase 71 | Complete |
+| AI-03 | Gemini AI Emit | Phase 71 | Complete |
+| AI-04 | Gemini AI Emit | Phase 71 | Complete |
+| AI-05 | Gemini AI Emit | Phase 71 | Complete |
 | PARITY-06 | TPLREND-05 Parity Audit | Phase 69 | Pending |
 | PARITY-07 | TPLREND-05 Parity Audit | Phase 69 | Pending |
 | PARITY-08 | TPLREND-05 Parity Audit | Phase 72 | Pending |
 | PARITY-09 | TPLREND-05 Parity Audit | Phase 67 | Pending |
-| PARITY-10 | TPLREND-05 Parity Audit | Phase 71 | Pending |
+| PARITY-10 | TPLREND-05 Parity Audit | Phase 71 | Complete |
 | PARITY-11 | TPLREND-05 Parity Audit | Phase 69 | Pending |
 | PARITY-12 | TPLREND-05 Parity Audit | Phase 70 | Pending |
 | PARITY-13 | TPLREND-05 Parity Audit | Phase 69 | Pending |
@@ -243,7 +243,7 @@ Every requirement maps to exactly one phase (100% coverage; 81/81 reqs).
 | PARITY-16 | TPLREND-05 Parity Audit | Phase 68 | Pending |
 | PARITY-17 | TPLREND-05 Parity Audit | Phase 68 | Pending |
 | PARITY-18 | TPLREND-05 Parity Audit | Phase 70 | Pending |
-| MIGR-01 | Migration + Fork RPC | Phase 71 | Pending |
+| MIGR-01 | Migration + Fork RPC | Phase 71 | Complete |
 | MIGR-02 | Migration + Fork RPC | Phase 67 | Pending |
 
 ### Reverse mapping (Phase → Requirements)

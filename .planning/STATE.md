@@ -4,14 +4,14 @@ milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
 status: completed
 stopped_at: "Plan 63-04 complete (Wave 2 — Wave B integration). Phase 63 4/5 plans shipped. Ready for Plan 63-05 (polish — PARITY-03 multi-element fixture extension + perf budget verification + locked-elements-participate-in-bounds completion). Plan 63-05 inherits stable seams: smart-guide-overlay testid in PARITY-01 chrome-leak regex; runSnapForDrag closure pattern; detectEqualSpacing helper; persistent-pool overlay component reusable from any future drag-time chrome surface."
-last_updated: "2026-05-04T09:58:20.497Z"
-last_activity: 2026-05-04 — Plan 71-01 SHIPPED (DecorationEmitSchema + resolveAIDecoration + Gemini ingest adapter)
+last_updated: "2026-05-04T03:14:30.000Z"
+last_activity: 2026-05-04 — Plan 71-03 SHIPPED (PTF17 AI-emit fingerprint baseline + V2.12-SHIP-GATES.md); Phase 71 COMPLETE; v2.12 milestone READY-TO-SHIP
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
-  completed_plans: 14
-  percent: 88
+  completed_plans: 16
+  percent: 100
 ---
 
 # Project State
@@ -26,10 +26,12 @@ See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 
 ## Current Position
 
-Phase: 71 — AI Emit + Fork RPC + Comprehensive Parity Audit (Plan 71-01 SHIPPED; Plan 71-02 + 71-03 ready)
+Phase: 71 — AI Emit + Fork RPC + Comprehensive Parity Audit **COMPLETE** (3/3 plans shipped — all 7 phase reqs closed; v2.12 milestone ready-to-ship pending Phase 72 + manual QA)
+Plan: 71-03 SHIPPED (Wave 3 — PTF17 AI-emit byte-identity fingerprint baseline + V2.12-SHIP-GATES.md comprehensive audit-gate enumeration). NEW src/lib/render/__tests__/parity.template-fingerprint-decorations-ai-emit.test.tsx: 7 PTF17 tests (5 cross-renderer fingerprint + 2 sanity) covering AI-emitted icon-accent (top-right) / icon-palette-vibrant (resolves derived_palette[0]=#11AABB) / shape-rect-accent (bottom-left, cornerRadius 8) / shape-circle-palette-vibrant (center) / multi-decoration (icon + shape on same slide, separate slice extraction by data-decoration-id). Pipes DecorationEmitContent through full Plan 71-01 ingest pipeline (DecorationEmitSchema.safeParse → resolveAIDecoration → DecorationSchema.safeParse) into BOTH renderers; asserts decoration-slice byte-identity via expect(preview).toBe(satori) AND snapshot pin (defense-in-depth, mirror PTF13/14/18). 6 snapshots committed; second-run snapshot stability verified. NEW .planning/phases/71-…/71-V2.12-SHIP-GATES.md (217 LOC): single canonical reference for every v2.12 audit gate — 9 gate families × 42 gates × 275 ship-gate tests across 14 test files, ALL GREEN. Each row: phase + plan + test file path + test count + commit hash + status. Carry-forward to v2.13+ (promote AI-05 to fail-CI, per-template decorationWhitelist?, PTF15 Phase 72, MIGR-02 live integration test). Closes PARITY-10 (PTF17). PTF13/14/18 still 31/31 GREEN; full Phase 71 suite (AI + migration + PTF17) 133/133 GREEN; tsc baseline 17 preserved. 2 atomic commits `a347858` (test) / `c187e1f` (docs).
+Plan: 71-02 SHIPPED (Wave 2 — AI-05 advisory monoculture gate + MIGR-01 fork RPC strip-decoration-locked migration). decoration-diversity-check.ts: pure helper exporting decorationDiversityCheck(slides, opts?) + DEFAULT_MONOCULTURE_THRESHOLD=0.60 (v3.0+ promote-to-fail anchor); per-discriminator dominance (icons + shapes are independent populations); ≥60% triggers console.warn with [decoration-diversity] prefix; never blocks; never throws; wired into generate-slides.ts post-ingest (3 LOC). 20260504_fork_strip_decoration_locked.sql: CREATE OR REPLACE _strip_locked_from_slide_data adding 'decorations' to FOREACH ARRAY[]; fork_published_carousel body unchanged (helper update propagates). T-71-09 mitigated (forker inherits decoration positions/colors but never lock state). 20 new tests (12 diversity + 8 migration) GREEN; tsc baseline 17 preserved. Closes AI-05 + MIGR-01 (2 reqs). 2 atomic commits `cec0791` (diversity) / `ffaef03` (migration).
 Plan: 71-01 SHIPPED (Wave 1 — DecorationEmitSchema closed-enum AI emit + resolveAIDecoration token/anchor resolvers + Gemini responseSchema lift + post-Zod-parse ingest adapter). DecorationEmitSchema is the closed-enum SUBSET of full DecorationSchema; AI emits NAMED COLOR TOKENS (never raw hex) + SEMANTIC POSITION ANCHORS (never raw % coords) + closed 100-icon PascalCase allowlist (subset of Phase 69's 118-name registry; AI_LUCIDE_ALLOWLIST). 6 color tokens (accent / palette-vibrant / palette-dark-muted / palette-light / on-light / on-dark) + 7 anchors (top/bottom/center × left/right/center). NEW src/lib/ai/resolve-ai-decoration.ts: pure-function resolvers (resolveAIColor / resolveAIPosition / resolveAIDecoration / buildAIDecorationId) + locked AI_POSITION_RECTS safe-zone offsets that explicitly avoid central 24..76% hook+body band. generate-slides.ts: responseSchema gains slides[].decorations field (maxItems='2' soft cap); post-CarouselSchema.parse ingest pass runs triple-layer silent-drop pipeline (DecorationEmitSchema.safeParse → resolveAIDecoration try/catch → DecorationSchema.safeParse → resolved.length<2 hard cap). SlideContentSchema extended with loose `decorations` + `style_overrides` passthrough. 35 new tests (12 schema + 13 resolver + 10 ingest); 113/113 AI tests GREEN; 73/73 PTF16 idempotent-absence baseline preserved (slides without AI-emitted decorations still render byte-identical); tsc baseline 17 preserved. Closes AI-01..04 (4/7 phase reqs). 3 atomic commits `4bf0900` (schema) / `a84ab87` (resolver) / `f255aa9` (ingest).
-Phase 71 status: 1/3 plans shipped; Plan 71-02 (AI-05 advisory monoculture gate + MIGR-01 fork RPC strip-decoration-locked migration) and Plan 71-03 (PARITY-10 PTF17 comprehensive parity audit + ship-gate sweep) are unblocked. Both subsequent plans consume the resolved Decoration[] from this plan's ingest boundary.
-Last activity: 2026-05-04 — Plan 71-01 SHIPPED (DecorationEmitSchema + resolveAIDecoration + Gemini ingest adapter)
+Phase 71 status: COMPLETE; ALL 7 Phase 71 reqs closed (AI-01..05 + MIGR-01 + PARITY-10). v2.12 milestone (Phases 67/68/69/70/71) is officially READY-TO-SHIP per .planning/phases/71-…/71-V2.12-SHIP-GATES.md (42 gates × 275 tests GREEN); Phase 72 (rotation handles + PTF15 45° arrow byte-identity) is post-v2.12-ship work; 4 manual QA smoke tests pending user (Lucide picker scroll perf, Gemini AI-emit live, fork RPC live, v2.11→v2.12 load idempotency).
+Last activity: 2026-05-04 — Plan 71-03 SHIPPED (PTF17 AI-emit fingerprint baseline + V2.12-SHIP-GATES.md)
 
 ### Phase 69 carry-over
 
