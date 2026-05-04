@@ -262,3 +262,102 @@ describe('shouldGroupDrag — Phase 62 Plan 62-03 (GROUP-09)', () => {
     expect(new Set(result!)).toEqual(new Set(['tb1', 'ci1', 'w0']))
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 02 (EDITOR-05, EDITOR-10): group-membership extended to walk
+// decorations. getGroupMembers is now re-exported from the canonical
+// addressable-element-walkers module; shouldGroupDrag's find-cascade adds a
+// decorations branch between custom_images and watermark.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { Decoration, IconDecoration } from '@/lib/types/slide'
+
+function makeIconDec(
+  id: string,
+  groupId?: string,
+): IconDecoration {
+  return {
+    kind: 'icon',
+    id,
+    position: { x: 10, y: 20, width: 15, height: 15 },
+    lucideName: 'Heart',
+    color: '#FF0000',
+    strokeWidth: 2,
+    ...(groupId !== undefined ? { groupId } : {}),
+  }
+}
+
+function makeSlideD(opts: {
+  text_boxes?: TextBox[]
+  custom_images?: CustomImage[]
+  decorations?: Decoration[]
+  watermark?: Watermark
+}): Slide {
+  return {
+    hook_text: '',
+    body_text: '',
+    image_query: '',
+    is_cta: false,
+    background_url: null,
+    pexels_photo_id: null,
+    text_boxes: opts.text_boxes,
+    custom_images: opts.custom_images,
+    decorations: opts.decorations,
+    watermark: opts.watermark,
+  }
+}
+
+describe('group-membership — Phase 68 Plan 02 decoration extension', () => {
+  type Selection = { ids: string[]; primary: string | null }
+
+  test('GM-1: getGroupMembers walks decorations — returns decoration ids matching groupId', () => {
+    const slide = makeSlideD({
+      decorations: [
+        makeIconDec('d1', 'g_x'),
+        makeIconDec('d2'),
+        makeIconDec('d3', 'g_x'),
+      ],
+    })
+    expect(getGroupMembers(slide, 'g_x')).toEqual(['d1', 'd3'])
+  })
+
+  test('GM-2 (regression): existing v2.11 fixtures still return correct text_box+custom_image+watermark members', () => {
+    const slide = makeSlideD({
+      text_boxes: [makeTextBox('tb1', 'g_x')],
+      custom_images: [makeCustomImage('ci1', 'g_x')],
+      watermark: makeWatermark('w0', 'g_x'),
+    })
+    expect(getGroupMembers(slide, 'g_x')).toEqual(['tb1', 'ci1', 'w0'])
+  })
+
+  test('GM-3: shouldGroupDrag with decoration as draggedElementId resolves the decoration groupId correctly', () => {
+    const slide = makeSlideD({
+      text_boxes: [makeTextBox('tb1', 'g_x')],
+      decorations: [makeIconDec('d1', 'g_x')],
+    })
+    const selection: Selection = { ids: ['tb1', 'd1'], primary: 'd1' }
+    const result = shouldGroupDrag(slide, selection, null, 'd1')
+    expect(result).not.toBeNull()
+    expect(new Set(result!)).toEqual(new Set(['tb1', 'd1']))
+  })
+
+  test('GM-4: shouldGroupDrag with decoration whose groupId is undefined returns null (existing contract)', () => {
+    const slide = makeSlideD({
+      text_boxes: [makeTextBox('tb1', 'g_x')],
+      decorations: [makeIconDec('d1')],
+    })
+    const selection: Selection = { ids: ['tb1', 'd1'], primary: 'd1' }
+    expect(shouldGroupDrag(slide, selection, null, 'd1')).toBeNull()
+  })
+
+  test('GM-5: shouldGroupDrag selection equals group members across mixed scope (decoration+text_box) returns the member id list', () => {
+    const slide = makeSlideD({
+      text_boxes: [makeTextBox('tb1', 'g_y')],
+      decorations: [makeIconDec('d1', 'g_y')],
+    })
+    const selection: Selection = { ids: ['tb1', 'd1'], primary: 'tb1' }
+    const result = shouldGroupDrag(slide, selection, null, 'tb1')
+    expect(result).not.toBeNull()
+    expect(new Set(result!)).toEqual(new Set(['tb1', 'd1']))
+  })
+})

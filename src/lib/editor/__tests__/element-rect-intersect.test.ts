@@ -282,3 +282,111 @@ describe('elementsInRect — Phase 64 Plan 01 (LOCK-05): locked-skip filter', ()
     expect(elementsInRect(slide, rect)).toEqual(['a', 'c'])
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 02 (EDITOR-04): elementsInRect extended for decorations.
+// Decoration.position is a 4-tuple {x, y, width, height} of % units (mirrors
+// CustomImage layout semantics). LOCK-05 carry-forward — locked decorations
+// excluded so users can drag-select around them. Rotation-aware corners are
+// Phase 72 EDITOR-07 lift target — this phase intersects rectilinear AABB only.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { Decoration, IconDecoration, ShapeDecoration } from '@/lib/types/slide'
+
+function makeIconDec(
+  id: string,
+  pos: { x: number; y: number; width: number; height: number },
+  overrides: Partial<IconDecoration> = {},
+): IconDecoration {
+  return {
+    kind: 'icon',
+    id,
+    position: pos,
+    lucideName: 'Heart',
+    color: '#FF0000',
+    strokeWidth: 2,
+    ...overrides,
+  }
+}
+
+function makeShapeDec(
+  id: string,
+  pos: { x: number; y: number; width: number; height: number },
+  overrides: Partial<ShapeDecoration> = {},
+): ShapeDecoration {
+  return {
+    kind: 'shape',
+    id,
+    position: pos,
+    shapeKind: 'rect',
+    fill: '#00FF00',
+    ...overrides,
+  }
+}
+
+function makeSlideD(opts: {
+  text_boxes?: TextBox[]
+  custom_images?: CustomImage[]
+  decorations?: Decoration[]
+  watermark?: Watermark
+}): Slide {
+  return {
+    hook_text: 'H',
+    body_text: 'B',
+    image_query: 'q',
+    is_cta: false,
+    background_url: null,
+    pexels_photo_id: null,
+    text_boxes: opts.text_boxes,
+    custom_images: opts.custom_images,
+    decorations: opts.decorations,
+    watermark: opts.watermark,
+  }
+}
+
+describe('elementsInRect — Phase 68 Plan 02 decoration extension', () => {
+  test('EI-1: elementsInRect on rect overlapping a decoration returns [decoration_id]', () => {
+    const slide = makeSlideD({
+      decorations: [makeIconDec('d1', { x: 10, y: 10, width: 10, height: 10 })],
+    })
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 100 }
+    expect(elementsInRect(slide, rect)).toEqual(['d1'])
+  })
+
+  test('EI-2: elementsInRect EXCLUDES locked decoration (LOCK-05)', () => {
+    const slide = makeSlideD({
+      decorations: [
+        makeIconDec('d1', { x: 10, y: 10, width: 10, height: 10 }, { locked: true }),
+        makeShapeDec('d2', { x: 30, y: 30, width: 10, height: 10 }),
+      ],
+    })
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 100 }
+    expect(elementsInRect(slide, rect)).toEqual(['d2'])
+  })
+
+  test('EI-3: returns ids in canonical order: custom_images BEFORE decorations (slide source order pinned)', () => {
+    const slide = makeSlideD({
+      custom_images: [makeCustomImage('ci1', 5, 5, 10, 10)],
+      decorations: [makeIconDec('d1', { x: 20, y: 20, width: 10, height: 10 })],
+    })
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 100 }
+    expect(elementsInRect(slide, rect)).toEqual(['ci1', 'd1'])
+  })
+
+  test('EI-4: rect of zero size returns [] (existing guard preserved)', () => {
+    const slide = makeSlideD({
+      decorations: [makeIconDec('d1', { x: 10, y: 10, width: 10, height: 10 })],
+    })
+    const rect: Rect = { x: 0, y: 0, w: 0, h: 0 }
+    expect(elementsInRect(slide, rect)).toEqual([])
+  })
+
+  test('EI-5: rect strictly outside decoration bounds excludes it (1px-separation invariant)', () => {
+    const slide = makeSlideD({
+      decorations: [makeIconDec('d1', { x: 10, y: 10, width: 10, height: 10 })],
+    })
+    // Rect at (50,50) → (60,60); decoration at (10,10) → (20,20). No overlap.
+    const rect: Rect = { x: 50, y: 50, w: 10, h: 10 }
+    expect(elementsInRect(slide, rect)).toEqual([])
+  })
+})

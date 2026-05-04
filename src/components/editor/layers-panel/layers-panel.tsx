@@ -1,17 +1,18 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import type { Slide, TextBox, CustomImage, Watermark } from '@/lib/types/slide'
-import { getGroupMembers } from '@/lib/editor/transforms/group-membership'
+import { synthesizeRows } from '@/lib/editor/addressable-element-walkers'
 import { GroupRow } from './group-row'
 import { LayerChip } from './layer-chip'
-import type {
-  LayerChipRow,
-  LayerElementType,
-  LayerGroupHeaderRow,
-  LayerRow,
-  LayersPanelProps,
-} from './types'
+import type { LayerRow, LayersPanelProps } from './types'
+
+// Phase 68 Plan 02 (EDITOR-10): re-export `synthesizeRows` from the canonical
+// `addressable-element-walkers` module so existing test imports
+// (`import { synthesizeRows } from '../layers-panel'`) keep working without
+// requiring a coordinated test-side rewrite. The canonical implementation
+// lives in `@/lib/editor/addressable-element-walkers` and walks all 4
+// AddressableScopes (text_boxes / custom_images / decorations / watermark).
+export { synthesizeRows } from '@/lib/editor/addressable-element-walkers'
 
 /**
  * Phase 65 Plan 01 (LAYERS-01..04, LAYERS-08, LAYERS-09):
@@ -32,157 +33,14 @@ import type {
  *   round-trips, no two-way binding.
  */
 
-// ───── label helpers ────────────────────────────────────────────────
-
-const TEXT_LABEL_MAX = 30
-
-function textBoxLabel(tb: TextBox): string {
-  // Plan 65-01 schema-additive: optional `name?: string` (Task 3) — when
-  // set by inline rename, takes precedence over derived label.
-  const named = (tb as TextBox & { name?: string }).name
-  if (named && named.trim().length > 0) return named.trim()
-  if (tb.text && tb.text.trim().length > 0) {
-    return tb.text.trim().slice(0, TEXT_LABEL_MAX)
-  }
-  if (tb.role === 'hook') return 'Hook'
-  if (tb.role === 'body') return 'Body'
-  return 'Custom text'
-}
-
-function customImageLabel(ci: CustomImage): string {
-  // Plan 65-01 schema-additive: optional `name?: string` (Task 3) — when
-  // set, takes precedence over filename derivation.
-  const named = (ci as CustomImage & { name?: string }).name
-  if (named && named.trim().length > 0) return named.trim()
-  try {
-    const u = new URL(ci.url)
-    const base = u.pathname.split('/').pop()
-    if (base && base.length > 0) return base
-  } catch {
-    // url not absolute — fall through
-  }
-  // Best-effort: split on '/' as a relative path
-  const parts = ci.url.split('/')
-  const last = parts[parts.length - 1]
-  if (last && last.length > 0) return last
-  return 'Image'
-}
-
-function watermarkLabel(wm: Watermark): string {
-  if (wm.customText && wm.customText.trim().length > 0) return wm.customText.trim()
-  return 'Watermark'
-}
-
-// ───── synthesizeRows: pure helper ──────────────────────────────────
-
-/**
- * Walk text_boxes ∪ custom_images ∪ watermark in canonical order. Emit a
- * `chip` row per element. When an element carries a groupId AND the
- * preceding-emitted row was NOT for the same group, emit a synthesized
- * `group-header` row first (using `getGroupMembers` to populate
- * memberIds + computing allLocked / allHidden from those members).
- *
- * A `Set<string>` guards against re-emitting the same group-header when
- * the cross-array walk visits non-consecutive members of the same group
- * (e.g. text_box + custom_image share groupId='g_0' but are split across
- * arrays). Each group emits its header at FIRST encounter.
- */
-export function synthesizeRows(slide: Slide): LayerRow[] {
-  const out: LayerRow[] = []
-  const emittedGroupHeaders = new Set<string>()
-
-  const elements: Array<{ id: string; groupId?: string; locked: boolean; hidden: boolean; type: LayerElementType; label: string }> = []
-
-  for (const tb of slide.text_boxes ?? []) {
-    elements.push({
-      id: tb.id,
-      groupId: tb.groupId,
-      locked: tb.locked === true,
-      hidden: tb.hidden === true,
-      type: 'text',
-      label: textBoxLabel(tb),
-    })
-  }
-  for (const ci of slide.custom_images ?? []) {
-    elements.push({
-      id: ci.id,
-      groupId: ci.groupId,
-      locked: ci.locked === true,
-      hidden: ci.hidden === true,
-      type: 'image',
-      label: customImageLabel(ci),
-    })
-  }
-  if (slide.watermark) {
-    elements.push({
-      id: slide.watermark.id,
-      groupId: slide.watermark.groupId,
-      locked: slide.watermark.locked === true,
-      hidden: slide.watermark.hidden === true,
-      type: 'watermark',
-      label: watermarkLabel(slide.watermark),
-    })
-  }
-
-  for (const el of elements) {
-    if (el.groupId && !emittedGroupHeaders.has(el.groupId)) {
-      const memberIds = getGroupMembers(slide, el.groupId)
-      const header: LayerGroupHeaderRow = {
-        kind: 'group-header',
-        groupId: el.groupId,
-        memberIds,
-        allLocked: computeAllLocked(slide, memberIds),
-        allHidden: computeAllHidden(slide, memberIds),
-      }
-      out.push(header)
-      emittedGroupHeaders.add(el.groupId)
-    }
-    const chip: LayerChipRow = {
-      kind: 'chip',
-      id: el.id,
-      elementType: el.type,
-      label: el.label,
-      locked: el.locked,
-      hidden: el.hidden,
-      groupId: el.groupId,
-    }
-    out.push(chip)
-  }
-
-  return out
-}
-
-function computeAllLocked(slide: Slide, ids: string[]): boolean {
-  if (ids.length === 0) return false
-  const set = new Set(ids)
-  for (const tb of slide.text_boxes ?? []) {
-    if (set.has(tb.id) && tb.locked !== true) return false
-  }
-  for (const ci of slide.custom_images ?? []) {
-    if (set.has(ci.id) && ci.locked !== true) return false
-  }
-  if (slide.watermark && set.has(slide.watermark.id) && slide.watermark.locked !== true) {
-    return false
-  }
-  return true
-}
-
-function computeAllHidden(slide: Slide, ids: string[]): boolean {
-  if (ids.length === 0) return false
-  const set = new Set(ids)
-  for (const tb of slide.text_boxes ?? []) {
-    if (set.has(tb.id) && tb.hidden !== true) return false
-  }
-  for (const ci of slide.custom_images ?? []) {
-    if (set.has(ci.id) && ci.hidden !== true) return false
-  }
-  if (slide.watermark && set.has(slide.watermark.id) && slide.watermark.hidden !== true) {
-    return false
-  }
-  return true
-}
-
 // ───── LayersPanel ──────────────────────────────────────────────────
+//
+// Phase 68 Plan 02 (EDITOR-10): label helpers + synthesizeRows + roll-up
+// helpers (computeAllLocked / computeAllHidden) migrated to the canonical
+// `@/lib/editor/addressable-element-walkers` module. The migration is
+// behavior-preserving on v2.11 fixtures (no decoration data yet) — verified
+// by the existing `__tests__/layers-panel.test.tsx` LP1..LP4 + integration
+// suite remaining GREEN.
 
 export default function LayersPanel({
   slide,

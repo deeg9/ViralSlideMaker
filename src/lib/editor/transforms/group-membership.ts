@@ -1,37 +1,21 @@
 import type { Slide } from '@/lib/types/slide'
+import { getGroupMembers as canonicalGetGroupMembers } from '@/lib/editor/addressable-element-walkers'
 
 /**
- * Phase 62 (GROUP-02..05): pure helper — return all element ids on `slide`
- * whose groupId matches the given `groupId`. Walks text_boxes, custom_images,
- * and the slide.watermark (if present), in that order.
+ * Phase 68 Plan 02 (EDITOR-10): `getGroupMembers` is now re-exported from the
+ * canonical `addressable-element-walkers` module — that module walks all 4
+ * AddressableScopes (text_boxes / custom_images / decorations / watermark) and
+ * is the single source of truth. This file keeps the historic export path
+ * (`@/lib/editor/transforms/group-membership`) so existing call sites continue
+ * to compile; new call sites should prefer the canonical module path.
  *
- * No nested groups (PITFALL-3.3): the schema is flat — every element either
- * has a single groupId (string) or none (undefined). Membership is set
- * equality on the field, nothing more. The reducer's GROUP case enforces
- * the "subset of an existing group dissolves the prior group" rule so that
- * this flat-only invariant is preserved across edits; this helper is a
- * read-only consumer of that flat schema.
- *
- * Pure module — no React, no DOM, no I/O. Reusable from server, RPC, MCP.
- *
- * Empty `groupId` ('' falsy) short-circuits to []: an unset groupId field is
- * undefined, not '', so '' must never match anything. Test 5 in
- * group-membership.test.ts pins this boundary.
+ * Phase 62 (GROUP-02..05) original contract preserved verbatim:
+ *  - Walks all element-bearing scopes in canonical order.
+ *  - No nested groups (PITFALL-3.3): the schema is flat.
+ *  - Empty `groupId` ('' falsy) short-circuits to [].
+ *  - Pure module — no React, no DOM, no I/O.
  */
-export function getGroupMembers(slide: Slide, groupId: string): string[] {
-  if (!groupId) return []
-  const out: string[] = []
-  for (const tb of slide.text_boxes ?? []) {
-    if (tb.groupId === groupId) out.push(tb.id)
-  }
-  for (const ci of slide.custom_images ?? []) {
-    if (ci.groupId === groupId) out.push(ci.id)
-  }
-  if (slide.watermark && slide.watermark.groupId === groupId) {
-    out.push(slide.watermark.id)
-  }
-  return out
-}
+export const getGroupMembers = canonicalGetGroupMembers
 
 /**
  * Phase 62 (Plan 62-03, GROUP-09): pure helper — decides whether the current
@@ -68,18 +52,22 @@ export function shouldGroupDrag(
 ): string[] | null {
   if (currentlyInsideGroup !== null) return null
   if (selection.ids.length < 2) return null
-  // Resolve the dragged element across all 3 element-bearing arrays. We
-  // walk text_boxes ∪ custom_images ∪ watermark in the same order as
-  // getGroupMembers to keep the invariant that "the first match wins"
-  // is consistent with the rest of the module.
+  // Resolve the dragged element across all 4 element-bearing scopes. We walk
+  // text_boxes ∪ custom_images ∪ decorations ∪ watermark in the same order as
+  // the canonical walker (Phase 68 Plan 02 EDITOR-10) so "first match wins"
+  // stays consistent with getGroupMembers.
   let draggedGroupId: string | undefined
   const tb = (slide.text_boxes ?? []).find((t) => t.id === draggedElementId)
   if (tb) draggedGroupId = tb.groupId
   else {
     const ci = (slide.custom_images ?? []).find((c) => c.id === draggedElementId)
     if (ci) draggedGroupId = ci.groupId
-    else if (slide.watermark && slide.watermark.id === draggedElementId) {
-      draggedGroupId = slide.watermark.groupId
+    else {
+      const d = (slide.decorations ?? []).find((x) => x.id === draggedElementId)
+      if (d) draggedGroupId = d.groupId
+      else if (slide.watermark && slide.watermark.id === draggedElementId) {
+        draggedGroupId = slide.watermark.groupId
+      }
     }
   }
   if (!draggedGroupId) return null

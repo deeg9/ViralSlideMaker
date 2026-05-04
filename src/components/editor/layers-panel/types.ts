@@ -15,8 +15,11 @@ import type { SelectionModel } from '@/lib/editor/use-selection-model'
 
 /** Element type as surfaced in the layers panel chip. Maps 1:1 to the
     underlying schema slot the chip represents (TextBox / CustomImage /
-    Watermark). */
-export type LayerElementType = 'text' | 'image' | 'watermark'
+    Decoration / Watermark).
+    Phase 68 Plan 02 (EDITOR-10): 'decoration' added so the canonical
+    `addressable-element-walkers.synthesizeRows` walker can emit chips for
+    icon + shape decorations. */
+export type LayerElementType = 'text' | 'image' | 'decoration' | 'watermark'
 
 /** A single chip row — represents ONE addressable element on the slide. */
 export interface LayerChipRow {

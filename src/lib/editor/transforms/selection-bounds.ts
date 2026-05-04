@@ -115,6 +115,23 @@ export function computeSelectionBounds(
     rects.push({ x: ci.x, y: ci.y, width: ci.width, height: ci.height })
   }
 
+  // Phase 68 Plan 02 (EDITOR-13): decorations branch. Mirrors custom_images
+  // shape — Decoration.position is a 4-tuple {x, y, width, height} of % units.
+  // Phase 64 LOCK-07: hidden EXCLUDED. Phase 63 D-01: locked INCLUDED in
+  // bounds (move-side filter is in align.ts buildMoveCandidates).
+  // Rotation-aware corner expansion is Phase 72 EDITOR-07 lift target — this
+  // phase computes a rectilinear AABB only.
+  for (const d of slide.decorations ?? []) {
+    if (!idSet.has(d.id)) continue
+    if (d.hidden === true) continue
+    rects.push({
+      x: d.position.x,
+      y: d.position.y,
+      width: d.position.width,
+      height: d.position.height,
+    })
+  }
+
   // Phase 63 D-01: watermark contributes a placeholder rect derived from
   // its position enum. Move-side filter is in align.ts + reducer.
   // Phase 64 LOCK-07: hidden watermark EXCLUDED (renderer skip is paired

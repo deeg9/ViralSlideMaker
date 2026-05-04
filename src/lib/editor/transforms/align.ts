@@ -116,6 +116,23 @@ function buildMoveCandidates(slide: Slide, ids: string[]): MoveCandidate[] {
     out.push({ id: ci.id, x: ci.x, y: ci.y, width: ci.width, height: ci.height })
   }
 
+  // Phase 68 Plan 02 (EDITOR-06): decorations branch. Decoration position is a
+  // 4-tuple {x, y, width, height} of % numbers (mirrors CustomImage layout
+  // semantics). Locked decorations are EXCLUDED from move candidates per
+  // ALIGN-10 + Phase 64 LOCK-04 (locked elements participate in selection
+  // bounds — see selection-bounds.ts — but never receive an alignment patch).
+  for (const d of slide.decorations ?? []) {
+    if (!idSet.has(d.id)) continue
+    if (d.locked === true) continue
+    out.push({
+      id: d.id,
+      x: d.position.x,
+      y: d.position.y,
+      width: d.position.width,
+      height: d.position.height,
+    })
+  }
+
   // Watermark deliberately not added — enum-only position cannot be patched.
 
   return out

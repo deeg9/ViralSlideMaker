@@ -333,3 +333,132 @@ describe('computeSelectionBounds — Phase 64 Plan 02 (LOCK-07): hidden-skip', (
     expect(result).toEqual<AABB>({ x: 5, y: 5, width: 40, height: 0 })
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 02 (EDITOR-13): selection bounds extended for decorations.
+// Decoration position is a 4-tuple {x, y, width, height} of % units. Locked
+// INCLUDED in bounds (Phase 63 D-01); hidden EXCLUDED (Phase 64 LOCK-07).
+// Rotation-aware AABB lift is Phase 72 EDITOR-07.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { Decoration, IconDecoration, ShapeDecoration } from '@/lib/types/slide'
+
+function makeIconDec(
+  id: string,
+  pos: { x: number; y: number; width: number; height: number },
+  overrides: Partial<IconDecoration> = {},
+): IconDecoration {
+  return {
+    kind: 'icon',
+    id,
+    position: pos,
+    lucideName: 'Heart',
+    color: '#FF0000',
+    strokeWidth: 2,
+    ...overrides,
+  }
+}
+
+function makeShapeDec(
+  id: string,
+  pos: { x: number; y: number; width: number; height: number },
+  overrides: Partial<ShapeDecoration> = {},
+): ShapeDecoration {
+  return {
+    kind: 'shape',
+    id,
+    position: pos,
+    shapeKind: 'rect',
+    fill: '#00FF00',
+    ...overrides,
+  }
+}
+
+function makeSlideD(opts: {
+  text_boxes?: TextBox[]
+  custom_images?: CustomImage[]
+  decorations?: Decoration[]
+  watermark?: Watermark
+}): Slide {
+  return {
+    hook_text: '',
+    body_text: '',
+    image_query: '',
+    is_cta: false,
+    background_url: null,
+    pexels_photo_id: null,
+    text_boxes: opts.text_boxes,
+    custom_images: opts.custom_images,
+    decorations: opts.decorations,
+    watermark: opts.watermark,
+  }
+}
+
+describe('computeSelectionBounds — Phase 68 Plan 02 decoration extension', () => {
+  test('SB-1: selection ids = [decoration_id] returns AABB matching the freeform x/y/width/height', () => {
+    const slide = makeSlideD({
+      decorations: [makeIconDec('d1', { x: 10, y: 20, width: 30, height: 40 })],
+    })
+    expect(computeSelectionBounds(slide, ['d1'])).toEqual<AABB>({
+      x: 10,
+      y: 20,
+      width: 30,
+      height: 40,
+    })
+  })
+
+  test('SB-2: locked decoration INCLUDED in bounds (Phase 63 D-01)', () => {
+    const slide = makeSlideD({
+      decorations: [
+        makeIconDec('d1', { x: 10, y: 10, width: 10, height: 10 }, { locked: true }),
+      ],
+    })
+    expect(computeSelectionBounds(slide, ['d1'])).toEqual<AABB>({
+      x: 10,
+      y: 10,
+      width: 10,
+      height: 10,
+    })
+  })
+
+  test('SB-3: hidden decoration EXCLUDED (Phase 64 LOCK-07)', () => {
+    const slide = makeSlideD({
+      decorations: [
+        makeIconDec('d1', { x: 10, y: 10, width: 10, height: 10 }, { hidden: true }),
+        makeShapeDec('d2', { x: 50, y: 50, width: 20, height: 20 }),
+      ],
+    })
+    const r = computeSelectionBounds(slide, ['d1', 'd2'])
+    // Only d2 contributes; bounds = its own AABB
+    expect(r).toEqual<AABB>({ x: 50, y: 50, width: 20, height: 20 })
+  })
+
+  test('SB-4: multi-selection [text_box + decoration] returns union AABB', () => {
+    const slide = makeSlideD({
+      text_boxes: [makeCustomTextBox('tb1', 0, 0, 10)],
+      decorations: [makeIconDec('d1', { x: 50, y: 50, width: 20, height: 20 })],
+    })
+    const r = computeSelectionBounds(slide, ['tb1', 'd1'])
+    expect(r).not.toBeNull()
+    if (r) {
+      // tb1 contributes (0,0,10,0); d1 contributes (50,50,20,20)
+      // union: minX=0, minY=0, maxX=70, maxY=70 → (0,0,70,70)
+      expect(r.x).toBe(0)
+      expect(r.y).toBe(0)
+      expect(r.width).toBe(70)
+      expect(r.height).toBe(70)
+    }
+  })
+
+  test('SB-5: decoration at (10,10,20,30) returns {x:10,y:10,width:20,height:30}', () => {
+    const slide = makeSlideD({
+      decorations: [makeIconDec('d1', { x: 10, y: 10, width: 20, height: 30 })],
+    })
+    expect(computeSelectionBounds(slide, ['d1'])).toEqual<AABB>({
+      x: 10,
+      y: 10,
+      width: 20,
+      height: 30,
+    })
+  })
+})
