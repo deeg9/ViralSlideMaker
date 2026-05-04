@@ -1,34 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.11
-milestone_name: Full Editor Parity
-status: completed
-stopped_at: "Plan 63-04 complete (Wave 2 — Wave B integration). Phase 63 4/5 plans shipped. Ready for Plan 63-05 (polish — PARITY-03 multi-element fixture extension + perf budget verification + locked-elements-participate-in-bounds completion). Plan 63-05 inherits stable seams: smart-guide-overlay testid in PARITY-01 chrome-leak regex; runSnapForDrag closure pattern; detectEqualSpacing helper; persistent-pool overlay component reusable from any future drag-time chrome surface."
-last_updated: "2026-05-03T08:41:23.628Z"
-last_activity: 2026-05-03
+milestone: v2.12
+milestone_name: Shapes & Icons (Decoration Primitives)
+status: planning
+last_updated: "2026-05-04T00:53:28.692Z"
+last_activity: 2026-05-04
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 23
-  completed_plans: 23
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-02 — v2.11 milestone roadmap approved)
+See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images -- fully AI-generated, editable, downloadable.
-**Current focus:** v2.11 Full Editor Parity — 7 phases (60–66) covering 97 requirements across 12 categories. Multi-select foundation → Marquee → Group/Ungroup → Alignment+Smart Guides → Lock/Hide+Z-Order → Layers Panel → Polish.
-**Success metric (v2.11):** Multi-select + alignment + group/ungroup work end-to-end on text boxes AND custom_images AND watermarks across editor preview + Satori PNG export + HTML render, with TPLREND-05 parity invariant preserved and pattern fidelity to leading design tools demonstrably matched.
+**Current focus:** v2.12 Shapes & Icons (Decoration Primitives) — Lucide icon picker (1,500+) + editable Canva-style shapes as first-class slide elements with full v2.11 editor parity (multi-select / align / group / lock / layers / z-order) and Gemini AI emit. Phase numbering continues from 67.
+**Success metric (v2.12):** `decorations[]` (kind: icon | shape) renders byte-identically across React preview + Satori PNG export, integrates as first-class peers in v2.11 multi-element editor surfaces, ships fuzzy/infinite-scroll/keyboard-driven Lucide picker, and is emitted by Gemini per-slide with advisory monoculture gate — all with TPLREND-05 parity invariant preserved across all existing 11 templates.
 
 ## Current Position
 
-Phase: 66 — Power-User Differentiators + Polish **COMPLETE** (2/2 plans shipped — all 5 phase reqs closed)
-Plan: 66-02 SHIPPED (Wave 2 — DIFF-01 Alt+drag duplicate + KBD-08 tooltip shortcuts + final v2.11 keyboard sweep). New DUPLICATE_ELEMENTS_AT reducer action (~70 LOC reducer case + ~10 LOC variant on EditorAction union): deep-copies text_boxes / custom_images by id with crypto.randomUUID() new ids + delta-shifted positions + optional newGroupId; ref-equal short-circuit for empty / stale / all-skipped ids; routes text_boxes through applyDualWrite (BL-01); single pushHistory per dispatch (KBD-09 / PERF-01); silently skips watermark / locked / structural-anchor / non-custom-role text_boxes (same skip-set as BULK_TRANSLATE / BULK_DELETE). Drag-stop wiring: 4 per-element altStartRef refs (hookAltStartRef / bodyAltStartRef / customTextAltStartRefs / customImageAltStartRefs) capture modifiers.get().alt at onDragStart; 4 onDragStop branches consume the snapshot and call a new onAltDuplicate prop with the gesture's deltaX/deltaY in % of canvas + a freshly-generated `g_${slideIndex}_${Date.now-base36}` newGroupId when the selection shared one. New pure decider helper `decideAltDuplicate(altAtStart, draggedId, slide, selection, slideIndex)` factors selection-vs-single resolution + group-preservation newGroupId derivation so the same logic runs across all 4 Rnd-wrapped element types (testable via synthetic Slide fixtures; deduplicates ~40 LOC across drag-stop sites). slide-editor.tsx wires the wrapper to dispatch DUPLICATE_ELEMENTS_AT — selection NOT updated to follow duplicates (v2.11 simplification; documented as Known Stub for v2.12+). KBD-08 tooltip shortcuts: 8 alignment-toolbar buttons gain `title` attributes embedding the matching keyboard shortcut (Alt+A/H/D/W/V/S + Cmd+Alt+H/V); aria-label unchanged so screen readers don't read keystrokes twice; disabled distribute button tooltip embeds BOTH shortcut AND disabled hint. group-row lock title extended from `Lock group` → `Lock group (⌘⇧L)` to mirror chip-lock pattern from Plan 65-02 (documented divergence: alignment toolbar uses literal `Cmd+Alt+H` form; layers panel uses symbol `⌘⇧L` form; both styles valid; tests use regex that accepts either). Final v2.11 keyboard sweep automated as new `slide-editor.keyboard-sweep.test.tsx` (4 tests codifying SWEEP-1..4 manual grep gates as automated regression for v2.12+: 33 isEditingTarget firewall sites, ≥25 e.preventDefault sites, blur+visibilitychange listeners on useModifierState, zero `e.metaKey || e.ctrlKey` anti-pattern occurrences). TPLREND-05 / PARITY-01 preserved — AD-NO-CHROME test asserts editable=false render tree contains zero alt/duplicate/ghost testids; tooltips are `title` attributes which Satori never renders. Tests: 11 new reducer tests (DE1..DE7 + DE-EMPTY/STALE/DUALWRITE/NON-MATCHING-SLIDE), 9 new alt-drag tests (AD1/AD2/AD4/AD5/AD-NO-CHROME via real component + AD3/AD6/AD-EMPTY-SELECTION/AD-ALT-FALSE via pure helper), 10 new toolbar tooltip tests (FT-T1..FT-T8 + FT-T-DISABLED + FT-T-ARIA), 1 new group-row test (GR-T-LOCK), 4 new keyboard-sweep tests. ~1433 LOC (incl. comprehensive JSDoc; production-code delta ≈ ~280 LOC). 955/955 editor + slides + render full regression green; tsc baseline 17 preserved. 3 atomic commits `63b1df3` / `e8ad7b0` / `1c9c404`. Plan-as-code deviation [Rule 1]: plan stated isEditingTarget grep count target = 37 but actual baseline (post-Plan-66-01) is 33; carried forward from the same metric inconsistency Plan 66-01 SUMMARY already documented (37 figure used the broader non-parens regex matching the import line + comment mentions); SWEEP-1 test pins the strict binding-firewall count of 33. Closes DIFF-01 + KBD-08. Phase 66 status: COMPLETE; ALL 5 Phase 66 reqs marked complete in REQUIREMENTS.md (DIFF-01 + DIFF-02 + KBD-05 + KBD-06 + KBD-08).
-Plan: 66-01 SHIPPED (Wave 1 — KBD-05 + KBD-06 arrow-nudge bindings + DIFF-02 Cmd+D smart offset). 8 new tinykeys bindings (Arrow + Shift+Arrow × 4 directions) wired to BULK_TRANSLATE: plain Arrow = 1 ref-px (NUDGE_*_SMALL_PCT ≈ 0.0926% / 0.0521%); Shift+Arrow = 10 ref-px (NUDGE_*_LARGE_PCT, 10× scale per Figma + Canva default). Each binding inlines isEditingTarget(e.target) firewall as LINE 1 (PITFALL-9.2 — arrow keys typed in <input>/<textarea>/contentEditable preserve caret movement) BEFORE the unconditional preventDefault (KBD-03 — defensive scroll suppression on canvas-root focus). Single BULK_TRANSLATE dispatch per nudge → single pushHistory entry (PERF-01 / KBD-09 carry-forward). BULK_TRANSLATE reducer (Plan 60-03) already skips locked + structural-anchor + watermark, so nudge inherits those filters with zero reducer changes. New module-body lastMoveDeltaRef = useRef<{x,y}|null>(null) — useRef NOT useState so writes never trigger re-renders on the hot keyboard path (refs-only contract; useModifierState pattern carry-forward from Plan 60-04). Populated by every arrow-nudge handler AND the existing onGroupDrag wrapper at slide-editor.tsx (drag-stop write path so smart offset works after both nudge AND drag). Cmd+D handler extended: when lastMoveDeltaRef.current is non-null → use { x, y } as duplicate offset (Figma "rapid grid via Cmd+D" — RESEARCH FEATURES G41); when null → fall back to DEFAULT_DUPLICATE_OFFSET_X/Y_PCT (~1.852% / ~1.042% = 20 ref-px right + down — Figma default). Source-position resolution per D-DIFF-02: selection.primary points to a custom-anchor TextBox → sourcePos = primary.position; primary null OR primary's anchor !== 'custom' OR stale-id (.find() returns undefined) → sourcePos = (0, 0) — T-66-01-06 stale-elevation mitigated. ADD_TEXT_BOX defaults.position now passes a complete TextBoxPosition (the reducer at editor-reducer.ts:338 uses `defaults?.position ?? defaultPositionForRole` with NO merge, so partial would silently drop). Width inherits primary.position.width when known else falls back to defaultPositionForRole('custom') width literal (60%). Plan 60-04 contract preserved: still calls e.preventDefault() + selection.replaceWith([newId]) + setSelectedTextBoxId(newId). Tests: 19 new (AN1..AN8 directional/scaled deltas via 3 custom_images fixture; AN-IE1/IE2 textarea/<input> firewall pinning preventDefault NOT called; AN-NSEL N=0 → no dispatch but preventDefault still fires; ARROW-GREP pins ≥33 inline call sites + 8 binding key literals; SO1..SO3 + SO-PREV + SO-NSEL + SO-IE smart offset behavioral; SO4 structural grep gate on the onGroupDrag wrapper). data-textbox-positions probe added to TextEditorPanel mock for Cmd+D position-math assertions. KL6 grep gate widened from `toBe(29)` to `toBeGreaterThanOrEqual(29)` — non-decreasing floor across phases. ~770 LOC (105 source + 665 test). 2 atomic commits `95c6fc9` / `39d1d1c`. Closes KBD-05 + KBD-06 + DIFF-02.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-04 — Milestone v2.12 started
 
 ### Phase 65 carry-over
 

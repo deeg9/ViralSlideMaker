@@ -11,7 +11,22 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.11 Full Editor Parity (2026-05-03)
-**Current Milestone:** Planning next milestone (run `/gsd-new-milestone` to start)
+**Current Milestone:** v2.12 Shapes & Icons (Decoration Primitives) — planning
+
+---
+
+## Current Milestone: v2.12 Shapes & Icons (Decoration Primitives)
+
+**Goal:** Add Lucide-powered icon picker (1,500+ icons) and editable Canva-style shapes as first-class slide elements — fully integrated with the v2.11 multi-element editor and Gemini AI generation.
+
+**Target features:**
+- Lucide-react icon picker (1,500+ icons, fuzzy search + virtualized infinite scroll + full keyboard navigation)
+- Shapes library — basic primitives (rect/circle/triangle/line/ellipse), arrows + connectors, polygons + stars, all editable Canva-style
+- Unified `decorations[]` schema (`kind: 'icon' | 'shape'`) — additive lift, legacy templates byte-identical
+- Both-renderer parity — React preview + Satori PNG export byte-identical (TPLREND-05 invariant preserved)
+- Full v2.11 editor parity — decorations are first-class peers of text_boxes / custom_images / watermarks for multi-select, marquee, group/ungroup, alignment + smart guides, lock/hide, z-order, layers panel
+- Editor controls — right-rail decoration card (fill color, stroke color + width, size/position, shadow + opacity effects)
+- Gemini AI emit — schema lift for `decorations[]` with full per-slide AI discretion + advisory monoculture gate
 
 ---
 
@@ -356,12 +371,14 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [ ] Live Gemini wiring for diversity gate — advisory only in v2.9; wire live if monoculture observed in production
 - [ ] Variable fonts — Satori issues #162/#712 unresolved as of 2026-05
 
-### Active (v2.11 Full Editor Parity — research-defined, REQ-IDs assigned after research)
+### Active (v2.12 Shapes & Icons — research-defined, REQ-IDs assigned after research)
 
-- [ ] Multi-select (marquee + Shift/Cmd-click) across text boxes + custom_images + watermarks
-- [ ] Alignment (align-to-canvas + align-to-selection on all 6 axes; distribute-evenly H + V)
-- [ ] Group / Ungroup (Cmd+G / Cmd+Shift+G; nested; preserves child positions on ungroup)
-- [ ] Adjacent table-stakes capabilities surfaced by research (smart guides, snapping, nudge, z-order, lock, layers panel — final list locked after `.planning/research/SUMMARY.md`)
+- [ ] Lucide icon picker — 1,500+ icons, fuzzy search + virtualized infinite scroll + keyboard nav (arrows / Enter / Esc)
+- [ ] Shapes library — basic primitives + arrows/connectors + polygons/stars; full Canva-style param control
+- [ ] Unified `decorations[]` schema lift (kind: icon | shape) with both-renderer parity
+- [ ] Full v2.11 editor parity — decorations as first-class peers (multi-select, align, group, lock, layers, z-order)
+- [ ] Right-rail decoration controls (fill, stroke, size/position, shadow + opacity)
+- [ ] Gemini AI emit of `decorations[]` per slide + advisory monoculture gate
 
 ### Pending Validation (carry-over from v2.9 / v2.10)
 
@@ -445,4 +462,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-03 — v2.11 Full Editor Parity milestone shipped (96/97 reqs, 7 phases, 23 plans, ~150+ commits, 955/955 in-scope tests, 17 baseline tsc errors maintained)*
+*Last updated: 2026-05-03 — v2.12 Shapes & Icons (Decoration Primitives) milestone started; v2.11 shipped same day*
