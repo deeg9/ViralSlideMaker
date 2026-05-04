@@ -23,6 +23,7 @@ import { buildSystemPrompt } from './prompts'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
 import { resolveAIDecoration } from './resolve-ai-decoration'
+import { decorationDiversityCheck } from './decoration-diversity-check'
 import { getTemplate } from '@/lib/render/templates'
 import type { Slide, TextBox } from '@/lib/types/slide'
 
@@ -303,6 +304,15 @@ export async function generateSlideContent(
     }
     if (resolved.length === 0) return slideWithoutRaw
     return { ...slideWithoutRaw, decorations: resolved }
+  })
+
+  // Phase 71 (AI-05): advisory monoculture gate. Walks resolved decorations[]
+  // across all slides; logs console.warn if any single lucideName or shapeKind
+  // dominates ≥60% of its discriminator population. NEVER throws, NEVER fails
+  // CI in v2.12 — mirrors v2.9 hookOpeningTrigram pattern. Promote to retry-
+  // on-detection in v3.0+ if production data shows monoculture.
+  decorationDiversityCheck(slidesWithDecorations, {
+    carouselId: parsedCarousel.title,
   })
 
   // Phase 51: populate `text_boxes[]` server-side at the AI-ingest boundary so every
