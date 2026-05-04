@@ -9,6 +9,7 @@
     "lint": "eslint",
     "thumbs": "tsx scripts/generate-template-thumbnails.ts",
     "textures": "tsx scripts/build-textures.ts",
+    "shapes": "tsx scripts/build-shapes.ts",
     "parity-grid": "tsx scripts/render-parity-grid.ts"
   },
   "dependencies": {
