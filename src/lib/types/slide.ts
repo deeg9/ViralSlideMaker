@@ -1,3 +1,18 @@
+import type { Decoration } from './decoration'
+
+// Phase 67 (DECOR-01): re-export decoration types so callers can
+// `import { Decoration } from '@/lib/types/slide'` (mirrors TextBox/CustomImage
+// co-location pattern).
+export type {
+  Decoration,
+  IconDecoration,
+  ShapeDecoration,
+  DecorationBase,
+  ShapeKind,
+  DecorationStroke,
+  DecorationEffects,
+} from './decoration'
+
 export interface TextPosition {
   x: number  // percentage 0-100, from left
   y: number  // percentage 0-100, from top
@@ -258,6 +273,11 @@ export interface Slide {
       Closed-enum at runtime via validateAndRepair (Phase 58 wires AI to
       populate); Phase 55 only declares the slot. */
   template_id_override?: string
+  /** Phase 67 (DECOR-01): optional decoration array (icons + shapes).
+      When absent, byte-identical to pre-v2.12 baseline (PTF16 idempotent
+      absence gate). Actual rendering lands in Phase 69; Phase 67 only
+      registers the schema slot + null-safe iteration sites in renderers. */
+  decorations?: Decoration[]
 }
 
 export type SlideData = Slide[]
