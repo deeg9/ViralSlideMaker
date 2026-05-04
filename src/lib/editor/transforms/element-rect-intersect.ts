@@ -22,6 +22,11 @@
 //     direct click but excluded from marquee results so users can drag-
 //     select around them without disturbing locked decoration).
 //
+// Phase 72 EDITOR-07 (LIFTED): rotated decorations intersect against their
+// true rotated AABB envelope (computeRotatedAABB) — marquee at a rotated-
+// corner extent now correctly hits the decoration even when the raw
+// rectilinear AABB does not overlap the marquee rect.
+//
 // TextBox height approximation: TextBox in our schema does NOT carry an
 // explicit height — it's text-driven via DOM ref. Pure modules cannot
 // resolve DOM-derived heights, so we use a 1-px-strip approximation
@@ -29,6 +34,7 @@
 // replace this with a proper height resolver shared with selection-bounds.
 
 import type { Slide } from '@/lib/types/slide'
+import { computeRotatedAABB } from './selection-bounds'
 
 export interface Rect {
   x: number
@@ -81,14 +87,25 @@ export function elementsInRect(slide: Slide, rect: Rect): string[] {
   // Phase 68 Plan 02 (EDITOR-04): decorations branch. Decoration.position is
   // a 4-tuple {x, y, width, height} of % units (same coord space as
   // CustomImage). LOCK-05 carry-forward — locked decorations excluded so
-  // marquee can drag-select around them without disturbing them. Rotation-
-  // aware corner expansion is Phase 72 EDITOR-07 lift target — this phase
-  // intersects on the rectilinear AABB only.
+  // marquee can drag-select around them without disturbing them.
+  // Phase 72 EDITOR-07 (LIFTED): rotated decoration intersects against its
+  // true rotated AABB envelope (computeRotatedAABB) instead of the raw
+  // rectilinear position. Fast-path returns the raw rect when rotation is
+  // undefined / 0 / 360 (regression-safe — Test 25 pin).
   for (const d of slide.decorations ?? []) {
     if (d.locked === true) continue   // LOCK-05
+    const aabb = computeRotatedAABB(
+      {
+        x: d.position.x,
+        y: d.position.y,
+        width: d.position.width,
+        height: d.position.height,
+      },
+      d.rotation,
+    )
     if (
       intersects(
-        { x: d.position.x, y: d.position.y, w: d.position.width, h: d.position.height },
+        { x: aabb.x, y: aabb.y, w: aabb.width, h: aabb.height },
         rect,
       )
     ) {
