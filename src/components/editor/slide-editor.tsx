@@ -1695,6 +1695,27 @@ export function SlideEditor({
                     // collapse on the next render.
                     selection.clear()
                   }}
+                  onDecorationAction={(action) => {
+                    // Phase 70 Plan 04 (CARD-01): route DecorationCard
+                    // edits through Phase 68's UPDATE_DECORATION /
+                    // REMOVE_DECORATION reducer cases. Single dispatch per
+                    // gesture (KBD-09 — the card debounces colors and
+                    // commits sliders/numerics on gesture-end).
+                    if (action.type === 'UPDATE_DECORATION') {
+                      dispatch({
+                        type: 'UPDATE_DECORATION',
+                        slideIndex: selectedIndex,
+                        id: action.id,
+                        updates: action.updates,
+                      })
+                    } else if (action.type === 'REMOVE_DECORATION') {
+                      dispatch({
+                        type: 'REMOVE_DECORATION',
+                        slideIndex: selectedIndex,
+                        id: action.id,
+                      })
+                    }
+                  }}
                 />
               ) : (
                 <LegacyTextEditorPanel
