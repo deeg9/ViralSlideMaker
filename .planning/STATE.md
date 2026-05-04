@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
-status: Phase 67 in progress — Plans 67-01 + 67-02 SHIPPED; PTF16 GREEN; TPLREND-05 byte-identity gate locked; Phase 68 ready
-stopped_at: "Plan 67-02 complete (Wave 2 — PTF16 idempotent-absence parity baseline + MIGR-02 no-op migration doc + DEPS-01 negative bundle-delta verification). 73 PTF16 tests / 48 snapshots / 12 templates × 6 families + 1 sanity GREEN; manual diff confirmed PTF16-undef-1a === PTF1a (highlight-bar) AND PTF16-undef-12a === PTF12a (paper-essay) byte-identical across both renderers. lucide-react v0.577 → v1.14 ships -169 bytes gzipped on editor route. Phase 68 (reducer ADD/UPDATE/REMOVE_DECORATION) may now begin against locked baseline."
-last_updated: "2026-05-04T05:53:00.000Z"
-last_activity: 2026-05-04 — Plan 67-02 SHIPPED (PTF16 parity gate + MIGR-02 + DEPS-01 documentation)
+status: executing
+stopped_at: "Plan 68-02 SHIPPED (Wave 2 — 10 EXTENDED reducer cases + canonical addressable-element-walkers module + 4 transform extensions + layers-panel migration). 121 new tests GREEN (reducer 75 + walker 26 + transforms 20). Total editor suite: 505 GREEN. tsc baseline 17 preserved. 3 atomic commits 47f76fe / 6b1a615 / 9e4f05f. Ready for Plan 68-03 (PRA1..PRA12 source-grep audit + PRS7/PRS8 cross-scope isolation)."
+last_updated: "2026-05-04T00:00:00.000Z"
+last_activity: 2026-05-04 — Plan 68-02 SHIPPED (10 EXTENDED reducer cases + canonical walker + transforms decoration support)
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 4
+  total_plans: 5
   completed_plans: 4
-  percent: 100
+  percent: 80
 ---
 
 # Project State
