@@ -6,6 +6,10 @@ import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-sty
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
 import { getHookFontSize, hasHookFit } from './hook-fit'
+// Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
+// decoration → DOM markup. BOTH renderers (this satori path + slide-preview.tsx
+// React preview) import renderDecoration from this exact module path.
+import { renderDecoration } from './decoration-renderer'
 import {
   resolveOverlayContent,
   SLOT_GEOMETRY,
@@ -494,11 +498,17 @@ export function buildSlideElement(
           Null-safe — when slide.decorations === undefined OR [], emits ZERO
           DOM nodes (idempotent absence — PTF16 byte-identity gate enforced
           by parity.template-fingerprint-decorations-undefined.test.tsx).
-          Actual decoration rendering (icon SVG resolve + shape emitter) lands
-          in Phase 69 via decoration-renderer.tsx. This stub only owns the
-          iteration shape so downstream phases can drop in the renderer body
-          without touching the iteration contract. */}
-      {(slide.decorations ?? []).filter((d) => d.hidden !== true).map((_d) => null)}
+          Phase 69 (Plan 02): stub `_d => null` swapped for `renderDecoration(d, ctx)`
+          — both renderers route through `decoration-renderer.tsx` (TPLREND-05). */}
+      {(slide.decorations ?? [])
+        .filter((d) => d.hidden !== true)
+        .map((d) => {
+          const node = renderDecoration(d, {
+            slideIndex: resolveCtx.slideIndex,
+            totalSlides: resolveCtx.totalSlides,
+          })
+          return node ? React.cloneElement(node as React.ReactElement, { key: d.id }) : null
+        })}
       {/* Brand watermark — rendered after custom_images so it stacks on top in Satori DOM order.
           Phase 64 LOCK-07: also gate on slide.watermark.hidden to suppress hidden watermarks. */}
       {watermark && !slide.watermark?.hidden && (

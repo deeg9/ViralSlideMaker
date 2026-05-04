@@ -17,6 +17,22 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   ;(globalThis as any).ResizeObserver = ResizeObserverStub
 }
 
+// Phase 69 Plan 02: defensive IntersectionObserver mock — @tanstack/react-virtual
+// (Phase 70 picker dependency) reads IntersectionObserver in some grid configs.
+// Adding it here (not in Phase 70) keeps Phase 69's integration tests clean
+// if any component pathway happens to trip the global access.
+if (typeof globalThis.IntersectionObserver === 'undefined') {
+  class IntersectionObserverStub {
+    constructor() {}
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() { return [] }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(globalThis as any).IntersectionObserver = IntersectionObserverStub
+}
+
 // jsdom returns 0×0 from getBoundingClientRect on detached / unstyled elements.
 // <SlidePreview> reads it once on mount to seed containerWidth; without a
 // non-zero width, scale stays 0 and the component never renders its inner JSX.

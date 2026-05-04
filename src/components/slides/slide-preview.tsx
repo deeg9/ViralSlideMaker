@@ -25,6 +25,10 @@ import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffect
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
 import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
+// Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
+// decoration → DOM markup. BOTH renderers (render-slide-satori.tsx + this
+// React preview path) import renderDecoration from this exact module path.
+import { renderDecoration } from '@/lib/render/decoration-renderer'
 // Phase 60 (SEL-13, PARITY-01): union-AABB for the multi-select ring.
 // Pure module — no React/DOM coupling. Editor-only chrome consumer; gated
 // strictly to the editable={true} branch below.
@@ -1055,8 +1059,18 @@ export function SlidePreview({
 
           {/* Phase 67 (DECOR-01) layer 5.5: decoration iteration site (non-editable).
               See render-slide-satori.tsx for the full contract; both renderers
-              are kept in lockstep at this layer (TPLREND-05). */}
-          {(slide.decorations ?? []).filter((d) => d.hidden !== true).map((_d) => null)}
+              are kept in lockstep at this layer (TPLREND-05).
+              Phase 69 Plan 02: renderer body now invokes renderDecoration; layer 5.5
+              placement preserved (between custom_images at 5.0 and watermark at 6.0). */}
+          {(slide.decorations ?? [])
+            .filter((d) => d.hidden !== true)
+            .map((d) => {
+              const node = renderDecoration(d, {
+                slideIndex: resolveCtx.slideIndex,
+                totalSlides: resolveCtx.totalSlides,
+              })
+              return node ? React.cloneElement(node as React.ReactElement, { key: d.id }) : null
+            })}
 
           {/* Brand watermark (non-editable) — coords resolved at REF canvas size; CSS scale handles container size */}
           {/* Phase 60 (WMARK-04): the lazy initializer in use-slide-editor.ts mirrors
@@ -2624,10 +2638,19 @@ export function SlidePreview({
         {/* Phase 67 (DECOR-01) layer 5.5: decoration iteration site (editable view).
             Symmetric with the non-editable path + render-slide-satori. The
             editable rendering of decorations (selection chrome, Rnd wrapper,
-            handles) is owned by Phase 69+; Plan 67-01 only owns the null-safe
-            iteration shape so reducer extensions in Phase 68 + the renderer
-            body in Phase 69 can drop into a single contract (TPLREND-05). */}
-        {(slide.decorations ?? []).filter((d) => d.hidden !== true).map((_d) => null)}
+            handles) is owned by Phase 70+; Phase 69 Plan 02 wires the renderer
+            body identically across both render paths.
+            Phase 69 Plan 02: renderer body now invokes renderDecoration; layer 5.5
+            placement preserved (between custom_images at 5.0 and watermark at 6.0). */}
+        {(slide.decorations ?? [])
+          .filter((d) => d.hidden !== true)
+          .map((d) => {
+            const node = renderDecoration(d, {
+              slideIndex: resolveCtx.slideIndex,
+              totalSlides: resolveCtx.totalSlides,
+            })
+            return node ? React.cloneElement(node as React.ReactElement, { key: d.id }) : null
+          })}
 
         {/* Brand watermark (editable view) — non-interactive, sits above custom images.
             Phase 64 LOCK-07: gate render on slide.watermark.hidden so a hidden
