@@ -850,15 +850,22 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           oldGroupIds.add(slide.watermark.groupId)
         }
 
-        // Walk text_boxes
+        // Walk text_boxes. Track explicit `*Changed` flag so a no-op `.map()`
+        // (produces a fresh array even when every element is returned
+        // unchanged) does NOT trigger a slide-level clone — preserves
+        // cross-scope ref-equality for PRS9 / Phase 68 PARITY-16.
+        let textBoxesChanged = false
         let nextTextBoxes = slide.text_boxes
         if (slide.text_boxes) {
           nextTextBoxes = slide.text_boxes.map((tb) => {
             if (idSet.has(tb.id)) {
-              return tb.groupId === action.groupId ? tb : { ...tb, groupId: action.groupId }
+              if (tb.groupId === action.groupId) return tb
+              textBoxesChanged = true
+              return { ...tb, groupId: action.groupId }
             }
             if (tb.groupId !== undefined && oldGroupIds.has(tb.groupId)) {
               // Subset cascade: clear groupId on un-listed members of dissolved old group.
+              textBoxesChanged = true
               const { groupId: _g, ...rest } = tb
               return rest as TextBox
             }
@@ -867,13 +874,17 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
 
         // Walk custom_images
+        let customImagesChanged = false
         let nextCustomImages = slide.custom_images
         if (slide.custom_images) {
           nextCustomImages = slide.custom_images.map((ci) => {
             if (idSet.has(ci.id)) {
-              return ci.groupId === action.groupId ? ci : { ...ci, groupId: action.groupId }
+              if (ci.groupId === action.groupId) return ci
+              customImagesChanged = true
+              return { ...ci, groupId: action.groupId }
             }
             if (ci.groupId !== undefined && oldGroupIds.has(ci.groupId)) {
+              customImagesChanged = true
               const { groupId: _g, ...rest } = ci
               return rest
             }
@@ -887,13 +898,17 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         // the lock guards CONTENT, not group membership). Cascade dissolution
         // mirrors the v2.11 Phase 62-01 carry-forward: non-listed members of
         // any dissolved old group have groupId cleared.
+        let decorationsChanged = false
         let nextDecorations = slide.decorations
         if (slide.decorations) {
           nextDecorations = slide.decorations.map((d) => {
             if (idSet.has(d.id)) {
-              return d.groupId === action.groupId ? d : { ...d, groupId: action.groupId }
+              if (d.groupId === action.groupId) return d
+              decorationsChanged = true
+              return { ...d, groupId: action.groupId }
             }
             if (d.groupId !== undefined && oldGroupIds.has(d.groupId)) {
+              decorationsChanged = true
               const { groupId: _g, ...rest } = d
               return rest as Decoration
             }
@@ -902,33 +917,35 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
 
         // Watermark: single optional value
+        let watermarkChanged = false
         let nextWatermark = slide.watermark
         if (slide.watermark) {
           if (idSet.has(slide.watermark.id)) {
-            nextWatermark =
-              slide.watermark.groupId === action.groupId
-                ? slide.watermark
-                : { ...slide.watermark, groupId: action.groupId }
+            if (slide.watermark.groupId !== action.groupId) {
+              watermarkChanged = true
+              nextWatermark = { ...slide.watermark, groupId: action.groupId }
+            }
           } else if (
             slide.watermark.groupId !== undefined &&
             oldGroupIds.has(slide.watermark.groupId)
           ) {
+            watermarkChanged = true
             const { groupId: _g, ...rest } = slide.watermark
             nextWatermark = rest
           }
         }
 
         let next: Slide = slide
-        if (nextTextBoxes !== slide.text_boxes && nextTextBoxes !== undefined) {
+        if (textBoxesChanged && nextTextBoxes !== undefined) {
           next = applyDualWrite(next, nextTextBoxes)
         }
-        if (nextCustomImages !== slide.custom_images) {
+        if (customImagesChanged) {
           next = { ...next, custom_images: nextCustomImages }
         }
-        if (nextDecorations !== slide.decorations) {
+        if (decorationsChanged) {
           next = { ...next, decorations: nextDecorations }
         }
-        if (nextWatermark !== slide.watermark) {
+        if (watermarkChanged) {
           next = { ...next, watermark: nextWatermark }
         }
         return next
