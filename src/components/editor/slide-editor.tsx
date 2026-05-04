@@ -462,7 +462,7 @@ export function SlideEditor({
 
     const unsubscribe = tinykeys(window, {
       '$mod+1': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         const targetBox = textBoxes[0]
         if (!targetBox) return
         e.preventDefault()
@@ -471,7 +471,7 @@ export function SlideEditor({
         setSelectedTextBoxId(targetBox.id)
       },
       '$mod+2': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         const targetBox = textBoxes[1]
         if (!targetBox) return
         e.preventDefault()
@@ -479,7 +479,7 @@ export function SlideEditor({
         setSelectedTextBoxId(targetBox.id)
       },
       '$mod+3': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         const targetBox = textBoxes[2]
         if (!targetBox) return
         e.preventDefault()
@@ -488,7 +488,7 @@ export function SlideEditor({
       },
 
       '$mod+d': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         // Pre-generate the id (same pattern as TextEditorPanel.onTextBoxAction
         // ADD_TEXT_BOX from Phase 50 MR-01) so we can immediately auto-select
@@ -544,7 +544,7 @@ export function SlideEditor({
 
       // Phase 60 SEL-07: select all addressable elements on the active slide.
       '$mod+a': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (currentSlide) selection.selectAll(currentSlide)
       },
@@ -557,7 +557,7 @@ export function SlideEditor({
       // elements just gain a groupId; the group ring (Plan 62-02) picks
       // up the new groupId on the next render via getGroupMembers reads.
       '$mod+g': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         // N<=1 → silent no-op (PITFALL-3.4) but still preventDefault so
         // Chrome's Find Next dialog doesn't pop up over our canvas.
         if (selection.ids.length < 2) {
@@ -583,7 +583,7 @@ export function SlideEditor({
       // Find Previous suppression needed since our handler did not claim
       // the binding).
       '$mod+Shift+g': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         if (!currentSlide) return
         if (selection.ids.length === 0) return
         const allElements = [
@@ -618,7 +618,7 @@ export function SlideEditor({
       // suppression). KBD-02 firewall is INLINED so the grep count goes
       // 24 → 25 (Plan 64-03 will push to 29 with the 4 z-order bindings).
       '$mod+Shift+l': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (!currentSlide) return
         if (selection.ids.length === 0) return
@@ -646,7 +646,7 @@ export function SlideEditor({
       // user gesture → single observable behavior. Mirrors Plan 62-02's
       // canvas-empty exitGroup-then-clear two-step semantics.
       'Escape': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.currentlyInsideGroup !== null) {
           selection.exitGroup()
@@ -657,7 +657,7 @@ export function SlideEditor({
       },
 
       'Delete': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         if (!selectedTextBoxId) return
         const targetBox = textBoxes.find((tb) => tb.id === selectedTextBoxId)
         if (targetBox?.role !== 'custom') return
@@ -669,7 +669,7 @@ export function SlideEditor({
         removeTextBox(selectedIndex, selectedTextBoxId)
       },
       'Backspace': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         if (!selectedTextBoxId) return
         const targetBox = textBoxes.find((tb) => tb.id === selectedTextBoxId)
         if (targetBox?.role !== 'custom') return
@@ -700,35 +700,35 @@ export function SlideEditor({
       // after this plan (was 11 after Plan 62-03; +8 sites from this plan).
       // ────────────────────────────────────────────────────────────────────
       'Alt+a': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         alignKeyHandler(e, 'left')
       },
       'Alt+h': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         alignKeyHandler(e, 'center-h')
       },
       'Alt+d': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         alignKeyHandler(e, 'right')
       },
       'Alt+w': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         alignKeyHandler(e, 'top')
       },
       'Alt+v': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         alignKeyHandler(e, 'center-v')
       },
       'Alt+s': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         alignKeyHandler(e, 'bottom')
       },
       '$mod+Alt+h': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         distributeKeyHandler(e, 'horizontal')
       },
       '$mod+Alt+v': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         distributeKeyHandler(e, 'vertical')
       },
 
@@ -753,7 +753,7 @@ export function SlideEditor({
       //   $mod+Alt+[  → 'back'       (unshift to index 0)
       // ────────────────────────────────────────────────────────────────────
       '$mod+]': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         dispatch({
@@ -764,7 +764,7 @@ export function SlideEditor({
         })
       },
       '$mod+[': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         dispatch({
@@ -775,7 +775,7 @@ export function SlideEditor({
         })
       },
       '$mod+Alt+]': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         dispatch({
@@ -786,7 +786,7 @@ export function SlideEditor({
         })
       },
       '$mod+Alt+[': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         dispatch({
@@ -824,7 +824,7 @@ export function SlideEditor({
       // count grows by exactly 8 inline call sites.
       // ────────────────────────────────────────────────────────────────────
       'ArrowUp': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = 0
@@ -839,7 +839,7 @@ export function SlideEditor({
         })
       },
       'ArrowDown': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = 0
@@ -854,7 +854,7 @@ export function SlideEditor({
         })
       },
       'ArrowLeft': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = -NUDGE_X_SMALL_PCT
@@ -869,7 +869,7 @@ export function SlideEditor({
         })
       },
       'ArrowRight': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = +NUDGE_X_SMALL_PCT
@@ -884,7 +884,7 @@ export function SlideEditor({
         })
       },
       'Shift+ArrowUp': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = 0
@@ -899,7 +899,7 @@ export function SlideEditor({
         })
       },
       'Shift+ArrowDown': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = 0
@@ -914,7 +914,7 @@ export function SlideEditor({
         })
       },
       'Shift+ArrowLeft': (e) => {
-        if (isEditingTarget(e.target)) return
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         e.preventDefault()
         if (selection.ids.length === 0) return
         const deltaX = -NUDGE_X_LARGE_PCT
