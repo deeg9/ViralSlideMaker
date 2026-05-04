@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "shapes": [
+    {
+      "kind": "rect",
+      "renderer": "css-div",
+      "label": "Rectangle"
+    },
+    {
+      "kind": "circle",
+      "renderer": "css-div",
+      "label": "Circle"
+    },
+    {
+      "kind": "ellipse",
+      "renderer": "css-div",
+      "label": "Ellipse"
+    },
+    {
+      "kind": "triangle",
+      "variant": "filled",
+      "renderer": "svg",
+      "path": "/shapes/triangle.svg",
+      "label": "Triangle"
+    },
+    {
+      "kind": "triangle",
+      "variant": "outline",
+      "renderer": "svg",
+      "path": "/shapes/triangle-outline.svg",
+      "label": "Triangle (outline)"
+    },
+    {
+      "kind": "polygon",
+      "variant": "filled",
+      "points": 5,
+      "renderer": "svg",
+      "path": "/shapes/polygon-5.svg",
+      "label": "Pentagon"
+    },
+    {
+      "kind": "polygon",
+      "variant": "outline",
+      "points": 5,
+      "renderer": "svg",
+      "path": "/shapes/polygon-5-outline.svg",
+      "label": "Pentagon (outline)"
+    },
+    {
+      "kind": "polygon",
+      "variant": "filled",
+      "points": 6,
+      "renderer": "svg",
+      "path": "/shapes/polygon-6.svg",
+      "label": "Hexagon"
+    },
+    {
+      "kind": "polygon",
+      "variant": "outline",
+      "points": 6,
+      "renderer": "svg",
+      "path": "/shapes/polygon-6-outline.svg",
+      "label": "Hexagon (outline)"
+    },
+    {
+      "kind": "polygon",
+      "variant": "filled",
+      "points": 8,
+      "renderer": "svg",
+      "path": "/shapes/polygon-8.svg",
+      "label": "Octagon"
+    },
+    {
+      "kind": "polygon",
+      "variant": "outline",
+      "points": 8,
+      "renderer": "svg",
+      "path": "/shapes/polygon-8-outline.svg",
+      "label": "Octagon (outline)"
+    },
+    {
+      "kind": "star",
+      "variant": "filled",
+      "points": 5,
+      "renderer": "svg",
+      "path": "/shapes/star-5.svg",
+      "label": "5-point star"
+    },
+    {
+      "kind": "star",
+      "variant": "outline",
+      "points": 5,
+      "renderer": "svg",
+      "path": "/shapes/star-5-outline.svg",
+      "label": "5-point star (outline)"
+    },
+    {
+      "kind": "star",
+      "variant": "filled",
+      "points": 6,
+      "renderer": "svg",
+      "path": "/shapes/star-6.svg",
+      "label": "6-point star"
+    },
+    {
+      "kind": "star",
+      "variant": "outline",
+      "points": 6,
+      "renderer": "svg",
+      "path": "/shapes/star-6-outline.svg",
+      "label": "6-point star (outline)"
+    },
+    {
+      "kind": "arrow",
+      "variant": "filled",
+      "renderer": "svg",
+      "path": "/shapes/arrow.svg",
+      "label": "Arrow"
+    },
+    {
+      "kind": "arrow",
+      "variant": "outline",
+      "renderer": "svg",
+      "path": "/shapes/arrow-outline.svg",
+      "label": "Arrow (outline)"
+    },
+    {
+      "kind": "line",
+      "variant": "filled",
+      "renderer": "svg",
+      "path": "/shapes/line.svg",
+      "label": "Line"
+    },
+    {
+      "kind": "line",
+      "variant": "outline",
+      "renderer": "svg",
+      "path": "/shapes/line-outline.svg",
+      "label": "Line (outline)"
+    }
+  ]
+}
