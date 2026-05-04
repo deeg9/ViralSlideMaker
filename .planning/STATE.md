@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
 status: completed
-stopped_at: "Plan 72-03 SHIPPED — PTF15 byte-identity + V2.12-SHIP-GATES.md final close-out. v2.12 milestone (Phases 67-72) READY-TO-SHIP. All 9 audit-gate families GREEN (PTF / PCL / PRA / PRS / LP-NEW / SWEEP-PICK / DEPS / MIGR / AI-advisory / Phase-72 transforms / Phase-72 handle UI) — 347 ship-gate tests across 24 files. Manual QA smoke tests pending user."
-last_updated: "2026-05-03T03:55:00.000Z"
-last_activity: 2026-05-03 — Plan 72-03 SHIPPED (PTF15 45° rotated arrow byte-identity + V2.12-SHIP-GATES.md final close-out; v2.12 milestone READY-TO-SHIP)
+stopped_at: "v2.12 milestone archived 2026-05-04. All 81/81 reqs satisfied. 52 gates / 347 ship-gate tests GREEN. 6 manual QA smoke tests awaiting user. Run /gsd-new-milestone to start v2.13."
+last_updated: "2026-05-04T00:00:00.000Z"
+last_activity: 2026-05-04 — v2.12 milestone archived (81/81 reqs, 6 phases, 19 plans, ~875 tests added)
 progress:
   total_phases: 6
   completed_phases: 6

@@ -10,25 +10,35 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.11 Full Editor Parity (2026-05-03)
-**Current Milestone:** v2.12 Shapes & Icons (Decoration Primitives) — planning
+**Latest Shipped:** v2.12 Shapes & Icons (Decoration Primitives) (2026-05-04)
+**Current Milestone:** Planning next milestone (run /gsd-new-milestone to start)
 
 ---
 
-## Current Milestone: v2.12 Shapes & Icons (Decoration Primitives)
+## Latest Shipped: v2.12 Shapes & Icons (Decoration Primitives) (2026-05-04)
 
-**Goal:** Add Lucide-powered icon picker (1,500+ icons) and editable Canva-style shapes as first-class slide elements — fully integrated with the v2.11 multi-element editor and Gemini AI generation.
+**Goal:** Add Lucide-powered icon picker (1,703 icons) and editable Canva-style shapes (8 primitives + arrows + polygons/stars) as first-class slide elements — fully integrated with the v2.11 multi-element editor and Gemini AI generation, with TPLREND-05 byte-identity parity preserved across React preview + Satori PNG export.
 
-**Target features:**
-- Lucide-react icon picker (1,500+ icons, fuzzy search + virtualized infinite scroll + full keyboard navigation)
-- Shapes library — basic primitives (rect/circle/triangle/line/ellipse), arrows + connectors, polygons + stars, all editable Canva-style
-- Unified `decorations[]` schema (`kind: 'icon' | 'shape'`) — additive lift, legacy templates byte-identical
-- Both-renderer parity — React preview + Satori PNG export byte-identical (TPLREND-05 invariant preserved)
-- Full v2.11 editor parity — decorations are first-class peers of text_boxes / custom_images / watermarks for multi-select, marquee, group/ungroup, alignment + smart guides, lock/hide, z-order, layers panel
-- Editor controls — right-rail decoration card (fill color, stroke color + width, size/position, shadow + opacity effects)
-- Gemini AI emit — schema lift for `decorations[]` with full per-slide AI discretion + advisory monoculture gate
+**Delivered:**
+- **Phase 67 — Schema Foundation:** `decorations?: Decoration[]` discriminated-union (icon | shape) added to `Slide`; Zod validator with silent-drop at AI-ingest boundary; lucide-react v0.577 → v1.14 upgrade with brand-icon grep gate (−169 bytes gz on editor route); null-safe iteration stubs at layer 5.5 in both renderers; PTF16 idempotent-absence baseline (73 tests / 48 snapshots across 12 templates × 6 renderer families) locked BEFORE any feature work. 8 reqs (DECOR-01..05, DEPS-01, PARITY-09, MIGR-02). 2/2 plans.
+- **Phase 68 — Reducer Extensions:** `decorations` as 4th `AddressableScope`; 3 new reducer actions (ADD/UPDATE/REMOVE_DECORATION) + 10 extended multi-select cases; canonical `addressable-element-walkers.ts` (synthesizeRows / computeAllLocked / computeAllHidden / getGroupMembers); PRA1..PRA13 CI-enforced source-grep symmetry gate; PRS7..PRS14 cross-scope isolation regression suite. 16 reqs (EDITOR-01..06,08..14, PARITY-15..17). 3/3 plans. 187 tests added.
+- **Phase 69 — Renderers + Parity Proof:** Shared `decoration-renderer.tsx` consumed by BOTH Satori PNG and React preview (single source of truth); `resolveDecorationSvg()` 118-icon registry + LRU cache (currentColor → explicit hex); 8 shape SVG assets in `public/shapes/`; CSS-div for rect/circle/ellipse; PTF13/14/18 byte-identity fingerprints (10 Lucide icons + 16 shape variants + non-uniform scale); PCL12 + PCL13 grep gates. 12 reqs (RENDER-01..07, PARITY-06/07/11/13/14). 3/3 plans. ~157 tests added.
+- **Phase 70 — Editor UI:** Lucide modal picker (virtualized 1,703-icon grid, ufuzzy 250ms debounce, WAI-ARIA keyboard nav); `isPickerOpenRef` wired to all 33 tinykeys firewalls; 8-shape `<ShapePicker>` popover; `<DecorationCard>` right-rail inspector (fill/stroke/size/position/shadow/opacity); R/C/L direct-insert + I/S picker-open shortcuts; layers panel decoration chips with miniature glyph; DEPS-05 bundle-size gate (≤ baseline + 200 KB); PCL11 chrome-leak grep gate. 31 reqs (DEPS-02..05, PICKER-01..08, SHAPES-01..09, KBD-10..12, CARD-01..05, PARITY-12/18). 5/5 plans. ~200 tests added.
+- **Phase 71 — AI Emit + Fork RPC + Audit:** Gemini schema lifts to emit `decorations[]` per slide with 100-icon PascalCase allowlist, named color tokens resolved server-side to explicit hex, semantic position anchors resolved to safe-zone % coords; triple-layer silent-drop pipeline; advisory monoculture gate (≥60% warns, never fails CI in v2.12); fork RPC migration `20260504_fork_strip_decoration_locked.sql` strips `locked` on decorations; PTF17 AI-emit parity proof. 7 reqs (AI-01..05, PARITY-10, MIGR-01). 3/3 plans. ~62 tests added.
+- **Phase 72 — Rotation Handles + AABB:** 16px circular rotation handle above selected decoration (editable-only); `BULK_ROTATE` reducer action with single pushHistory per gesture; `computeRotatedAABB` with cos/sin corner transform; rotation-aware bounds lifted into selection-bounds / alignment / smart guides / marquee intersect; DecorationCard numeric rotation input (–180° to 180°); PTF15 45°-rotated arrow byte-identity. V2.12-SHIP-GATES.md final close-out (52 gates × 347 tests GREEN). Closes ROTATE-01..04 + v2.10 ASPECT-01 deferred. 7 reqs (ROTATE-01..04, EDITOR-07, CARD-06, PARITY-08). 3/3 plans. ~84 tests added.
+
+**Stats:** ~875 tests added, 19 plans, ~82 commits, bundle within DEPS-05 ceiling, tsc baseline 17 preserved.
+
+**Research-grounded:** Context7 lookup on vercel/satori confirmed `transform: rotate()` YES, `box-shadow` YES, `filter:` NO. `@tanstack/react-virtual` (jsdom-testable), `@leeoniya/ufuzzy` (78× faster than fuse.js), `react-colorful` (2.8KB tree-shakeable). Figma/Canva rotation handle pattern. All decisions codified in `69-01-SATORI-VERIFICATION.md`.
+
+**Awaiting user (6 manual QA smoke tests):** Lucide picker scroll perf (1,703 icons, lazy-loaded); 5-slide Gemini generation with 0–2 decorations (verify no hook-occluding positions); fork carousel with locked decorations (MIGR-01 live smoke); open v2.11-saved project byte-identity check (PTF16 live); drag rotation handle + Shift-snap to 15° + single Cmd+Z; export PNG of rotated decoration (PTF15 live).
+
+**Archive:** `.planning/milestones/v2.12-ROADMAP.md`. Audit: `.planning/v2.12-MILESTONE-AUDIT.md` (status: passed). Requirements: `.planning/milestones/v2.12-REQUIREMENTS.md`.
 
 ---
+
+<details>
+<summary>v2.11 Full Editor Parity (2026-05-03) — archived</summary>
 
 ## Latest Shipped: v2.11 Full Editor Parity (2026-05-03)
 
@@ -56,6 +66,8 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 **Archive:** `.planning/milestones/v2.11-ROADMAP.md`. Audit: `.planning/milestones/v2.11-MILESTONE-AUDIT.md` (status: tech_debt). Requirements: `.planning/milestones/v2.11-REQUIREMENTS.md`.
 
 **Awaiting user (manual QA before tagging):** Selection ring visual polish across templates; TYPE BAR right-rail layout review; click-empty-canvas-clears feel on touch devices; modifier-state reset on real OS-level Cmd+Tab; byte-identity PNG round-trip on 3-5 actual projects from the library (PARITY-04 covers automated). Carry-over: iPhone Safari touch QA for v2.10 corner resize handles (A11Y-01).
+
+</details>
 
 ---
 
@@ -371,14 +383,61 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [ ] Live Gemini wiring for diversity gate — advisory only in v2.9; wire live if monoculture observed in production
 - [ ] Variable fonts — Satori issues #162/#712 unresolved as of 2026-05
 
-### Active (v2.12 Shapes & Icons — research-defined, REQ-IDs assigned after research)
+### Active (v2.13 — not yet defined; run /gsd-new-milestone to plan next)
 
-- [ ] Lucide icon picker — 1,500+ icons, fuzzy search + virtualized infinite scroll + keyboard nav (arrows / Enter / Esc)
-- [ ] Shapes library — basic primitives + arrows/connectors + polygons/stars; full Canva-style param control
-- [ ] Unified `decorations[]` schema lift (kind: icon | shape) with both-renderer parity
-- [ ] Full v2.11 editor parity — decorations as first-class peers (multi-select, align, group, lock, layers, z-order)
-- [ ] Right-rail decoration controls (fill, stroke, size/position, shadow + opacity)
-- [ ] Gemini AI emit of `decorations[]` per slide + advisory monoculture gate
+### Validated (v2.12)
+
+**Schema Foundation (DECOR)**
+- [x] DECOR-01: `decorations?: Decoration[]` field added to `Slide` (optional; absent = legacy templates render byte-identical) — v2.12 Phase 67
+- [x] DECOR-02: `Decoration` discriminated union (`kind: 'icon' | 'shape'`) with shared `DecorationBase` — v2.12 Phase 67
+- [x] DECOR-03: `IconDecoration` carries `lucideName / color / strokeWidth` — v2.12 Phase 67
+- [x] DECOR-04: `ShapeDecoration` carries `shapeKind` + `fill` + `stroke` + per-kind params — v2.12 Phase 67
+- [x] DECOR-05: Zod schema validates Decoration at AI ingest + project load; unknown lucideName silently dropped — v2.12 Phase 67
+
+**Stack Additions (DEPS)**
+- [x] DEPS-01: `lucide-react` upgraded `0.577.0 → ^1.14.0`; zero breaking imports verified — v2.12 Phase 67
+- [x] DEPS-02: `@tanstack/react-virtual@^3.13.24` for picker virtualized grid — v2.12 Phase 70
+- [x] DEPS-03: `@leeoniya/ufuzzy@^1.0.19` for picker fuzzy search — v2.12 Phase 70
+- [x] DEPS-04: `react-colorful@^5.6.1` for hex+alpha color picker — v2.12 Phase 70
+- [x] DEPS-05: CI bundle-size gate — editor route ≤ v2.11 baseline + 200KB — v2.12 Phase 70
+
+**Lucide Icon Picker UI (PICKER)**
+- [x] PICKER-01: Modal-mount `<LucidePicker>` — v2.12 Phase 70
+- [x] PICKER-02: Virtualized grid (4-col) via `@tanstack/react-virtual` — v2.12 Phase 70
+- [x] PICKER-03: Fuzzy search via `@leeoniya/ufuzzy`; 250ms debounce — v2.12 Phase 70
+- [x] PICKER-04: Keyboard nav — arrow keys / Enter / Esc (WAI-ARIA grid) — v2.12 Phase 70
+- [x] PICKER-05: Click icon → ADD_DECORATION dispatched; new decoration auto-selected — v2.12 Phase 70
+- [x] PICKER-06: Hover tooltip (native `title=`) — v2.12 Phase 70
+- [x] PICKER-07: `isPickerOpenRef` second short-circuit on all 33 tinykeys firewalls — v2.12 Phase 70
+- [x] PICKER-08: Lazy-loaded via `next/dynamic` — v2.12 Phase 70
+
+**Shapes Library (SHAPES)**
+- [x] SHAPES-01..09: 8 shape primitives + ShapePicker popover + SVG assets + build script + cornerRadius + points + stroke style + aspect-lock — v2.12 Phase 70
+
+**Both-Renderer Integration (RENDER)**
+- [x] RENDER-01..07: Shared `decoration-renderer.tsx`; 118-icon registry + LRU cache; layer 5.5; box-shadow; opacity; CSS rotate — v2.12 Phase 69
+
+**v2.11 Editor Parity (EDITOR)**
+- [x] EDITOR-01..14: `decorations` as 4th AddressableScope; 13 reducer cases extended; selection model; marquee; group; align; smart guides; lock/hide; z-order; layers; alt-drag; nudge; rotation-aware bounds; click-to-select — v2.12 Phases 68+72
+
+**Right-Rail Decoration Controls (CARD)**
+- [x] CARD-01..06: DecorationCard (fill/stroke/size/position/shadow/opacity/rotation) + interactive drag handle — v2.12 Phases 70+72
+
+**Rotation (ROTATE)**
+- [x] ROTATE-01..04: `rotation` field; interactive handle; BULK_ROTATE; rotation-aware AABB — v2.12 Phase 72
+
+**Keyboard Shortcuts (KBD)**
+- [x] KBD-10..12: R/C/L direct-insert; I/S picker open; picker keyboard nav contract — v2.12 Phase 70
+
+**Gemini AI Emit (AI)**
+- [x] AI-01..05: Gemini emits decorations[] with closed-enum allowlist + named tokens + semantic anchors + monoculture gate — v2.12 Phase 71
+
+**Parity (PARITY)**
+- [x] PARITY-06..18: PTF13/14/15/16/17/18 + PCL11/12/13 + PRA1..13 + PRS7..14 + LP-NEW1..3 — v2.12 Phases 67–72
+
+**Migration + Fork RPC (MIGR)**
+- [x] MIGR-01: Fork RPC strips `locked` on decorations (`20260504_fork_strip_decoration_locked.sql`) — v2.12 Phase 71
+- [x] MIGR-02: Additive schema; no backfill required; PTF16 idempotent-absence proof — v2.12 Phase 67
 
 ### Pending Validation (carry-over from v2.9 / v2.10)
 
@@ -443,6 +502,10 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 | Diversity gate advisory only in v2.9 | Live Gemini wiring deferred until monoculture observed in production | — Pending |
 | No Pangram fonts in v2.9 | $120 deferred until paying users exist | ✓ Good |
 | Success metric = ZIP download rate | Best available proxy for "good enough to ship" pre-PMF | — Pending |
+| lucide-react v1.14 upgrade negative bundle delta (v2.12) | Tree-shaking improvements in v1 yielded −169 bytes gz on editor route; upgrade justified before decoration feature work | ✓ Good |
+| `lucide-static` for Satori SVG strings (v2.12) | Satori cannot dynamically import React components; pre-resolved SVG strings are the only byte-identity-safe path | ✓ Good |
+| Pre-baked SVG assets in `public/shapes/` via `scripts/build-shapes.ts` (v2.12) | Inline `<svg>` JSX unsupported by Satori (`presets.ts` shape list); pre-baked = same asset in both renderers = TPLREND-05 preserved | ✓ Good |
+| Advisory monoculture gate does NOT fail CI in v2.12 | Mirror v2.9 `hookOpeningTrigram` pattern; promote to fail-CI + retry-once in v3.0+ if production data shows monoculture | ✓ Good |
 
 ## Evolution
 
@@ -462,4 +525,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-03 — v2.12 Shapes & Icons (Decoration Primitives) milestone started; v2.11 shipped same day*
+*Last updated: 2026-05-04 — v2.12 Shapes & Icons (Decoration Primitives) milestone shipped (81/81 reqs, 6 phases, 19 plans, ~80 commits, ~875 tests added, 17 baseline tsc errors maintained)*

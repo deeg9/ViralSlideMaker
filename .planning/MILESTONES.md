@@ -1,5 +1,24 @@
 # Milestones
 
+## v2.12 Shapes & Icons (Decoration Primitives) (Shipped: 2026-05-04)
+
+**Phases completed:** 6 phases (67-72), 19 plans
+
+**Key accomplishments:**
+- Phase 67 — Schema Foundation: `decorations?: Decoration[]` discriminated-union schema + Zod validator + lucide-react v1.14 upgrade (−169 bytes gz) + PTF16 idempotent-absence baseline (73 tests / 48 snapshots across 12 templates) locked before any feature work. 8 reqs, 2 plans, 93 tests.
+- Phase 68 — Reducer Extensions: `decorations` as 4th `AddressableScope`; 3 new + 10 extended multi-select reducer cases; canonical `addressable-element-walkers.ts`; PRA1..PRA13 CI-enforced source-grep symmetry gate; PRS7..PRS14 cross-scope isolation suite. 16 reqs, 3 plans, 187 tests.
+- Phase 69 — Renderers + Parity Proof: Shared `decoration-renderer.tsx` consumed by BOTH renderers (TPLREND-05 invariant); 118-icon registry + LRU cache (currentColor → hex); 8 shape SVG assets in `public/shapes/`; PTF13/14/18 byte-identity fingerprints (10 icons + 16 shapes + non-uniform scale); PCL12/13 grep gates. 12 reqs, 3 plans, ~157 tests.
+- Phase 70 — Editor UI: Lucide modal picker (1,703-icon virtualized grid, ufuzzy 250ms debounce, WAI-ARIA nav); `isPickerOpenRef` at 33 tinykeys firewalls; 8-shape ShapePicker popover; DecorationCard right-rail (fill/stroke/size/position/shadow/opacity); R/C/L insert + I/S picker shortcuts; layers panel chips with miniature glyph. 31 reqs, 5 plans, ~200 tests.
+- Phase 71 — AI Emit + Fork RPC + Audit: Gemini emits decorations[] with 100-icon allowlist + named color tokens + semantic anchors (server-side resolved); advisory monoculture gate (≥60% warns, never fails CI); fork RPC strips `locked` on decorations; PTF17 AI-emit parity; V2.12-SHIP-GATES.md (52 gates / 347 tests). 7 reqs, 3 plans, ~62 tests.
+- Phase 72 — Rotation Handles + AABB: 16px circular rotation handle + `BULK_ROTATE` reducer (single pushHistory per gesture) + `computeRotatedAABB` (cos/sin) + rotation-aware bounds in selection-bounds / alignment / smart guides / marquee; DecorationCard numeric input; PTF15 45°-rotated arrow byte-identity. Closes ROTATE-01..04 + v2.10 ASPECT-01 deferred. 7 reqs, 3 plans, ~84 tests.
+
+**Stats:** ~875 tests added, ~82 commits, bundle within DEPS-05 ceiling (editor route ≤ baseline + 200 KB), tsc baseline 17 preserved
+**Status:** passed (audit doc: `.planning/v2.12-MILESTONE-AUDIT.md` — 52 gates / 347 tests GREEN across 24 files)
+**Built on:** v2.11 Full Editor Parity (multi-select / align / group / lock / layers / z-order / alt-drag duplicate / smart guides)
+**Awaiting user:** 6 manual QA smoke tests (Lucide picker scroll perf; Gemini 5-slide round-trip; fork with locked decorations; v2.11 project byte-identity check; rotation handle drag + Shift-snap; rotated PNG export)
+
+---
+
 ## v2.11 Full Editor Parity (Shipped: 2026-05-03)
 
 **Phases completed:** 7 phases, 23 plans, 49 tasks
