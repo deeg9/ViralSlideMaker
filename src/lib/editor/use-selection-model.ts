@@ -152,9 +152,14 @@ export function useSelectionModel(opts: {
       setCurrentlyInsideGroup((prev) => (prev === null ? prev : null))
       return
     }
+    // Phase 68 Plan 01 (EDITOR-03): validIds set walks all 4 AddressableScopes
+    // — decorations participate in stale-id prune identically to text_boxes /
+    // custom_images / watermark. When `slide.decorations === undefined`, the
+    // `?? []` produces zero entries (backward-compat preserved).
     const validIds = new Set<string>([
       ...(slide.text_boxes ?? []).map((tb) => tb.id),
       ...(slide.custom_images ?? []).map((ci) => ci.id),
+      ...(slide.decorations ?? []).map((d) => d.id),
       ...(slide.watermark ? [slide.watermark.id] : []),
     ])
     const validGroupIds = new Set<string>()
@@ -163,6 +168,13 @@ export function useSelectionModel(opts: {
     }
     for (const ci of slide.custom_images ?? []) {
       if (ci.groupId !== undefined) validGroupIds.add(ci.groupId)
+    }
+    // Phase 68 Plan 01 (EDITOR-03): validGroupIds set walks decorations.
+    // Without this loop, a decoration carrying a groupId would have its
+    // group's "currentlyInsideGroup" flag wrongly cleared by the stale-id
+    // prune when the only group-carrier is a decoration.
+    for (const d of slide.decorations ?? []) {
+      if (d.groupId !== undefined) validGroupIds.add(d.groupId)
     }
     if (slide.watermark && slide.watermark.groupId !== undefined) {
       validGroupIds.add(slide.watermark.groupId)
@@ -204,10 +216,19 @@ export function useSelectionModel(opts: {
     setPrimary(null)
   }, [])
 
+  // Phase 68 Plan 01 (EDITOR-03): selectAll walks all 4 AddressableScopes.
+  // Composition order: text_boxes ∪ custom_images ∪ decorations ∪ watermark
+  // (ARCHITECTURE.md R4 — decorations BEFORE watermark; watermark trails
+  // because it is a singleton and Phase 60 SEL-01 ordering pinned watermark
+  // last in selection composition). This order is DIFFERENT from the
+  // ALL_ADDRESSABLE_SCOPES tuple in addressable-scope.ts which puts
+  // decorations LAST — the tuple is the canonical AUDIT order; selectAll's
+  // sequence is the canonical SELECTION composition.
   const selectAll = useCallback((slide: Slide) => {
     const all: string[] = [
       ...(slide.text_boxes ?? []).map((tb) => tb.id),
       ...(slide.custom_images ?? []).map((ci) => ci.id),
+      ...(slide.decorations ?? []).map((d) => d.id),
       ...(slide.watermark ? [slide.watermark.id] : []),
     ]
     setIds(all)
@@ -251,6 +272,16 @@ export function useSelectionModel(opts: {
     const ci = (slide.custom_images ?? []).find((c) => c.id === elementId)
     if (ci) {
       if (ci.groupId !== undefined) setCurrentlyInsideGroup(ci.groupId)
+      return
+    }
+    // Phase 68 Plan 01 (EDITOR-03): walk decorations. Order matches the
+    // existing scope-walk pattern; decoration is the 4th branch alongside
+    // text_boxes / custom_images / watermark. When `decoration.groupId`
+    // is undefined, fall through silently (matches v2.11 ungrouped-element
+    // contract — no-op rather than throw).
+    const d = (slide.decorations ?? []).find((x) => x.id === elementId)
+    if (d) {
+      if (d.groupId !== undefined) setCurrentlyInsideGroup(d.groupId)
       return
     }
     if (slide.watermark && slide.watermark.id === elementId) {
