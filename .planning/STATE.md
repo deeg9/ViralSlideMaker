@@ -4,14 +4,14 @@ milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
 status: completed
 stopped_at: "Plan 63-04 complete (Wave 2 — Wave B integration). Phase 63 4/5 plans shipped. Ready for Plan 63-05 (polish — PARITY-03 multi-element fixture extension + perf budget verification + locked-elements-participate-in-bounds completion). Plan 63-05 inherits stable seams: smart-guide-overlay testid in PARITY-01 chrome-leak regex; runSnapForDrag closure pattern; detectEqualSpacing helper; persistent-pool overlay component reusable from any future drag-time chrome surface."
-last_updated: "2026-05-04T07:55:00.000Z"
+last_updated: "2026-05-04T09:32:51.736Z"
 last_activity: 2026-05-04 — Plan 69-02 SHIPPED (both-renderer integration + 8 shape SVG assets + integration smoke)
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_phases: 4
+  total_plans: 13
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -280,6 +280,7 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 - [Phase ?]: Plan 65-01 (PITFALL-7.2): Selection sync READ-ONLY in panel — panel takes SelectionModel as prop; never calls useSelectionModel internally. Single source of truth; no two-way binding.
 - [Phase ?]: Plan 65-01 (LAYERS-09 / PERF-04): React.memo areEqual intentionally excludes function refs — parent useCallback handles ref stability; LM1..LM3 render-count tests prove the contract.
 - [Phase ?]: Plan 65-01 (Schema additive): name?: string optional field on TextBox + CustomImage; Watermark intentionally excluded (singleton; label derives from customText).
+- [Phase ?]: Phase 70 COMPLETE: layers panel decoration chips render via Phase 69 single-source-of-truth renderDecoration; PCL11 chrome-leak gate enforced; final regression sweep meta-test pins SUMMARY/req traceability
 
 ### Pending Todos
 
@@ -312,6 +313,7 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 | Phase 64 P01 | 32min | 3 tasks | 8 files |
 | Phase 65 P01 | 9min | 3 tasks | 8 files |
 | Phase 69 P02 | 4 | 3 tasks | 11 files |
+| Phase 70 P05 | 9 | 3 tasks | 5 files |
 
 ## Session Continuity
 
