@@ -7,6 +7,15 @@ import {
   type AlignPatch,
 } from '@/lib/editor/transforms/align'
 import { applyZOrderToArray } from '@/lib/editor/transforms/z-order'
+// Phase 68 Plan 01 (EDITOR-01): exhaustive scope type. Imported here so the
+// helper at the bottom of the file (scopeIdSet) can use it as a switch
+// discriminator — that switch is what gives the compile-time `never` gate
+// teeth across reducer-side scope walks. Plan 68-02 will consume this
+// helper from the extended cases (BULK_TRANSLATE, BULK_DELETE, etc.).
+import {
+  type AddressableScope,
+  assertExhaustiveScope,
+} from './addressable-scope'
 
 const MAX_HISTORY = 50
 
@@ -161,6 +170,32 @@ function applyAlignPatches(slide: Slide, patches: AlignPatch[]): Slide {
     next = { ...next, custom_images: nextCustomImages }
   }
   return next
+}
+
+/**
+ * Phase 68 Plan 01 (EDITOR-01): scope → id-set helper. Returns the set of
+ * element ids on a slide for the given AddressableScope. The switch is the
+ * compile-time gate site for this file: when EDITOR-02 lands a 5th scope (or
+ * any future addressable element), tsc will surface "Argument of type 'X' is
+ * not assignable to parameter of type 'never'" at the assertExhaustiveScope
+ * call below until a new case is added. Plan 68-02 will consume this helper
+ * from the extended cases (BULK_TRANSLATE, BULK_DELETE, GROUP, etc.) — until
+ * then it stays internal, but its presence here is what gives the compile
+ * gate teeth alongside the addressable-scope tests.
+ */
+function scopeIdSet(scope: AddressableScope, slide: Slide): Set<string> {
+  switch (scope) {
+    case 'text_boxes':
+      return new Set((slide.text_boxes ?? []).map((tb) => tb.id))
+    case 'custom_images':
+      return new Set((slide.custom_images ?? []).map((ci) => ci.id))
+    case 'watermark':
+      return new Set(slide.watermark ? [slide.watermark.id] : [])
+    case 'decorations':
+      return new Set((slide.decorations ?? []).map((d) => d.id))
+    default:
+      return assertExhaustiveScope(scope)
+  }
 }
 
 function pushHistory(state: EditorHistory, newPresent: Slide[]): EditorHistory {
@@ -324,6 +359,76 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         )
         return { ...slide, custom_images }
       })
+      return pushHistory(state, slides)
+    }
+
+    // Phase 68 Plan 01 (EDITOR-02 partial — 3 NEW actions):
+    // ADD_DECORATION / UPDATE_DECORATION / REMOVE_DECORATION mirror the
+    // ADD_CUSTOM_IMAGE / UPDATE_CUSTOM_IMAGE / REMOVE_CUSTOM_IMAGE shapes
+    // (alphabetical-by-scope-group case order — same v2.11 audit-friendly
+    // pattern). New decoration is appended at the END of the array (mirror
+    // ADD_CUSTOM_IMAGE precedent) so layer-stacking matches insertion order.
+    case 'ADD_DECORATION': {
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        const next = [...(slide.decorations ?? []), action.decoration]
+        return { ...slide, decorations: next }
+      })
+      return pushHistory(state, slides)
+    }
+
+    // Phase 68 Plan 01: shallow-merge updates into the matching decoration.
+    // Lock-honor: locked decorations short-circuit (mirror REMOVE_TEXT_BOX
+    // line 366-372 / REMOVE_CUSTOM_IMAGE line 311-319 gates). The lock gate
+    // guards CONTENT updates only — the locked flag itself is mutated via
+    // SET_LOCKED (Plan 68-02), not here. Unknown id → silent no-op
+    // (state ref-equal, no pushHistory pollution).
+    //
+    // Note on discriminator: the shallow-merge preserves `kind` because
+    // Partial<Decoration> from a typed caller cannot widen the discriminator
+    // beyond its existing literal. The Phase 71 AI-ingest adapter at the
+    // boundary enforces shape integrity before any UPDATE_DECORATION reaches
+    // the reducer.
+    case 'UPDATE_DECORATION': {
+      let mutated = false
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        if (!slide.decorations) return slide
+        const idx = slide.decorations.findIndex((d) => d.id === action.id)
+        if (idx === -1) return slide
+        const existing = slide.decorations[idx]
+        if (existing.locked === true) return slide
+        const merged = { ...existing, ...action.updates } as typeof existing
+        const nextDecorations = slide.decorations.slice()
+        nextDecorations[idx] = merged
+        mutated = true
+        return { ...slide, decorations: nextDecorations }
+      })
+      if (!mutated) return state
+      return pushHistory(state, slides)
+    }
+
+    // Phase 68 Plan 01: filter the matching id. Locked decorations
+    // short-circuit (lock-honor; mirror REMOVE_CUSTOM_IMAGE gate). Unknown
+    // id / undefined decorations → silent no-op (state ref-equal). When the
+    // last decoration is removed, the array remains defined as `[]` — the
+    // realized-then-emptied state is distinct from `decorations === undefined`,
+    // and Phase 67 PTF16 idempotent-absence pertains only to the latter.
+    case 'REMOVE_DECORATION': {
+      let mutated = false
+      const slides = state.present.map((slide, i) => {
+        if (i !== action.slideIndex) return slide
+        if (!slide.decorations) return slide
+        const idx = slide.decorations.findIndex((d) => d.id === action.id)
+        if (idx === -1) return slide
+        if (slide.decorations[idx].locked === true) return slide
+        const nextDecorations = slide.decorations.filter(
+          (d) => d.id !== action.id,
+        )
+        mutated = true
+        return { ...slide, decorations: nextDecorations }
+      })
+      if (!mutated) return state
       return pushHistory(state, slides)
     }
 

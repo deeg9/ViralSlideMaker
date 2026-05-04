@@ -1,4 +1,4 @@
-import type { Slide, CustomText, CustomImage, TextBox, TextBoxRole } from '@/lib/types/slide'
+import type { Slide, CustomText, CustomImage, TextBox, TextBoxRole, Decoration } from '@/lib/types/slide'
 import type {
   AlignAxis,
   AlignTarget,
@@ -28,6 +28,16 @@ export type EditorAction =
     }
   | { type: 'UPDATE_CUSTOM_IMAGE'; slideIndex: number; imageId: string; updates: Partial<CustomImage> }
   | { type: 'REMOVE_CUSTOM_IMAGE'; slideIndex: number; imageId: string }
+  // Phase 68 Plan 01 (EDITOR-02 partial — 3 NEW actions): decoration CRUD.
+  // Mirrors ADD_CUSTOM_IMAGE / UPDATE_CUSTOM_IMAGE / REMOVE_CUSTOM_IMAGE
+  // shapes. The dispatch site (Phase 70 picker; AI ingest in Phase 71)
+  // generates `decoration.id` via crypto.randomUUID() before dispatch — the
+  // reducer trusts the id and does NOT regenerate. UPDATE/REMOVE honor the
+  // `locked` short-circuit gate (lock-content-only contract; SET_LOCKED in
+  // Plan 68-02 is the dedicated lock toggler).
+  | { type: 'ADD_DECORATION'; slideIndex: number; decoration: Decoration }
+  | { type: 'UPDATE_DECORATION'; slideIndex: number; id: string; updates: Partial<Decoration> }
+  | { type: 'REMOVE_DECORATION'; slideIndex: number; id: string }
   // Phase 49: text-box actions (route through pushHistory; selectedTextBoxId lives outside reducer)
   | {
       type: 'ADD_TEXT_BOX'

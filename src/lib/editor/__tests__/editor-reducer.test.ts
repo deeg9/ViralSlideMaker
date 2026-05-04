@@ -1,7 +1,11 @@
 import { describe, test, expect } from 'vitest'
-import type { Slide } from '@/lib/types/slide'
+import type { Slide, Decoration, IconDecoration, ShapeDecoration } from '@/lib/types/slide'
 import type { EditorAction } from '@/lib/editor/editor-actions'
 import { editorReducer, type EditorHistory } from '@/lib/editor/editor-reducer'
+import {
+  type AddressableScope,
+  assertExhaustiveScope,
+} from '@/lib/editor/addressable-scope'
 
 function makeSlide(overrides: Partial<Slide> = {}): Slide {
   return {
@@ -2845,5 +2849,424 @@ describe('editorReducer — Phase 66 Plan 02 (DIFF-01): DUPLICATE_ELEMENTS_AT', 
       deltaY: 5,
     })
     expect(next).toBe(initial)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 01 (EDITOR-02 partial — 3 NEW actions only):
+//   ADD_DECORATION / UPDATE_DECORATION / REMOVE_DECORATION reducer tests.
+//
+// Mirrors v2.11 Phase 64 LOCK / Z_ORDER / SET_HIDDEN action shapes:
+//   - single pushHistory per non-no-op dispatch (KBD-09 / PERF-01),
+//   - locked-honor short-circuit on UPDATE/REMOVE (mirror REMOVE_TEXT_BOX
+//     line 366-372 / REMOVE_CUSTOM_IMAGE line 311-319 gates),
+//   - ref-equal short-circuit on no-op paths (no history pollution),
+//   - cross-scope isolation: text_boxes / custom_images / watermark refs
+//     unchanged when only decorations mutate (PRS9 isolation precursor for
+//     Plan 68-03).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function makeIconDecoration(id: string, overrides: Partial<IconDecoration> = {}): IconDecoration {
+  return {
+    kind: 'icon',
+    id,
+    position: { x: 10, y: 20, width: 15, height: 15 },
+    lucideName: 'Heart',
+    color: '#FF0000',
+    strokeWidth: 2,
+    ...overrides,
+  }
+}
+
+function makeShapeDecoration(id: string, overrides: Partial<ShapeDecoration> = {}): ShapeDecoration {
+  return {
+    kind: 'shape',
+    id,
+    position: { x: 30, y: 30, width: 20, height: 20 },
+    shapeKind: 'rect',
+    fill: '#00FF00',
+    cornerRadius: 8,
+    ...overrides,
+  }
+}
+
+describe('Phase 68 Plan 01: ADD/UPDATE/REMOVE_DECORATION', () => {
+  // ─── ADD_DECORATION ─────────────────────────────────────────────────────────
+
+  test('Test ADD-1: ADD_DECORATION on slide with decorations === undefined → decorations = [payload]; one pushHistory', () => {
+    const initial = makeState([makeSlide()])
+    expect(initial.present[0].decorations).toBeUndefined()
+    const dec: Decoration = makeIconDecoration('d1')
+    const next = editorReducer(initial, {
+      type: 'ADD_DECORATION',
+      slideIndex: 0,
+      decoration: dec,
+    })
+    expect(next.present[0].decorations).toBeDefined()
+    expect(next.present[0].decorations!.length).toBe(1)
+    expect(next.present[0].decorations![0]).toEqual(dec)
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('Test ADD-2: ADD_DECORATION on slide with existing decorations → array length grows by 1; new item is at the END', () => {
+    const d0 = makeIconDecoration('d0')
+    const initial = makeState([makeSlide({ decorations: [d0] })])
+    const d1 = makeShapeDecoration('d1')
+    const next = editorReducer(initial, {
+      type: 'ADD_DECORATION',
+      slideIndex: 0,
+      decoration: d1,
+    })
+    expect(next.present[0].decorations!.length).toBe(2)
+    expect(next.present[0].decorations![0].id).toBe('d0') // unchanged at front
+    expect(next.present[0].decorations![1].id).toBe('d1') // new at end (mirror ADD_CUSTOM_IMAGE precedent)
+  })
+
+  test('Test ADD-3: ADD_DECORATION preserves text_boxes / custom_images / watermark reference-equal pre/post', () => {
+    const tbs = [{ id: 'tb1', role: 'custom' as const, text: 'X', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }]
+    const cis = [{ id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }]
+    const wm = { id: 'w0', enabled: true, position: 'bottom-right' as const }
+    const initial = makeState([
+      makeSlide({ text_boxes: tbs, custom_images: cis, watermark: wm }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ADD_DECORATION',
+      slideIndex: 0,
+      decoration: makeIconDecoration('d1'),
+    })
+    // Cross-scope isolation: other scope arrays/refs untouched (PRS9 precursor).
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+    expect(next.present[0].watermark).toBe(initial.present[0].watermark)
+  })
+
+  test('Test ADD-4: ADD_DECORATION emits exactly ONE pushHistory entry; future cleared', () => {
+    const initial: EditorHistory = {
+      past: [],
+      present: [makeSlide()],
+      future: [[makeSlide({ hook_text: 'stale-future' })]], // pre-existing future to be cleared
+    }
+    const next = editorReducer(initial, {
+      type: 'ADD_DECORATION',
+      slideIndex: 0,
+      decoration: makeIconDecoration('d1'),
+    })
+    expect(next.past.length).toBe(1)
+    expect(next.future).toEqual([]) // pushHistory clears future
+  })
+
+  test('Test ADD-5: ADD_DECORATION preserves caller-supplied id (reducer does NOT regenerate)', () => {
+    const initial = makeState([makeSlide()])
+    const explicit = makeIconDecoration('decoration-with-explicit-id-12345')
+    const next = editorReducer(initial, {
+      type: 'ADD_DECORATION',
+      slideIndex: 0,
+      decoration: explicit,
+    })
+    expect(next.present[0].decorations![0].id).toBe('decoration-with-explicit-id-12345')
+  })
+
+  // ─── UPDATE_DECORATION ──────────────────────────────────────────────────────
+
+  test('Test UPD-1: UPDATE_DECORATION merges shallow into the matching decoration; non-matching unchanged', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2', { color: '#0000FF' }),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+      updates: { color: '#00FF00', strokeWidth: 4 },
+    })
+    const d1 = next.present[0].decorations![0] as IconDecoration
+    const d2 = next.present[0].decorations![1] as IconDecoration
+    expect(d1.color).toBe('#00FF00')
+    expect(d1.strokeWidth).toBe(4)
+    expect(d1.lucideName).toBe('Heart') // preserved
+    // Non-matching id ref-equal pre/post.
+    expect(d2).toBe(initial.present[0].decorations![1])
+  })
+
+  test('Test UPD-2: UPDATE_DECORATION on locked decoration short-circuits — state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { locked: true, color: '#FF0000' })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+      updates: { color: '#000000' },
+    })
+    expect(next).toBe(initial) // ref-equal: locked-honor + no pushHistory pollution
+  })
+
+  test('Test UPD-3: UPDATE_DECORATION with unknown id → silent no-op, state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_DECORATION',
+      slideIndex: 0,
+      id: 'does-not-exist',
+      updates: { color: '#000000' },
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('Test UPD-4: UPDATE_DECORATION { updates: { locked: false } } on previously-locked → does NOT toggle (lock-gate guards CONTENT only)', () => {
+    // Per plan: "the lock gate guards CONTENT updates only, not the lock-flag
+    // itself". UPDATE_DECORATION on a locked decoration short-circuits even if
+    // the payload would clear the lock — toggling locked is the dedicated
+    // SET_LOCKED action's job (Plan 68-02).
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+      updates: { locked: false },
+    })
+    expect(next).toBe(initial)
+    expect(next.present[0].decorations![0].locked).toBe(true)
+  })
+
+  test('Test UPD-5: UPDATE_DECORATION on slide with decorations === undefined → no-op (no array materialization)', () => {
+    const initial = makeState([makeSlide()])
+    expect(initial.present[0].decorations).toBeUndefined()
+    const next = editorReducer(initial, {
+      type: 'UPDATE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+      updates: { /* anything */ },
+    })
+    expect(next).toBe(initial)
+    expect(next.present[0].decorations).toBeUndefined()
+  })
+
+  // ─── REMOVE_DECORATION ──────────────────────────────────────────────────────
+
+  test('Test REM-1: REMOVE_DECORATION filters the matching id from slide.decorations', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2'),
+          makeIconDecoration('d3'),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'REMOVE_DECORATION',
+      slideIndex: 0,
+      id: 'd2',
+    })
+    expect(next.present[0].decorations!.length).toBe(2)
+    expect(next.present[0].decorations!.map((d) => d.id)).toEqual(['d1', 'd3'])
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('Test REM-2: REMOVE_DECORATION on locked decoration → no-op, state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'REMOVE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+    })
+    expect(next).toBe(initial)
+    expect(next.present[0].decorations!.length).toBe(1) // still there
+  })
+
+  test('Test REM-3: REMOVE_DECORATION with unknown id → silent no-op', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'REMOVE_DECORATION',
+      slideIndex: 0,
+      id: 'does-not-exist',
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('Test REM-4: REMOVE_DECORATION on slide with decorations === undefined → no-op', () => {
+    const initial = makeState([makeSlide()])
+    const next = editorReducer(initial, {
+      type: 'REMOVE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+    })
+    expect(next).toBe(initial)
+    expect(next.present[0].decorations).toBeUndefined()
+  })
+
+  test('Test REM-5: REMOVE_DECORATION clears array entirely when last element removed (slide.decorations becomes [])', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'REMOVE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+    })
+    // The field remains defined as an empty array — Phase 67 baseline preserved
+    // (PTF16 idempotent absence is for `decorations === undefined`; a
+    // realized-then-emptied array is a distinct state).
+    expect(next.present[0].decorations).toBeDefined()
+    expect(next.present[0].decorations!.length).toBe(0)
+  })
+
+  // ─── ISOLATION (PRS9 precursor) ─────────────────────────────────────────────
+
+  test('Test ISO-1: ADD_DECORATION leaves text_boxes / custom_images / watermark ref-equal pre/post', () => {
+    const tbs = [{ id: 'tb1', role: 'custom' as const, text: 'X', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }]
+    const cis = [{ id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }]
+    const wm = { id: 'w0', enabled: true, position: 'bottom-right' as const }
+    const initial = makeState([
+      makeSlide({ text_boxes: tbs, custom_images: cis, watermark: wm }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'ADD_DECORATION',
+      slideIndex: 0,
+      decoration: makeShapeDecoration('d1'),
+    })
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+    expect(next.present[0].watermark).toBe(initial.present[0].watermark)
+  })
+
+  test('Test ISO-2: UPDATE_DECORATION leaves the OTHER scopes ref-equal pre/post', () => {
+    const tbs = [{ id: 'tb1', role: 'custom' as const, text: 'X', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }]
+    const cis = [{ id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }]
+    const wm = { id: 'w0', enabled: true, position: 'bottom-right' as const }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: tbs,
+        custom_images: cis,
+        watermark: wm,
+        decorations: [makeIconDecoration('d1')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UPDATE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+      updates: { color: '#123456' },
+    })
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+    expect(next.present[0].watermark).toBe(initial.present[0].watermark)
+  })
+
+  test('Test ISO-3: REMOVE_DECORATION leaves the OTHER scopes ref-equal pre/post', () => {
+    const tbs = [{ id: 'tb1', role: 'custom' as const, text: 'X', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }]
+    const cis = [{ id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }]
+    const wm = { id: 'w0', enabled: true, position: 'bottom-right' as const }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: tbs,
+        custom_images: cis,
+        watermark: wm,
+        decorations: [makeIconDecoration('d1')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'REMOVE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+    })
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+    expect(next.present[0].watermark).toBe(initial.present[0].watermark)
+  })
+
+  // ─── EXHAUSTIVENESS GATE ────────────────────────────────────────────────────
+
+  test('Test EXH-1: a switch on AddressableScope handling all 4 cases compiles and dispatches correctly', () => {
+    // Mirror the helper Plan 68-02 will export from the canonical walker
+    // module: switch on AddressableScope, return scope-specific count.
+    function countByScope(scope: AddressableScope, slide: Slide): number {
+      switch (scope) {
+        case 'text_boxes':
+          return (slide.text_boxes ?? []).length
+        case 'custom_images':
+          return (slide.custom_images ?? []).length
+        case 'watermark':
+          return slide.watermark ? 1 : 0
+        case 'decorations':
+          return (slide.decorations ?? []).length
+        default:
+          return assertExhaustiveScope(scope)
+      }
+    }
+    const slide = makeSlide({
+      text_boxes: [{ id: 'tb1', role: 'custom', text: 'X', position: { anchor: 'custom', x: 0, y: 0, width: 50 } }],
+      custom_images: [{ id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }],
+      watermark: { id: 'w0', enabled: true, position: 'bottom-right' },
+      decorations: [makeIconDecoration('d1'), makeIconDecoration('d2')],
+    })
+    expect(countByScope('text_boxes', slide)).toBe(1)
+    expect(countByScope('custom_images', slide)).toBe(1)
+    expect(countByScope('watermark', slide)).toBe(1)
+    expect(countByScope('decorations', slide)).toBe(2)
+  })
+
+  test('Test EXH-2: switch missing "decorations" case fails compile-time gate (negative test)', () => {
+    // Same negative-case pattern as addressable-scope.test.ts Test 5: a
+    // switch that omits 'decorations' narrows `scope` to 'decorations' in the
+    // default arm, which is not assignable to `never`. The `// @ts-expect-error`
+    // succeeds only when this line WOULD fail compilation — proving the
+    // compile-time gate works for reducer-side helpers too.
+    function brokenSwitch(scope: AddressableScope): number {
+      switch (scope) {
+        case 'text_boxes':
+          return 0
+        case 'custom_images':
+          return 1
+        case 'watermark':
+          return 2
+        // 'decorations' DELIBERATELY MISSING
+        default:
+          // @ts-expect-error - 'decorations' is not assignable to type 'never'
+          return assertExhaustiveScope(scope)
+      }
+    }
+    expect(() => brokenSwitch('decorations')).toThrow(/non-exhaustive/)
+  })
+
+  // ─── pushHistory invariant pinning ──────────────────────────────────────────
+
+  test('pushHistory: ADD/UPDATE/REMOVE_DECORATION emit exactly ONE history entry per non-no-op dispatch (KBD-09 invariant)', () => {
+    const initial = makeState([makeSlide()])
+    const afterAdd = editorReducer(initial, {
+      type: 'ADD_DECORATION',
+      slideIndex: 0,
+      decoration: makeIconDecoration('d1'),
+    })
+    expect(afterAdd.past.length).toBe(initial.past.length + 1)
+
+    const afterUpdate = editorReducer(afterAdd, {
+      type: 'UPDATE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+      updates: { color: '#000' },
+    })
+    expect(afterUpdate.past.length).toBe(afterAdd.past.length + 1)
+
+    const afterRemove = editorReducer(afterUpdate, {
+      type: 'REMOVE_DECORATION',
+      slideIndex: 0,
+      id: 'd1',
+    })
+    expect(afterRemove.past.length).toBe(afterUpdate.past.length + 1)
   })
 })
