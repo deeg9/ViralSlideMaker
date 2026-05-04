@@ -36,7 +36,7 @@
 - [ ] **Phase 69: Renderers + DecorationRenderer + First Parity Proof** — Shared `decoration-renderer.tsx` consumed by BOTH Satori + React preview; hand-injected fixture decorations render byte-identical PNG/DOM across all 8 shapeKinds + 10 representative Lucide icons.
 - [x] **Phase 70: Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library** — Lucide modal picker (virtualized + fuzzy + keyboard nav) + 8-shape popover + DecorationCard right-rail + layers panel chips + R/C/L/I/S keyboard insert shortcuts. (completed 2026-05-04)
 - [x] **Phase 71: AI Emit + Fork RPC + Comprehensive Parity Audit** — Gemini emits `decorations[]` per slide with closed-enum allowlist + named color tokens + semantic anchors + advisory monoculture gate; fork RPC migration; final R1–R10 parity audit. (completed 2026-05-04)
-- [ ] **Phase 72: Interactive Rotation Handles + Rotation-Aware AABB** — Drag-to-rotate handle on selected decoration; new `BULK_ROTATE` reducer action; rotation-aware AABB lift across `selection-bounds.ts` / alignment / smart guides / marquee intersect.
+- [x] **Phase 72: Interactive Rotation Handles + Rotation-Aware AABB** — Drag-to-rotate handle on selected decoration; new `BULK_ROTATE` reducer action; rotation-aware AABB lift across `selection-bounds.ts` / alignment / smart guides / marquee intersect. **v2.12 milestone READY-TO-SHIP.**
 
 ## Phase Details
 
@@ -129,7 +129,10 @@
   2. User rotates an arrow decoration to 45° → React preview and Satori PNG export render byte-identical (PTF15 fingerprint snapshot green).
   3. User selects a multi-selection containing a 45°-rotated decoration + a non-rotated text_box → selection-bounds AABB encloses the rotated decoration's true rotated corners (cos/sin transform); alignment Alt+A aligns to the rotated AABB top edge correctly; smart guides snap to rotated edges; marquee intersect selects rotated decorations whose true (rotated) bounding box overlaps the marquee rect.
   4. User edits the numeric rotation input in DecorationCard (–180° to 180°) → decoration rotates instantly in the canvas preview; numeric input round-trips with the drag handle (handle and input always show the same value).
-**Plans**: TBD
+**Plans:** 3 plans
+- [x] 72-01-PLAN.md — BULK_ROTATE reducer + rotation-aware AABB (selection-bounds + align + marquee) + PRA13 audit (ROTATE-01, ROTATE-04, EDITOR-07)
+- [x] 72-02-PLAN.md — Interactive rotation handle UI + DecorationCard numeric rotation input (ROTATE-02, ROTATE-03, CARD-06)
+- [x] 72-03-PLAN.md — PTF15 45°-rotated arrow byte-identity + V2.12-SHIP-GATES.md close-out (PARITY-08)
 **UI hint**: yes
 
 ## Phase Dependency Graph
