@@ -51,10 +51,10 @@
 
 ### Both-Renderer Integration (RENDER)
 
-- [ ] **RENDER-01**: Shared `src/lib/render/decoration-renderer.tsx` — pure JSX emitter for one Decoration; consumed by BOTH `render-slide-satori.tsx` AND `slide-preview.tsx` (single source of truth — TPLREND-05 invariant)
+- [x] **RENDER-01**: Shared `src/lib/render/decoration-renderer.tsx` — pure JSX emitter for one Decoration; consumed by BOTH `render-slide-satori.tsx` AND `slide-preview.tsx` (single source of truth — TPLREND-05 invariant)
 - [ ] **RENDER-02**: `src/lib/render/decorations/registry.ts` — closed-enum Lucide name registry + `resolveDecorationSvg(name)` returning inline SVG string from `lucide-static`; LRU cache for repeat lookups
-- [ ] **RENDER-03**: Decoration layer inserted at layer 5.5 (between custom_images at 5.0 and watermark at 6.0) in BOTH renderer DOM stacks
-- [ ] **RENDER-04**: Both renderers wrap `(slide.decorations ?? []).map(...)` — null-safe; legacy templates with `decorations === undefined` render byte-identical
+- [x] **RENDER-03**: Decoration layer inserted at layer 5.5 (between custom_images at 5.0 and watermark at 6.0) in BOTH renderer DOM stacks
+- [x] **RENDER-04**: Both renderers wrap `(slide.decorations ?? []).map(...)` — null-safe; legacy templates with `decorations === undefined` render byte-identical
 - [ ] **RENDER-05**: Drop-shadow effect uses CSS `box-shadow` on wrapping `<div>` — never SVG `<filter>` (vercel/satori#573 burned in v2.9; reuse v2.1 `TextShadowEffect` shape)
 - [ ] **RENDER-06**: Opacity field rendered via CSS `opacity:` on wrapping `<div>` — both renderers
 - [ ] **RENDER-07**: Rotation rendered via CSS `transform: rotate(${deg}deg)` on wrapping `<div>` — verified Satori support at Phase 69 start

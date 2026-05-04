@@ -80,7 +80,10 @@
   3. Drop-shadow on any decoration is implemented via CSS `box-shadow` on the wrapping `<div>` — never SVG `<filter>` (verified by PCL13 source-grep gate); zero `filter:` / `backdrop-filter:` references on any decoration render path.
   4. Zero `currentColor` references in `src/lib/render/` production code (verified by PCL12 source-grep gate); resolver substitutes explicit hex into every emitted SVG before encoding.
   5. Decorations layer renders at layer 5.5 (between custom_images at 5.0 and watermark at 6.0) in BOTH renderer DOM stacks; rotation via CSS `transform: rotate(${deg}deg)` works in both renderers (verified at phase start via Context7 lookup against `vercel/satori`).
-**Plans**: TBD
+**Plans:** 2/3 plans executed
+- [x] 69-01-PLAN.md — Lucide registry + decoration-renderer module + Satori support verification (Wave 1)
+- [x] 69-02-PLAN.md — Both-renderer integration + 8 shape SVG assets + iteration site swap (Wave 2)
+- [ ] 69-03-PLAN.md — PTF13/14/18 parity baseline + PCL12/13 grep gates + final regression sweep (Wave 3)
 **UI hint**: yes
 
 ### Phase 70: Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library
@@ -155,7 +158,7 @@ Research synthesis assumed `rotation` field as schema-only with deferral of inte
 |-------|----------------|--------|-----------|
 | 67. Schema Foundation + Null-Decoration TPLREND-05 Baseline | 2/2 | Complete | 2026-05-04 |
 | 68. Reducer Extensions + Selection Model | 3/3 | Complete   | 2026-05-04 |
-| 69. Renderers + DecorationRenderer + First Parity Proof | 0/0 | Not started | — |
+| 69. Renderers + DecorationRenderer + First Parity Proof | 2/3 | In Progress|  |
 | 70. Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library | 0/0 | Not started | — |
 | 71. AI Emit + Fork RPC + Comprehensive Parity Audit | 0/0 | Not started | — |
 | 72. Interactive Rotation Handles + Rotation-Aware AABB | 0/0 | Not started | — |
