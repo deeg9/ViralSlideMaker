@@ -4,14 +4,14 @@ milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
 status: completed
 stopped_at: "Plan 63-04 complete (Wave 2 — Wave B integration). Phase 63 4/5 plans shipped. Ready for Plan 63-05 (polish — PARITY-03 multi-element fixture extension + perf budget verification + locked-elements-participate-in-bounds completion). Plan 63-05 inherits stable seams: smart-guide-overlay testid in PARITY-01 chrome-leak regex; runSnapForDrag closure pattern; detectEqualSpacing helper; persistent-pool overlay component reusable from any future drag-time chrome surface."
-last_updated: "2026-05-04T09:32:51.736Z"
-last_activity: 2026-05-04 — Plan 69-02 SHIPPED (both-renderer integration + 8 shape SVG assets + integration smoke)
+last_updated: "2026-05-04T09:58:20.497Z"
+last_activity: 2026-05-04 — Plan 71-01 SHIPPED (DecorationEmitSchema + resolveAIDecoration + Gemini ingest adapter)
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_plans: 16
+  completed_plans: 14
+  percent: 88
 ---
 
 # Project State
@@ -25,6 +25,13 @@ See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 **Success metric (v2.12):** `decorations[]` (kind: icon | shape) renders byte-identically across React preview + Satori PNG export, integrates as first-class peers in v2.11 multi-element editor surfaces, ships fuzzy/infinite-scroll/keyboard-driven Lucide picker, and is emitted by Gemini per-slide with advisory monoculture gate — all with TPLREND-05 parity invariant preserved across all existing 11 templates.
 
 ## Current Position
+
+Phase: 71 — AI Emit + Fork RPC + Comprehensive Parity Audit (Plan 71-01 SHIPPED; Plan 71-02 + 71-03 ready)
+Plan: 71-01 SHIPPED (Wave 1 — DecorationEmitSchema closed-enum AI emit + resolveAIDecoration token/anchor resolvers + Gemini responseSchema lift + post-Zod-parse ingest adapter). DecorationEmitSchema is the closed-enum SUBSET of full DecorationSchema; AI emits NAMED COLOR TOKENS (never raw hex) + SEMANTIC POSITION ANCHORS (never raw % coords) + closed 100-icon PascalCase allowlist (subset of Phase 69's 118-name registry; AI_LUCIDE_ALLOWLIST). 6 color tokens (accent / palette-vibrant / palette-dark-muted / palette-light / on-light / on-dark) + 7 anchors (top/bottom/center × left/right/center). NEW src/lib/ai/resolve-ai-decoration.ts: pure-function resolvers (resolveAIColor / resolveAIPosition / resolveAIDecoration / buildAIDecorationId) + locked AI_POSITION_RECTS safe-zone offsets that explicitly avoid central 24..76% hook+body band. generate-slides.ts: responseSchema gains slides[].decorations field (maxItems='2' soft cap); post-CarouselSchema.parse ingest pass runs triple-layer silent-drop pipeline (DecorationEmitSchema.safeParse → resolveAIDecoration try/catch → DecorationSchema.safeParse → resolved.length<2 hard cap). SlideContentSchema extended with loose `decorations` + `style_overrides` passthrough. 35 new tests (12 schema + 13 resolver + 10 ingest); 113/113 AI tests GREEN; 73/73 PTF16 idempotent-absence baseline preserved (slides without AI-emitted decorations still render byte-identical); tsc baseline 17 preserved. Closes AI-01..04 (4/7 phase reqs). 3 atomic commits `4bf0900` (schema) / `a84ab87` (resolver) / `f255aa9` (ingest).
+Phase 71 status: 1/3 plans shipped; Plan 71-02 (AI-05 advisory monoculture gate + MIGR-01 fork RPC strip-decoration-locked migration) and Plan 71-03 (PARITY-10 PTF17 comprehensive parity audit + ship-gate sweep) are unblocked. Both subsequent plans consume the resolved Decoration[] from this plan's ingest boundary.
+Last activity: 2026-05-04 — Plan 71-01 SHIPPED (DecorationEmitSchema + resolveAIDecoration + Gemini ingest adapter)
+
+### Phase 69 carry-over
 
 Phase: 69 — Renderers + DecorationRenderer + First Parity Proof (Plans 69-01 + 69-02 SHIPPED; Plan 69-03 ready)
 Plan: 69-02 SHIPPED (Wave 2 — both-renderer integration + 8 shape SVG assets + integration smoke). All 3 layer-5.5 sites swapped from `_d => null` stub to `renderDecoration(d, ctx)` invocation: render-slide-satori.tsx (line 506), slide-preview.tsx non-editable (line 1068), slide-preview.tsx editable (line 2648). All 3 sites use IDENTICAL wrapper-with-key React.cloneElement pattern (TPLREND-05 byte-identity invariant). Both renderers import from canonical `decoration-renderer` module path. 8 hand-rolled SVG assets in public/shapes/ (triangle, polygon-5/6/8, star-5/6, arrow, line) — all viewBox=0 0 100 100, currentColor fill/stroke, no <filter>/<style>/<script>. scripts/build-shapes.ts skeleton + npm run shapes script (Phase 70 expansion). IntersectionObserver mock added to src/__tests__/setup.ts (defensive — Phase 70 picker dependency). 13 new integration smoke tests (decoration-renderer-integration.test.tsx) covering: data-decoration-id markers in BOTH paths, hidden-filter, undefined/empty arrays → zero DOM, triangle SVG-asset path, cross-renderer parity ordering. PTF1..16 + PTL1..2 baselines REMAIN GREEN (102/102 pass — null-safe iteration on undefined/empty preserves PTF16 byte-identity). Full src/lib/render/__tests__/ suite GREEN (257/257). tsc baseline 17 preserved. 3 atomic commits `64b460c` (assets) / `7016717` (swap) / `f6e1792` (test).

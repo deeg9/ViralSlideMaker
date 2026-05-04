@@ -100,10 +100,10 @@
 
 ### Gemini AI Emit (AI)
 
-- [ ] **AI-01**: Gemini schema lifts to emit `decorations[]` per slide — closed-enum `lucideName` allowlist (~100 PascalCase icons; subset of full 1,703); closed-enum `shapeKind`
-- [ ] **AI-02**: `maxItems: 2` per slide enforced in Gemini schema AND server-side clamp at AI-ingest boundary (`generate-slides.ts` post-Zod-parse, mirror `legacyToTextBoxes` adapter)
-- [ ] **AI-03**: AI emits color as named token (`'accent'` / `'palette-vibrant'` / `'palette-dark-muted'`) → resolved server-side to explicit hex via `resolveAIColor(token, slide.template, slide.style_overrides.derived_palette)` — never raw hex from AI
-- [ ] **AI-04**: AI emits position as semantic anchor (`'top-right'` / `'bottom-left'` / `'center'` / etc.) → resolved server-side to safe-zone % coords; falls back to slide-center on unknown anchor
+- [x] **AI-01**: Gemini schema lifts to emit `decorations[]` per slide — closed-enum `lucideName` allowlist (~100 PascalCase icons; subset of full 1,703); closed-enum `shapeKind`
+- [x] **AI-02**: `maxItems: 2` per slide enforced in Gemini schema AND server-side clamp at AI-ingest boundary (`generate-slides.ts` post-Zod-parse, mirror `legacyToTextBoxes` adapter)
+- [x] **AI-03**: AI emits color as named token (`'accent'` / `'palette-vibrant'` / `'palette-dark-muted'`) → resolved server-side to explicit hex via `resolveAIColor(token, slide.template, slide.style_overrides.derived_palette)` — never raw hex from AI
+- [x] **AI-04**: AI emits position as semantic anchor (`'top-right'` / `'bottom-left'` / `'center'` / etc.) → resolved server-side to safe-zone % coords; falls back to slide-center on unknown anchor
 - [ ] **AI-05**: Advisory monoculture gate — `decorationDiversityCheck()` mirror v2.9 `hookOpeningTrigram` pattern; logs warning if ≥60% of slides share lucideName/shapeKind across the carousel; does NOT fail CI in v2.12
 
 ### TPLREND-05 Parity Audit Extension (PARITY)
