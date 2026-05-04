@@ -2,7 +2,14 @@ import { describe, test, expect } from 'vitest'
 import * as fs from 'fs'
 import * as path from 'path'
 import { renderHook, act } from '@testing-library/react'
-import type { Slide, TextBox, CustomImage, Watermark } from '@/lib/types/slide'
+import type {
+  Slide,
+  TextBox,
+  CustomImage,
+  Watermark,
+  Decoration,
+  IconDecoration,
+} from '@/lib/types/slide'
 import { useSelectionModel } from '@/lib/editor/use-selection-model'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -559,5 +566,281 @@ describe('useSelectionModel — enterGroup / exitGroup (Phase 62 GROUP-07, GROUP
       result.current.enterGroup('w0', slide)
     })
     expect(result.current.currentlyInsideGroup).toBe('g_w')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 01 (EDITOR-03, EDITOR-14): selection-model extension to walk
+// `slide.decorations` as the 4th AddressableScope.
+//
+// Contract pinned by these tests:
+//   - selectAll order: text_boxes ∪ custom_images ∪ decorations ∪ watermark
+//     (per ARCHITECTURE.md R4 — decorations BEFORE watermark; watermark
+//     trails because it is a singleton and Phase 60 SEL-01 ordering pinned
+//     watermark last in selection composition).
+//   - Stale-id prune effect walks decorations on slide content mutation.
+//   - enterGroup walks decorations alongside text_boxes / custom_images /
+//     watermark.
+//   - replaceWith / addToSelection / toggleInSelection accept decoration ids
+//     transparently (id-only contract; no scope flag — EDITOR-14 click-to-
+//     select dispatches selection.replaceWith with decoration ids).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function makeIconDecorationForSel(id: string, groupId?: string): IconDecoration {
+  return {
+    kind: 'icon',
+    id,
+    position: { x: 10, y: 20, width: 15, height: 15 },
+    lucideName: 'Heart',
+    color: '#FF0000',
+    strokeWidth: 2,
+    ...(groupId !== undefined ? { groupId } : {}),
+  }
+}
+
+describe('Phase 68 Plan 01: decoration scope extension', () => {
+  test('Test SEL-1: selectAll(slide) returns ids in order text_boxes ∪ custom_images ∪ decorations ∪ watermark', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBox('A')],
+      custom_images: [makeCustomImage('B')],
+      watermark: makeWatermark('W'),
+    })
+    // Manually attach decorations (the makeSlide helper above doesn't take them).
+    slide.decorations = [makeIconDecorationForSel('C')]
+
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.selectAll(slide)
+    })
+    expect(result.current.ids).toEqual(['A', 'B', 'C', 'W'])
+    // primary is the LAST id (watermark trails — SEL-01 carry-forward).
+    expect(result.current.primary).toBe('W')
+  })
+
+  test('Test SEL-2: selectAll on slide with decorations === undefined → backward-compat order preserved (no empty-array pollution)', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBox('tb1'), makeTextBox('tb2')],
+      custom_images: [makeCustomImage('ci1')],
+      watermark: makeWatermark('w0'),
+    })
+    expect(slide.decorations).toBeUndefined()
+
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.selectAll(slide)
+    })
+    // Identical to pre-Phase-68 behavior — `?? []` produces zero ids when
+    // decorations is undefined. The order is text_boxes ∪ custom_images ∪
+    // watermark (decorations slot empty).
+    expect(result.current.ids).toEqual(['tb1', 'tb2', 'ci1', 'w0'])
+    expect(result.current.primary).toBe('w0')
+  })
+
+  test('Test SEL-3: selectAll on empty slide (no scopes populated) returns ids=[], primary=null', () => {
+    const slide = makeSlide({})
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.selectAll(slide)
+    })
+    expect(result.current.ids).toEqual([])
+    expect(result.current.primary).toBe(null)
+  })
+
+  test('Test SEL-4: selectAll order is STABLE — pin via deepEqual on the ids array (regression guard)', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBox('tb1'), makeTextBox('tb2')],
+      custom_images: [makeCustomImage('ci1'), makeCustomImage('ci2')],
+      watermark: makeWatermark('w0'),
+    })
+    slide.decorations = [
+      makeIconDecorationForSel('d1'),
+      makeIconDecorationForSel('d2'),
+    ]
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.selectAll(slide)
+    })
+    // Pinned canonical order: text_boxes preserve insertion → custom_images
+    // preserve insertion → decorations preserve insertion → watermark.
+    expect(result.current.ids).toEqual([
+      'tb1', 'tb2',
+      'ci1', 'ci2',
+      'd1', 'd2',
+      'w0',
+    ])
+  })
+
+  test('Test SEL-5: stale-id prune walks decorations — REMOVE_DECORATION-style mutation drops the id; primary clears if it was that id', () => {
+    const slideV1 = makeSlide({})
+    slideV1.decorations = [
+      makeIconDecorationForSel('d1'),
+      makeIconDecorationForSel('d2'),
+    ]
+    slideV1.text_boxes = [makeTextBox('tb1')]
+
+    const { result, rerender } = renderHook(
+      (props: { slideIndex: number; presentSlides: Slide[] }) =>
+        useSelectionModel(props),
+      { initialProps: { slideIndex: 0, presentSlides: [slideV1] } },
+    )
+    act(() => {
+      result.current.replaceWith(['d1', 'tb1'])
+    })
+    expect(result.current.ids).toEqual(['d1', 'tb1'])
+    expect(result.current.primary).toBe('tb1')
+
+    // Mutation: remove 'd1' from decorations. The primary ('tb1') survives
+    // because it remains valid; the stale id 'd1' is pruned.
+    const slideV2 = makeSlide({})
+    slideV2.decorations = [makeIconDecorationForSel('d2')]
+    slideV2.text_boxes = [makeTextBox('tb1')]
+    rerender({ slideIndex: 0, presentSlides: [slideV2] })
+
+    expect(result.current.ids).toEqual(['tb1'])
+    expect(result.current.primary).toBe('tb1')
+  })
+
+  test('Test SEL-5b: stale-id prune clears primary when primary id IS the removed decoration', () => {
+    const slideV1 = makeSlide({})
+    slideV1.decorations = [makeIconDecorationForSel('d1')]
+    const { result, rerender } = renderHook(
+      (props: { slideIndex: number; presentSlides: Slide[] }) =>
+        useSelectionModel(props),
+      { initialProps: { slideIndex: 0, presentSlides: [slideV1] } },
+    )
+    act(() => {
+      result.current.replaceWith(['d1'])
+    })
+    expect(result.current.primary).toBe('d1')
+
+    const slideV2 = makeSlide({})
+    slideV2.decorations = []
+    rerender({ slideIndex: 0, presentSlides: [slideV2] })
+
+    // Per RESEARCH Q3 spec: primary clears if invalid (NOT auto-promote).
+    expect(result.current.primary).toBe(null)
+    expect(result.current.ids).toEqual([])
+  })
+
+  test('Test SEL-6: stale-id prune walks decorations on slide content swap (id-set intersection)', () => {
+    const slideV1 = makeSlide({})
+    slideV1.decorations = [
+      makeIconDecorationForSel('d1'),
+      makeIconDecorationForSel('d2'),
+      makeIconDecorationForSel('d3'),
+    ]
+
+    const { result, rerender } = renderHook(
+      (props: { slideIndex: number; presentSlides: Slide[] }) =>
+        useSelectionModel(props),
+      { initialProps: { slideIndex: 0, presentSlides: [slideV1] } },
+    )
+    act(() => {
+      result.current.replaceWith(['d1', 'd2', 'd3'])
+    })
+    expect(result.current.ids).toEqual(['d1', 'd2', 'd3'])
+
+    // Mutation: only d2 survives.
+    const slideV2 = makeSlide({})
+    slideV2.decorations = [makeIconDecorationForSel('d2')]
+    rerender({ slideIndex: 0, presentSlides: [slideV2] })
+
+    expect(result.current.ids).toEqual(['d2'])
+  })
+
+  test('Test SEL-7: stale-id validGroupIds set walks decorations — currentlyInsideGroup clears when no surviving element carries that groupId', () => {
+    const slideV1 = makeSlide({})
+    slideV1.decorations = [makeIconDecorationForSel('d1', 'g_dec')]
+
+    const { result, rerender } = renderHook(
+      (props: { slideIndex: number; presentSlides: Slide[] }) =>
+        useSelectionModel(props),
+      { initialProps: { slideIndex: 0, presentSlides: [slideV1] } },
+    )
+    act(() => {
+      result.current.enterGroup('d1', slideV1)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_dec')
+
+    // Mutation: remove the only decoration carrying 'g_dec'. The flag
+    // should clear (validGroupIds set walks decorations).
+    const slideV2 = makeSlide({})
+    slideV2.decorations = []
+    rerender({ slideIndex: 0, presentSlides: [slideV2] })
+
+    expect(result.current.currentlyInsideGroup).toBe(null)
+  })
+
+  test('Test SEL-8: enterGroup(decorationId, slide) walks slide.decorations and sets currentlyInsideGroup to decoration.groupId', () => {
+    const slide = makeSlide({})
+    slide.decorations = [
+      makeIconDecorationForSel('d1', 'g_grouped_dec'),
+    ]
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    act(() => {
+      result.current.enterGroup('d1', slide)
+    })
+    expect(result.current.currentlyInsideGroup).toBe('g_grouped_dec')
+  })
+
+  test('Test SEL-9: enterGroup on a decoration with groupId === undefined → no-op (silent; matches v2.11 contract)', () => {
+    const slide = makeSlide({})
+    slide.decorations = [makeIconDecorationForSel('d1')] // no groupId
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    expect(result.current.currentlyInsideGroup).toBe(null)
+    act(() => {
+      result.current.enterGroup('d1', slide)
+    })
+    expect(result.current.currentlyInsideGroup).toBe(null) // unchanged — no-op
+  })
+
+  test('Test SEL-10: replaceWith(["d1", "d2"]) accepts decoration ids transparently (id-only contract — EDITOR-14 contract pin)', () => {
+    const slide = makeSlide({})
+    slide.decorations = [
+      makeIconDecorationForSel('d1'),
+      makeIconDecorationForSel('d2'),
+    ]
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    // EDITOR-14: click-to-select dispatches selection.replaceWith for
+    // decoration ids — no scope flag, no per-scope validation. The stale-id
+    // prune effect handles invalid ids on the next render pass.
+    act(() => {
+      result.current.replaceWith(['d1', 'd2'])
+    })
+    expect(result.current.ids).toEqual(['d1', 'd2'])
+    expect(result.current.primary).toBe('d2')
+  })
+
+  test('Test SEL-11: replaceWith with mixed scope ids (text_box + decoration + watermark) preserves insertion order', () => {
+    const slide = makeSlide({
+      text_boxes: [makeTextBox('tb1')],
+      watermark: makeWatermark('w0'),
+    })
+    slide.decorations = [makeIconDecorationForSel('d1')]
+    const { result } = renderHook(() =>
+      useSelectionModel({ slideIndex: 0, presentSlides: [slide] }),
+    )
+    // Mixed-scope replaceWith — order preserved as supplied (caller-side
+    // ordering authoritative; selectAll's union order is the only place the
+    // hook itself imposes a sequence).
+    act(() => {
+      result.current.replaceWith(['tb1', 'd1', 'w0'])
+    })
+    expect(result.current.ids).toEqual(['tb1', 'd1', 'w0'])
+    expect(result.current.primary).toBe('w0')
   })
 })
