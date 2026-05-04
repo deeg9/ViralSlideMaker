@@ -29,6 +29,11 @@ import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
 // decoration → DOM markup. BOTH renderers (render-slide-satori.tsx + this
 // React preview path) import renderDecoration from this exact module path.
 import { renderDecoration } from '@/lib/render/decoration-renderer'
+// Phase 72 Plan 02 (ROTATE-02): editable={true}-only rotation handle. Mounted
+// downstream of the editable={false} early return (line ~964) so PCL11 chrome-
+// gate / TPLREND-05 / PARITY-01 invariants hold. Never reaches Satori path
+// (T-72-05 mitigation).
+import { DecorationRotationHandle } from '@/components/slides/decoration-rotation-handle'
 // Phase 60 (SEL-13, PARITY-01): union-AABB for the multi-select ring.
 // Pure module — no React/DOM coupling. Editor-only chrome consumer; gated
 // strictly to the editable={true} branch below.
@@ -452,6 +457,18 @@ interface SlidePreviewProps {
       | { kind: 'align'; axis: AlignAxis }
       | { kind: 'distribute'; axis: DistributeAxis },
   ) => void
+  // Phase 72 Plan 02 (ROTATE-02, ROTATE-03, KBD-09 / PERF-01): rotation handle
+  // commit fan-out. Invoked ONCE per drag gesture (onPointerUp) with the
+  // final rotation in [-180, 180]. slide-editor.tsx wires this into
+  // dispatch({ type: 'BULK_ROTATE', ... }) so the gesture lands as one
+  // history entry. Editor-only — read ONLY downstream of the editable={true}
+  // branch (TPLREND-05 / PARITY-01 carry-forward). When omitted, the handle
+  // does not render (keeps the testid out of legacy callers).
+  onDecorationRotate?: (payload: {
+    slideIndex: number
+    ids: string[]
+    rotation: number
+  }) => void
 }
 
 export function SlidePreview({
@@ -473,6 +490,7 @@ export function SlidePreview({
   onGroupDrag,
   onAltDuplicate,
   onAlign,
+  onDecorationRotate,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -516,6 +534,14 @@ export function SlidePreview({
   const [editingCustomTextId, setEditingCustomTextId] = useState<string | null>(null)
   const [draggingElementId, setDraggingElementId] = useState<string | null>(null)
   const [overTrash, setOverTrash] = useState(false)
+
+  // Phase 72 Plan 02 (ROTATE-02, PERF-01): per-decoration local rotation preview.
+  // Updated per-tick during a rotation-handle drag — the rendered transform
+  // reads from this map (falling back to d.rotation) so the decoration appears
+  // to rotate in real time WITHOUT dispatching to the reducer. Cleared on
+  // pointerup once the BULK_ROTATE dispatch has landed (single pushHistory
+  // per gesture). Editor-only state — never enters reducer history.
+  const [localRotationPreviews, setLocalRotationPreviews] = useState<Record<string, number>>({})
 
   // Phase 61 Plan 02 (SEL-05/SEL-06/SEL-14): marquee selection state. Local
   // state ONLY — never enters reducer history (CONTEXT.md domain.decisions).
@@ -2657,10 +2683,32 @@ export function SlidePreview({
               slideIndex: resolveCtx.slideIndex,
               totalSlides: resolveCtx.totalSlides,
             })
+            // Phase 72 Plan 02 (ROTATE-02): per-tick local preview during
+            // rotation-handle drag overrides the committed rotation. After
+            // pointerup the dispatch lands and the reducer-driven re-render
+            // clears the preview entry — visual remains continuous.
+            const previewRotation = localRotationPreviews[d.id]
+            const effectiveRotation =
+              typeof previewRotation === 'number' ? previewRotation : d.rotation
             const rotated =
-              typeof d.rotation === 'number' && d.rotation !== 0
-                ? { transform: `rotate(${d.rotation}deg)` }
+              typeof effectiveRotation === 'number' && effectiveRotation !== 0
+                ? { transform: `rotate(${effectiveRotation}deg)` }
                 : null
+            // Phase 72 Plan 02 (ROTATE-02): rotation handle is editable={true}-
+            // gated chrome (TPLREND-05 / PARITY-01 carry-forward — never reaches
+            // Satori PNG export or non-editable preview). Render only when:
+            //   - this decoration is the selection.primary
+            //   - !d.locked  (LOCK-04 carry-forward)
+            //   - !d.hidden  (LOCK-07 carry-forward; hidden filter above already
+            //                 excludes; included here for contract clarity)
+            //   - onDecorationRotate prop is wired (keeps testid out of legacy
+            //     callers / Storybook stories that haven't wired the new prop)
+            const showRotationHandle =
+              !!onDecorationRotate &&
+              !!selection &&
+              selection.primary === d.id &&
+              d.locked !== true &&
+              d.hidden !== true
             return (
               <React.Fragment key={d.id}>
                 {node
@@ -2697,6 +2745,37 @@ export function SlidePreview({
                     background: 'transparent',
                   }}
                 />
+                {showRotationHandle && (
+                  <DecorationRotationHandle
+                    key={`${d.id}-rotate`}
+                    decorationBounds={d.position}
+                    containerRef={containerRef}
+                    currentRotation={
+                      typeof d.rotation === 'number' ? d.rotation : 0
+                    }
+                    visible={true}
+                    offsetPx={20}
+                    onPreview={(rotation) => {
+                      setLocalRotationPreviews((prev) => ({
+                        ...prev,
+                        [d.id]: rotation,
+                      }))
+                    }}
+                    onCommit={(rotation) => {
+                      onDecorationRotate?.({
+                        slideIndex: resolveCtx.slideIndex,
+                        ids: [d.id],
+                        rotation,
+                      })
+                      setLocalRotationPreviews((prev) => {
+                        if (!(d.id in prev)) return prev
+                        const next = { ...prev }
+                        delete next[d.id]
+                        return next
+                      })
+                    }}
+                  />
+                )}
               </React.Fragment>
             )
           })}
