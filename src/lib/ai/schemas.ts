@@ -73,6 +73,15 @@ export type Carousel = z.infer<typeof CarouselSchema>
 // parseDecorationsArraySafe — never throws. The closed-enum lucideName
 // allowlist is a Phase 71 concern; this layer accepts any non-empty string.
 
+// WR-02: Hex-only color guard. Accepts #rrggbb (6-digit) and #rrggbbaa (8-digit
+// alpha form used by shadow color). Rejects 'currentColor', CSS named colors,
+// CSS variables, and 3-digit shorthand — all invalid for vercel/satori (satori#41).
+// Used for all Decoration color and fill fields.
+const HexColorSchema = z.string().regex(
+  /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/,
+  { message: 'Color must be hex format (#rrggbb or #rrggbbaa)' },
+)
+
 export const DecorationPositionSchema = z.object({
   x: z.number(),
   y: z.number(),
@@ -81,14 +90,14 @@ export const DecorationPositionSchema = z.object({
 })
 
 export const DecorationStrokeSchema = z.object({
-  color: z.string(),
+  color: HexColorSchema,
   width: z.number(),
   style: z.enum(['solid', 'dashed', 'dotted']),
 })
 
 export const DecorationShadowEffectSchema = z.object({
   enabled: z.boolean(),
-  color: z.string(),
+  color: HexColorSchema,
   size: z.enum(['sm', 'md', 'lg']),
 })
 
@@ -112,7 +121,7 @@ export const IconDecorationSchema = z.object({
   kind: z.literal('icon'),
   ...DecorationBaseFields,
   lucideName: z.string().min(1),
-  color: z.string(),
+  color: HexColorSchema,
   strokeWidth: z.number(),
 })
 
@@ -129,7 +138,7 @@ export const ShapeDecorationSchema = z.object({
     'arrow',
     'line',
   ]),
-  fill: z.string(),
+  fill: HexColorSchema,
   stroke: DecorationStrokeSchema.optional(),
   cornerRadius: z.number().optional(),
   points: z.number().optional(),

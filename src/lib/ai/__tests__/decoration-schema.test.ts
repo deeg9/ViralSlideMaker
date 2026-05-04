@@ -126,4 +126,46 @@ describe('Phase 67 (DECOR-05): DecorationSchema Zod validator', () => {
     const { opacity: _op, ...withoutOpacity } = { ...validIcon, opacity: undefined }
     expect(DecorationSchema.safeParse(withoutOpacity).success).toBe(true)
   })
+
+  // WR-02: Hex-only color guard — all Decoration color/fill fields
+  it('WR-02-A: icon color #fff000 (6-digit) accepted', () => {
+    expect(DecorationSchema.safeParse({ ...validIcon, color: '#fff000' }).success).toBe(true)
+  })
+
+  it('WR-02-B: shadow color #fff000ff (8-digit alpha form) accepted', () => {
+    const result = DecorationSchema.safeParse({
+      ...validShape,
+      effects: { shadow: { enabled: true, color: '#fff000ff', size: 'md' } },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('WR-02-C: shape fill #A8E0B0 (6-digit) accepted', () => {
+    expect(DecorationSchema.safeParse({ ...validShape, fill: '#A8E0B0' }).success).toBe(true)
+  })
+
+  it('WR-02-D: icon color "currentColor" silently dropped via parseDecorationsArraySafe', () => {
+    const out = parseDecorationsArraySafe([{ ...validIcon, color: 'currentColor' }, validShape])
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('shape')
+  })
+
+  it('WR-02-E: icon color "blue" (named color) silently dropped via parseDecorationsArraySafe', () => {
+    const out = parseDecorationsArraySafe([{ ...validIcon, color: 'blue' }, validShape])
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('shape')
+  })
+
+  it('WR-02-F: shape fill "#fff" (3-digit shorthand) rejected — not allowed', () => {
+    expect(DecorationSchema.safeParse({ ...validShape, fill: '#fff' }).success).toBe(false)
+  })
+
+  it('WR-02-G: stroke color "inherit" silently dropped via parseDecorationsArraySafe', () => {
+    const out = parseDecorationsArraySafe([
+      { ...validShape, stroke: { color: 'inherit', width: 1, style: 'solid' } },
+      validIcon,
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0].kind).toBe('icon')
+  })
 })
