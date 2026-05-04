@@ -64,7 +64,10 @@
   3. Z_ORDER dispatched on a decoration id leaves `slide.custom_images` array reference-equal pre/post (PRS7 cross-scope isolation); BULK_TRANSLATE dispatched on a multi-selection containing a locked decoration does NOT move the locked decoration (PRS8 lock-honor regression).
   4. PRA1..PRA12 source-grep audit gate confirms every multi-select reducer action body mentions all 4 `AddressableScope` values (`text_boxes`, `custom_images`, `watermark`, `decorations`) — fails CI on any missing scope.
   5. Canonical `addressable-element-walkers.ts` module exports a single `synthesizeRows` / `computeAllLocked` / `computeAllHidden` / `getGroupMembers` walk; ungroup with [text + decoration] correctly clears groupId on both elements (no orphaned phantom groups).
-**Plans**: TBD
+**Plans:** 3 plans
+- [ ] 68-01-PLAN.md — AddressableScope exhaustive type + 3 NEW reducer actions (ADD/UPDATE/REMOVE_DECORATION) + selection-model extension (EDITOR-01, EDITOR-03, EDITOR-14)
+- [ ] 68-02-PLAN.md — Canonical addressable-element-walkers module + 4 transform extensions + 10 EXTENDED reducer cases with decorations branch (EDITOR-02, EDITOR-04, EDITOR-05, EDITOR-06, EDITOR-08, EDITOR-09, EDITOR-10, EDITOR-11, EDITOR-12, EDITOR-13)
+- [ ] 68-03-PLAN.md — PRA1..PRA12 source-grep audit gate + PRS7/PRS8 cross-scope isolation tests + final regression sweep (PARITY-15, PARITY-16, PARITY-17)
 **UI hint**: no
 
 ### Phase 69: Renderers + DecorationRenderer + First Parity Proof
@@ -151,7 +154,7 @@ Research synthesis assumed `rotation` field as schema-only with deferral of inte
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 67. Schema Foundation + Null-Decoration TPLREND-05 Baseline | 2/2 | Complete | 2026-05-04 |
-| 68. Reducer Extensions + Selection Model | 0/0 | Not started | — |
+| 68. Reducer Extensions + Selection Model | 0/3 | Planned | — |
 | 69. Renderers + DecorationRenderer + First Parity Proof | 0/0 | Not started | — |
 | 70. Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library | 0/0 | Not started | — |
 | 71. AI Emit + Fork RPC + Comprehensive Parity Audit | 0/0 | Not started | — |
