@@ -29,9 +29,11 @@ const SAFE = {
   bottom: { hookY: 48, bodyY: 62 },
 }
 
-// Mirrors NEWS_LAYOUT in render-slide.ts — keep in sync.
+// Mirrors NEWS_LAYOUT in render-slide.ts and slide-preview.tsx — keep in sync.
+// 260503: cover.bodyY bumped 80 → 84 to give long-hook wraps a vertical safety
+// margin before they could collide with the body zone.
 const NEWS_LAYOUT = {
-  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 80 },
+  cover: { imageTop: 0,  imageHeight: 55, hookY: 60, bodyY: 84 },
   body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
 } as const
 
@@ -488,6 +490,15 @@ export function buildSlideElement(
           }}
         />
       ))}
+      {/* Phase 67 (DECOR-01) layer 5.5: decoration iteration site.
+          Null-safe — when slide.decorations === undefined OR [], emits ZERO
+          DOM nodes (idempotent absence — PTF16 byte-identity gate enforced
+          by parity.template-fingerprint-decorations-undefined.test.tsx).
+          Actual decoration rendering (icon SVG resolve + shape emitter) lands
+          in Phase 69 via decoration-renderer.tsx. This stub only owns the
+          iteration shape so downstream phases can drop in the renderer body
+          without touching the iteration contract. */}
+      {(slide.decorations ?? []).filter((d) => d.hidden !== true).map((_d) => null)}
       {/* Brand watermark — rendered after custom_images so it stacks on top in Satori DOM order.
           Phase 64 LOCK-07: also gate on slide.watermark.hidden to suppress hidden watermarks. */}
       {watermark && !slide.watermark?.hidden && (
