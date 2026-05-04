@@ -3270,3 +3270,643 @@ describe('Phase 68 Plan 01: ADD/UPDATE/REMOVE_DECORATION', () => {
     expect(afterRemove.past.length).toBe(afterUpdate.past.length + 1)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 02 (EDITOR-02): 5 reducer cases extended with decorations
+// branch — BULK_TRANSLATE, BULK_DELETE, DUPLICATE_ELEMENTS_AT, GROUP, UNGROUP.
+// Each branch mirrors the custom_images shape (verbose per-scope routing —
+// audit-friendly v2.11 pattern). Mirror PRA grep gate precondition: every
+// case body mentions the literal token 'decorations'.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Phase 68 Plan 02: BULK_TRANSLATE/BULK_DELETE/DUPLICATE/GROUP/UNGROUP decorations branch', () => {
+  // ─── BULK_TRANSLATE ──────────────────────────────────────────────────────
+
+  test('Test BT-1: BULK_TRANSLATE on selection [text_box, decoration] with delta (5,3) translates both', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 10, y: 10, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1', { position: { x: 20, y: 20, width: 15, height: 15 } })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      deltaX: 5,
+      deltaY: 3,
+    })
+    const tbOut = next.present[0].text_boxes![0]
+    const dOut = next.present[0].decorations![0]
+    expect(tbOut.position.x).toBe(15)
+    expect(tbOut.position.y).toBe(13)
+    expect(dOut.position.x).toBe(25)
+    expect(dOut.position.y).toBe(23)
+  })
+
+  test('Test BT-2: BULK_TRANSLATE on locked decoration → position unchanged (PRS8 precursor)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true, position: { x: 20, y: 20, width: 15, height: 15 } })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.present[0].decorations![0].position.x).toBe(20)
+    expect(next.present[0].decorations![0].position.y).toBe(20)
+  })
+
+  test('Test BT-3: BULK_TRANSLATE on hidden decoration → MOVES (hidden ≠ locked)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { hidden: true, position: { x: 20, y: 20, width: 15, height: 15 } })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.present[0].decorations![0].position.x).toBe(25)
+    expect(next.present[0].decorations![0].position.y).toBe(25)
+  })
+
+  test('Test BT-4: BULK_TRANSLATE with empty ids → state ref-equal-ish (no past growth on no-op slide)', () => {
+    // The action always pushes history once because the reducer doesn't
+    // currently check empty-ids on BULK_TRANSLATE; this just verifies
+    // no decoration moved with empty ids.
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { position: { x: 20, y: 20, width: 15, height: 15 } })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: [],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.present[0].decorations![0].position.x).toBe(20)
+    expect(next.present[0].decorations![0].position.y).toBe(20)
+  })
+
+  test('Test BT-5: BULK_TRANSLATE single pushHistory per dispatch (decoration scope)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 1,
+      deltaY: 1,
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('Test BT-7: BULK_TRANSLATE on decoration ids leaves text_boxes / custom_images element-equal pre/post (no content drift)', () => {
+    // Note: BULK_TRANSLATE wraps every scope in `.map()` so the array
+    // identity differs even on no-op (pre-existing v2.11 behavior); we
+    // assert ELEMENT identity instead of array identity. Element-level
+    // ref-equality is what consumers ultimately memo against.
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const ci = { id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        custom_images: [ci],
+        decorations: [makeIconDecoration('d1')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.present[0].text_boxes![0]).toBe(initial.present[0].text_boxes![0])
+    expect(next.present[0].custom_images![0]).toBe(initial.present[0].custom_images![0])
+  })
+
+  test('Test BT-8: BULK_TRANSLATE with stale id silently no-ops on that id', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { position: { x: 5, y: 5, width: 10, height: 10 } })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_TRANSLATE',
+      slideIndex: 0,
+      ids: ['stale-id'],
+      deltaX: 99,
+      deltaY: 99,
+    })
+    expect(next.present[0].decorations![0].position.x).toBe(5)
+  })
+
+  // ─── BULK_DELETE ──────────────────────────────────────────────────────
+
+  test('Test BD-1: BULK_DELETE on [text_box, decoration] removes both', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+    })
+    expect(next.present[0].text_boxes!.length).toBe(0)
+    expect(next.present[0].decorations!.length).toBe(0)
+  })
+
+  test('Test BD-2: BULK_DELETE on locked decoration → preserved', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next.present[0].decorations!.length).toBe(1)
+  })
+
+  test('Test BD-3: BULK_DELETE on hidden decoration → REMOVED (hidden does NOT protect)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { hidden: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next.present[0].decorations!.length).toBe(0)
+  })
+
+  test('Test BD-4: BULK_DELETE single pushHistory per dispatch', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('Test BD-5: BULK_DELETE all-locked decoration selection → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('Test BD-6: BULK_DELETE with decoration in middle of array preserves source-order', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1'),
+          makeIconDecoration('d2'),
+          makeIconDecoration('d3'),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'BULK_DELETE',
+      slideIndex: 0,
+      ids: ['d2'],
+    })
+    expect(next.present[0].decorations!.map((d) => d.id)).toEqual(['d1', 'd3'])
+  })
+
+  // ─── DUPLICATE_ELEMENTS_AT ──────────────────────────────────────────────
+
+  test('Test DE-1: DUPLICATE_ELEMENTS_AT on decoration creates a deep-copy with new id and (deltaX, deltaY) offset', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { position: { x: 10, y: 20, width: 15, height: 15 } })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.present[0].decorations!.length).toBe(2)
+    const original = next.present[0].decorations![0]
+    const copy = next.present[0].decorations![1]
+    expect(original.id).toBe('d1')                  // original untouched
+    expect(original.position.x).toBe(10)
+    expect(copy.id).not.toBe('d1')                  // new uuid
+    expect(copy.position.x).toBe(15)
+    expect(copy.position.y).toBe(25)
+  })
+
+  test('Test DE-2: DUPLICATE_ELEMENTS_AT skips locked decoration (no copy)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { locked: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next).toBe(initial)
+    expect(next.present[0].decorations!.length).toBe(1)
+  })
+
+  test('Test DE-3: DUPLICATE_ELEMENTS_AT skips hidden decoration', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { hidden: true })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next).toBe(initial)
+    expect(next.present[0].decorations!.length).toBe(1)
+  })
+
+  test('Test DE-4: DUPLICATE_ELEMENTS_AT with newGroupId assigns groupId to COPY (not original)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 0,
+      deltaY: 0,
+      newGroupId: 'g_new',
+    })
+    expect(next.present[0].decorations![0].groupId).toBeUndefined() // original
+    expect(next.present[0].decorations![1].groupId).toBe('g_new')   // copy
+  })
+
+  test('Test DE-5: DUPLICATE_ELEMENTS_AT preserves discriminated-union shape (icon + shape)', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [
+          makeIconDecoration('d1', { lucideName: 'Star', strokeWidth: 4 }),
+          makeShapeDecoration('d2', { shapeKind: 'circle', fill: '#123456' }),
+        ],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['d1', 'd2'],
+      deltaX: 1,
+      deltaY: 1,
+    })
+    expect(next.present[0].decorations!.length).toBe(4)
+    const iconCopy = next.present[0].decorations![2] as IconDecoration
+    const shapeCopy = next.present[0].decorations![3] as ShapeDecoration
+    expect(iconCopy.kind).toBe('icon')
+    expect(iconCopy.lucideName).toBe('Star')
+    expect(iconCopy.strokeWidth).toBe(4)
+    expect(shapeCopy.kind).toBe('shape')
+    expect(shapeCopy.shapeKind).toBe('circle')
+    expect(shapeCopy.fill).toBe('#123456')
+  })
+
+  test('Test DE-6: DUPLICATE_ELEMENTS_AT mixed [text_box, decoration] with newGroupId assigns same groupId to BOTH copies', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      deltaX: 5,
+      deltaY: 5,
+      newGroupId: 'g_alt',
+    })
+    expect(next.present[0].text_boxes!.length).toBe(2)
+    expect(next.present[0].text_boxes![1].groupId).toBe('g_alt')
+    expect(next.present[0].decorations!.length).toBe(2)
+    expect(next.present[0].decorations![1].groupId).toBe('g_alt')
+  })
+
+  test('Test DE-7: DUPLICATE_ELEMENTS_AT with empty ids → state ref-equal', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: [],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('Test DE-8: DUPLICATE_ELEMENTS_AT single pushHistory per dispatch', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'DUPLICATE_ELEMENTS_AT',
+      slideIndex: 0,
+      ids: ['d1'],
+      deltaX: 5,
+      deltaY: 5,
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  // ─── GROUP ──────────────────────────────────────────────────────────────
+
+  test('Test GR-1: GROUP on [decoration_id, text_box_id] assigns same groupId to both', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      groupId: 'g_a',
+    })
+    expect(next.present[0].text_boxes![0].groupId).toBe('g_a')
+    expect(next.present[0].decorations![0].groupId).toBe('g_a')
+  })
+
+  test('Test GR-2: GROUP on subset of existing group dissolves OLD groupId on remaining members; assigns NEW groupId only to listed ids', () => {
+    const tb1 = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 }, groupId: 'g_old' }
+    const tb2 = { id: 'tb2', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 5, y: 5, width: 50 }, groupId: 'g_old' }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb1, tb2],
+        decorations: [makeIconDecoration('d1')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      groupId: 'g_new',
+    })
+    expect(next.present[0].text_boxes![0].groupId).toBe('g_new')      // listed
+    expect(next.present[0].text_boxes![1].groupId).toBeUndefined()    // dissolved
+    expect(next.present[0].decorations![0].groupId).toBe('g_new')     // listed
+  })
+
+  test('Test GR-3: GROUP on decoration with prior groupId — old cleared, new set', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { groupId: 'g_prev' }), makeIconDecoration('d2')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['d1', 'd2'],
+      groupId: 'g_target',
+    })
+    expect(next.present[0].decorations![0].groupId).toBe('g_target')
+    expect(next.present[0].decorations![1].groupId).toBe('g_target')
+  })
+
+  test('Test GR-4: GROUP on locked decoration DOES assign groupId (groupId editable on locked)', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        decorations: [makeIconDecoration('d1', { locked: true })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      groupId: 'g_target',
+    })
+    expect(next.present[0].decorations![0].groupId).toBe('g_target')
+    expect(next.present[0].decorations![0].locked).toBe(true)         // still locked
+  })
+
+  test('Test GR-5: GROUP single pushHistory per dispatch', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+      groupId: 'g_x',
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('Test GR-6: GROUP on [decoration_only] with single id is a no-op (groups need ≥2 elements)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['d1'],
+      groupId: 'g_x',
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('Test GR-7: GROUP cascade — listing tb_a + decoration_d under g2 dissolves only listed members of old g1; tb_b stays in g1', () => {
+    const tba = { id: 'tb_a', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 }, groupId: 'g1' }
+    const tbb = { id: 'tb_b', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 5, y: 5, width: 50 }, groupId: 'g1' }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tba, tbb],
+        decorations: [makeIconDecoration('decoration_d')],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb_a', 'decoration_d'],
+      groupId: 'g2',
+    })
+    expect(next.present[0].text_boxes![0].groupId).toBe('g2')          // tb_a → g2
+    // Subset cascade: tb_b's old g1 was dissolved (tb_a left) → tb_b's groupId cleared
+    expect(next.present[0].text_boxes![1].groupId).toBeUndefined()
+    expect(next.present[0].decorations![0].groupId).toBe('g2')
+  })
+
+  test('Test GR-9: GROUP with mixed-scope ids correctly walks all 4 scopes', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const ci = { id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }
+    const wm = { id: 'w0', enabled: true, position: 'bottom-right' as const }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        custom_images: [ci],
+        decorations: [makeIconDecoration('d1')],
+        watermark: wm,
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'ci1', 'd1', 'w0'],
+      groupId: 'g_all',
+    })
+    expect(next.present[0].text_boxes![0].groupId).toBe('g_all')
+    expect(next.present[0].custom_images![0].groupId).toBe('g_all')
+    expect(next.present[0].decorations![0].groupId).toBe('g_all')
+    expect(next.present[0].watermark!.groupId).toBe('g_all')
+  })
+
+  test('Test GR-10: GROUP with stale ids silently skips that id', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const initial = makeState([
+      makeSlide({ text_boxes: [tb], decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'GROUP',
+      slideIndex: 0,
+      ids: ['stale', 'tb1', 'd1'],
+      groupId: 'g_target',
+    })
+    // Only valid ids get groupId
+    expect(next.present[0].text_boxes![0].groupId).toBe('g_target')
+    expect(next.present[0].decorations![0].groupId).toBe('g_target')
+  })
+
+  // ─── UNGROUP ────────────────────────────────────────────────────────────
+
+  test('Test UG-1: UNGROUP on [decoration_id] clears decoration.groupId', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { groupId: 'g_x' })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next.present[0].decorations![0].groupId).toBeUndefined()
+  })
+
+  test('Test UG-2: UNGROUP on mixed-scope group [text_box, decoration] clears both groupIds', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 }, groupId: 'g_x' }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        decorations: [makeIconDecoration('d1', { groupId: 'g_x' })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+    })
+    expect(next.present[0].text_boxes![0].groupId).toBeUndefined()
+    expect(next.present[0].decorations![0].groupId).toBeUndefined()
+  })
+
+  test('Test UG-3: UNGROUP single pushHistory per dispatch', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { groupId: 'g_x' })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next.past.length).toBe(initial.past.length + 1)
+  })
+
+  test('Test UG-4: UNGROUP on already-ungrouped decoration → state ref-equal (idempotent)', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1')] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next).toBe(initial)
+  })
+
+  test('Test UG-5: UNGROUP on locked decoration DOES clear groupId', () => {
+    const initial = makeState([
+      makeSlide({
+        decorations: [makeIconDecoration('d1', { groupId: 'g_x', locked: true })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next.present[0].decorations![0].groupId).toBeUndefined()
+    expect(next.present[0].decorations![0].locked).toBe(true)
+  })
+
+  test('Test UG-6: UNGROUP preserves text_boxes / custom_images / watermark ref-equal when only decoration ids supplied', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 } }
+    const ci = { id: 'ci1', url: 'u', x: 0, y: 0, width: 10, height: 10 }
+    const wm = { id: 'w0', enabled: true, position: 'bottom-right' as const }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        custom_images: [ci],
+        decorations: [makeIconDecoration('d1', { groupId: 'g_x' })],
+        watermark: wm,
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['d1'],
+    })
+    expect(next.present[0].text_boxes).toBe(initial.present[0].text_boxes)
+    expect(next.present[0].custom_images).toBe(initial.present[0].custom_images)
+    expect(next.present[0].watermark).toBe(initial.present[0].watermark)
+  })
+
+  test('Test UG-7: UNGROUP with stale ids silently no-ops on those ids', () => {
+    const initial = makeState([
+      makeSlide({ decorations: [makeIconDecoration('d1', { groupId: 'g_x' })] }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['stale', 'd1'],
+    })
+    expect(next.present[0].decorations![0].groupId).toBeUndefined()
+  })
+
+  test('Test UG-8: UNGROUP on entire group members causes group to "disappear"', () => {
+    const tb = { id: 'tb1', role: 'custom' as const, text: '', position: { anchor: 'custom' as const, x: 0, y: 0, width: 50 }, groupId: 'g_x' }
+    const initial = makeState([
+      makeSlide({
+        text_boxes: [tb],
+        decorations: [makeIconDecoration('d1', { groupId: 'g_x' })],
+      }),
+    ])
+    const next = editorReducer(initial, {
+      type: 'UNGROUP',
+      slideIndex: 0,
+      ids: ['tb1', 'd1'],
+    })
+    expect(next.present[0].text_boxes![0].groupId).toBeUndefined()
+    expect(next.present[0].decorations![0].groupId).toBeUndefined()
+  })
+})

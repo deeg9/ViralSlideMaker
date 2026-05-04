@@ -1,4 +1,11 @@
-import type { Slide, TextBox, TextBoxPosition, TextBoxRole, CustomImage } from '@/lib/types/slide'
+import type {
+  Slide,
+  TextBox,
+  TextBoxPosition,
+  TextBoxRole,
+  CustomImage,
+  Decoration,
+} from '@/lib/types/slide'
 import type { EditorAction } from '@/lib/editor/editor-actions'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import {
@@ -531,6 +538,26 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           })
         }
 
+        // Phase 68 Plan 02 (EDITOR-02): decorations branch — same shape as
+        // custom_images but operates on Decoration.position {x, y, width,
+        // height}. Locked decorations are skipped (Phase 64 LOCK-04 honor);
+        // hidden decorations DO move (hidden ≠ locked — mirror v2.11 contract).
+        let nextDecorations = slide.decorations
+        if (slide.decorations) {
+          nextDecorations = slide.decorations.map((d) => {
+            if (!idSet.has(d.id)) return d
+            if (d.locked === true) return d   // Phase 64 LOCK-04
+            return {
+              ...d,
+              position: {
+                ...d.position,
+                x: d.position.x + action.deltaX,
+                y: d.position.y + action.deltaY,
+              },
+            }
+          })
+        }
+
         // Watermark: SKIPPED in Phase 60. Watermark.position is enum-only;
         // freeform translation requires a future schema extension. Known gap.
 
@@ -540,6 +567,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         if (nextCustomImages !== slide.custom_images) {
           next = { ...next, custom_images: nextCustomImages }
+        }
+        if (nextDecorations !== slide.decorations) {
+          next = { ...next, decorations: nextDecorations }
         }
         return next
       })
@@ -583,12 +613,31 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           (ci) => !idSet.has(ci.id) || ci.locked === true,
         )
 
+        // Phase 68 Plan 02 (EDITOR-02): decorations branch — filter unlocked
+        // decorations matching idSet. Locked decorations are PRESERVED (lock-
+        // honor; mirror custom_images branch above). Hidden decorations are
+        // STILL DELETED (hidden does not protect from delete — contract
+        // mirrors v2.11 SET_HIDDEN-doesn't-block-delete behavior).
+        const prevDecorations = slide.decorations ?? []
+        const nextDecorations = slide.decorations
+          ? slide.decorations.filter(
+              (d) => !idSet.has(d.id) || d.locked === true,
+            )
+          : slide.decorations
+
         let next: Slide = slide
         if (nextTextBoxes.length !== prevTextBoxes.length) {
           next = applyDualWrite(next, nextTextBoxes)
         }
         if (nextCustomImages.length !== prevCustomImages.length) {
           next = { ...next, custom_images: nextCustomImages }
+        }
+        if (
+          slide.decorations &&
+          nextDecorations !== slide.decorations &&
+          (nextDecorations as Decoration[]).length !== prevDecorations.length
+        ) {
+          next = { ...next, decorations: nextDecorations as Decoration[] }
         }
         return next
       })
@@ -657,10 +706,40 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           imageCopies.push(copy)
         }
 
+        // Phase 68 Plan 02 (EDITOR-11): decorations branch — alt-drag duplicate
+        // for icon + shape decorations. Same skip-set as custom_images branch
+        // PLUS skip hidden (mirror Phase 66 PITFALL pattern — hidden elements
+        // shouldn't be silently materialized as visible copies). Discriminated-
+        // union shape preserved via `{ ...d, id: ... }` spread (kind + per-kind
+        // fields ride along intact).
+        const decorationCopies: Decoration[] = []
+        for (const d of slide.decorations ?? []) {
+          if (!idSet.has(d.id)) continue
+          if (d.locked === true) continue
+          if (d.hidden === true) continue
+          const copy = {
+            ...d,
+            id: crypto.randomUUID(),
+            position: {
+              ...d.position,
+              x: d.position.x + action.deltaX,
+              y: d.position.y + action.deltaY,
+            },
+            ...(action.newGroupId !== undefined
+              ? { groupId: action.newGroupId }
+              : { groupId: undefined }),
+          } as Decoration
+          decorationCopies.push(copy)
+        }
+
         // Watermark: SKIPPED. Watermark.position is enum-only — cannot be
         // freeform-translated. Same gap as BULK_TRANSLATE; documented in
         // 66-CONTEXT.md.
-        if (textBoxCopies.length === 0 && imageCopies.length === 0) {
+        if (
+          textBoxCopies.length === 0 &&
+          imageCopies.length === 0 &&
+          decorationCopies.length === 0
+        ) {
           return slide  // truly nothing to copy — no-op for this slide
         }
 
@@ -673,6 +752,12 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           next = {
             ...next,
             custom_images: [...(next.custom_images ?? []), ...imageCopies],
+          }
+        }
+        if (decorationCopies.length > 0) {
+          next = {
+            ...next,
+            decorations: [...(next.decorations ?? []), ...decorationCopies],
           }
         }
         return next
@@ -704,6 +789,8 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
 
         // Detect prior groupIds among the selected ids — drives the
         // "subset dissolves prior group" cascade for unselected members.
+        // Phase 68 Plan 02 (EDITOR-05): walk decorations alongside the other
+        // 3 scopes so cascade catches decorations group membership too.
         const oldGroupIds = new Set<string>()
         for (const tb of slide.text_boxes ?? []) {
           if (idSet.has(tb.id) && tb.groupId !== undefined && tb.groupId !== action.groupId) {
@@ -713,6 +800,11 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         for (const ci of slide.custom_images ?? []) {
           if (idSet.has(ci.id) && ci.groupId !== undefined && ci.groupId !== action.groupId) {
             oldGroupIds.add(ci.groupId)
+          }
+        }
+        for (const d of slide.decorations ?? []) {
+          if (idSet.has(d.id) && d.groupId !== undefined && d.groupId !== action.groupId) {
+            oldGroupIds.add(d.groupId)
           }
         }
         if (
@@ -755,6 +847,26 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           })
         }
 
+        // Phase 68 Plan 02 (EDITOR-05): decorations branch — same shape as
+        // custom_images. Locked decorations DO receive groupId reassignment
+        // (groupId is editable on locked elements per v2.11 LOCK-04 contract;
+        // the lock guards CONTENT, not group membership). Cascade dissolution
+        // mirrors the v2.11 Phase 62-01 carry-forward: non-listed members of
+        // any dissolved old group have groupId cleared.
+        let nextDecorations = slide.decorations
+        if (slide.decorations) {
+          nextDecorations = slide.decorations.map((d) => {
+            if (idSet.has(d.id)) {
+              return d.groupId === action.groupId ? d : { ...d, groupId: action.groupId }
+            }
+            if (d.groupId !== undefined && oldGroupIds.has(d.groupId)) {
+              const { groupId: _g, ...rest } = d
+              return rest as Decoration
+            }
+            return d
+          })
+        }
+
         // Watermark: single optional value
         let nextWatermark = slide.watermark
         if (slide.watermark) {
@@ -778,6 +890,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         if (nextCustomImages !== slide.custom_images) {
           next = { ...next, custom_images: nextCustomImages }
+        }
+        if (nextDecorations !== slide.decorations) {
+          next = { ...next, decorations: nextDecorations }
         }
         if (nextWatermark !== slide.watermark) {
           next = { ...next, watermark: nextWatermark }
@@ -829,6 +944,23 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           })
         }
 
+        // Phase 68 Plan 02 (EDITOR-05): decorations branch — clear groupId on
+        // every listed decoration whose id matches AND currently carries a
+        // groupId. Locked decorations DO have groupId cleared (groupId is
+        // editable on locked elements per v2.11 contract).
+        let decorationsChanged = false
+        let nextDecorations = slide.decorations
+        if (slide.decorations) {
+          nextDecorations = slide.decorations.map((d) => {
+            if (idSet.has(d.id) && d.groupId !== undefined) {
+              decorationsChanged = true
+              const { groupId: _g, ...rest } = d
+              return rest as Decoration
+            }
+            return d
+          })
+        }
+
         let watermarkChanged = false
         let nextWatermark = slide.watermark
         if (
@@ -841,7 +973,12 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
           nextWatermark = rest
         }
 
-        if (!textBoxesChanged && !customImagesChanged && !watermarkChanged) {
+        if (
+          !textBoxesChanged &&
+          !customImagesChanged &&
+          !decorationsChanged &&
+          !watermarkChanged
+        ) {
           return slide
         }
         anyChange = true
@@ -852,6 +989,9 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         if (customImagesChanged) {
           next = { ...next, custom_images: nextCustomImages }
+        }
+        if (decorationsChanged) {
+          next = { ...next, decorations: nextDecorations }
         }
         if (watermarkChanged) {
           next = { ...next, watermark: nextWatermark }
