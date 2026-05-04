@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
 status: executing
-stopped_at: "Plan 68-02 SHIPPED (Wave 2 — 10 EXTENDED reducer cases + canonical addressable-element-walkers module + 4 transform extensions + layers-panel migration). 121 new tests GREEN (reducer 75 + walker 26 + transforms 20). Total editor suite: 505 GREEN. tsc baseline 17 preserved. 3 atomic commits 47f76fe / 6b1a615 / 9e4f05f. Ready for Plan 68-03 (PRA1..PRA12 source-grep audit + PRS7/PRS8 cross-scope isolation)."
-last_updated: "2026-05-04T00:00:00.000Z"
-last_activity: 2026-05-04 — Plan 68-02 SHIPPED (10 EXTENDED reducer cases + canonical walker + transforms decoration support)
+stopped_at: "Phase 68 COMPLETE (3/3 plans). Plan 68-03 SHIPPED — PRA1..12 source-grep audit gate (16 GREEN) + PRS7..14 cross-scope isolation tests (10 GREEN). Closes PARITY-15/16/17. 531/531 editor tests; tsc baseline 17 preserved. Phase 69 (Renderers + DecorationRenderer + First Parity Proof) is unblocked — reducer + walker + selection-model foundation stable; PRA grep gate + PRS isolation gate are CI-enforced. Phase 69 work-area: src/lib/render/ (renderer surfaces — slide-preview.tsx + render-slide-satori.tsx + new decoration-renderer.tsx)."
+last_updated: "2026-05-04T07:14:00.000Z"
+last_activity: 2026-05-04 — Plan 68-03 SHIPPED (PRA1..12 audit gate + PRS7..14 cross-scope isolation tests)
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,18 @@ See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 
 ## Current Position
 
+Phase: 68 — Reducer Extensions + Selection Model **COMPLETE** (3/3 plans shipped — all 16 phase reqs closed)
+Plan: 68-03 SHIPPED (Wave 3 — PRA1..PRA12 source-grep audit gate + PRS7..PRS14 cross-scope isolation regression tests). 26 new tests across 2 files (16 PRA + SELF-CTRL methodology pins; 10 PRS runtime ref-equality regressions). Closes PARITY-15 + PARITY-16 + PARITY-17. Two minimal production-code touches in editor-reducer.ts: (1) 5 watermark `//` line comments migrated to `/* */` block comments (Rule 3 — plan action note 258 explicitly authorizes; preserves SELF-CTRL-3 line-strip contract); (2) GROUP case body refactored to use explicit `*Changed` flags instead of post-`.map()` ref comparison (Rule 1 — `.map()` always returns new array, breaking cross-scope ref-equality memoization; mirror SET_LOCKED/SET_HIDDEN/UNGROUP pattern). 531/531 editor tests GREEN across 22 files; 29/29 PTF parity fingerprint tests GREEN; 34/34 layers-panel tests GREEN; tsc baseline 17 preserved. 2 atomic commits `36cdc54` / `72641be`.
+Plan: 68-02 SHIPPED (Wave 2 — 10 EXTENDED reducer cases + canonical addressable-element-walkers.ts + 4 transforms extended + layers-panel migration). +121 new tests; 505 editor tests GREEN; 34 layers-panel GREEN; tsc baseline 17 preserved. 3 atomic commits `47f76fe` / `6b1a615` / `9e4f05f`.
+Plan: 68-01 SHIPPED (Wave 1 — AddressableScope exhaustive type + 3 NEW decoration reducer actions + useSelectionModel 4-scope walks). +40 new tests; 384 editor tests GREEN; tsc baseline 17 preserved. 3 atomic commits `6a8ec04` / `2b3772a` / `8ad2988`.
+Phase 68 status: COMPLETE; ALL 16 Phase 68 reqs marked complete in REQUIREMENTS.md (EDITOR-01..06, EDITOR-08..14, PARITY-15, PARITY-16, PARITY-17). Phase 69 (Renderers + DecorationRenderer + First Parity Proof) can now build on the reducer + walker foundation without re-touching Phase 68 surfaces. Reducer surface stable; PRA grep gate + PRS isolation gate are CI-enforced — any future modification that drops a scope reference or breaks cross-scope ref-equality fails CI.
+Last activity: 2026-05-04 — Plan 68-03 SHIPPED (PRA1..12 audit gate + PRS7..14 cross-scope isolation tests)
+
+### Phase 67 carry-over
+
 Phase: 67 — Schema Foundation + Null-Decoration TPLREND-05 Baseline (Plans 67-01 + 67-02 SHIPPED)
 Plan: 67-02 SHIPPED (Wave 2 — PTF16 idempotent-absence parity baseline + MIGR-02 no-op migration doc + DEPS-01 negative bundle-delta verification). 73 new PTF16 tests / 48 snapshots / 12 templates × 6 families + 1 sanity test, ALL GREEN with zero churn on existing PTF1..12 + PTL1..2 baselines. Manual diff confirmed PTF16-undef-1a (highlight-bar) === PTF1a AND PTF16-undef-12a (paper-essay) === PTF12a — byte-identical across both renderers. MIGR-02-NOTES.md (110 LOC) documents additive schema → no-op load-path migration; explicitly references v2.8 BL-01 dual-write trap as avoided anti-pattern. DEPS-01-BUNDLE-DELTA.md (153 LOC) captures pre/post next-build measurement: editor route page chunk -1 byte raw / -169 bytes gzipped (-0.48%); total .next/static/chunks/app/ unchanged at 488 KB. tsc baseline 17 preserved. 2 atomic commits `6621612` (test) + `e76f8fa` (docs). TPLREND-05 byte-identity invariant locked for v2.12; Phase 68 (reducer ADD/UPDATE/REMOVE_DECORATION) may now begin.
 Plan: 67-01 SHIPPED (Wave 1 — schema + layer 5.5 stubs + lucide v1 upgrade). Decoration discriminated union types (87 LOC) + DecorationSchema Zod validator + parseDecorationsArraySafe silent-drop helper + lucide-react ^0.577 → ^1.14 + brand-icon grep gate + layer 5.5 null-safe iteration stubs in BOTH renderers (1 stub in render-slide-satori.tsx, 2 stubs in slide-preview.tsx for non-editable + editable paths). 4 atomic commits `71bd7b5` / `1d306ae` / `bbd93be` / `52f4ff1`.
-Status: Phase 67 in progress — 2/2 phase plans shipped per current ROADMAP; PTF16 GREEN; gate locked; ready for Phase 68 reducer work.
-Last activity: 2026-05-04 — Plan 67-02 SHIPPED (PTF16 parity gate + MIGR-02 + DEPS-01 documentation)
 
 ### Phase 65 carry-over
 

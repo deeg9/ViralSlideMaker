@@ -117,9 +117,9 @@
 - [ ] **PARITY-12**: PCL11 — chrome-leak grep: decoration render paths contain no `*selection*` / `*marquee*` / `*guide*` / `*lock-icon*` / `*decoration-ring*` classNames
 - [ ] **PARITY-13**: PCL12 — color-cascade grep: zero `currentColor` references in `src/lib/render/` production code
 - [ ] **PARITY-14**: PCL13 — CSS-filter grep: zero `filter:` / `backdrop-filter:` on any decoration render path
-- [ ] **PARITY-15**: PRA1..PRA12 — reducer per-scope source-grep audit (every multi-select action body mentions all 4 AddressableScopes); pinned at Plan 65-03 PCL/PTF/PRS extension
-- [ ] **PARITY-16**: PRS7 — Z_ORDER on decoration id leaves custom_images[] array ref-equal (cross-scope isolation)
-- [ ] **PARITY-17**: PRS8 — BULK_TRANSLATE with locked decoration does NOT move (lock-honor regression)
+- [x] **PARITY-15**: PRA1..PRA12 — reducer per-scope source-grep audit (every multi-select action body mentions all 4 AddressableScopes); pinned at Plan 65-03 PCL/PTF/PRS extension
+- [x] **PARITY-16**: PRS7 — Z_ORDER on decoration id leaves custom_images[] array ref-equal (cross-scope isolation)
+- [x] **PARITY-17**: PRS8 — BULK_TRANSLATE with locked decoration does NOT move (lock-honor regression)
 - [ ] **PARITY-18**: LP-NEW1..3 — layers panel walk: solo decoration appears, decoration-in-group appears with shared groupId, multi-decoration group renders consistent group chip
 
 ### Migration + Fork RPC (MIGR)

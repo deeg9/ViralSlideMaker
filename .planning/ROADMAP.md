@@ -32,7 +32,7 @@
 ## Phases
 
 - [x] **Phase 67: Schema Foundation + Null-Decoration TPLREND-05 Baseline** — `decorations?: Decoration[]` schema + null-safe iteration sites in both renderers; pin byte-identity on legacy 11 templates BEFORE any feature work. **COMPLETE** (2026-05-04, 2/2 plans shipped — PTF16 GREEN, MIGR-02 + DEPS-01 documented, bundle-delta -169 bytes gz on editor route)
-- [ ] **Phase 68: Reducer Extensions + Selection Model** — Every multi-select reducer action + selection model + alignment + marquee + group + layers walkers know about decorations; reducer-level tests prove correctness without UI.
+- [x] **Phase 68: Reducer Extensions + Selection Model** — Every multi-select reducer action + selection model + alignment + marquee + group + layers walkers know about decorations; reducer-level tests prove correctness without UI. (completed 2026-05-04)
 - [ ] **Phase 69: Renderers + DecorationRenderer + First Parity Proof** — Shared `decoration-renderer.tsx` consumed by BOTH Satori + React preview; hand-injected fixture decorations render byte-identical PNG/DOM across all 8 shapeKinds + 10 representative Lucide icons.
 - [ ] **Phase 70: Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library** — Lucide modal picker (virtualized + fuzzy + keyboard nav) + 8-shape popover + DecorationCard right-rail + layers panel chips + R/C/L/I/S keyboard insert shortcuts.
 - [ ] **Phase 71: AI Emit + Fork RPC + Comprehensive Parity Audit** — Gemini emits `decorations[]` per slide with closed-enum allowlist + named color tokens + semantic anchors + advisory monoculture gate; fork RPC migration; final R1–R10 parity audit.
@@ -64,10 +64,10 @@
   3. Z_ORDER dispatched on a decoration id leaves `slide.custom_images` array reference-equal pre/post (PRS7 cross-scope isolation); BULK_TRANSLATE dispatched on a multi-selection containing a locked decoration does NOT move the locked decoration (PRS8 lock-honor regression).
   4. PRA1..PRA12 source-grep audit gate confirms every multi-select reducer action body mentions all 4 `AddressableScope` values (`text_boxes`, `custom_images`, `watermark`, `decorations`) — fails CI on any missing scope.
   5. Canonical `addressable-element-walkers.ts` module exports a single `synthesizeRows` / `computeAllLocked` / `computeAllHidden` / `getGroupMembers` walk; ungroup with [text + decoration] correctly clears groupId on both elements (no orphaned phantom groups).
-**Plans:** 3 plans
-- [ ] 68-01-PLAN.md — AddressableScope exhaustive type + 3 NEW reducer actions (ADD/UPDATE/REMOVE_DECORATION) + selection-model extension (EDITOR-01, EDITOR-03, EDITOR-14)
-- [ ] 68-02-PLAN.md — Canonical addressable-element-walkers module + 4 transform extensions + 10 EXTENDED reducer cases with decorations branch (EDITOR-02, EDITOR-04, EDITOR-05, EDITOR-06, EDITOR-08, EDITOR-09, EDITOR-10, EDITOR-11, EDITOR-12, EDITOR-13)
-- [ ] 68-03-PLAN.md — PRA1..PRA12 source-grep audit gate + PRS7/PRS8 cross-scope isolation tests + final regression sweep (PARITY-15, PARITY-16, PARITY-17)
+**Plans:** 3/3 plans complete
+- [x] 68-01-PLAN.md — AddressableScope exhaustive type + 3 NEW reducer actions (ADD/UPDATE/REMOVE_DECORATION) + selection-model extension (EDITOR-01, EDITOR-03, EDITOR-14)
+- [x] 68-02-PLAN.md — Canonical addressable-element-walkers module + 4 transform extensions + 10 EXTENDED reducer cases with decorations branch (EDITOR-02, EDITOR-04, EDITOR-05, EDITOR-06, EDITOR-08, EDITOR-09, EDITOR-10, EDITOR-11, EDITOR-12, EDITOR-13)
+- [x] 68-03-PLAN.md — PRA1..PRA12 source-grep audit gate + PRS7/PRS8 cross-scope isolation tests + final regression sweep (PARITY-15, PARITY-16, PARITY-17)
 **UI hint**: no
 
 ### Phase 69: Renderers + DecorationRenderer + First Parity Proof
@@ -154,7 +154,7 @@ Research synthesis assumed `rotation` field as schema-only with deferral of inte
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 67. Schema Foundation + Null-Decoration TPLREND-05 Baseline | 2/2 | Complete | 2026-05-04 |
-| 68. Reducer Extensions + Selection Model | 0/3 | Planned | — |
+| 68. Reducer Extensions + Selection Model | 3/3 | Complete   | 2026-05-04 |
 | 69. Renderers + DecorationRenderer + First Parity Proof | 0/0 | Not started | — |
 | 70. Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library | 0/0 | Not started | — |
 | 71. AI Emit + Fork RPC + Comprehensive Parity Audit | 0/0 | Not started | — |
