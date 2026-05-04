@@ -1,492 +1,458 @@
-# v2.11 Full Editor Parity — PITFALLS
+# v2.12 Shapes & Icons (Decoration Primitives) — PITFALLS
 
-**Researched:** 2026-05-02
-**Mode:** Pitfalls — common mistakes when adding multi-select / groups / alignment / smart-guides / layers panel to a React + react-rnd + Satori editor
-**Overall confidence:** MEDIUM-HIGH (sources are real GitHub issues, official Figma/Canva help docs, fabric.js issue tracker, and confirmed web reports; some inferences from training data are flagged LOW)
+**Domain:** Adding `decorations[]` (kind: 'icon' | 'shape') to a Satori + React-preview hybrid renderer with a strict TPLREND-05 byte-identity invariant, full v2.11 multi-element editor parity (multi-select, marquee, group, align, lock, layers panel, z-order), and Gemini AI per-slide emit.
 
-**Carry-forward warnings (do NOT re-research; already-known from v2.9/v2.10):**
-- CSS filters (`filter`, `backdrop-filter`, `mix-blend-mode`) silently break Satori PNG export — vercel/satori#573
-- Variable fonts unsupported by Satori — vercel/satori#162, #712
-- react-rnd dispatch on every onDrag/onResize tick pollutes undo history — must dispatch on `onDragStop` / `onResizeStop` only (already enforced at `slide-preview.tsx:996/1011/1106/1121/1225/1241/1410/1426`)
-- `hook-fit` auto-shrink at slide-preview.tsx:313 conflicts with explicit font-size overrides — v2.10 routes through `style_overrides.{hook,body}_font_size`
+**Researched:** 2026-05-03
+**Overall confidence:** MEDIUM-HIGH (verified GitHub issues for satori #570 / #281 / #573 / #41 / #312 / #186, lucide-icons #1733 / #2366 / #1559, TanStack/virtual #419, react-rnd README + #911; mitigation patterns mirror the v2.11 audit pattern Plan 65-03 — PCL/PTF/PRS — and v2.8 BL-01 dual-write pattern).
 
----
-
-## CATEGORY 1 — Multi-select state pitfalls
-
-### 1.1 Stale ID references in selection set after element delete
-- **Symptom:** User deletes a text box; selection still includes its id; next "align" or "delete" tries to operate on a non-existent element and either crashes or silently drops 1 of N.
-- **Root cause:** `selectedIds` is a `Set<string>` decoupled from `slide.text_boxes / custom_texts / custom_images` arrays. Reducer mutates the arrays but does not prune the selection set in the same dispatch.
-- **Prevention rule:** Every reducer action that REMOVES an element MUST also filter `selectedIds` in the same step (reducer-level cross-update). For v2.11, fold this into the existing `applyDualWrite` pattern at `editor-reducer.ts:22` — add `applySelectionPrune(slide, selectedIds)`. Mirror in `REMOVE_TEXT_BOX`, `REMOVE_CUSTOM_TEXT`, `REMOVE_CUSTOM_IMAGE`, `REMOVE_SLIDE`, `DUPLICATE_SLIDE` (id regen at lines 121-128 already changes ids).
-- **Source:** Pattern matches the v2.8 BL-01 dual-write fix (live-preview reverted on save because reducer didn't atomically update both shapes — same class of bug). Internal reference: `editor-reducer.ts:7-21` BL-01 comment block.
-- **Phase:** **Phase 60 — Multi-select state design**
-
-### 1.2 Selection persisting across slide-switch
-- **Symptom:** User multi-selects 3 elements on slide 2, switches to slide 3, the right-rail still shows the slide-2 ids; align/distribute then targets ghosts.
-- **Root cause:** `selectedIds` lives at `SlideEditor` level (top-level `useState`); `selectedIndex` change does not clear it. Today's `selectedTextBoxId` in `useSlideEditor` already clears on slide change — multi-select state must inherit this contract.
-- **Prevention rule:** Selection state MUST be slide-scoped or cleared in a `useEffect` keyed on `selectedIndex`. If keeping it slide-scoped, store as `Map<slideIndex, Set<id>>`. Recommended: clear on slide change to mirror Figma's per-page selection model.
-- **Source:** Figma's selection model — selection state is tab/page-scoped per the [Figma layer-selection docs](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects).
-- **Phase:** **Phase 60 — Multi-select state design**
-
-### 1.3 "Primary" element confusion in right-rail (last-clicked vs first-clicked)
-- **Symptom:** Multi-select 3 text boxes via marquee. Right-rail shows properties of "the one you clicked first" or "the highest in z-order" or "nothing at all" — three competing UX models, all defensible, all confusing if inconsistent.
-- **Root cause:** No locked decision on what "primary" means.
-- **Survey of leading tools:**
-  - **Figma:** Last-clicked layer becomes the "primary"; the right rail shows mixed/multi-value indicators (per [Figma multi-edit docs](https://medium.com/@joeyabanks/everything-to-know-about-multi-editing-in-figma-edd58369fd20)). Multi-edit applies typed values to ALL selected.
-  - **Canva:** Right rail collapses to a shared toolbar (font, color, align). No "primary" concept exposed to user.
-  - **Sketch:** Inspector shows mixed values as `–`; selection bounds drive transforms; no primary.
-  - **Adobe Illustrator:** Has explicit "key object" concept that you click again to set as the alignment anchor; this is documented as a UX gotcha (must set BEFORE opening Align panel — see [Illustrator UserVoice issue #39372850](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a)).
-- **Prevention rule:** Pick Canva's model — NO "primary" concept. The right-rail in multi-select shows a TYPE BAR (text-only ops, image-only ops, mixed ops) and applies edits to all. This avoids the Illustrator key-object UX trap entirely.
-- **Source:** [Figma multi-edit forum thread](https://forum.figma.com/ask-the-community-7/multi-selection-doesn-t-work-anymore-ever-since-the-multi-edit-update-was-released-11042) (LOW confidence on exact "last clicked" mechanic — Figma doesn't formally document the last-vs-first rule; verified empirically by community), [Illustrator key-object bug](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a).
-- **Phase:** **Phase 60 — Multi-select state design** (decision); **Phase 65 — Right-rail multi-select UX**
-
-### 1.4 Set vs Array mutation — React refs not updating because reducer didn't return a NEW Set
-- **Symptom:** User Shift-clicks to add to selection; canvas shows the new element selected but right-rail doesn't update; or vice-versa.
-- **Root cause:** `selectedIds` is a `Set`; `selectedIds.add(id); return state` mutates in place; React `===` ref check fails to detect change; downstream `useMemo`/`React.memo` consumers skip re-render.
-- **Prevention rule:** ALWAYS construct a new Set: `return new Set([...prev, id])` or use `Set` reducer functions that produce new instances. Confirm via a test: `expect(next).not.toBe(prev)`. Same lesson as `editor-reducer.ts:148` style_overrides spread.
-- **Source:** General React state-immutability rule — see [React docs on updating state](https://react.dev/learn/updating-objects-in-state). Same class of bug repeatedly seen in the existing `editor-reducer.ts` shape (always uses spread).
-- **Phase:** **Phase 60 — Multi-select state design**
+**Carry-forward warnings (DO NOT re-research; already-known and solved):**
+- TPLREND-05 byte-identity invariant — any divergence between React preview and Satori PNG = bug
+- v2.8 BL-01 `applyDualWrite` reducer pattern — every TextBox edit synchronously updates legacy fields
+- PITFALL-9.2 `isEditingTarget` firewall (`<input>`/`<textarea>`/contentEditable preserve native key behavior, `keyboard-utils.ts`)
+- PARITY-01 chrome-leak gate — editor-only DOM (`*selection*`/`*marquee*`/`*guide*`/`*group-bound*`/`*lock-icon*`) MUST NOT leak into Satori path
+- Vercel function timeouts (`maxDuration` ~10–60s; sharp pipeline)
+- Right-of-publicity legal risk on AI-stylized faces
+- vercel/satori #573 (CSS filters silently break Satori), #325 (filter combos), #393 (drop-shadow), #41 (unsupported CSS thrown), #162/#712 (variable fonts unsupported)
+- v2.10 `react-rnd` `onDragStop`/`onResizeStop` only — never per-tick dispatch
+- v2.11 `Z_ORDER` action routes per-scope via array splice — NEVER CSS z-index (ZORDER-05)
 
 ---
 
-## CATEGORY 2 — Marquee selection pitfalls
+## CATEGORY A — Satori SVG rendering pitfalls (THE BLAST RADIUS)
 
-### 2.1 Pointer-events going to elements instead of canvas root
-- **Symptom:** User mouse-downs on canvas whitespace to start a marquee; the drag never starts because the click was captured by an absolutely-positioned text box wrapper sitting at z-index 0 over the entire canvas.
-- **Root cause:** react-rnd places its `position: absolute` wrapper covering the box; if any prop blocks event bubbling or the wrapper has padding that extends past the visible glyphs, the marquee never receives `pointerdown`.
-- **Prevention rule:** Marquee handler must attach to the `editable={true}` canvas-root `div` and use `e.target === e.currentTarget` to skip when click originated on a child. Also: `pointer-events: none` on selection rings and smart-guide overlays. Sibling pattern: `slide-preview.tsx` already uses click-on-wrapper for `onTextBoxSelect` — marquee MUST run on a STRICTLY OUTER wrapper that is below those handlers.
-- **Source:** [react-rnd issue #609 — pointerEvents being triggered when dragging over iframe](https://github.com/bokuweb/react-rnd/issues/609) (same root cause, different surface). General guidance from [Pointer Events MDN](https://javascript.info/pointer-events).
-- **Phase:** **Phase 61 — Marquee selection**
+This category gates whether decorations CAN render at all in PNG export. Verified GitHub issues drive the decision tree.
 
-### 2.2 Marquee on top of locked elements — should still select?
-- **Symptom:** User marquees the canvas; locked watermark IS or ISN'T included — three tools disagree.
-- **Survey:**
-  - **Figma:** Locked elements are EXCLUDED from marquee selection unless you explicitly target them. Click-to-select still works on them.
-  - **Canva:** Locked elements are EXCLUDED from marquee.
-  - **Photoshop:** Locked layers ARE selectable but not movable.
-- **Prevention rule:** Pick Figma's model — locked elements are visually indicated but excluded from marquee. Reasoning: matches Canva, matches the dominant carousel-tool reference.
-- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions) confirm locked elements participate in alignment math but lock prevents move; [Photoshop community thread](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508) confirms Photoshop selects through locked groups (anti-pattern).
-- **Phase:** **Phase 61 — Marquee selection** + **Phase 64 — Lock/hide**
+### A.1 `lucide-react` dropped in as React components silently fails to render in Satori PNG
 
-### 2.3 Marquee rect normalization (drag bottom-right → top-left = negative width)
-- **Symptom:** User drags the marquee from bottom-right corner up to top-left; nothing inside is selected because the rect has `width: -200, height: -150` and intersection check `x >= rect.x && x <= rect.x + rect.width` evaluates falsy.
-- **Root cause:** Untreated negative dimensions in the rect.
-- **Prevention rule:** Normalize before intersection: `const rect = { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2-x1), h: Math.abs(y2-y1) }`. Centralize in a `normalizeRect()` helper. Add a unit test with all 4 drag directions.
-- **Source:** Classic geometry bug; see general DOM bounding-rect guidance and [Aseprite marquee-grid bug discussion](https://community.aseprite.org/t/grid-and-rectangular-marquee-tool-bug/10718) (rectangle-tool edge-cases tracked in real shipped apps).
-- **Phase:** **Phase 61 — Marquee selection**
+- **Trigger:** Developer drops `<Heart />` (a `lucide-react` component) into the slide template. React preview shows it; PNG export shows blank.
+- **Failure mode:** Silent — Satori does not throw on unsupported SVG attributes; it emits empty output for the icon node. ~3–6 month delay to discovery if not pinned by a parity test.
+- **Root cause:** Verified — [vercel/satori#570 "`lucide-react` not rendering"](https://github.com/vercel/satori/issues/570). The original report cites stroke + viewBox + currentColor as failing. Issue claims fix in PR #601 but lucide React components ship arbitrary nesting + dynamic `currentColor` that historically bites again with each lucide release. Companion issue [vercel/satori#281 "React Icons (svg components) not rendering"](https://github.com/vercel/satori/issues/281) pins the same class for `react-icons`.
+- **Mitigation:**
+  1. **DO NOT pass `lucide-react` React components directly into Satori.** Use the `lucide-static` package (raw SVG strings) OR the `lucide` package's `dynamicIconImports` to fetch SVG markup as a string at build/runtime, then inline as a `<svg>` JSX node with explicit attributes — `viewBox="0 0 24 24"`, `fill="none"`, `stroke="#000"` (NEVER `currentColor`), `strokeWidth={2}`, `strokeLinecap="round"`, `strokeLinejoin="round"`.
+  2. Mirror the v2.9 `resolve-overlay.ts` pattern: a single `resolveDecorationSvg(decoration)` module consumed by BOTH `slide-preview.tsx` AND `render-slide-satori.tsx` — single source of truth, TPLREND-05 preserved.
+  3. Pin a parity test (PTF13 in the existing PARITY-04 24-snapshot suite at `parity.template-fingerprint.test.tsx`): for each of ~10 representative Lucide icons (Heart, Star, Check, Sparkles, Zap, Arrow, Circle, X, Plus, Crown), assert byte-identical PNG between React preview and Satori output.
+- **Phase to address:** **Phase A — Schema + renderer foundation (icons-only first vertical slice).** Lock the resolver pattern + parity test BEFORE any UI work.
 
-### 2.4 touchstart vs pointerdown — react-rnd touch handlers swallowing marquee
-- **Symptom:** On iPad/iPhone Safari, touch-drag on canvas whitespace either does nothing (event captured by react-rnd wrappers) or drags a random element instead of starting a marquee.
-- **Root cause:** react-rnd attaches both touch and mouse listeners; on touch devices, event order is `touchstart → mousedown` and react-rnd's wrappers capture first. Documented in [react-rnd issue #58 — touch problems to resize elements](https://github.com/bokuweb/react-rnd/issues/58).
-- **Prevention rule:** Use `pointerdown` (unified) on the canvas root, not `mousedown`. Stop propagation in react-rnd's bound `onMouseDown`/`onTouchStart` for ITEMS (already gated). For marquee start, check `e.target === e.currentTarget` (rule 2.1). Carry forward v2.10's iPhone Safari touch QA gate to v2.11 — A11Y-01 still deferred.
-- **Source:** [react-rnd issue #58](https://github.com/bokuweb/react-rnd/issues/58); v2.10 audit (A11Y-01 still pending, MILESTONES.md:42).
-- **Phase:** **Phase 61 — Marquee selection**
+### A.2 `currentColor` resolution divergence — works in browser, blank in Satori
 
-### 2.5 Marquee accidentally triggered while clicking on a deeply-nested child
-- **Symptom:** User clicks on an SVG icon inside a custom_image overlay; marquee starts; user thinks the click did nothing.
-- **Root cause:** Click handler doesn't check `e.target === e.currentTarget` strict equality — `target` is the deep child, `currentTarget` is the canvas, but the equality check at the canvas-root level is satisfied unless we explicitly stop propagation at element level.
-- **Prevention rule:** EVERY interactive child must `stopPropagation()` on `pointerdown` to prevent marquee from initiating. Confirm in Storybook: marquee MUST NOT start when clicking inside ANY text box, image, watermark, smart-guide overlay.
-- **Source:** Inferred from the slide-preview.tsx click-routing pattern lines 877-886 (selection ring conditionals). LOW confidence (general React DOM handling).
-- **Phase:** **Phase 61 — Marquee selection**
+- **Trigger:** Developer copies an icon SVG verbatim from a designer; it uses `stroke="currentColor"` and inherits color from a parent CSS `color: red`.
+- **Failure mode:** React preview correct (browser resolves currentColor); Satori PNG renders the icon black or invisible.
+- **Root cause:** Satori's CSS subset is documented limited per [vercel/satori#41](https://github.com/vercel/satori/issues/41); `currentColor` cascade is unreliable across the SVG boundary. Even when partially supported, behavior differs from browser CSS in edge cases.
+- **Mitigation:**
+  1. The decoration schema MUST store `fillColor: string` and `strokeColor: string` as **explicit hex values** — never `currentColor`, never `inherit`, never CSS variables.
+  2. The resolver `resolveDecorationSvg` REPLACES `currentColor` with the explicit hex on every emit. Add a unit test: any SVG string emitted from the resolver must NOT contain the literal `"currentColor"`.
+  3. Grep gate (mirror PCL1..PCL10 chrome-leak grep): `rg "currentColor" src/lib/render/` returns zero hits in production code (icon strings are processed BEFORE storage).
+- **Phase to address:** **Phase A — Schema design.** Store explicit hex; never inherit.
 
----
+### A.3 SVG `<path>` with `stroke-dasharray`, `stroke-linecap`, gradient fills, `<filter>` — partial / unsupported
 
-## CATEGORY 3 — Group pitfalls (THE LANDMINE)
+- **Trigger:** Developer adds a "dashed line" shape primitive using `stroke-dasharray="5,5"`. Or a gradient-filled star. Or a Canva-style "soft drop-shadow on shape" via SVG `<filter>`.
+- **Failure mode:**
+  - `stroke-dasharray` — historically rendered but not officially documented; LOW confidence on long-term support.
+  - SVG gradient fills (`<linearGradient>`, `<radialGradient>`) — partial; complex stops sometimes drop. Verified per [vercel/satori#41](https://github.com/vercel/satori/issues/41) "throw error when CSS property not supported" — silently no-ops.
+  - SVG `<filter>` (drop-shadow, blur) — broken per the same family of issues as [vercel/satori#573](https://github.com/vercel/satori/issues/573) (CSS filters) and [#393](https://github.com/vercel/satori/issues/393) (drop-shadow). Carry-forward.
+- **Mitigation:**
+  1. **v2.12 shape primitives are flat-fill only** — `fillColor` (single hex), `strokeColor` (single hex), `strokeWidth` (number). No gradients in v2.12. Defer gradient support to v3.0+.
+  2. **Drop-shadow on shapes/icons MUST use CSS `box-shadow` on a wrapping `<div>`, NOT SVG `<filter>`** — same path the v2.1 text-shadow effect already uses (see `render-slide-satori.tsx` text-effects block). The wrapper-div + `box-shadow` is supported per Satori's documented CSS subset.
+  3. **`stroke-dasharray` only on shape primitives that explicitly need it (e.g. dashed-line)**; pin one snapshot per dash-style template variant in PTF13. If Satori regresses, fall back to multiple short `<line>` segments.
+- **Phase to address:** **Phase A — Schema + renderer foundation** (lock primitive subset). Phase D — Effects (shadow/opacity) to avoid SVG filter trap.
 
-### 3.1 Group transform compounding — mutate children OR add a group transform?
-- **Symptom:** User groups 3 elements with absolute positions, drags the group 100px right; on save, individual element positions are mutated 100px AND a group offset of 100px is also stored — children visually jump 200px.
-- **Root cause:** Two competing mental models combined: (a) flat schema where group is just a logical wrapper and drag mutates each child, (b) tree schema where group has its own transform and children are relative. Combining both = double translation.
-- **Prevention rule for v2.11:** **Pick FLAT schema.** No group transform on the saved model. Reasoning: TPLREND-05 — Satori's `render-slide-satori.tsx` walks `text_boxes / custom_images` arrays with absolute positions; introducing a group-transform layer would force a Satori-compatible group renderer (which Satori only partially supports, see vercel/satori on transforms), breaking the byte-identical contract.
-- **Implementation:** Group is a UI-only construct. Schema gets `group_id?: string` on each element. Drag-on-group iterates children and applies the same delta to each child's `position.x/y` — saved as flat. UNGROUP just clears `group_id` field. Editor's group bounding-box is computed in the editor only.
-- **Source:** [react-moveable groupable docs](https://github.com/daybrush/moveable/blob/master/packages/react-moveable/groupable.md) — explicit warning: "If the transform overlaps from the root element to the parent element, the distance it moves is not equal to the amount actually moved." This is the exact compounding hazard. [fabric.js issue #4163 — Grouping & Active Selection Position Bug](https://github.com/fabricjs/fabric.js/issues/4163) shows real-world bug from this pattern. [fabric.js issue #1798 — Ungrouping items changes the original position](https://github.com/fabricjs/fabric.js/issues/1798) shows the symmetric ungroup hazard.
-- **Phase:** **Phase 62 — Group/Ungroup design** (schema decision); **Phase 67 — TPLREND-05 parity audit**
+### A.4 SVG `viewBox` + scale — browser respects, Satori sometimes drops aspect
 
-### 3.2 Ungroup losing positions because rotation/skew didn't compose
-- **Symptom:** User rotates a group, then ungroups — children end up axis-aligned instead of preserving their visual rotated positions.
-- **Root cause:** Group has rotation; children's rotation isn't multiplied through correctly on ungroup.
-- **Prevention rule:** v2.11 explicitly DOES NOT support rotation (carried forward from v2.10 deferred ROTATE-01). Group rotation = out of scope. If user rotates a non-grouped element later (v3.0+), revisit this. For now: groups have NO rotation, NO skew, NO scale — only logical id binding.
-- **Source:** [fabric.js issue #4392 — flipX-rotation interaction](https://github.com/fabricjs/fabric.js/issues/4392), [fabric.js #6315 — ungroupOnCanvas does not restore object state correctly](https://github.com/fabricjs/fabric.js/issues/6315), [fabric.js #1798 — Ungrouping items changes the original position](https://github.com/fabricjs/fabric.js/issues/1798).
-- **Phase:** **Phase 62 — Group/Ungroup design**
+- **Trigger:** Decoration is scaled non-uniformly (1.5× wide, 1.0× tall). Lucide icons default `viewBox="0 0 24 24"` (square).
+- **Failure mode:** Browser preserves aspect via `preserveAspectRatio`; Satori may stretch or clip depending on whether width/height are emitted as attributes vs CSS.
+- **Mitigation:**
+  1. Always emit `<svg width={W} height={H} viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">` with explicit numeric width/height — never percentage, never CSS-only sizing.
+  2. For NON-icon shapes (rect, circle, line), use simple geometric primitives (`<rect>`, `<circle>`, `<line>`, `<polygon>`) — these have higher Satori coverage than `<path>` (per [vercel/satori#86 "Support `<svg>` element"](https://github.com/vercel/satori/issues/86) and #186 historical thread).
+  3. PTF13 includes one snapshot per non-uniform-scale case (icon at 1.5×1.0, shape at 0.6×0.6).
+- **Phase to address:** **Phase A — Schema + renderer foundation.**
 
-### 3.3 Nested groups — Cmd+G inside a group
-- **Symptom:** User has 3 elements grouped (group A); shift-clicks 2 of them and presses Cmd+G — does it (a) create a NEW group containing those 2 inside A, or (b) flatten — extract those 2 from A into a new group, or (c) wrap all 3 plus a new dimension?
-- **Survey:** Figma supports nested groups (creates inner group inside the outer). Canva does not — it auto-flattens.
-- **Prevention rule for v2.11:** **No nested groups in v2.11.** Pick Canva's flatten model. Reasoning: pre-PMF, nesting adds significant schema complexity (`group_id` becomes `group_path: string[]`); ungroup walk becomes recursive; layers panel needs tree rendering. Defer to v3.0+. If user Cmd+G's a subset already inside a group, the action is a no-op or "remove from existing group + form new group" — pick the latter to avoid silent failures.
-- **Source:** Figma's nested-group docs ([layer-selection help](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects)); [react-moveable issue #947 — Group and Ungroup Custom Ables](https://github.com/daybrush/moveable/issues/947) (community asking for explicit grouping API — confirms libs don't ship this primitive turnkey).
-- **Phase:** **Phase 62 — Group/Ungroup design**
+### A.5 Lucide icons use `stroke` + path; default icon size 24×24 — strokeWidth visually thinner at small sizes (UX bug, not Satori bug)
 
-### 3.4 Empty groups — Cmd+G with 0 selected
-- **Symptom:** User presses Cmd+G with nothing selected; some implementations crash, some silently create an empty group node, some do nothing.
-- **Prevention rule:** Cmd+G with `selectedIds.size === 0` MUST be a no-op (early return in handler). Cmd+G with size 1 — pick: NO-OP (Figma — single elements ARE already a group of 1) OR allow (Adobe — group-of-one is a structural wrapper). Recommend NO-OP for v2.11 to match Figma + simplicity.
-- **Source:** Inferred from Figma/Canva behavior; LOW confidence on definitive doc.
-- **Phase:** **Phase 62 — Group/Ungroup design**
-
-### 3.5 Group containing locked + unlocked children — drag behavior?
-- **Symptom:** User groups 3 elements where 1 is locked (e.g., watermark); drags the group; the locked one moves anyway.
-- **Prevention rule:** Group drag MUST iterate children and skip those with `locked=true`. Visual: the group-bounding-box drag still works for the unlocked 2; the locked watermark stays put. Document this. If the group ends up "broken apart" visually, that's the user's signal that they have a locked child.
-- **Source:** Inferred from Figma's lock-prevents-move behavior; [Sketch alignment docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/) — locked layers can be alignment anchors but won't move. LOW confidence.
-- **Phase:** **Phase 62 — Group/Ungroup design** + **Phase 64 — Lock/hide**
-
-### 3.6 Schema migration trauma
-- **Symptom:** v2.11 ships with `group_id?: string` field on text_boxes/custom_texts/custom_images; existing 53 projects have undefined group_id; all group operations must reconcile.
-- **Root cause:** Adding nullable field across 3 element types = no migration needed BUT every group operation must handle undefined-as-no-group.
-- **Prevention rule:** Match the v2.8 unification pattern — group_id defaults to undefined, treated as "ungrouped"; reducer never assumes presence. Add an adapter `getGroupBounds(elements: Element[], groupId: string)`. NO Supabase migration needed (additive nullable). Mirror v2.8 deferred-sunset reasoning.
-- **Source:** v2.8 schema migration playbook (MILESTONES.md:104-127); v2.8 `text_boxes?:` field was additive nullable, no migration.
-- **Phase:** **Phase 62 — Group/Ungroup design**
+- **Trigger:** User scales a Lucide icon from 64px → 16px. Visually the stroke gets very thin because Lucide icons have HARDCODED `stroke-width="2"` and the SVG viewBox is fixed. Same applies in reverse — a 256px Lucide icon has very thick relative-pixel stroke.
+- **Failure mode:** Loud (visually wrong); user reports "the icon looks broken at small sizes."
+- **Mitigation:**
+  1. **Per-decoration `strokeWidth` field, default 2, AI-emit-aware.** Don't auto-scale; expose to user.
+  2. **Constrain icon min/max display size: 24px–512px.** Below 24px, strokes are invisible; above 512px, individual stroke pixels become huge. Match the `ROLE_FONT_BOUNDS` clamp pattern from v2.10 `slide-preview.tsx`.
+  3. Right-rail `strokeWidth` slider (1–8) — same UX as v2.1 outline thickness slider. Document in tooltip: "Lucide icons render their own stroke; for a thinner look, decrease this. Doesn't affect filled shapes."
+  4. SVG `vector-effect="non-scaling-stroke"` is NOT a fix — Satori's support is undocumented (per general SVG community confirmation that browser support of non-scaling-stroke is fragmented; see [stefanjudis non-scaling-stroke note](https://www.stefanjudis.com/today-i-learned/how-to-disable-scaling-for-stroke-width/)).
+- **Phase to address:** **Phase D — Right-rail decoration controls.**
 
 ---
 
-## CATEGORY 4 — Alignment / distribute pitfalls
+## CATEGORY B — `lucide-react` bundle size pitfall (the 7+ MB landmine)
 
-### 4.1 Align with N=1 selected
-- **Symptom:** User selects 1 element, clicks "Align Center"; Figma aligns to canvas; Canva does the same; some homegrown tools no-op.
-- **Survey:**
-  - Figma: With N=1, default is align-to-FRAME (parent canvas). [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions) confirm.
-  - Sketch: With N=1 outside a frame, alignment is DISABLED. [Sketch docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/) confirm.
-- **Prevention rule:** Pick Figma's model — N=1 aligns to canvas (1080×1920). Don't disable buttons; users find that infuriating.
-- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions); [Sketch alignment docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/).
-- **Phase:** **Phase 63 — Align/Distribute**
+### B.1 Naive barrel import bloats the client bundle by 7+ MB
 
-### 4.2 Distribute with N=2
-- **Symptom:** User selects 2 elements, clicks "Distribute Horizontally"; expected: aligns to selection extents (essentially align-equal); some tools no-op.
-- **Survey:**
-  - Figma: distribute with N=2 is a no-op visually but doesn't error.
-  - GIMP: distribute requires MINIMUM 3 selected (reported in [GIMP docs](https://docs.gimp.org/3.0/en/gimp-tool-align.html)).
-- **Prevention rule:** Disable distribute buttons when N < 3 (matches GIMP, semantically clean — "distributing 2 things" is meaningless). Show tooltip: "Select 3+ elements to distribute."
-- **Source:** [GIMP align docs](https://docs.gimp.org/3.0/en/gimp-tool-align.html) explicit.
-- **Phase:** **Phase 63 — Align/Distribute**
+- **Trigger:** Developer writes the picker as `import * as LucideIcons from 'lucide-react'` OR as `function getIcon(name) { return LucideIcons[name] }` — a dynamic-name lookup forces all 1500+ icons into the bundle.
+- **Failure mode:** Loud at production-build time (Vercel build size jumps); silent at dev time (Vite/Next.js dev-server lazy-loads). You won't notice until production deploy.
+- **Root cause:** Verified — [lucide-icons/lucide#1733 "README should ask to import icons specifically, to avoid very large app bundles"](https://github.com/lucide-icons/lucide/issues/1733). The maintainer-acknowledged bloat: "the entire icon library of 7+ MB to be included in the app bundle." Companion: [#1559 "Import Icon as a separate module"](https://github.com/lucide-icons/lucide/issues/1559) — recommended pattern is per-icon import paths (`lucide-react/icons/heart`).
+- **Mitigation (the picker has THREE patterns to choose from — pick ONE per use case):**
 
-### 4.3 Align-to-canvas vs align-to-selection — toggle UX confusion
-- **Symptom:** User multi-selects 3 elements, clicks "Align Left" — expects them to all snap to the leftmost selected, not the canvas edge. Or vice-versa.
-- **Survey:** Figma default: with N≥2 → align to selection bounds; with N=1 → align to parent. With explicit "Align to canvas" toggle in some flows. Canva: same default.
-- **Prevention rule:** Align-to-SELECTION is default for N≥2; align-to-CANVAS for N=1. Add a small toggle (icon-button, "Align to: Canvas | Selection") in the alignment menu so power users can override. Default per common pattern; document in tooltip.
-- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions).
-- **Phase:** **Phase 63 — Align/Distribute**
+  | Pattern | Bundle cost | When to use |
+  |---|---|---|
+  | **Static per-icon import** (`import Heart from 'lucide-react/icons/heart'`) | Only the icons used; tree-shakable | Templates that use a fixed set (5–10 icons in template fixtures) |
+  | **`lucide` `dynamicIconImports`** ([Lucide DynamicIcon docs](https://lucide.dev/guide/react/advanced/dynamic-icon-component)) | Full library lazy-split into per-icon chunks | Picker UI ONLY — load on demand when picker opens |
+  | **Static `lucide-static` SVG strings** | Import once, ~700 KB JSON metadata + tree-shakable string fetches | Server-side / Satori PNG path |
 
-### 4.4 Floating-point creep — repeatedly aligning then nudging accumulates rounding errors
-- **Symptom:** User aligns 3 boxes left, nudges them with arrow keys, aligns again — left edge values drift to e.g. 47.9999999999.
-- **Root cause:** `Math.min(...edges)` + arithmetic over multiple rounds produces non-integer pixel values; on save the schema stores them; on next align the input is non-integer.
-- **Prevention rule:** ROUND on dispatch — every alignment dispatch wraps positions in `Math.round()`. Schema is integer pixels; serializer enforces. Add a unit test: `align → nudge → align → values are integers`.
-- **Source:** General floating-point hazard; reflects fabric.js position-restoration bugs ([issue #1798](https://github.com/fabricjs/fabric.js/issues/1798)).
-- **Phase:** **Phase 63 — Align/Distribute**
+  - **Picker UI side:** Use `dynamicIconImports` from `lucide` (NOT `lucide-react` barrel). Code-split per icon; import on demand when the user scrolls. The picker's own bundle stays small; per-icon chunks load lazily.
+  - **Renderer side (BOTH preview and Satori):** Use `lucide-static` SVG strings at the resolver layer (per A.1). Server-side path stays string-based.
+  - **Selected-icon hot path (icon already chosen and persisted to a project):** Resolve from `lucide-static` SVG strings on render — no React component instantiation needed.
 
-### 4.5 Alignment after rotation — does "left" mean bounding-box-left or pre-rotation-left?
-- **Symptom:** Element rotated 30°; user clicks "Align Left" — expects bounding-box left (post-rotation) but gets pre-rotation left.
-- **Prevention rule:** v2.11 has NO rotation (carry-forward from v2.10). Skip this pitfall for now. If rotation lands in v3.0+, MUST use bounding-box-left (matches Figma/Sketch).
-- **Source:** Inferred; deferred per v2.10 ROTATE-01 deferral.
-- **Phase:** Defer to v3.0+ rotation milestone
+- **Test gate:** Add a CI bundle-size check — `npm run build` then assert `.next/static/chunks/main-*.js` is within e.g. +200 KB of the v2.11 baseline. Fail the build on regression. Mirror the v2.6 triple-layer build-gate pattern (static import + vitest gate + `npm run build`).
+- **Phase to address:** **Phase B — Picker UI** (lazy-load architecture must be locked BEFORE any picker code lands).
 
-### 4.6 Distribute by edges vs by gaps vs by centers
-- **Symptom:** User clicks "Distribute Horizontally" — three valid math operations (equal-edge-spacing, equal-gap, equal-center) yield different results. User expects one but gets another.
-- **Survey:** Figma default = equal SPACING between elements (gap-based). Illustrator default = equal CENTERS. Sketch = equal SPACING.
-- **Prevention rule:** Pick equal SPACING (gap-based) — matches Figma + Sketch + Canva. Don't expose the three-mode toggle in v2.11 (Adobe pattern is the noisier UX).
-- **Source:** [Sketch align docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/), [Figma align docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions).
-- **Phase:** **Phase 63 — Align/Distribute**
+### B.2 jsdom/vitest cannot import `lucide-react` ESM — test infra bug
 
-### 4.7 Locked elements participate in alignment math?
-- **Symptom:** User multi-selects [unlocked text, locked watermark, unlocked image]; aligns left. Watermark moves (bug) or watermark anchors the alignment (correct).
-- **Prevention rule:** Locked elements participate in selection BOUNDS computation but DO NOT MOVE. So aligning to "selection-left" includes the watermark in the bounds calc; the watermark stays put; the others align to the resulting left edge. Matches Sketch + Photoshop.
-- **Source:** [Sketch alignment docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/) explicit; [Photoshop locked-layer thread](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508).
-- **Phase:** **Phase 63 — Align/Distribute** + **Phase 64 — Lock/hide**
+- **Trigger:** Developer writes a unit test that mounts a component using `lucide-react`. Vitest fails with "Cannot use import statement outside a module" or "SyntaxError: Unexpected token 'export'."
+- **Failure mode:** Loud (test fails); time-eats developer for hours guessing config.
+- **Root cause:** Verified — [lucide-icons/lucide#2366 "JEST: => export { dynamicIconImports as default }; SyntaxError: Unexpected token 'export'"](https://github.com/lucide-icons/lucide/issues/2366). lucide ships pure-ESM; jsdom test env in older configs doesn't transform it.
+- **Mitigation:**
+  1. Add `lucide-react` and `lucide` to `vitest.config.ts` `server.deps.inline` (or `deps.optimizer.web.include`).
+  2. For tests that don't need the icon to render visually, mock with `vi.mock('lucide-react', () => new Proxy({}, { get: () => () => null }))` — return null components for any name.
+  3. Pin a single `lucide-import.test.ts` smoke test that imports one real icon — fails fast on regression.
+- **Phase to address:** **Phase B — Picker UI**, **Phase F — Test gates.**
 
 ---
 
-## CATEGORY 5 — Smart-guides / snapping pitfalls
+## CATEGORY C — Virtualized picker + jsdom test pitfalls
 
-### 5.1 Frame-rate collapse from O(N²) edge comparisons
-- **Symptom:** With 50+ elements on a slide, drag becomes laggy (each pointer-move computes 50×50×6 edge-pair comparisons).
-- **Root cause:** `useAlignmentGuides.calculateSnap` at `src/hooks/use-alignment-guides.ts:67` builds `xSources/ySources` from ALL `others`. Today this scales with elements per slide.
-- **Prevention rule:** v2.11 element count per slide is realistically ≤20 (text_boxes ≤3, custom_texts ≤5, custom_images ≤5, watermarks ≤2, decorative overlays ≤5). 20² × 6 = 2,400 comparisons/frame is fine. BUT for safety: (a) pre-compute `xSources/ySources` outside the pointer-move callback (do it on drag-START); (b) only re-compute when others array changes; (c) cap at 100 elements with an early return.
-- **Source:** Existing code at `src/hooks/use-alignment-guides.ts:81-94` already does it inline-per-call; current N is small so it works, but a 100-element threshold guard is cheap insurance.
-- **Phase:** **Phase 66 — Smart-guides + snapping**
+### C.1 react-window / react-virtuoso / TanStack Virtual all render ZERO items in jsdom
 
-### 5.2 Guide flicker from threshold hysteresis
-- **Symptom:** Element snaps to a guide; user moves mouse 1 pixel; guide disappears; user moves another pixel; guide re-appears. Visual flicker.
-- **Root cause:** Symmetric threshold — `delta <= 10px` to enter snap, AND `delta <= 10px` to remain snapped. As the mouse drifts at exactly 10px boundary, snap toggles every frame.
-- **Prevention rule:** Asymmetric thresholds — enter snap at `delta <= 10px`, exit at `delta > 14px` (deadband). Add a state ref `wasSnappedToGuide: number | null`. The current implementation at `src/hooks/use-alignment-guides.ts:5` uses single `SNAP_THRESHOLD = 10` — needs upgrade.
-- **Source:** General hysteresis pattern; standard for snap-to-grid systems. LOW confidence (no specific documented Figma/Canva spec).
-- **Phase:** **Phase 66 — Smart-guides + snapping**
+- **Trigger:** Developer writes a picker test that mounts the icon grid and queries for items. Test fails — `screen.getByText('Heart')` returns null, picker appears empty.
+- **Failure mode:** Loud (test fails); developer wastes hours debugging visible-row count.
+- **Root cause:** Verified — [TanStack/virtual#419 "ResizeObserver is not defined in SSR"](https://github.com/TanStack/virtual/issues/419). Virtualization libraries depend on:
+  - `ResizeObserver` (jsdom does not implement — [jsdom/jsdom#3368](https://github.com/jsdom/jsdom/issues/3368))
+  - `IntersectionObserver` (jsdom does not implement)
+  - `getBoundingClientRect()` returns `{ width: 0, height: 0 }` in jsdom
+  - `offsetHeight` / `scrollHeight` return 0
+  Without all four, the virtualizer "knows" the container is 0×0 and renders zero rows.
+- **Mitigation:**
+  1. **Library choice:** Pick `react-virtuoso` over `react-window` and `tanstack-virtual` for v2.12 — Virtuoso provides an official `VirtuosoMockContext` for tests (per [Virtuoso mocking-in-tests docs](https://virtuoso.dev/mocking-in-tests/)). The other two require hand-rolled mocks.
+  2. Add `vitest.setup.ts` global mocks for `ResizeObserver` and `IntersectionObserver` (`globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }`). Document with a comment block linking back to TanStack/virtual#419.
+  3. For tests of the picker rendering N items, wrap the rendered tree in `<VirtuosoMockContext.Provider value={{ viewportHeight: 600, itemHeight: 40 }}>` so the virtualizer "sees" enough room to render rows.
+- **Phase to address:** **Phase B — Picker UI.**
 
-### 5.3 Guide rendering inside a CSS transform parent — coordinates wrong
-- **Symptom:** Slide preview is `transform: scale(0.4)` (zoomed-out preview). Smart guides render at the WRONG screen position because guide overlay is a child of the scaled wrapper but uses absolute pixel coordinates.
-- **Root cause:** Guide overlay coordinates are in REFERENCE pixels (1080×1920) but rendered into a scaled container; CSS transforms compound.
-- **Prevention rule:** Guide overlay MUST live INSIDE the scaled container so it scales with everything else. Today's `slide-preview.tsx` is the scaled container; guides should render as siblings of text-boxes inside that. Confirm by visually testing at 0.4× zoom (production scale) AND 1.0× zoom.
-- **Source:** Inferred from existing slide-preview.tsx coordinate system (CANVAS = 1080×1920 ref pixels).
-- **Phase:** **Phase 66 — Smart-guides + snapping** + **Phase 67 — TPLREND-05 parity audit**
+### C.2 Selecto marquee + virtualized picker — items off-screen are not selectable
 
-### 5.4 Guides showing during single-element drag vs multi-element ops
-- **Survey:** Figma shows guides ALWAYS during drag (1 or N elements). Canva shows guides ALWAYS.
-- **Prevention rule:** Show guides for both single AND multi drag — matches Figma + Canva. Implementation: same `useAlignmentGuides` hook; multi-drag uses the bounding-box of the multi-selection as the "dragging" element edges.
-- **Source:** [Canva snapping help](https://www.canva.com/en_in/help/canva-lagging-slow/) (general behavior), [Figma snap forum thread](https://forum.figma.com/t/snapping-to-guides-not-working/5112).
-- **Phase:** **Phase 66 — Smart-guides + snapping**
-
-### 5.5 Hold-Cmd-to-disable: missed key-up event leaves snap permanently disabled
-- **Symptom:** User holds Cmd while dragging to bypass snap; switches tab while still holding; `keyup` event never fires; snap is now permanently off until user presses+releases Cmd again.
-- **Root cause:** `keydown`/`keyup` are sticky to the focused window. `blur`/`visibilitychange` events should also clear modifier state.
-- **Prevention rule:** On `window.blur` or `document.visibilitychange`, reset all modifier-key tracking state to `false`. Pattern: `useEffect(() => { const reset = () => setModifiers({}); window.addEventListener('blur', reset); document.addEventListener('visibilitychange', reset); return cleanup; }, [])`.
-- **Source:** General browser-event hazard; well-documented in modifier-tracking SO threads. LOW confidence on definitive single source.
-- **Phase:** **Phase 66 — Smart-guides + snapping** + **Phase 68 — Keyboard handling**
+- **Trigger:** User opens picker, scrolls midway through 1500 icons, drags a marquee across visible items. The user expects "all items I dragged over." But virtualized rows that scrolled into view DURING the drag may not be in the selecto element registry.
+- **Failure mode:** Subtle; manifests as "marquee selection misses some items."
+- **Mitigation:** v2.12 picker is a SINGLE-SELECT widget (click an icon → it inserts into the slide). NO multi-select inside the picker itself. The selecto-based marquee only operates on the canvas (decorations + text_boxes + custom_images), where N≤30 and there's no virtualization. Sidesteps the trap entirely.
+- **Phase to address:** **Phase B — Picker UI** (locked decision: picker is single-select).
 
 ---
 
-## CATEGORY 6 — Z-order pitfalls
+## CATEGORY D — Color contrast / a11y pitfalls
 
-### 6.1 Using `z-index` CSS for editor preview but array-order for Satori — drift
-- **Symptom:** Editor shows watermark above body text; exported PNG shows body text above watermark.
-- **Root cause:** Editor uses CSS `z-index` to override DOM order; Satori (the [vercel/satori library](https://github.com/vercel/satori)) ignores `z-index` per its limited CSS support docs; Satori draws in array-order.
-- **Prevention rule:** **Z-order MUST be array-order, not CSS z-index.** Bring-forward = swap with `array[i+1]`. Render engines (both editor preview AND Satori) iterate the array in order. NEVER set `z-index` on element wrappers in the editable `slide-preview.tsx`. This is identical to TPLREND-05's existing parity contract — `resolve-overlay.ts` resolves overlay layers in a fixed order documented at lines 17-28.
-- **Source:** [vercel/satori issue #41 — Throw an error when CSS property not supported](https://github.com/vercel/satori/issues/41) confirms Satori's limited CSS subset.
-- **Phase:** **Phase 67 — TPLREND-05 parity audit** + **Phase 69 — Z-order controls**
+### D.1 White icon on white background invisible (no contrast guard)
 
-### 6.2 Bring-forward swapping with adjacent index — different element type
-- **Symptom:** User clicks "Bring Forward" on a text box; the next element is a custom_image — does the text move ABOVE that image, or are they in different arrays and the operation is a no-op?
-- **Root cause:** Today, `text_boxes`, `custom_texts`, `custom_images` are SEPARATE arrays in the schema. Z-order is implicit in render order: image-tint → bottom-card → grain → vignette → hook → body → custom_images → watermarks (per `resolve-overlay.ts:17-28`). Within a single array, swap is fine; ACROSS arrays, no-op makes the user feel the button is broken.
-- **Prevention rule:** v2.11 z-order operates WITHIN each array independently. Document in tooltip ("Reorder within text/images/etc"). For cross-array reorder, defer to v3.0+ or introduce a unified `slide.elements: Element[]` array (a v3.0+ schema rewrite — out of scope for v2.11). Layers panel will visually show the categorical separation.
-- **Source:** Existing schema at `editor-reducer.ts` ADD_TEXT_BOX, ADD_CUSTOM_IMAGE — separate arrays. Confirmed by `resolve-overlay.ts:17-28` layer-order contract.
-- **Phase:** **Phase 69 — Z-order controls**
+- **Trigger:** AI emits a `decorations[]` slot with `fillColor: '#FFFFFF'` on a slide whose background is `#F5EFE6` (cream). Or user selects white icon on white — no warning.
+- **Failure mode:** Silent (the icon is just invisible). User wonders why the slide looks empty.
+- **Mitigation:**
+  1. **Right-rail color picker shows a contrast indicator** vs the resolved background (the same `derived_palette` from v2.9 photo-treatment, plus the template's `backgroundColor`). If `contrastRatio < 1.5`, show a yellow warning chip ("low contrast vs background"); if `< 1.2`, red ("invisible"). DO NOT block — user may genuinely want a low-contrast watermark-style overlay.
+  2. **AI emit advisory gate** (mirror the v2.9 `hookOpeningTrigram` advisory gate): server-side validator computes contrast for each emitted decoration vs resolved background; if `< 1.5`, log a soft warning. Does NOT fail; advisory only in v2.12 (carry forward to fail-CI in v3.0+ if monoculture observed).
+- **WCAG note:** Per [W3C WAI G207](https://www.w3.org/WAI/WCAG21/Techniques/general/G207), purely decorative icons (where `aria-hidden="true"`) are formally EXEMPT from WCAG 1.4.11 non-text contrast requirement. v2.12 decorations should ALL emit `aria-hidden="true"` in the React preview path (Satori path doesn't matter — PNG has no a11y tree). So the contrast indicator is a UX nicety, not a legal compliance requirement.
+- **Phase to address:** **Phase D — Right-rail decoration controls** (warning UI), **Phase E — Gemini AI emit** (advisory gate).
 
-### 6.3 Z-order operating on a multi-selection
-- **Symptom:** User multi-selects 3 elements at indices [2, 5, 7] in `text_boxes`; clicks "Bring Forward"; expectation 1: each moves +1 individually → [3, 6, 8]; expectation 2: the group moves as a unit → all stay relative.
-- **Survey:** Figma: each moves +1 individually but boundary-clamped — if [5, 6, 7] are selected, "bring forward" only moves the topmost.
-- **Prevention rule:** Pick Figma's model — iterate selection, apply +1 to each, clamp at array length. Add a unit test: `[2, 5, 7] → bring-forward → [3, 6, 8]`; `[5, 6, 7] of len 8 → bring-forward → [5, 6, 7]` (no-op, already at top relative to itself).
-- **Source:** Inferred from Figma's z-order behavior; LOW confidence on definitive doc.
-- **Phase:** **Phase 69 — Z-order controls**
+### D.2 `aria-hidden` missing on editor decorations — screen reader announces "image" 1500 times when picker opens
+
+- **Trigger:** Picker opens with 1500 lucide icons; each is an `<svg>` without `aria-hidden`; VoiceOver / NVDA announces all of them.
+- **Mitigation:** Picker chips are `<button aria-label="Heart icon">` with the inner `<svg aria-hidden="true">`. On-canvas decorations: `<svg aria-hidden="true" focusable="false">`. Document in the right-rail decoration card as a comment.
+- **Phase to address:** **Phase B — Picker UI**, **Phase D — Right-rail decoration controls.**
 
 ---
 
-## CATEGORY 7 — Layers panel pitfalls
+## CATEGORY E — AI emit monoculture pitfalls (the "every slide gets a sparkle" trap)
 
-### 7.1 Drag-reorder triggering re-render of ENTIRE slide preview
-- **Symptom:** User drags a layer in the layers panel; the slide preview also re-renders 60 times during the drag; perf collapses.
-- **Root cause:** Layers panel and slide preview consume the same `slides` state; any state update fires both.
-- **Prevention rule:** Use ONE layer-reorder dispatch on `dragEnd` only (NOT during drag). This mirrors react-rnd's `onDragStop` pattern already enforced in v2.10 (carry-forward rule). During the drag, the layers panel uses LOCAL `useState` to show the visual reorder; only on drop does it dispatch to the reducer.
-- **Source:** [react-beautiful-dnd 60fps optimization](https://medium.com/@alexandereardon/dragging-react-performance-forward-688b30d40a33), v2.10 onDragStop contract from MILESTONES.md.
-- **Phase:** **Phase 70 — Layers panel**
+### E.1 Gemini emits the SAME decoration kind on every slide ("everything is a sparkle")
 
-### 7.2 Selection sync — infinite loop if both dispatch on selection-change
-- **Symptom:** Click an element in canvas → fires `setSelectedIds(['x'])` → layers panel `useEffect` sees change → dispatches `scroll into view` → triggers a `focus` event on the layer chip → fires another `setSelectedIds(['x'])` → infinite loop.
-- **Root cause:** Two-way binding without source-of-truth.
-- **Prevention rule:** Layer panel READS selection state, NEVER writes (except on direct user click on the panel). Canvas READS selection state, NEVER writes (except on direct user click on canvas). Both use the same reducer dispatch with action types `SELECT_FROM_CANVAS` / `SELECT_FROM_PANEL` — reducer can disambiguate to suppress feedback.
-- **Source:** General React anti-pattern; widely documented (e.g. [React useState pattern](https://react.dev/reference/react/useState)). LOW confidence on a single canonical source.
-- **Phase:** **Phase 70 — Layers panel**
+- **Trigger:** AI is told "decorate this slide with relevant icons" — Gemini's training data biases toward `Sparkle`/`Star`/`Zap`/`Crown` for any "viral content" prompt. A 5-slide carousel ends up with 5 sparkles.
+- **Failure mode:** Loud at the user level (looks AI-generic); silent at the system level (no error).
+- **Industry pattern survey:**
+  - **Beautiful.ai:** acknowledged design-repetition concern (per [Beautiful.ai vs Gamma 2026 comparison](https://www.beautiful.ai/compare/gamma-alternative)). Beautiful.ai's mitigation: AI generates the *layout* automatically; icons are user-driven.
+  - **Tome:** the entire Slides product was shut down April 2025 (per [SlideGMM 2026 comparison](https://www.slidegmm.ai/en/blog/ai-presentation-tools-comparison-2026)) — likely partly because of generic AI output. Tome's design system frequently re-used the same gradient-blob aesthetic across all decks.
+  - **Gamma:** uses an AI-curated "design pack" per project rather than per-slide AI emit — sidesteps per-slide monoculture by amortizing decoration choice at the project level.
+- **Mitigation:**
+  1. **Mirror the v2.9 `hookOpeningTrigram` advisory gate pattern.** Server-side post-AI validator hashes the icon names emitted across the carousel; if any single icon appears on ≥3 of 5 slides (60%+), log a soft warning. Advisory in v2.12 — wire to live Gemini retry in v3.0+ if monoculture observed in production.
+  2. **Per-role decoration affordance** (mirror v2.9 per-role hook guidance): cover-role AI prompt addendum suggests "1 high-impact icon if any"; pivot-role suggests "consider a directional arrow"; close-role suggests "CTA-style icon if any." Doesn't lock; just shapes the distribution.
+  3. **`decorations[]` defaults to EMPTY ARRAY in the AI schema.** Gemini must opt-in per slide — the prompt addendum should say "decorations are optional; only emit if the slide visually needs one. Empty is the right default for hook-only slides." Inverts the bias.
+- **Test gate:** 20-prompt diversity corpus (mirror v2.9 `diversity-corpus.ts`) with assertion: across the corpus, no single icon name appears on > 30% of generated slides. Advisory only in v2.12 (does NOT fail CI), upgrade to fail-gate in v3.0+.
+- **Phase to address:** **Phase E — Gemini AI emit + monoculture gate.**
 
-### 7.3 Inline rename collision with keyboard shortcuts
-- **Symptom:** User clicks a layer in panel to rename; types "Hook 1"; presses Backspace; the entire layer is DELETED because the global `Delete`-key handler fires (`slide-editor.tsx:373`).
-- **Root cause:** The Delete-key handler in `slide-editor.tsx:340-393` already has `isEditing` guard checking `tag === 'input' || textarea || isContentEditable`. v2.11 layers panel must use one of these tag types, NOT a `<div>` with `onKeyDown`.
-- **Prevention rule:** Inline-rename input in layers panel MUST use `<input>` or `contentEditable` element so existing isEditing-guard at `slide-editor.tsx:344-348` skips the handler. Add a unit test that verifies typing in rename input does NOT dispatch DELETE.
-- **Source:** Existing code `slide-editor.tsx:340-393`. Existing pattern is correct; just enforce that v2.11 follows it.
-- **Phase:** **Phase 70 — Layers panel** + **Phase 68 — Keyboard handling**
+### E.2 AI hallucinates icon names that aren't in Lucide — silent drop
 
-### 7.4 Virtualization vs not — Figma virtualizes; what's our threshold?
-- **Symptom:** 100+ layer chips render every selection change → laggy.
-- **Prevention rule:** v2.11 max realistic layer count per slide is ≤20 (table-stakes carousel). Don't virtualize. Add a guard: if a slide ever exceeds 50 elements, log a warning. If we ever ship a per-PROJECT layers panel showing all elements across all slides (50 slides × 20 elements = 1,000 chips), virtualize then.
-- **Source:** [react-window perf guide](https://blogs.purecode.ai/blogs/react-window) confirms virtualization breakeven ~100-300 items.
-- **Phase:** **Phase 70 — Layers panel**
+- **Trigger:** Gemini emits `decoration.iconName: "MagicWand"` (not a real Lucide icon — closest is `Wand2`).
+- **Failure mode:** Server-side renderer can't resolve the SVG; emits an empty placeholder OR throws.
+- **Mitigation:**
+  1. **Closed-enum validation** at the AI ingest boundary — after Zod parse, validate `decoration.iconName` against the canonical Lucide name registry (built from `lucide` package's exported names at build time). Unknown names DROP the decoration silently (mirror the v2.9 `template_id_override` closed-enum pattern); log a warning.
+  2. **Gemini prompt addendum:** "Icon names are case-sensitive lucide-react PascalCase identifiers from this allowlist of 100 most-used icons: …" Provide the allowlist inline. Gemini follows allowlists more reliably than open vocabularies.
+  3. **AI emit allowlist is a SUBSET of the picker allowlist** — pick ~100 high-quality, semantically diverse icons for the AI; let users pick from all 1500 in the picker. Reduces hallucination rate without limiting power users.
+- **Phase to address:** **Phase E — Gemini AI emit.**
 
 ---
 
-## CATEGORY 8 — Lock / hide pitfalls
+## CATEGORY F — Schema migration pitfalls (the production-data risk)
 
-### 8.1 Lock should prevent SELECTION? (Figma yes; Photoshop no)
-- **Survey:**
-  - Figma: Locked elements CAN be clicked-to-select but cannot be moved/edited.
-  - Photoshop: Locked elements CAN be selected; lock affects specific operations (move, transparency, position) per the lock type.
-  - Canva: Same as Figma.
-- **Prevention rule for v2.11:** Pick Figma's model — locked element is selectable (so user can unlock it), but resize/drag/delete/edit are blocked. Marquee skips locked (per rule 2.2). Layers panel chip shows lock icon; click on chip selects but doesn't allow drag.
-- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions), [Photoshop locked-layer thread](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508).
-- **Phase:** **Phase 64 — Lock/hide**
+### F.1 Eager-on-load migration on 53+ existing projects breaks if `decorations` shape changes mid-milestone
 
-### 8.2 Hidden element still affecting alignment math?
-- **Survey:**
-  - Figma: hidden elements are EXCLUDED from selection bounds.
-  - Sketch: same.
-- **Prevention rule:** Hidden = excluded from alignment bounds, excluded from rendering. Today's render path doesn't have hidden support; Satori output must skip elements with `hidden: true`. Add this to `render-slide-satori.tsx` as a pre-filter. Editor preview ALSO skips them (with a "hidden" placeholder in layers panel).
-- **Source:** [Figma alignment docs](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions); [Sketch align docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/).
-- **Phase:** **Phase 64 — Lock/hide** + **Phase 67 — TPLREND-05 parity audit**
+- **Trigger:** Phase A ships `decorations[]` schema. User opens existing project (no `decorations` field). Lazy initializer fires `legacyToDecorations(slide)` → returns `[]`. So far so good. Then Phase D adds `decoration.shadowEffect?: ShadowEffect`. User reopens project, migration re-runs, but now Phase A's eager migration is OUT OF SYNC with Phase D's expected shape — silent drift between in-memory and on-disk schema.
+- **Failure mode:** Subtle. Manifests as "saved decoration shadow doesn't reload after refresh."
+- **Root cause:** v2.8 MIG-01 deferred backfill — eager migration handles existing rows transparently UNTIL the migration logic itself changes mid-flight. The forward-compat contract was "additive only," but multi-phase additions compound.
+- **Mitigation:**
+  1. **Treat `decorations[]` as PURELY ADDITIVE for v2.12.** Same as v2.11 `groupId`/`locked`/`hidden` — optional fields default to undefined; reducer never assumes presence. NO Supabase eager backfill needed.
+  2. **NO `legacyToDecorations` adapter** — there is no legacy shape to convert from. `decorations` is brand-new; absent = `[]`. Sidesteps v2.8 BL-01 dual-write entirely.
+  3. **Schema versioning at the slide level** (NOT global) — add `slide.schemaVersion?: 'v2.12.0'` advisory tag set by the reducer on first edit. Use it ONLY for telemetry / diagnostic, NEVER for branching logic. (If branching logic creeps in, the v2.8 dual-schema trap returns.)
+  4. **Defer Supabase backfill to v2.13+** — same deferral-reasoning as v2.8 MIG-01. Lazy is the right default until v3.0+ legacy sunset.
+- **Phase to address:** **Phase A — Schema design.** Lock "additive-only, default-empty" contract.
 
-### 8.3 Persisting lock through fork (Explore copy-as-template)
-- **Symptom:** User publishes a carousel with a locked watermark; another user forks it (`fork_published_carousel` RPC); on fork, is the lock preserved? Forker can't move the watermark = bad UX. Lock is dropped = original creator's intent lost.
-- **Prevention rule:** **Drop lock on fork.** Forker takes ownership and can edit anything. This matches the v2.4 fork RPC's existing semantics — strips `brand_kit_id`, defaults to `bold-minimal` per MILESTONES.md:194. Adding lock-strip to that RPC is a one-line addition.
-- **Source:** v2.4 fork RPC contract (MILESTONES.md:194-196). LOW confidence (no community precedent — this is product UX).
-- **Phase:** **Phase 64 — Lock/hide**
+### F.2 Forking RPC drops decorations in the wrong direction
 
-### 8.4 Marquee can't escape locked elements stacked at top of z-order
-- **Symptom:** Whole canvas covered by a locked decorative overlay at top of z-order; user marquee-selects under it; nothing happens because pointer-events are captured by the overlay div.
-- **Prevention rule:** Locked elements set `pointer-events: none` on their wrapper (so marquee passes through). Click-to-select on a locked element STILL works because the editor's canvas root handler does intersection-test in JS, not via DOM bubbling. This requires moving from "click the wrapper" to "track pointerdown on canvas root + intersection test" for locked elements specifically.
-- **Source:** Inferred from rule 2.1 + rule 8.1.
-- **Phase:** **Phase 64 — Lock/hide** + **Phase 61 — Marquee selection**
+- **Trigger:** v2.4 `fork_published_carousel` RPC strips `brand_kit_id`. v2.11 added a migration `20260502_fork_strip_locked.sql` to also strip `locked`. v2.12 adds `decorations[]`. Question: should fork strip decorations? Does it need to strip per-decoration `locked` flags inside `decorations[]`?
+- **Failure mode:** Right-of-publicity adjacent — IF v2.13+ adds custom-SVG upload to decorations, forking someone else's published carousel that contains a user-uploaded SVG (potentially with copyrighted content) would auto-copy that SVG into the forker's project. Same legal class as the v2.9-deferred `stylize-image.ts` face-stylize trap (Reface/Kyland Young 9th Cir.).
+- **Mitigation:**
+  1. **v2.12 fork PRESERVES `decorations[]`** (icons + shapes only — no user-uploaded SVGs in v2.12). All Lucide icons are CC0 / ISC-licensed (per Lucide's [LICENSE](https://lucide.dev/license)); shapes are pure geometry. Safe to copy.
+  2. **v2.12 fork ALSO STRIPS `decoration.locked` and `decoration.hidden`** per-element — mirror v2.11's `fork_strip_locked.sql` migration. Add `20260503_fork_strip_decoration_locked.sql` (or fold into the `decorations[]` migration if the fork RPC is amended in the same SQL file).
+  3. **v2.13+ custom-SVG upload (if/when it lands): fork MUST STRIP user-uploaded SVG references**, replace with a "broken" placeholder + user-visible warning. Document in the v2.12 milestone deferral list as ROP-01 (right-of-publicity carry-forward).
+- **Phase to address:** **Phase A — Schema design + migration.** Lock fork policy in the migration SQL.
 
----
+### F.3 `slide_data` JSONB row size — 30 decorations × 12 fields × N slides explodes
 
-## CATEGORY 9 — Keyboard handling pitfalls
-
-### 9.1 Cmd+A inside text-edit input vs in canvas
-- **Symptom:** User is editing text in a text box (input has focus); presses Cmd+A; expects "select all text" inside the input but gets "select all elements on canvas."
-- **Root cause:** Global `keydown` handler intercepts Cmd+A regardless of focus.
-- **Prevention rule:** Existing isEditing-guard at `slide-editor.tsx:344-348` handles this for `Delete`/`Cmd+1-3`/`Cmd+D`. Extend the same guard for `Cmd+A` (multi-select all) — when input/textarea/contentEditable is focused, browser default fires (select-all-text); when canvas is focused, our handler fires (select-all-elements).
-- **Source:** Existing `slide-editor.tsx:340-393` pattern.
-- **Phase:** **Phase 68 — Keyboard handling**
-
-### 9.2 Arrow nudge while text input focused
-- **Symptom:** User is editing text; presses arrow key; expected: cursor moves within text. Got: element nudges 1px in canvas.
-- **Prevention rule:** Same isEditing guard as 9.1. Arrow keys for nudge: ONLY when canvas-root or layer-chip has focus.
-- **Source:** Existing pattern at `slide-editor.tsx:340-393`.
-- **Phase:** **Phase 68 — Keyboard handling**
-
-### 9.3 Cmd+G conflicts with browser's "Find Next" (Chrome)
-- **Symptom:** User presses Cmd+G to group; Chrome opens "find next" dialog or cycles to the next find match.
-- **Root cause:** Cmd+G is Chrome's "Find Next" shortcut. Confirmed Figma issue. ([Figma forum thread on Cmd+G conflict](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312)).
-- **Prevention rule:** `e.preventDefault()` in the keydown handler — but ONLY when canvas/layers-panel is focused (otherwise we break Find-Next when user expects it). The existing `slide-editor.tsx:357/361` already follows this pattern. Cmd+Shift+G (ungroup) ALSO needs preventDefault.
-- **Source:** [Figma keyboard shortcut conflict thread](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312); confirmed Chrome behavior.
-- **Phase:** **Phase 68 — Keyboard handling**
-
-### 9.4 Hold-modifier sticky on tab-blur
-- **Symptom:** Same as 5.5 — user holds Shift while marqueeing to add-to-selection; Cmd-Tabs away; comes back; modifier state stuck.
-- **Prevention rule:** Same blur/visibilitychange listener as 5.5.
-- **Source:** Same as 5.5.
-- **Phase:** **Phase 68 — Keyboard handling**
+- **Trigger:** A "shapes-heavy" template (e.g. brutalist-grid with grid-line decorations) emits 20 decorations per slide × 5 slides = 100 decorations × ~200 bytes each ≈ 20 KB per project. Acceptable. But a power user with 30 decorations per slide × 10 slides ≈ 60 KB.
+- **Failure mode:** Postgres JSONB row size soft-limit is 8 KB target / 1 GB hard. 60 KB is fine for storage, BUT it bloats the React reducer state, slows undo-history snapshot copies, and on slow networks adds 100ms+ to project load.
+- **Mitigation:**
+  1. **Cap N=30 decorations per slide** in the reducer (mirror the v2.11 perf budget at N=30 elements). Match the slide-level guard already in place.
+  2. **Cap slide_data JSONB at 256 KB project-wide** — Supabase RLS policy or a server-side validator. Beyond that, refuse save with a clear error.
+  3. **`decorations[]` per-item field budget: ≤ 12 fields** (id, kind, iconName | shapeKind, fillColor, strokeColor, strokeWidth, x, y, width, height, rotation, opacity, groupId, locked, hidden, shadowEffect). Don't allow nested `effects[]` arrays in v2.12 — flat shape only.
+- **Phase to address:** **Phase A — Schema design.**
 
 ---
 
-## CATEGORY 10 — Render parity pitfalls (TPLREND-05 specific)
+## CATEGORY G — Reducer dual-routing + symmetry pitfalls
 
-### 10.1 Group bounding box must NOT appear in Satori output
-- **Symptom:** PNG export shows the editor's group selection rectangle as a real element.
-- **Root cause:** If group bounding-box rendered in `slide-preview.tsx` shared component is unconditional, Satori's mirror at `render-slide-satori.tsx` will pick it up.
-- **Prevention rule:** Group bounding box renders ONLY when `editable={true}` (already the gate for selection rings, dashed selection outline at line 877+). Add a single `if (!editable) return null` guard at the top of any new GroupBoundingBox component. Verify with the existing `parity.test.tsx` (10 cases — extend with group cases).
-- **Source:** Existing `editable={true}` gate at `slide-preview.tsx:304`, `parity.test.tsx` invariant from v2.9 Phase 58.
-- **Phase:** **Phase 67 — TPLREND-05 parity audit**
+### G.1 Developer adds `decorations[]` to `BULK_TRANSLATE` but forgets `Z_ORDER` (or vice versa) — silent symmetry bug
 
-### 10.2 Selection rings, marquee rect, smart guides, layers-panel-induced ordering must NOT leak
-- **Symptom:** PNG export shows the dashed `#3d0000` selection ring.
-- **Prevention rule:** Already handled — selection ring uses CSS `outline` which Satori ignores per v2.8 Phase 52 design (MILESTONES.md:111). Extend the same pattern: marquee rect, smart guides, group box ALL use CSS that Satori-doesn't-render OR live behind `editable={true}` guards. Add a regression test that walks the rendered tree of `editable={false}` and asserts NO node with class `*selection*`, `*marquee*`, `*guide*`, `*layer-overlay*`.
-- **Source:** v2.8 Phase 52 selection-ring design (MILESTONES.md:111); v2.9 Phase 58 `no-css-filter.test.ts` extended pattern (MILESTONES.md:66).
-- **Phase:** **Phase 67 — TPLREND-05 parity audit**
+- **Trigger:** v2.11's reducer pattern routes per-scope: every action that operates on "an addressable element" must handle 4 scopes — `text_boxes`, `custom_images`, `watermark`, `decorations` (new in v2.12). Developer adds `decorations` handling to `Z_ORDER` but forgets `BULK_TRANSLATE`. Multi-select drag of [text + decoration] moves the text but leaves the decoration behind.
+- **Failure mode:** Subtle. UI looks 90% correct; one specific multi-select operation silently fails.
+- **Root cause:** The 4-scope-routing surface is implicit in the reducer. There's no static check that all relevant actions route to all 4 scopes.
+- **Mitigation (mirror Plan 65-03 PCL/PTF/PRS audit pattern):**
+  1. **Source-grep audit gate (PRA1..PRA12 — Per-Reducer Action audit, new):** for each of the 12 action types that operate on addressable elements (`SET_LOCKED`, `SET_HIDDEN`, `Z_ORDER`, `BULK_TRANSLATE`, `DUPLICATE_ELEMENTS_AT`, `GROUP`, `UNGROUP`, `DELETE_ELEMENTS`, etc.), assert via grep that each handler body mentions ALL of `text_boxes`, `custom_images`, `watermark`, `decorations`. Fails CI if any one is missing.
+  2. **Reducer-level "exhaustive scope" type test:** define `type AddressableScope = 'text_boxes' | 'custom_images' | 'watermark' | 'decorations'`; use a TS exhaustive-switch helper in each handler; if a scope is added later without updating handlers, tsc fails.
+  3. **Cross-scope multi-select integration test:** for each action, dispatch with a multi-selection that spans all 4 scopes; assert all 4 element types respond correctly. Mirror PRS1..PRS6 v2.9/v2.10 regression sweep.
+- **Phase to address:** **Phase C — Editor parity (multi-select + group + align + lock + z-order extension to decorations).** Lock the audit gate BEFORE wiring decoration handlers.
 
-### 10.3 Lock/hidden state — Satori respects `hidden=true` (skip) but ignores `locked` (editor-only)
-- **Symptom:** Hidden element renders in PNG (bug); locked element doesn't render in PNG (different bug — locked should render).
-- **Prevention rule:** `render-slide-satori.tsx` filter: `elements.filter(e => !e.hidden)`. NEVER filter on `locked`. Add a unit test: `slide with locked watermark renders identically to slide without lock`. Add a unit test: `slide with hidden element renders without that element`.
-- **Source:** Inferred from rule 8.1 + 8.2.
-- **Phase:** **Phase 67 — TPLREND-05 parity audit**
+### G.2 `synthesizeRows` in layers panel forgets to walk `decorations[]`
 
----
+- **Trigger:** Layers panel is the ONE place where all addressable elements are rendered as a flat list. v2.11's `synthesizeRows` walks `text_boxes ∪ custom_images ∪ watermark`. v2.12 must add `decorations`. Easy to forget — the panel works visually for non-decoration elements, so dev says "ship it."
+- **Failure mode:** Loud (decorations don't appear in layers panel) but easy to overlook in a busy dev cycle.
+- **Mitigation:**
+  1. **Extend `synthesizeRows`** at `src/components/editor/layers-panel/layers-panel.tsx:90-153` — add a `for (const dec of slide.decorations ?? [])` loop after the watermark slot. Mirror the existing `text_boxes` / `custom_images` / `watermark` triplet exactly.
+  2. **Update `LayerElementType`** at `src/components/editor/layers-panel/types.ts` to add `'icon' | 'shape'` (or unify under `'decoration'` with a sub-discriminator).
+  3. **Update `computeAllLocked` and `computeAllHidden`** helpers (lines 155-183) — same exhaustive walk.
+  4. **Test gate (LP-NEW1..LP-NEW6):** mirror existing layers-panel.test.tsx LP1..LP3; one test per element-type combination involving decorations (decoration alone, decoration in group with text, multi-decoration group).
+- **Phase to address:** **Phase C — Editor parity (layers panel extension).**
 
-## CATEGORY 11 — Performance pitfalls
+### G.3 `getGroupMembers` doesn't walk decorations — ungroup leaves orphans
 
-### 11.1 Multi-drag of N elements at 60Hz dispatching reducer on every frame
-- **Symptom:** Multi-drag of 10 elements; reducer dispatches 600 times/second; undo history fills with 600 entries; lag.
-- **Root cause:** Multi-drag fires N×60 dispatches/sec if onDrag is wired (instead of onDragStop).
-- **Prevention rule:** **STRICT carry-forward of v2.10's onDragStop rule.** Multi-drag uses ONE local `useState({deltaX, deltaY})` during drag (no reducer); slide-preview reads delta + applies as visual offset; only on `onDragStop` does it dispatch a SINGLE batched action `MOVE_MULTI(slideIndex, ids, delta)`. Single undo entry per gesture.
-- **Source:** v2.10 onDragStop pattern (MILESTONES.md:17 — "Single undo entry per gesture (dispatch on `onResizeStop` only)"). [react-beautiful-dnd 60fps perf](https://medium.com/@alexandereardon/dragging-react-performance-forward-688b30d40a33).
-- **Phase:** **Phase 71 — Multi-drag perf**
-
-### 11.2 Smart-guide overlay re-rendering on every mouse-move
-- **Symptom:** Smart-guide DOM nodes re-create every pointer-move; layout thrashing.
-- **Prevention rule:** Smart-guide overlay = single `<div>` per guide line, persistently mounted, position updated via `transform: translate3d(x, 0, 0)` (GPU-composited, no reflow). Use `pointer-events: none` so it doesn't block clicks. Render outside React's reconciliation if needed (refs + direct style set in a RAF callback).
-- **Source:** [React 60fps perf guide](https://g3f4.github.io/react-at-60-fps/) — transform3d is the canonical pattern.
-- **Phase:** **Phase 66 — Smart-guides + snapping**
-
-### 11.3 Layers panel rendering full tree on every selection change
-- **Symptom:** 20 layer chips re-render every selection click.
-- **Prevention rule:** Wrap each `LayerChip` in `React.memo` with custom equality. Use `useMemo` for the chips array. Selection-state is read inside the chip via context or a per-id selector hook. NOT virtualization (too few elements).
-- **Source:** [React.memo pattern](https://react.dev/reference/react/memo); v2.8 Phase 50 LayerStrip pattern (MILESTONES.md:109) — same concept extended.
-- **Phase:** **Phase 70 — Layers panel**
+- **Trigger:** User groups [text + decoration]; calls Cmd+Shift+G to ungroup. The `getGroupMembers` helper walks `text_boxes ∪ custom_images ∪ watermark` — finds the text, doesn't find the decoration. The ungroup dispatch only fires `groupId = undefined` on the text. Decoration retains the (now orphaned) groupId; on next group, it joins a "phantom" group.
+- **Failure mode:** Subtle. Manifests as "I ungrouped but they still move together when I click."
+- **Mitigation:** Same as G.2 — extend ALL helpers that walk addressable elements to ALSO walk `decorations[]`. Build an audit list (a `addressable-element-walkers.ts` module that exports a single canonical iterator), refactor every existing walker through it.
+- **Phase to address:** **Phase C — Editor parity (group/ungroup extension).**
 
 ---
 
-## CATEGORY 12 — UX pitfalls (Figma/Canva post-mortems)
+## CATEGORY H — Picker keyboard nav vs editor shortcut conflict
 
-### 12.1 Canva's #1 complaint: "What took minutes now takes hours"
-- **Pitfall:** Multi-step flows that USED to be one-click become click-click-click. E.g. "to align 3 elements I now have to: click each, open right rail, scroll to align, click."
-- **Prevention rule:** Alignment toolbar surfaces in the canvas (floating mini-toolbar above multi-selection bounds), NOT buried in right rail. Matches Figma's floating-toolbar pattern.
-- **Source:** [Canva October 2025 redesign complaints — substack post-mortem](https://soloshannon.substack.com/p/canva-is-broken-and-i-almost-lost), [Canva user threads](https://www.threads.com/@dmccullum/post/C7h_aVYPbXD).
-- **Phase:** **Phase 65 — Right-rail multi-select UX**
+### H.1 Picker is open; user presses Cmd+G — editor groups instead of picker doing whatever
 
-### 12.2 Figma's #1 mobile complaint: shortcuts conflict with browser
-- **Pitfall:** Cmd+G / Cmd+] / Cmd+/ all conflict with Chrome shortcuts; sometimes work, sometimes don't, depends on focus state.
-- **Prevention rule:** Use `e.preventDefault()` in handlers AND show keyboard shortcut hints in tooltips so users know there's a shortcut. Add a `?` help overlay listing shortcuts (Figma pattern).
-- **Source:** [Figma keyboard shortcut conflict thread](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312), [Figma sidebar focus thread](https://forum.figma.com/archive-21/bug-investigating-some-keyboard-commands-no-longer-work-with-objects-in-layers-panel-chrome-25632).
-- **Phase:** **Phase 68 — Keyboard handling**
+- **Trigger:** Icon picker is a modal/popover. User has selected 2 elements on canvas, opens picker, presses Cmd+G expecting picker behavior — but tinykeys global handler fires GROUP on the canvas selection.
+- **Failure mode:** Loud — wrong action runs.
+- **Root cause:** v2.11 tinykeys map fires globally; the existing `isEditingTarget` firewall only short-circuits when focus is in `<input>`/`<textarea>`/contentEditable. A picker built with `<div role="grid">` is NOT one of those.
+- **Mitigation (mirror `isEditingTarget` firewall — extend it to "modal-open" state):**
+  1. **Add a `isPickerOpenRef` (or generalized `isModalOpenRef`)** at `slide-editor.tsx` top-level. Set true when picker mounts, false when it unmounts (lifecycle, NOT React state — `useRef` to avoid re-render cascades).
+  2. **Every tinykeys binding's first line gains a second short-circuit:** `if (isEditingTarget(e.target) || isPickerOpenRef.current) return;`. The 33 inline firewalls cataloged in Phase 66 SWEEP-1..4 all need updating.
+  3. **Picker has its OWN keyboard map** scoped via tinykeys' `target` option (passed to the picker container ref), so arrow keys / Enter / Esc bind only when picker has focus.
+  4. **Test gate (SWEEP-PICK-1..6):** for each editor shortcut (Cmd+G, Cmd+Shift+G, Cmd+], Cmd+[, arrow nudge, Cmd+D, Cmd+1/2/3, Delete), mount picker → fire shortcut → assert editor reducer action did NOT dispatch.
+- **Phase to address:** **Phase B — Picker UI** (lock `isPickerOpenRef` API). **Phase F — Test gates** (regression suite).
 
-### 12.3 Adobe's classic "key object" trap
-- **Pitfall:** Adobe Illustrator requires you to set the key object BEFORE opening the Align panel; if you set it after, the distribute-spacing field is greyed out forever.
-- **Prevention rule:** No "key object" / "primary" concept in v2.11 (per rule 1.3). Avoid this entire UX trap.
-- **Source:** [Illustrator UserVoice issue #39372850](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a).
-- **Phase:** **Phase 60 — Multi-select state design**
+### H.2 Picker open + Esc — closes picker AND ALSO exits group on canvas (double dispatch)
 
----
-
-## Phase Mapping Summary
-
-| v2.11 Phase | Pitfalls addressed |
-|---|---|
-| **Phase 60 — Multi-select state design** | 1.1, 1.2, 1.3, 1.4, 12.3 |
-| **Phase 61 — Marquee selection** | 2.1, 2.2, 2.3, 2.4, 2.5, 8.4 |
-| **Phase 62 — Group/Ungroup design** | 3.1, 3.2, 3.3, 3.4, 3.5, 3.6 |
-| **Phase 63 — Align/Distribute** | 4.1, 4.2, 4.3, 4.4, 4.6, 4.7 |
-| **Phase 64 — Lock/hide** | 2.2, 3.5, 4.7, 8.1, 8.2, 8.3, 8.4 |
-| **Phase 65 — Right-rail multi-select UX** | 1.3, 12.1 |
-| **Phase 66 — Smart-guides + snapping** | 5.1, 5.2, 5.3, 5.4, 5.5, 11.2 |
-| **Phase 67 — TPLREND-05 parity audit** | 3.1, 5.3, 6.1, 8.2, 10.1, 10.2, 10.3 |
-| **Phase 68 — Keyboard handling** | 5.5, 7.3, 9.1, 9.2, 9.3, 9.4, 12.2 |
-| **Phase 69 — Z-order controls** | 6.1, 6.2, 6.3 |
-| **Phase 70 — Layers panel** | 7.1, 7.2, 7.3, 7.4, 11.3 |
-| **Phase 71 — Multi-drag perf** | 11.1 |
-| **Deferred to v3.0+** | 4.5 (rotation alignment) |
+- **Trigger:** User in a group (Cmd+G earlier) opens picker, presses Esc. Expectation: picker closes only. Reality: tinykeys' Escape handler ALSO fires (group exit + selection clear).
+- **Mitigation:** Picker's own Esc binding calls `e.stopPropagation()` and the picker's `onClose`. Use the same `target` option as H.1. Plus, the global `isPickerOpenRef.current` short-circuit means tinykeys' Escape no-ops anyway.
+- **Phase to address:** **Phase B — Picker UI.**
 
 ---
 
-## Top "Watch Out For" (synthesizer should bubble these)
+## CATEGORY I — react-rnd integration with non-rectangular shapes
 
-1. **Group transform compounding** (3.1) — pick FLAT schema; group is a UI-only `group_id` field. Most consequential decision in v2.11. Wrong choice = TPLREND-05 break + schema migration nightmare.
-2. **TPLREND-05 leak** (10.1, 10.2, 10.3) — every editor-only feature (selection rings, marquee, smart guides, group box) must gate behind `editable={true}` and verify via parity tests. v2.10 already enforced this pattern; v2.11 must extend test coverage.
-3. **Z-order MUST be array-order, not CSS z-index** (6.1) — Satori ignores z-index. Same lesson as v2.9's CSS-filter ban (vercel/satori#573).
-4. **onDragStop strict carry-forward for multi-drag** (11.1) — single batched dispatch per gesture; matches v2.10's resize pattern.
-5. **No "primary" element concept** (1.3, 12.3) — pick Canva's TYPE BAR model; avoids Illustrator key-object UX trap.
-6. **No nested groups, no rotation in v2.11** (3.3, 3.2, 4.5) — defers complexity, keeps schema flat, matches Canva.
-7. **isEditing guard at `slide-editor.tsx:344-348` is the keyboard-shortcut firewall** (7.3, 9.1, 9.2) — every new shortcut must respect it.
-8. **Window-blur + visibilitychange resets modifier state** (5.5, 9.4) — prevents stuck-Cmd / stuck-Shift bugs.
+### I.1 Lines / triangles / stars don't have square aspect — react-rnd handles invert / collapse
+
+- **Trigger:** Shape primitive is a horizontal `<line>` (height = 0 in design intent). User grabs the bottom-right corner handle to resize. react-rnd's bounding box is `width × height`, but the visual geometry is a 1-D line. Visually nothing happens, OR the line "thickens" weirdly.
+- **Failure mode:** Loud (visually wrong).
+- **Mitigation:**
+  1. **All shape primitives have a NON-ZERO bounding box.** Lines have a `strokeWidth` (default 4); the line's bounding box is `width × max(strokeWidth, 4)`. The user resizes the bounding box, not the geometric line.
+  2. **Shape-aware default aspect ratios:**
+     - Square: 1:1, react-rnd `lockAspectRatio` (Shift to free)
+     - Circle/ellipse: 1:1 default, free with Shift
+     - Triangle: 1:1 default, free with Shift
+     - Line: ratio free (it's intentionally 1-D-feeling)
+     - Star: 1:1 (locked-by-default; user can break with Shift)
+   3. **Right-rail "Lock aspect ratio" toggle** — same UX as v2.10 ASPECT-01 deferred item; finally lands here. Mirrors react-rnd's `lockAspectRatio` prop ([react-rnd README](https://github.com/bokuweb/react-rnd)).
+- **Phase to address:** **Phase A — Schema design** (per-shapeKind aspect default), **Phase D — Right-rail decoration controls** (lock-aspect toggle).
+
+### I.2 Rotation handles deferred (carry-forward from v2.10 ROTATE-01) — but shapes BEG for rotation
+
+- **Trigger:** Power user wants to rotate an arrow shape 45°. v2.11 has no rotation. v2.12 wants to ship rotation for shapes/icons so arrows can point anywhere — but rotation has cascading impact on AABB selection bounds, snap edges, smart-guides, layers panel measurement, BULK_TRANSLATE coordinate math.
+- **Failure mode:** If rotation lands without rigor, every alignment / smart-guide / multi-drag math breaks (per v2.11 PITFALL 4.5). If rotation does NOT land, "shapes" feels half-baked.
+- **Mitigation:**
+  1. **v2.12 stores `rotation: number` in `decorations[]` schema** (default 0 — additive, optional, no breaking change). Renderer applies CSS `transform: rotate()` in the React preview path AND in Satori (Satori supports CSS `transform`).
+  2. **v2.12 does NOT ship interactive rotation handles.** rotation is settable from a numeric input in the right-rail card OR via Gemini AI emit. Drag-to-rotate is deferred to v3.0+ (matches the v2.10 ROTATE-01 deferral discipline; no rotation-aware AABB math required).
+  3. **Selection bounds for rotated decorations USE THE PRE-ROTATION AABB.** Document explicitly in code comment + tooltip ("rotation does not affect selection or alignment in v2.12"). Avoids the rotation-aware AABB math trap.
+  4. **TPLREND-05 parity test:** PTF14 — render a 45°-rotated arrow shape; assert React preview and Satori output byte-identical.
+- **Phase to address:** **Phase A — Schema design** (rotation field, no UI). **Phase D — Right-rail** (numeric rotation input, no drag handle). Defer drag-rotation to v3.0+.
 
 ---
 
-## Open Questions for Roadmap Phase
+## CATEGORY J — Performance pitfalls at scale
 
-1. **What max element count per slide are we designing for?** v2.11 perf guards depend on this. Recommend ≤30 per slide (3 text_boxes + 5 custom_texts + 5 custom_images + 2 watermarks + 5 decorative + headroom).
-2. **Floating multi-select toolbar location** — above selection bounds (Figma) or fixed top of canvas (Canva)? Figma's is more discoverable for keyboard users; Canva's is simpler.
-3. **Should "duplicate while dragging" (Alt+drag) be in scope?** Standard Figma feature, would slot under Phase 71. Out of mandatory scope but worth surfacing.
+### J.1 N=20 decorations + 10 text_boxes + 5 images — pointer-move budget breach
+
+- **Trigger:** v2.11 PERF budget is < 2ms per pointer-move at N=30 elements (`use-alignment-guides.ts` Phase 63 perf gate). v2.12 adds N=20 more decorations → N=55 total addressable elements per slide.
+- **Failure mode:** Slow drag (visible jitter at 60fps) once over N≈40.
+- **Mitigation:**
+  1. **Cap decorations at N=20 per slide** (PERF-DECOR-01). Combined with v2.11's text-box / image caps, total cap = ~30. Stays under the perf budget.
+  2. **`runSnapForDrag` already uses sorted-edge-array binary-search** (Phase 63 Plan 03) — N=55 should still be sub-2ms. Verify with a perf integration test (mirror PERF-05 at slide-preview level).
+  3. **`synthesizeRows` is `useMemo`-cached** — only re-runs when slide ref changes. Layers panel render cost is amortized.
+  4. **For decoration-heavy templates (brutalist-grid with grid lines), consider PRE-COMPUTING the decoration list at template-load time** — store as an immutable reference; skip walking on every render.
+- **Phase to address:** **Phase C — Editor parity.** **Phase F — Test gates** (PERF-DECOR-01 integration test).
+
+### J.2 Lucide-static SVG-string parsing on every render — CPU spike on slide-switch
+
+- **Trigger:** Resolver `resolveDecorationSvg(decoration)` parses the raw lucide-static SVG string on every render. With 30 decorations × multiple slides + undo-history snapshots, you get hundreds of parses per second during heavy editing.
+- **Failure mode:** Subtle. CPU profile shows time in DOM-string parsing.
+- **Mitigation:**
+  1. **Module-level LRU cache** keyed on `(iconName, fillColor, strokeColor, strokeWidth)` — same pattern as v2.9 `match_photo_cache` SHA-256 keying.
+  2. **Cache hit-rate test:** integration test asserts that re-rendering a slide N times produces only K cache lookups, not K×N parses.
+- **Phase to address:** **Phase A — Renderer foundation.**
+
+---
+
+## Technical Debt Patterns
+
+| Shortcut | Immediate benefit | Long-term cost | When acceptable |
+|---|---|---|---|
+| Use `lucide-react` barrel directly because tree-shaking "should work" | -2 hrs setup | 7+ MB bundle bloat in production; user load time +1s | NEVER. Always use per-icon imports OR `lucide-static`. |
+| Skip the resolver; pass `lucide-react` components straight to Satori | -1 hr | Silent PNG render failure; ~3-month delay to user-discovery | NEVER. Pin PTF13 parity test before shipping. |
+| Use SVG `<filter>` for shape drop-shadow | -30 min vs box-shadow wrapper | Silent Satori render failure (per #573 family) | NEVER. Use CSS box-shadow on wrapping div. |
+| Make `decorations` a single `decorations` field (NOT `decorations[]`) — single icon per slide v1, array later | -2 hrs of array-handling code | Schema break in v2.13 when users want 2+ decorations per slide | NEVER. Pluralize from day one — v2.11 watermark is the single-element case (1 array of length 1); decorations are inherently many. |
+| Eager-backfill all 53+ projects with `decorations: []` in a Supabase migration | -30 min lazy-init cost | Migration risk; v2.8 MIG-01 deferral lesson re-learned | NEVER for v2.12. Lazy default-empty is correct. Backfill only when v3.0+ legacy sunset arrives. |
+| Hand-roll a tree-walk in each layers-panel helper (4 helpers × 4 scopes) | -1 hr abstraction | G.2 / G.3 family of symmetry bugs | NEVER. Single canonical iterator (`addressable-element-walkers.ts`); refactor existing v2.11 helpers through it as part of v2.12. |
+| Ship picker without `aria-hidden="true"` on the SVG; "fix later" | -10 min | Screen reader users hear "image image image" 1500 times; bug report incoming | NEVER. Ship a11y day one — it's a 1-line attribute. |
+| Use `currentColor` to "save schema bytes" — let CSS cascade resolve it | -4 bytes per decoration | A.2 silent Satori failure | NEVER. Store explicit hex; the bytes don't matter. |
+| Skip the `is{Picker,Modal}OpenRef` firewall; "no one will hit this" | -30 min | H.1 user reports "Cmd+G groups when picker is open"; data corruption from off-screen actions | NEVER. The 33-firewall pattern is already in place; one more line per binding is cheap. |
+
+---
+
+## Integration Gotchas
+
+| Integration | Common mistake | Correct approach |
+|---|---|---|
+| `lucide-react` ↔ Satori PNG | Pass React components directly | Use `lucide-static` SVG strings via shared resolver `resolveDecorationSvg` consumed by both renderers |
+| `lucide-react` ↔ vitest | Default ESM transform skips `lucide-react` | Add to `server.deps.inline`; mock with `vi.mock` proxy returning null components for non-visual tests |
+| Virtualized picker ↔ jsdom | Render zero items because container = 0×0 | Use `react-virtuoso` + its `VirtuosoMockContext`; mock global `ResizeObserver` + `IntersectionObserver` in `vitest.setup.ts` |
+| selecto marquee ↔ virtualized picker | Picker rows scroll into view mid-drag → not in selecto registry | v2.12 picker is single-select only; marquee operates only on canvas (N≤30, no virtualization) |
+| Gemini AI emit ↔ Lucide icon names | Open vocabulary → hallucinated names | Closed enum allowlist of ~100 high-quality icons; Zod parse validates; unknowns drop silently with a warning |
+| `decorations[]` ↔ existing reducer actions | Forget to route per-scope in 1 of 12 actions | PRA1..PRA12 source-grep audit gate; exhaustive `AddressableScope` type-switch |
+| `decorations[]` ↔ layers panel `synthesizeRows` | Forget to walk decorations slot | Single canonical walker module; LP-NEW1..LP-NEW6 test gate |
+| `decorations[]` ↔ fork RPC | Strip wrong fields, leak right-of-publicity adjacency | v2.12 preserves all (icons + shapes are CC0/geometric); strip `decoration.locked` + `.hidden` per-element via SQL migration; v2.13+ MUST strip user-uploaded SVGs |
+| Picker keyboard nav ↔ tinykeys global map | Picker open + Cmd+G fires editor's group action | `isPickerOpenRef` firewall; extend the 33 firewalls in SWEEP-1..4 to add a second short-circuit |
+| Shape drop-shadow ↔ Satori | Use SVG `<filter>` | Use CSS `box-shadow` on a wrapping `<div>` (same pattern as v2.1 text-shadow) |
+| Decoration rotation ↔ alignment math | Rotation breaks AABB / snap / multi-drag | v2.12 uses pre-rotation AABB; rotation is visual-only (CSS transform), no interactive rotation handles |
+
+---
+
+## Performance Traps
+
+| Trap | Symptoms | Prevention | When it breaks |
+|---|---|---|---|
+| Naive `lucide-react` barrel import in client bundle | Production bundle +7 MB, p95 page-load +1s | Per-icon `lucide-react/icons/X` static imports + `lucide` `dynamicIconImports` for picker | At deploy; silent in dev |
+| SVG-string parsing on every render | CPU spike during heavy editing; undo replay slow | Module-level LRU cache keyed on (iconName, color, stroke, width) | At N≥10 decorations × multi-slide editing |
+| N>30 elements pointer-move > 2ms | Drag jitter at 60fps | Cap N=20 decorations per slide; binary-search edge index already in place | At decoration-heavy templates if cap is missed |
+| Eager-on-load migration over 50+ projects | Slow first-load (+50ms p95) | Lazy default-empty (decorations is brand-new — no legacy to migrate from) | At v2.13+ if eager backfill is added prematurely |
+| `synthesizeRows` re-runs on every keystroke | Layers panel re-renders during text edit | `useMemo` keyed on slide reference; reducer always returns new array refs (immutable pattern) | Only if memo deps are misspecified |
+| Bundle-size regression undetected until prod deploy | Vercel build size jumps unnoticed | CI gate: `npm run build` then assert chunk size ≤ baseline + 200 KB; mirror v2.6 triple-layer build-gate | At first regression after merge |
+
+---
+
+## Pitfalls cross-referenced to phase
+
+| Pitfall | Phase A: Schema + renderer | Phase B: Picker UI | Phase C: Editor parity | Phase D: Right-rail | Phase E: AI emit | Phase F: Test gates |
+|---|---|---|---|---|---|---|
+| A.1 lucide-react silent fail | ★ resolver + PTF13 | | | | | ★ PTF13 in PARITY-04 |
+| A.2 currentColor divergence | ★ explicit hex | | | | | ★ grep gate |
+| A.3 SVG filter / gradient unsupported | ★ flat-fill primitives only | | | ★ box-shadow wrapper | | ★ PTF13 |
+| A.4 viewBox / scale | ★ explicit width/height | | | | | ★ PTF13 |
+| A.5 strokeWidth UX | | | | ★ slider 1–8 | | |
+| B.1 7+ MB bundle | | ★ 3-pattern lazy | | | | ★ build-gate |
+| B.2 lucide-react in vitest | | ★ deps.inline | | | | ★ smoke test |
+| C.1 jsdom virtualization | | ★ react-virtuoso + mocks | | | | ★ vitest.setup.ts mocks |
+| C.2 selecto + virtualized | | ★ single-select picker | | | | |
+| D.1 white-on-white invisible | | | | ★ contrast indicator | ★ advisory gate | |
+| D.2 aria-hidden missing | | ★ a11y attrs | | ★ a11y attrs | | |
+| E.1 monoculture | | | | | ★ advisory gate + diversity corpus | ★ corpus assertion |
+| E.2 hallucinated icon names | | | | | ★ closed-enum allowlist | |
+| F.1 eager-vs-lazy migration | ★ additive default-empty | | | | | |
+| F.2 fork RPC policy | ★ migration SQL | | | | | |
+| F.3 JSONB row size cap | ★ N=30 cap | | | | | |
+| G.1 reducer symmetry | | | ★ AddressableScope type | | | ★ PRA1..PRA12 grep |
+| G.2 layers-panel synthesizeRows | | | ★ extend walker | | | ★ LP-NEW1..LP-NEW6 |
+| G.3 getGroupMembers | | | ★ canonical walker module | | | ★ group integration |
+| H.1 picker vs Cmd+G | | ★ isPickerOpenRef | | | | ★ SWEEP-PICK-1..6 |
+| H.2 picker Esc double-dispatch | | ★ stopPropagation + ref | | | | |
+| I.1 non-rect shapes + react-rnd | ★ aspect defaults | | | ★ lock-aspect toggle | | |
+| I.2 rotation deferred | ★ rotation field, no UI | | | ★ numeric input only | | ★ PTF14 |
+| J.1 N=55 perf budget | | | | | | ★ PERF-DECOR-01 |
+| J.2 SVG parse cache | ★ LRU resolver | | | | | ★ cache-hit test |
 
 ---
 
 ## Sources
 
-- [vercel/satori issue #573 — filter blur doesn't work](https://github.com/vercel/satori/issues/573)
-- [vercel/satori issue #41 — Throw error when CSS not supported](https://github.com/vercel/satori/issues/41)
-- [vercel/satori issue #162](https://github.com/vercel/satori/issues/162) (variable fonts — carry-forward)
-- [vercel/satori issue #712](https://github.com/vercel/satori/issues/712) (variable fonts — carry-forward)
-- [react-rnd issue #58 — touch problems to resize elements](https://github.com/bokuweb/react-rnd/issues/58)
-- [react-rnd issue #609 — pointerEvents triggered when dragging over iframe](https://github.com/bokuweb/react-rnd/issues/609)
-- [react-rnd issue #724 — initial bounds](https://github.com/bokuweb/react-rnd/issues/724)
-- [fabric.js issue #4163 — Grouping & Active Selection Position Bug](https://github.com/fabricjs/fabric.js/issues/4163)
-- [fabric.js issue #6315 — ungroupOnCanvas does not restore object state](https://github.com/fabricjs/fabric.js/issues/6315)
-- [fabric.js issue #1798 — Ungrouping items changes the original position](https://github.com/fabricjs/fabric.js/issues/1798)
-- [fabric.js issue #4392 — flipX rotation interaction](https://github.com/fabricjs/fabric.js/issues/4392)
-- [fabric.js issue #3830 — Possible Problem Ungrouping Objects](https://github.com/fabricjs/fabric.js/issues/3830)
-- [fabric.js issue #3616 — Group rotation originX/originY](https://github.com/fabricjs/fabric.js/issues/3616)
-- [react-moveable groupable handbook](https://github.com/daybrush/moveable/blob/master/packages/react-moveable/groupable.md)
-- [react-moveable issue #947 — Group/Ungroup Custom Ables](https://github.com/daybrush/moveable/issues/947)
-- [Figma Select layers and objects](https://help.figma.com/hc/en-us/articles/360040449873-Select-layers-and-objects)
-- [Figma Adjust alignment, rotation, position, and dimensions](https://help.figma.com/hc/en-us/articles/360039956914-Adjust-alignment-rotation-position-and-dimensions)
-- [Figma multi-edit Medium article](https://medium.com/@joeyabanks/everything-to-know-about-multi-editing-in-figma-edd58369fd20)
-- [Figma forum: Cmd+G keyboard conflict](https://forum.figma.com/ask-the-community-7/how-can-i-resolve-keyboard-shortcut-conflicts-with-other-programs-25312)
-- [Figma forum: layers panel keyboard bug Chrome](https://forum.figma.com/archive-21/bug-investigating-some-keyboard-commands-no-longer-work-with-objects-in-layers-panel-chrome-25632)
-- [Figma forum: Disable snap to smart guides](https://forum.figma.com/t/disable-snap-to-smart-guides/13000)
-- [Sketch Aligning layers docs](https://www.sketch.com/docs/designing/layer-basics/aligning-layers/)
-- [Photoshop locked-layer auto-select bug](https://community.adobe.com/t5/photoshop-ecosystem-bugs/p-move-tool-auto-select-is-selecting-layers-in-hidden-or-locked-groups/idi-p/12251508)
-- [Illustrator UserVoice — Distribute Spacing field disabled if key object set before Align panel](https://illustrator.uservoice.com/forums/601447-illustrator-desktop-bugs/suggestions/39372850-distribute-spacing-field-is-disabled-if-you-set-a)
-- [GIMP Align tool docs (3 minimum for distribute)](https://docs.gimp.org/3.0/en/gimp-tool-align.html)
-- [Canva Oct 2025 substack post-mortem](https://soloshannon.substack.com/p/canva-is-broken-and-i-almost-lost)
-- [Canva slowness Threads post](https://www.threads.com/@dmccullum/post/C7h_aVYPbXD)
-- [react-beautiful-dnd 60fps optimization article](https://medium.com/@alexandereardon/dragging-react-performance-forward-688b30d40a33)
-- [React at 60 FPS perf guide](https://g3f4.github.io/react-at-60-fps/)
-- [react-window perf guide](https://blogs.purecode.ai/blogs/react-window)
-- [Aseprite marquee-grid bug](https://community.aseprite.org/t/grid-and-rectangular-marquee-tool-bug/10718)
+**Verified (HIGH confidence — cited in Satori / Lucide / TanStack issue trackers, official docs):**
+- [vercel/satori#570 — `lucide-react` not rendering](https://github.com/vercel/satori/issues/570) → A.1
+- [vercel/satori#281 — React Icons (svg components) not rendering](https://github.com/vercel/satori/issues/281) → A.1
+- [vercel/satori#573 — `filter: "blur(...)"` doesn't work with Satori + resvg-js](https://github.com/vercel/satori/issues/573) → carry-forward; A.3
+- [vercel/satori#393 — drop-shadow filter](https://github.com/vercel/satori/issues/393) (cited in MILESTONES.md v2.10 carry-forward) → A.3
+- [vercel/satori#41 — Throw an error when CSS property or Tailwind API is not supported](https://github.com/vercel/satori/issues/41) → A.2 / A.3
+- [vercel/satori#86 — Support `<svg>` element](https://github.com/vercel/satori/issues/86) → A.4
+- [vercel/satori#186 — Support `<text>` in `<svg>`](https://github.com/vercel/satori/issues/186) → A.4
+- [vercel/satori#312 — Image not loaded inside SVG](https://github.com/vercel/satori/issues/312) → A.4 (PR #472 fixed)
+- [lucide-icons/lucide#1733 — README should ask to import icons specifically, to avoid very large app bundles](https://github.com/lucide-icons/lucide/issues/1733) → B.1 (7+ MB confirmed)
+- [lucide-icons/lucide#1559 — Import Icon as a separate module](https://github.com/lucide-icons/lucide/issues/1559) → B.1
+- [lucide-icons/lucide#2366 — JEST: SyntaxError: Unexpected token 'export'](https://github.com/lucide-icons/lucide/issues/2366) → B.2
+- [Lucide DynamicIcon — Advanced React docs](https://lucide.dev/guide/react/advanced/dynamic-icon-component) → B.1 (recommends NOT using unless picker)
+- [TanStack/virtual#419 — ResizeObserver is not defined in SSR](https://github.com/TanStack/virtual/issues/419) → C.1
+- [jsdom/jsdom#3368 — Implement ResizeObserver](https://github.com/jsdom/jsdom/issues/3368) → C.1
+- [React Virtuoso Mocking-in-tests docs](https://virtuoso.dev/mocking-in-tests/) → C.1 (`VirtuosoMockContext`)
+- [W3C WAI G207 — Ensuring 3:1 contrast for icons](https://www.w3.org/WAI/WCAG21/Techniques/general/G207) → D.1
+- [W3C WAI 1.4.11 Non-text Contrast](https://www.w3.org/WAI/WCAG21/Understanding/non-text-contrast.html) → D.1 (decorative-icon exemption)
+- [bokuweb/react-rnd README](https://github.com/bokuweb/react-rnd) → I.1 (`lockAspectRatio` API)
+
+**MEDIUM confidence (industry surveys + secondary sources):**
+- [Beautiful.ai vs Gamma 2026 comparison](https://www.beautiful.ai/compare/gamma-alternative) → E.1
+- [SlideGMM 2026 AI presentation tools comparison](https://www.slidegmm.ai/en/blog/ai-presentation-tools-comparison-2026) → E.1 (Tome shutdown April 2025)
+- [stefanjudis non-scaling-stroke note](https://www.stefanjudis.com/today-i-learned/how-to-disable-scaling-for-stroke-width/) → A.5
+- [Lucide tree-shaking with Vite — David Casanellas](https://javascript.plainenglish.io/tree-shaking-lucide-react-icons-with-vite-and-vitest-57bf4cfe6032) → B.1
+
+**LOW confidence (training data + general patterns):**
+- Symmetry-bug class is a general v2.11 lesson — extrapolated from synthesizeRows + reducer-action experience; no single canonical source.
+- The "every slide gets a sparkle" specific failure mode for AI presentation tools is widely-discussed-but-not-formally-cited; mitigation pattern mirrors the v2.9 hookOpeningTrigram advisory gate.
+
+**Codebase references (HIGH confidence — verified in repo):**
+- v2.11 PARITY-04 audit pattern: `src/lib/render/__tests__/parity.template-fingerprint.test.tsx` → PTF13/PTF14 extension target
+- v2.11 layers panel `synthesizeRows`: `src/components/editor/layers-panel/layers-panel.tsx:90-153` → G.2 extension target
+- v2.11 `Z_ORDER` reducer routing: `src/lib/editor/editor-reducer.ts:952-972`, `src/lib/editor/transforms/z-order.ts` → G.1 extension target
+- v2.11 `isEditingTarget` firewall: `src/components/editor/slide-editor.tsx:31, 422+` (33 inline firewalls per Phase 66 SWEEP-1..4) → H.1 extension target
+- v2.8 `applyDualWrite` pattern: `src/lib/editor/editor-reducer.ts:7-21` → F.1 anti-pattern reference (DON'T re-introduce dual-shape)
+- v2.4 fork RPC: existing `fork_published_carousel` SQL function + v2.11 migration `20260502_fork_strip_locked.sql` → F.2 mirror target
+- v2.6 triple-layer build-gate: `package.json` build script + import-gate test → B.1 mirror target
+- v2.9 advisory diversity corpus: `src/lib/ai/__tests__/diversity-corpus.ts` → E.1 / E.2 mirror target
