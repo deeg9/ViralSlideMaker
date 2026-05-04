@@ -57,6 +57,26 @@ export const SlideContentSchema = z.object({
     .describe(
       'Optional per-slide template_id override (closed enum from registry; invalid values silently stripped per D-08)',
     ),
+  // Phase 71 (AI-01..04): raw passthrough — kept loose at the Zod-schema layer
+  // so the ingest adapter in generate-slides.ts (which runs DecorationEmitSchema
+  // safeParse + resolveAIDecoration + DecorationSchema safeParse) can apply the
+  // triple-layer silent-drop without losing entries to a too-strict CarouselSchema
+  // gate. The closed-enum AI emit shape is enforced by DecorationEmitSchema
+  // immediately downstream (mirror v2.9 D-08 template_id_override pattern).
+  decorations: z
+    .array(z.unknown())
+    .optional()
+    .describe(
+      'Optional 0..2 AI-emitted decorations (raw passthrough; DecorationEmitSchema validates per-entry post-parse)',
+    ),
+  // Phase 71 (AI-03): loose passthrough so resolveAIDecoration's color-token
+  // resolver can read slide.style_overrides.derived_palette without Zod
+  // stripping the field. The full SlideStyleOverrides shape is validated
+  // elsewhere; this layer purely preserves the field for ingest.
+  style_overrides: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe('Loose passthrough for downstream resolvers (Phase 71 AI-03 palette read)'),
 })
 
 export const CarouselSchema = z.object({
