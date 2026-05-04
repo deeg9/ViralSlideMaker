@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
-status: executing
-stopped_at: "Phase 68 COMPLETE (3/3 plans). Plan 68-03 SHIPPED — PRA1..12 source-grep audit gate (16 GREEN) + PRS7..14 cross-scope isolation tests (10 GREEN). Closes PARITY-15/16/17. 531/531 editor tests; tsc baseline 17 preserved. Phase 69 (Renderers + DecorationRenderer + First Parity Proof) is unblocked — reducer + walker + selection-model foundation stable; PRA grep gate + PRS isolation gate are CI-enforced. Phase 69 work-area: src/lib/render/ (renderer surfaces — slide-preview.tsx + render-slide-satori.tsx + new decoration-renderer.tsx)."
-last_updated: "2026-05-04T07:14:00.000Z"
-last_activity: 2026-05-04 — Plan 68-03 SHIPPED (PRA1..12 audit gate + PRS7..14 cross-scope isolation tests)
+status: completed
+stopped_at: "Plan 63-04 complete (Wave 2 — Wave B integration). Phase 63 4/5 plans shipped. Ready for Plan 63-05 (polish — PARITY-03 multi-element fixture extension + perf budget verification + locked-elements-participate-in-bounds completion). Plan 63-05 inherits stable seams: smart-guide-overlay testid in PARITY-01 chrome-leak regex; runSnapForDrag closure pattern; detectEqualSpacing helper; persistent-pool overlay component reusable from any future drag-time chrome surface."
+last_updated: "2026-05-04T07:55:00.000Z"
+last_activity: 2026-05-04 — Plan 69-02 SHIPPED (both-renderer integration + 8 shape SVG assets + integration smoke)
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -25,6 +25,14 @@ See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 **Success metric (v2.12):** `decorations[]` (kind: icon | shape) renders byte-identically across React preview + Satori PNG export, integrates as first-class peers in v2.11 multi-element editor surfaces, ships fuzzy/infinite-scroll/keyboard-driven Lucide picker, and is emitted by Gemini per-slide with advisory monoculture gate — all with TPLREND-05 parity invariant preserved across all existing 11 templates.
 
 ## Current Position
+
+Phase: 69 — Renderers + DecorationRenderer + First Parity Proof (Plans 69-01 + 69-02 SHIPPED; Plan 69-03 ready)
+Plan: 69-02 SHIPPED (Wave 2 — both-renderer integration + 8 shape SVG assets + integration smoke). All 3 layer-5.5 sites swapped from `_d => null` stub to `renderDecoration(d, ctx)` invocation: render-slide-satori.tsx (line 506), slide-preview.tsx non-editable (line 1068), slide-preview.tsx editable (line 2648). All 3 sites use IDENTICAL wrapper-with-key React.cloneElement pattern (TPLREND-05 byte-identity invariant). Both renderers import from canonical `decoration-renderer` module path. 8 hand-rolled SVG assets in public/shapes/ (triangle, polygon-5/6/8, star-5/6, arrow, line) — all viewBox=0 0 100 100, currentColor fill/stroke, no <filter>/<style>/<script>. scripts/build-shapes.ts skeleton + npm run shapes script (Phase 70 expansion). IntersectionObserver mock added to src/__tests__/setup.ts (defensive — Phase 70 picker dependency). 13 new integration smoke tests (decoration-renderer-integration.test.tsx) covering: data-decoration-id markers in BOTH paths, hidden-filter, undefined/empty arrays → zero DOM, triangle SVG-asset path, cross-renderer parity ordering. PTF1..16 + PTL1..2 baselines REMAIN GREEN (102/102 pass — null-safe iteration on undefined/empty preserves PTF16 byte-identity). Full src/lib/render/__tests__/ suite GREEN (257/257). tsc baseline 17 preserved. 3 atomic commits `64b460c` (assets) / `7016717` (swap) / `f6e1792` (test).
+Plan: 69-01 SHIPPED (Wave 1 — Lucide registry + decoration-renderer.tsx pure module). Closed-enum 118-icon LUCIDE_DECORATION_ALLOWLIST + resolveDecorationSvg with hex substitution + LRU cache (cap 500) + pure renderDecoration(d, ctx) function exporting both Icon (data-URI img) and Shape (CSS-div for rect/circle/ellipse, SVG-asset img for triangle/polygon/star/arrow/line) render paths. lucide-static@1.14.0 exact-pinned. Satori verification doc (69-01-SATORI-VERIFICATION.md) locks all CSS/SVG decisions via Context7 lookup on /vercel/satori. 53 tests GREEN (21 registry + 32 renderer). tsc baseline 17 preserved. 3 atomic commits `49044e1` / `14c7b76` / `571d767`.
+Phase 69 status: 2/3 plans shipped; Plan 69-03 (PTF13/14/18 fingerprint baselines + PCL12/13 grep gates) is unblocked and ready to ship — both renderers are now wired AND the 8 shape SVG assets are landed AND a 13-test integration smoke confirms cross-renderer parity at the data-attribute level. Plan 69-03 will pin full byte-identity fingerprints + enforce the grep gates against the now-fully-integrated decoration pipeline.
+Last activity: 2026-05-04 — Plan 69-02 SHIPPED (both-renderer integration + 8 shape SVG assets + integration smoke)
+
+### Phase 68 carry-over
 
 Phase: 68 — Reducer Extensions + Selection Model **COMPLETE** (3/3 plans shipped — all 16 phase reqs closed)
 Plan: 68-03 SHIPPED (Wave 3 — PRA1..PRA12 source-grep audit gate + PRS7..PRS14 cross-scope isolation regression tests). 26 new tests across 2 files (16 PRA + SELF-CTRL methodology pins; 10 PRS runtime ref-equality regressions). Closes PARITY-15 + PARITY-16 + PARITY-17. Two minimal production-code touches in editor-reducer.ts: (1) 5 watermark `//` line comments migrated to `/* */` block comments (Rule 3 — plan action note 258 explicitly authorizes; preserves SELF-CTRL-3 line-strip contract); (2) GROUP case body refactored to use explicit `*Changed` flags instead of post-`.map()` ref comparison (Rule 1 — `.map()` always returns new array, breaking cross-scope ref-equality memoization; mirror SET_LOCKED/SET_HIDDEN/UNGROUP pattern). 531/531 editor tests GREEN across 22 files; 29/29 PTF parity fingerprint tests GREEN; 34/34 layers-panel tests GREEN; tsc baseline 17 preserved. 2 atomic commits `36cdc54` / `72641be`.
@@ -303,6 +311,7 @@ Items acknowledged and deferred at milestone v2.10 close on 2026-05-02:
 (prior history truncated — latest before this: 260502-er5 watermark right-rail UI on 2026-05-02)
 | Phase 64 P01 | 32min | 3 tasks | 8 files |
 | Phase 65 P01 | 9min | 3 tasks | 8 files |
+| Phase 69 P02 | 4 | 3 tasks | 11 files |
 
 ## Session Continuity
 
