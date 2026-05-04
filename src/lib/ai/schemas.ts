@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import {
+  LUCIDE_DECORATION_ALLOWLIST,
+  type LucideDecorationName,
+} from '@/lib/render/decorations/registry'
 
 // Per-word color spans. `accent: true` = highlight color, false = base color.
 // The renderer maps `accent` to template.accentColor / textColor.
@@ -172,3 +176,149 @@ export function parseDecorationsArraySafe(
 export type DecorationContent = z.infer<typeof DecorationSchema>
 export type IconDecorationContent = z.infer<typeof IconDecorationSchema>
 export type ShapeDecorationContent = z.infer<typeof ShapeDecorationSchema>
+
+// =====================================================================
+// Phase 71 (AI-01..04): DecorationEmitSchema — closed-enum AI emit subset.
+// =====================================================================
+//
+// Contracts (locked here; cross-ref Phase 71 CONTEXT.md decisions):
+//
+//   1. AI emits NAMED COLOR TOKENS, never raw hex. resolveAIColor
+//      (src/lib/ai/resolve-ai-decoration.ts) maps tokens → hex via
+//      template.accentColor + slide.style_overrides.derived_palette +
+//      template.textColor. Closed enum prevents AI smuggling
+//      template-clashing colors.
+//
+//   2. AI emits SEMANTIC POSITION ANCHORS, never raw % coords.
+//      resolveAIPosition maps anchors → safe-zone % coords that
+//      explicitly avoid the central 24..76% hook+body band.
+//
+//   3. lucideName is restricted to AI_LUCIDE_ALLOWLIST — a curated
+//      ~100-icon PascalCase subset of Phase 69's 118-name registry
+//      (LUCIDE_DECORATION_ALLOWLIST). Single source of truth — Plan
+//      71-03 audits non-overlap. Modifying this list requires
+//      updating Phase 70 picker AND Phase 71 ingest tests.
+//
+//   4. Triple-layer silent-drop at AI ingest:
+//        DecorationEmitSchema.safeParse → resolveAIDecoration try/catch →
+//        DecorationSchema.safeParse → max-2 slice (mirror v2.9 D-08
+//        template_id_override defaulting pattern).
+
+/**
+ * Phase 71: Hand-curated PascalCase subset of LUCIDE_DECORATION_ALLOWLIST
+ * (Phase 69, 118 names). Includes ALL 10 PTF13 fixtures + ~90 broadly
+ * applicable names spanning all category clusters. NOT a programmatic
+ * filter — explicit list is the source of truth Plan 71-03 audits against.
+ *
+ * Constraint (enforced by Test 10): every entry MUST appear in
+ * LUCIDE_DECORATION_ALLOWLIST. Length within [80, 110] sanity band.
+ */
+export const AI_LUCIDE_ALLOWLIST = [
+  // PTF13 fixtures (10) — locked test set
+  'Heart', 'Star', 'Check', 'Zap', 'ArrowRight', 'X', 'Plus', 'Crown', 'Sparkles', 'Circle',
+  // Status / nav (12)
+  'CheckCheck', 'CircleCheck', 'XCircle', 'Minus', 'Info', 'HelpCircle', 'AlertCircle',
+  'AlertTriangle', 'Eye', 'Lock', 'Unlock', 'Key',
+  // Arrows + direction (10)
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowUpRight', 'ChevronUp', 'ChevronDown',
+  'ChevronLeft', 'ChevronRight', 'MoveUp', 'MoveDown',
+  // Shapes (6)
+  'Square', 'Triangle', 'Diamond', 'Hexagon', 'StarHalf', 'Sparkle',
+  // Weather (7)
+  'Sun', 'Moon', 'Cloud', 'CloudRain', 'Flame', 'Snowflake', 'Droplet',
+  // People / social (8)
+  'Smile', 'ThumbsUp', 'ThumbsDown', 'Hand', 'User', 'Users',
+  'MessageCircle', 'MessageSquare',
+  // Comms (5)
+  'Send', 'Mail', 'Phone', 'Bell', 'Megaphone',
+  // Media (7)
+  'Music', 'Headphones', 'Mic', 'Camera', 'Image', 'Video', 'Play',
+  // Awards / celebration (5)
+  'Award', 'Trophy', 'Medal', 'Gift', 'PartyPopper',
+  // Nature (4)
+  'Leaf', 'Flower', 'TreePine', 'Sprout',
+  // Travel / commerce (7)
+  'MapPin', 'Globe', 'Home', 'ShoppingCart', 'ShoppingBag', 'Package', 'Coffee',
+  // Editing / files (8)
+  'Pen', 'Pencil', 'Edit', 'Brush', 'Palette', 'Save', 'Folder', 'FileText',
+  // Time (3)
+  'Calendar', 'Clock', 'Timer',
+  // Charts (4)
+  'TrendingUp', 'TrendingDown', 'BarChart', 'PieChart',
+  // Misc productivity (4)
+  'Target', 'Lightbulb', 'Search', 'Tag',
+] as const satisfies readonly LucideDecorationName[]
+
+export type AILucideName = (typeof AI_LUCIDE_ALLOWLIST)[number]
+
+/**
+ * Phase 71: 6 named color tokens AI may emit. Server-side resolveAIColor
+ * maps these to explicit hex via template.accentColor +
+ * slide.style_overrides.derived_palette + template.textColor.
+ */
+export const AI_COLOR_TOKENS = [
+  'accent',
+  'palette-vibrant',
+  'palette-dark-muted',
+  'palette-light',
+  'on-light',
+  'on-dark',
+] as const
+
+export type AIColorToken = (typeof AI_COLOR_TOKENS)[number]
+
+/**
+ * Phase 71: 7 semantic position anchors AI may emit. Server-side
+ * resolveAIPosition maps these to safe-zone % coord rects that
+ * explicitly do NOT occlude the central 24..76% hook+body text band.
+ */
+export const AI_POSITION_ANCHORS = [
+  'top-left',
+  'top-right',
+  'top-center',
+  'center',
+  'bottom-left',
+  'bottom-right',
+  'bottom-center',
+] as const
+
+export type AIPositionAnchor = (typeof AI_POSITION_ANCHORS)[number]
+
+// Closed-enum shape kinds — mirror full DecorationSchema's ShapeDecorationSchema.shapeKind.
+export const AI_SHAPE_KINDS = [
+  'rect',
+  'circle',
+  'ellipse',
+  'triangle',
+  'polygon',
+  'star',
+  'arrow',
+  'line',
+] as const
+
+export const IconDecorationEmitSchema = z.object({
+  kind: z.literal('icon'),
+  lucideName: z.enum(AI_LUCIDE_ALLOWLIST as unknown as [string, ...string[]]),
+  color: z.enum(AI_COLOR_TOKENS as unknown as [string, ...string[]]),
+  position: z.enum(AI_POSITION_ANCHORS as unknown as [string, ...string[]]),
+  rotation: z.number().optional(),
+})
+
+export const ShapeDecorationEmitSchema = z.object({
+  kind: z.literal('shape'),
+  shapeKind: z.enum(AI_SHAPE_KINDS as unknown as [string, ...string[]]),
+  color: z.enum(AI_COLOR_TOKENS as unknown as [string, ...string[]]),
+  position: z.enum(AI_POSITION_ANCHORS as unknown as [string, ...string[]]),
+  cornerRadius: z.number().optional(),
+  points: z.number().optional(),
+  rotation: z.number().optional(),
+})
+
+export const DecorationEmitSchema = z.discriminatedUnion('kind', [
+  IconDecorationEmitSchema,
+  ShapeDecorationEmitSchema,
+])
+
+export type DecorationEmitContent = z.infer<typeof DecorationEmitSchema>
+export type IconDecorationEmitContent = z.infer<typeof IconDecorationEmitSchema>
+export type ShapeDecorationEmitContent = z.infer<typeof ShapeDecorationEmitSchema>
