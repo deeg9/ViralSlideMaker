@@ -31,7 +31,7 @@
 
 ## Phases
 
-- [ ] **Phase 67: Schema Foundation + Null-Decoration TPLREND-05 Baseline** — `decorations?: Decoration[]` schema + null-safe iteration sites in both renderers; pin byte-identity on legacy 11 templates BEFORE any feature work.
+- [x] **Phase 67: Schema Foundation + Null-Decoration TPLREND-05 Baseline** — `decorations?: Decoration[]` schema + null-safe iteration sites in both renderers; pin byte-identity on legacy 11 templates BEFORE any feature work. **COMPLETE** (2026-05-04, 2/2 plans shipped — PTF16 GREEN, MIGR-02 + DEPS-01 documented, bundle-delta -169 bytes gz on editor route)
 - [ ] **Phase 68: Reducer Extensions + Selection Model** — Every multi-select reducer action + selection model + alignment + marquee + group + layers walkers know about decorations; reducer-level tests prove correctness without UI.
 - [ ] **Phase 69: Renderers + DecorationRenderer + First Parity Proof** — Shared `decoration-renderer.tsx` consumed by BOTH Satori + React preview; hand-injected fixture decorations render byte-identical PNG/DOM across all 8 shapeKinds + 10 representative Lucide icons.
 - [ ] **Phase 70: Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library** — Lucide modal picker (virtualized + fuzzy + keyboard nav) + 8-shape popover + DecorationCard right-rail + layers panel chips + R/C/L/I/S keyboard insert shortcuts.
@@ -49,7 +49,9 @@
   2. A developer can construct a `Decoration` discriminated-union value (icon or shape) in TypeScript and have it pass Zod validation at the AI-ingest boundary; unknown lucideName values are silently dropped (graceful degradation, mirrors v2.9 `template_id_override` pattern).
   3. Both renderers (Satori + React preview) iterate `(slide.decorations ?? []).map(...)` at layer 5.5 — when the array is missing, zero DOM nodes are emitted (idempotent absence guarantee).
   4. `lucide-react` upgrade from `0.577.0` to `^1.14.0` produces a NEGATIVE bundle delta on the editor route; grep gate confirms zero brand-icon imports (Github / Slack / Figma / etc) in production code.
-**Plans**: TBD
+**Plans:** 2 plans (2/2 SHIPPED)
+- [x] 67-01-PLAN.md — Decoration types + Zod schema + lucide-react v1 upgrade + null-safe iteration stubs in both renderers (DECOR-01..05, DEPS-01 grep) — SHIPPED 2026-05-03 (commits `71bd7b5`/`1d306ae`/`bbd93be`/`52f4ff1`)
+- [x] 67-02-PLAN.md — PTF16 idempotent-absence parity baseline + MIGR-02 no-op migration doc + DEPS-01 bundle-delta verification (PARITY-09, MIGR-02, DEPS-01 bundle-delta) — SHIPPED 2026-05-04 (commits `6621612`/`e76f8fa`); 73 tests / 48 snapshots / 12 templates × 6 families + 1 sanity GREEN; bundle-delta -169 bytes gzipped on editor route
 **UI hint**: no
 
 ### Phase 68: Reducer Extensions + Selection Model
@@ -148,7 +150,7 @@ Research synthesis assumed `rotation` field as schema-only with deferral of inte
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 67. Schema Foundation + Null-Decoration TPLREND-05 Baseline | 0/0 | Not started | — |
+| 67. Schema Foundation + Null-Decoration TPLREND-05 Baseline | 2/2 | Complete | 2026-05-04 |
 | 68. Reducer Extensions + Selection Model | 0/0 | Not started | — |
 | 69. Renderers + DecorationRenderer + First Parity Proof | 0/0 | Not started | — |
 | 70. Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library | 0/0 | Not started | — |

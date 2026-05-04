@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.12
 milestone_name: Shapes & Icons (Decoration Primitives)
-status: planning
-last_updated: "2026-05-04T01:30:00.000Z"
-last_activity: 2026-05-04
+status: Phase 67 in progress — Plans 67-01 + 67-02 SHIPPED; PTF16 GREEN; TPLREND-05 byte-identity gate locked; Phase 68 ready
+stopped_at: "Plan 67-02 complete (Wave 2 — PTF16 idempotent-absence parity baseline + MIGR-02 no-op migration doc + DEPS-01 negative bundle-delta verification). 73 PTF16 tests / 48 snapshots / 12 templates × 6 families + 1 sanity GREEN; manual diff confirmed PTF16-undef-1a === PTF1a (highlight-bar) AND PTF16-undef-12a === PTF12a (paper-essay) byte-identical across both renderers. lucide-react v0.577 → v1.14 ships -169 bytes gzipped on editor route. Phase 68 (reducer ADD/UPDATE/REMOVE_DECORATION) may now begin against locked baseline."
+last_updated: "2026-05-04T05:53:00.000Z"
+last_activity: 2026-05-04 — Plan 67-02 SHIPPED (PTF16 parity gate + MIGR-02 + DEPS-01 documentation)
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 
 ## Current Position
 
-Phase: 67 — Schema Foundation + Null-Decoration TPLREND-05 Baseline (ready to plan)
-Plan: —
-Status: Roadmap defined; ready for /gsd-plan-phase 67
-Last activity: 2026-05-04 — v2.12 ROADMAP.md created (6 phases, 67–72; 81/81 reqs mapped at 100% coverage)
+Phase: 67 — Schema Foundation + Null-Decoration TPLREND-05 Baseline (Plans 67-01 + 67-02 SHIPPED)
+Plan: 67-02 SHIPPED (Wave 2 — PTF16 idempotent-absence parity baseline + MIGR-02 no-op migration doc + DEPS-01 negative bundle-delta verification). 73 new PTF16 tests / 48 snapshots / 12 templates × 6 families + 1 sanity test, ALL GREEN with zero churn on existing PTF1..12 + PTL1..2 baselines. Manual diff confirmed PTF16-undef-1a (highlight-bar) === PTF1a AND PTF16-undef-12a (paper-essay) === PTF12a — byte-identical across both renderers. MIGR-02-NOTES.md (110 LOC) documents additive schema → no-op load-path migration; explicitly references v2.8 BL-01 dual-write trap as avoided anti-pattern. DEPS-01-BUNDLE-DELTA.md (153 LOC) captures pre/post next-build measurement: editor route page chunk -1 byte raw / -169 bytes gzipped (-0.48%); total .next/static/chunks/app/ unchanged at 488 KB. tsc baseline 17 preserved. 2 atomic commits `6621612` (test) + `e76f8fa` (docs). TPLREND-05 byte-identity invariant locked for v2.12; Phase 68 (reducer ADD/UPDATE/REMOVE_DECORATION) may now begin.
+Plan: 67-01 SHIPPED (Wave 1 — schema + layer 5.5 stubs + lucide v1 upgrade). Decoration discriminated union types (87 LOC) + DecorationSchema Zod validator + parseDecorationsArraySafe silent-drop helper + lucide-react ^0.577 → ^1.14 + brand-icon grep gate + layer 5.5 null-safe iteration stubs in BOTH renderers (1 stub in render-slide-satori.tsx, 2 stubs in slide-preview.tsx for non-editable + editable paths). 4 atomic commits `71bd7b5` / `1d306ae` / `bbd93be` / `52f4ff1`.
+Status: Phase 67 in progress — 2/2 phase plans shipped per current ROADMAP; PTF16 GREEN; gate locked; ready for Phase 68 reducer work.
+Last activity: 2026-05-04 — Plan 67-02 SHIPPED (PTF16 parity gate + MIGR-02 + DEPS-01 documentation)
 
 ### Phase 65 carry-over
 
