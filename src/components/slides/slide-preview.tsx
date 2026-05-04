@@ -2641,7 +2641,15 @@ export function SlidePreview({
             handles) is owned by Phase 70+; Phase 69 Plan 02 wires the renderer
             body identically across both render paths.
             Phase 69 Plan 02: renderer body now invokes renderDecoration; layer 5.5
-            placement preserved (between custom_images at 5.0 and watermark at 6.0). */}
+            placement preserved (between custom_images at 5.0 and watermark at 6.0).
+            Phase 70 Plan 04 (EDITOR-14): emit a click-target overlay per
+            non-hidden decoration. Clicking the overlay dispatches
+            selection.replaceWith([d.id]) (or addToSelection on Shift-click).
+            The overlay sits at the SAME position as the rendered decoration
+            and inherits the same rotation transform so hit-testing matches
+            the visual. PCL11 invariant: this overlay only enters the
+            editable={true} branch — Satori path + non-editable preview path
+            are NEVER touched. */}
         {(slide.decorations ?? [])
           .filter((d) => d.hidden !== true)
           .map((d) => {
@@ -2649,7 +2657,48 @@ export function SlidePreview({
               slideIndex: resolveCtx.slideIndex,
               totalSlides: resolveCtx.totalSlides,
             })
-            return node ? React.cloneElement(node as React.ReactElement, { key: d.id }) : null
+            const rotated =
+              typeof d.rotation === 'number' && d.rotation !== 0
+                ? { transform: `rotate(${d.rotation}deg)` }
+                : null
+            return (
+              <React.Fragment key={d.id}>
+                {node
+                  ? React.cloneElement(node as React.ReactElement, {
+                      key: `${d.id}-render`,
+                    })
+                  : null}
+                <div
+                  key={`${d.id}-click`}
+                  data-testid={`decoration-click-target-${d.id}`}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation()
+                    if (e.shiftKey) {
+                      onSelectionChange?.((prev) => {
+                        if (prev.ids.includes(d.id)) {
+                          return { ids: prev.ids, primary: d.id }
+                        }
+                        return { ids: [...prev.ids, d.id], primary: d.id }
+                      })
+                    } else {
+                      onSelectionChange?.({ ids: [d.id], primary: d.id })
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: `${d.position.x}%`,
+                    top: `${d.position.y}%`,
+                    width: `${d.position.width}%`,
+                    height: `${d.position.height}%`,
+                    ...(rotated ?? {}),
+                    zIndex: 13,
+                    pointerEvents: 'auto',
+                    cursor: 'pointer',
+                    background: 'transparent',
+                  }}
+                />
+              </React.Fragment>
+            )
           })}
 
         {/* Brand watermark (editable view) — non-interactive, sits above custom images.
