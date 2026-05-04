@@ -19,14 +19,19 @@ const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
   // single-line widths must fit the container. Tightened thresholds enforce
   // single-line fit at each scale step (rough char-width math: Anton at S px
   // averages ~0.45*S per char; container fits ~842/0.45*S chars = 1871/S).
+  // 260503: long-hook step tightened from 0.52 → 0.45 and Infinity from 0.42 →
+  // 0.38. At 0.52 (57px) the segment "IS OUTSOURCING THINKING TO" rendered as a
+  // single oversized flex item that exceeded the 842px hook container in Satori
+  // — Satori does not honor overflow-wrap inside flex items, so the hook content
+  // visually overflowed its 60→80% cover zone and crashed into the body text.
   'news-drop': {
     baseSize: 110,
     steps: [
       { maxChars: 14, scale: 1 },
       { maxChars: 22, scale: 0.8 },
       { maxChars: 32, scale: 0.65 },
-      { maxChars: 48, scale: 0.52 },
-      { maxChars: Infinity, scale: 0.42 },
+      { maxChars: 48, scale: 0.45 },
+      { maxChars: Infinity, scale: 0.38 },
     ],
   },
   'news-cyan': {
@@ -35,8 +40,8 @@ const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
       { maxChars: 14, scale: 1 },
       { maxChars: 22, scale: 0.8 },
       { maxChars: 32, scale: 0.65 },
-      { maxChars: 48, scale: 0.52 },
-      { maxChars: Infinity, scale: 0.42 },
+      { maxChars: 48, scale: 0.45 },
+      { maxChars: Infinity, scale: 0.38 },
     ],
   },
   // Premium magazine — Plus Jakarta Sans (proportional, wider) on a tight
