@@ -20,7 +20,7 @@
 
 ### Stack Additions (DEPS)
 
-- [ ] **DEPS-01**: `lucide-react` upgraded `0.577.0 → ^1.14.0` — verified zero breaking imports in codebase via grep gate
+- [x] **DEPS-01**: `lucide-react` upgraded `0.577.0 → ^1.14.0` — verified zero breaking imports in codebase via grep gate
 - [ ] **DEPS-02**: `@tanstack/react-virtual@^3.13.24` installed for picker virtualized grid (jsdom-testable headless API)
 - [ ] **DEPS-03**: `@leeoniya/ufuzzy@^1.0.19` installed for picker fuzzy search (7.6KB, 78× faster than fuse.js benchmarked)
 - [ ] **DEPS-04**: `react-colorful@^5.6.1` installed for hex+alpha color picker (2.8KB; tree-shakeable)
@@ -111,7 +111,7 @@
 - [ ] **PARITY-06**: PTF13 — ~10 representative Lucide icons (Heart/Star/Check/Zap/ArrowRight/X/Plus/Crown/Sparkles/Circle) byte-identical React preview vs Satori PNG fingerprint
 - [ ] **PARITY-07**: PTF14 — 8 shape kinds × filled + outlined = 16 shape fingerprints byte-identical
 - [ ] **PARITY-08**: PTF15 — 45°-rotated arrow shape byte-identical (rotation edge case)
-- [ ] **PARITY-09**: PTF16 — `decorations === undefined` slide PNG byte-identical to pre-v2.12 baseline (idempotent-absence gate; verified across all 11 legacy templates)
+- [x] **PARITY-09**: PTF16 — `decorations === undefined` slide PNG byte-identical to pre-v2.12 baseline (idempotent-absence gate; verified across all 11 legacy templates)
 - [ ] **PARITY-10**: PTF17 — AI-emitted decoration on decoration-bearing slide dual-renderer byte-identical
 - [ ] **PARITY-11**: PTF18 — Non-uniform scale (1.5×1.0 icon) byte-identical
 - [ ] **PARITY-12**: PCL11 — chrome-leak grep: decoration render paths contain no `*selection*` / `*marquee*` / `*guide*` / `*lock-icon*` / `*decoration-ring*` classNames
@@ -125,7 +125,7 @@
 ### Migration + Fork RPC (MIGR)
 
 - [ ] **MIGR-01**: Supabase migration `20260YYY_fork_strip_decoration_locked.sql` — fork RPC strips `locked` flag on decorations (mirror v2.11 `20260502_fork_strip_locked.sql` pattern)
-- [ ] **MIGR-02**: Eager-on-load schema migration handles existing 53+ projects transparently — `decorations === undefined` is the natural baseline; no backfill required (additive-only schema)
+- [x] **MIGR-02**: Eager-on-load schema migration handles existing 53+ projects transparently — `decorations === undefined` is the natural baseline; no backfill required (additive-only schema)
 
 ---
 
