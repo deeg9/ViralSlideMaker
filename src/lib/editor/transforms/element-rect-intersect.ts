@@ -78,6 +78,24 @@ export function elementsInRect(slide: Slide, rect: Rect): string[] {
     }
   }
 
+  // Phase 68 Plan 02 (EDITOR-04): decorations branch. Decoration.position is
+  // a 4-tuple {x, y, width, height} of % units (same coord space as
+  // CustomImage). LOCK-05 carry-forward — locked decorations excluded so
+  // marquee can drag-select around them without disturbing them. Rotation-
+  // aware corner expansion is Phase 72 EDITOR-07 lift target — this phase
+  // intersects on the rectilinear AABB only.
+  for (const d of slide.decorations ?? []) {
+    if (d.locked === true) continue   // LOCK-05
+    if (
+      intersects(
+        { x: d.position.x, y: d.position.y, w: d.position.width, h: d.position.height },
+        rect,
+      )
+    ) {
+      ids.push(d.id)
+    }
+  }
+
   // watermark: deliberately skipped — see module header.
 
   return ids

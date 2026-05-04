@@ -465,3 +465,136 @@ describe('align module — purity invariant', () => {
     expect(matches.length).toBeGreaterThanOrEqual(4)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 68 Plan 02 (EDITOR-06): align + distribute extended for decorations.
+// Decoration position is a 4-tuple {x, y, width, height} of % units (mirrors
+// CustomImage layout semantics). buildMoveCandidates is private but exercised
+// via alignElements + distributeElements.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { Decoration, IconDecoration, ShapeDecoration } from '@/lib/types/slide'
+
+function makeIconDecoration(
+  id: string,
+  position: { x: number; y: number; width: number; height: number },
+  overrides: Partial<IconDecoration> = {},
+): IconDecoration {
+  return {
+    kind: 'icon',
+    id,
+    position,
+    lucideName: 'Heart',
+    color: '#FF0000',
+    strokeWidth: 2,
+    ...overrides,
+  }
+}
+
+function makeShapeDecoration(
+  id: string,
+  position: { x: number; y: number; width: number; height: number },
+  overrides: Partial<ShapeDecoration> = {},
+): ShapeDecoration {
+  return {
+    kind: 'shape',
+    id,
+    position,
+    shapeKind: 'rect',
+    fill: '#00FF00',
+    ...overrides,
+  }
+}
+
+function makeSlideWithDecorations(opts: {
+  text_boxes?: TextBox[]
+  custom_images?: CustomImage[]
+  decorations?: Decoration[]
+  watermark?: Watermark
+}): Slide {
+  return {
+    hook_text: '',
+    body_text: '',
+    image_query: '',
+    is_cta: false,
+    background_url: null,
+    pexels_photo_id: null,
+    text_boxes: opts.text_boxes,
+    custom_images: opts.custom_images,
+    decorations: opts.decorations,
+    watermark: opts.watermark,
+  }
+}
+
+describe('align decoration extension — Phase 68 Plan 02 (EDITOR-06)', () => {
+  test('AL-1: alignElements on [text_box=A, custom_image=B, decoration=D] all unlocked, axis=left/canvas → 3 patches with decoration after the others', () => {
+    const slide = makeSlideWithDecorations({
+      text_boxes: [makeCustomTextBox('A', 5, 5, 30)],
+      custom_images: [makeCustomImage('B', 10, 10, 20, 20)],
+      decorations: [makeIconDecoration('D', { x: 25, y: 25, width: 15, height: 15 })],
+    })
+    const patches = alignElements(slide, ['A', 'B', 'D'], 'left', 'canvas')
+    expect(patches.length).toBe(3)
+    const ids = patches.map((p) => p.id)
+    expect(ids).toEqual(['A', 'B', 'D'])
+    // axis='left' / target='canvas' → rect.x = 0
+    for (const p of patches) {
+      expect(p.patch.x).toBe(0)
+    }
+  })
+
+  test('AL-2: locked decoration EXCLUDED from move candidates', () => {
+    const slide = makeSlideWithDecorations({
+      decorations: [
+        makeIconDecoration('Dlocked', { x: 25, y: 25, width: 15, height: 15 }, { locked: true }),
+        makeIconDecoration('Dunlocked', { x: 50, y: 50, width: 15, height: 15 }),
+      ],
+    })
+    const patches = alignElements(slide, ['Dlocked', 'Dunlocked'], 'left', 'canvas')
+    expect(patches.length).toBe(1)
+    expect(patches[0].id).toBe('Dunlocked')
+  })
+
+  test('AL-3: alignElements on [text_box, decoration] target=selection produces patches for both', () => {
+    const slide = makeSlideWithDecorations({
+      text_boxes: [makeCustomTextBox('tb1', 0, 0, 10)],
+      decorations: [makeIconDecoration('d1', { x: 50, y: 50, width: 20, height: 20 })],
+    })
+    const patches = alignElements(slide, ['tb1', 'd1'], 'left', 'selection')
+    expect(patches.length).toBe(2)
+    const ids = patches.map((p) => p.id).sort()
+    expect(ids).toEqual(['d1', 'tb1'])
+    // Selection bounds left edge = 0 (tb1's x); both align to 0
+    for (const p of patches) {
+      expect(p.patch.x).toBe(0)
+    }
+  })
+
+  test('AL-4: distributeElements on 3 decorations along axis=horizontal produces equal-gap patches; locked included in bounds, excluded from patches', () => {
+    const slide = makeSlideWithDecorations({
+      decorations: [
+        makeIconDecoration('d1', { x: 0, y: 0, width: 10, height: 10 }),
+        makeShapeDecoration('d2', { x: 30, y: 0, width: 10, height: 10 }),
+        makeIconDecoration('d3', { x: 60, y: 0, width: 10, height: 10 }),
+      ],
+    })
+    const patches = distributeElements(slide, ['d1', 'd2', 'd3'], 'horizontal')
+    // Inner-only: only d2 receives a patch (outer two pinned)
+    expect(patches.length).toBe(1)
+    expect(patches[0].id).toBe('d2')
+  })
+
+  test('AL-5: alignElements with all-decoration selection target=canvas produces patches anchored to 0/0/100/100', () => {
+    const slide = makeSlideWithDecorations({
+      decorations: [
+        makeIconDecoration('d1', { x: 25, y: 25, width: 15, height: 15 }),
+        makeShapeDecoration('d2', { x: 50, y: 50, width: 20, height: 20 }),
+      ],
+    })
+    const patches = alignElements(slide, ['d1', 'd2'], 'right', 'canvas')
+    expect(patches.length).toBe(2)
+    // axis='right' canvas → x = 100 - cand.width
+    expect(patches[0].patch.x).toBe(100 - 15)
+    expect(patches[1].patch.x).toBe(100 - 20)
+  })
+})
