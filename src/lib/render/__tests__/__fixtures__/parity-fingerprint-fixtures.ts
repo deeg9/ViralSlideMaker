@@ -191,3 +191,31 @@ export function normalizeFingerprint(html: string): string {
 export function computeStructuralFingerprint(html: string): string {
   return normalizeFingerprint(html)
 }
+
+/**
+ * Phase 67 Plan 02 (PARITY-09 / PTF16): idempotent-absence fixtures.
+ *
+ * Both fixtures derive from `fingerprintFixtureSlide` and EXPLICITLY set
+ * `decorations` to two boundary values:
+ *   - `undefined` (the natural state for all 53+ existing projects per MIGR-02)
+ *   - `[]`        (the baseline a freshly-created Phase 68+ project may emit)
+ *
+ * The renderer's null-safe `(slide.decorations ?? []).filter(...).map(...)`
+ * stub at layer 5.5 (Plan 67-01) MUST emit zero DOM nodes for both cases.
+ * PTF16 pins the byte-identity invariant for both — establishing the
+ * pre-v2.12 baseline that v2.12 cannot regress.
+ *
+ * The two fixtures are intentionally OBJECT-LITERAL spreads (not deep clones)
+ * so any future change to the parent fixture (text_boxes / custom_images / etc)
+ * propagates to both PTF16 derivatives automatically — keeping PTF16 in sync
+ * with PTF1..12 over time.
+ */
+export const decorationsUndefinedFixtureSlide: Slide = {
+  ...fingerprintFixtureSlide,
+  decorations: undefined,
+}
+
+export const decorationsEmptyArrayFixtureSlide: Slide = {
+  ...fingerprintFixtureSlide,
+  decorations: [],
+}
