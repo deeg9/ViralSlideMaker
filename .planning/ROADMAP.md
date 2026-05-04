@@ -114,7 +114,10 @@
   2. AI-emitted decoration names outside the closed-enum allowlist (e.g. Phosphor `'arrow-right-circle-fill'`) are silently dropped at the AI-ingest boundary in `generate-slides.ts` post-Zod-parse; AI emitting >2 decorations per slide is server-side-clamped to the first 2; decoration on decoration-bearing slide renders byte-identical across renderers (PTF17).
   3. Across a 20-prompt diversity corpus, advisory `decorationDiversityCheck()` logs warning if ≥60% of generated slides share the same `lucideName` or `shapeKind` (mirror v2.9 `hookOpeningTrigram` pattern); does NOT fail CI in v2.12; carry-forward to fail-gate in v3.0+ if production data shows monoculture.
   4. User forks a published carousel containing locked decorations → `fork_published_carousel` RPC strips `locked` flag from decorations[] (mirror v2.11 `20260502_fork_strip_locked.sql` SQL helper); forker inherits decoration positions/colors but NOT lock state.
-**Plans**: TBD
+**Plans:** 1/3 plans executed
+- [x] 71-01-PLAN.md — DecorationEmitSchema + resolveAIDecoration + Gemini ingest adapter (AI-01..04; ~35 unit tests)
+- [ ] 71-02-PLAN.md — Advisory monoculture gate + Fork RPC SQL migration (AI-05, MIGR-01; ~17 tests)
+- [ ] 71-03-PLAN.md — PTF17 AI-emit parity audit + 71-V2.12-SHIP-GATES.md doc (PARITY-10; ≥5 tests + ship-gate doc)
 **UI hint**: no
 
 ### Phase 72: Interactive Rotation Handles + Rotation-Aware AABB
@@ -165,7 +168,7 @@ Research synthesis assumed `rotation` field as schema-only with deferral of inte
 | 68. Reducer Extensions + Selection Model | 3/3 | Complete   | 2026-05-04 |
 | 69. Renderers + DecorationRenderer + First Parity Proof | 2/3 | In Progress|  |
 | 70. Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library | 5/5 | Complete   | 2026-05-04 |
-| 71. AI Emit + Fork RPC + Comprehensive Parity Audit | 0/0 | Not started | — |
+| 71. AI Emit + Fork RPC + Comprehensive Parity Audit | 1/3 | In Progress|  |
 | 72. Interactive Rotation Handles + Rotation-Aware AABB | 0/0 | Not started | — |
 
 ## Coverage Summary
