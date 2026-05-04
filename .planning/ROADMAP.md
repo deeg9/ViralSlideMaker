@@ -97,7 +97,12 @@
   4. Selected decoration appears in the layers panel as a chip with proper icon glyph or shape silhouette label; lock/hide/z-order toggle buttons work via Plan 64 reducer actions (LP-NEW1..3 layers walk: solo decoration appears, decoration-in-group appears with shared groupId, multi-decoration group renders consistent group chip).
   5. Editor route bundle chunk size is ≤ v2.11 baseline + 200KB (verified by CI bundle-size gate, mirror v2.6 triple-layer build-gate pattern); decoration render paths contain zero `*selection*` / `*marquee*` / `*guide*` / `*lock-icon*` / `*decoration-ring*` classNames (PCL11 chrome-leak grep gate).
   6. Shape primitives — rect (with 0–50px corner radius slider), circle, ellipse (CSS-styled `<div>`s), triangle, polygon (5/6/8-sided), star (5/6-pointed), arrow, line (pre-baked `public/shapes/*.svg` assets via committed `scripts/build-shapes.ts`) — all 8 kinds insert via picker and render byte-identical across renderers; rect/circle/ellipse/star support Shift+resize aspect-ratio lock (closes v2.10 ASPECT-01).
-**Plans**: TBD
+**Plans:** 5 plans
+- [ ] 70-01-PLAN.md — Stack additions (DEPS-02..05) + DEPS-05 bundle-size gate baseline + ShapePicker popover (8-tile, SHAPES-01/02) + scripts/build-shapes.ts full populate (SHAPES-05) + manifest.json + 8 outlined SVG variants
+- [ ] 70-02-PLAN.md — Lucide picker modal: virtualized 4-col grid (PICKER-01/02) + ufuzzy fuzzy search 250ms debounce (PICKER-03) + WAI-ARIA grid keyboard nav (PICKER-04) + click-insert (PICKER-05) + tooltip (PICKER-06) + lazy-load via next/dynamic (PICKER-08); LUCIDE_PICKER_CORPUS + buildDefaultIconDecoration factory
+- [ ] 70-03-PLAN.md — R/C/L direct-insert shortcuts (KBD-10) + I/S picker open shortcuts (KBD-11) + isPickerOpenRef firewall on all 33 tinykeys binding sites (PICKER-07 + KBD-12) + SWEEP-PICK behavioral test grid + grep audit
+- [ ] 70-04-PLAN.md — DecorationCard right-rail Inspector (CARD-01..05) with react-colorful fill/stroke pickers + size+position inputs + drop shadow + opacity 0-100% UI clamped to 0..1 storage (WR-01); per-shape controls (cornerRadius/points/aspect-lock — SHAPES-06/07/09); stroke style enum (SHAPES-08); click-to-select on rendered decoration in editable view (EDITOR-14)
+- [ ] 70-05-PLAN.md — Layers panel decoration chip rendering with miniature 16×16 glyph via decoration-renderer (PARITY-18 LP-NEW1..3) + PCL11 chrome-leak grep gate (PARITY-12) + final phase-70 regression sweep (tsc baseline + bundle gate + SUMMARY existence + req traceability)
 **UI hint**: yes
 
 ### Phase 71: AI Emit + Fork RPC + Comprehensive Parity Audit
@@ -159,7 +164,7 @@ Research synthesis assumed `rotation` field as schema-only with deferral of inte
 | 67. Schema Foundation + Null-Decoration TPLREND-05 Baseline | 2/2 | Complete | 2026-05-04 |
 | 68. Reducer Extensions + Selection Model | 3/3 | Complete   | 2026-05-04 |
 | 69. Renderers + DecorationRenderer + First Parity Proof | 2/3 | In Progress|  |
-| 70. Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library | 0/0 | Not started | — |
+| 70. Editor UI — Picker + DecorationCard + Layers Panel + Shapes Library | 0/5 | Not started | — |
 | 71. AI Emit + Fork RPC + Comprehensive Parity Audit | 0/0 | Not started | — |
 | 72. Interactive Rotation Handles + Rotation-Aware AABB | 0/0 | Not started | — |
 
