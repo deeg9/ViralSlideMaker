@@ -38,6 +38,7 @@
     "image-size": "^2.0.2",
     "jszip": "^3.10.1",
     "lucide-react": "^1.14.0",
+    "lucide-static": "1.14.0",
     "mcp-handler": "^1.1.0",
     "motion": "^12.38.0",
     "next": "15.5.13",
