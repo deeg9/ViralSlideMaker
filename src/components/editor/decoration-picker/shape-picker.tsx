@@ -149,7 +149,7 @@ function ShapeTilePreview({ tile }: { tile: ShapeTile }) {
   // is just the menu glyph color (intentionally distinct from the dispatched
   // decoration's fill so a future themed picker can re-color tiles freely).
   let radius: string | number | undefined
-  let width = 32
+  const width = 32
   let height = 32
   if (tile.shapeKind === 'circle') {
     radius = '50%'

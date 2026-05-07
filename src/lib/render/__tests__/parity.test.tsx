@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import { readFileSync } from 'fs'
 import path from 'path'
+import type { BrandKit } from '@/lib/types/brand-kit'
 import {
   renderGrain,
   renderVignette,
@@ -1282,7 +1283,7 @@ describe('Phase 64 Plan 02 (LOCK-07, PARITY-01): both renderers honor `hidden`',
       const { buildSlideElement } = await import('@/lib/render/render-slide-satori')
       const { renderToStaticMarkup } = await import('react-dom/server')
       return renderToStaticMarkup(
-        buildSlideElement(baseSlide, getTemplate('highlight-bar'), brandKit as any),
+        buildSlideElement(baseSlide, getTemplate('highlight-bar'), brandKit as BrandKit | null),
       )
     })()
     expect(floorC.innerHTML).toMatch(/HIDDEN_WMARK\.png/)
@@ -1307,7 +1308,7 @@ describe('Phase 64 Plan 02 (LOCK-07, PARITY-01): both renderers honor `hidden`',
       const { buildSlideElement } = await import('@/lib/render/render-slide-satori')
       const { renderToStaticMarkup } = await import('react-dom/server')
       return renderToStaticMarkup(
-        buildSlideElement(hiddenSlide, getTemplate('highlight-bar'), brandKit as any),
+        buildSlideElement(hiddenSlide, getTemplate('highlight-bar'), brandKit as BrandKit | null),
       )
     })()
     expect(hiddenC.innerHTML).not.toMatch(/HIDDEN_WMARK\.png/)
