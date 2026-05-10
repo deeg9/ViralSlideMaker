@@ -53,15 +53,20 @@ describe('Phase 76 Plan 02: PaletteSwatches (PREVIEW-02)', () => {
     expect(screen.getByText('#33FF66')).toBeTruthy()
   })
 
-  it('Test 3: each swatch DIV has inline backgroundColor matching the hex value', () => {
+  it('Test 3: each swatch DIV has inline backgroundColor matching the hex value (jsdom-normalized rgb)', () => {
     const palette: StyleSpecPalette = { mode: 'solid', primary: '#a8e0b0' }
     const { container } = render(<PaletteSwatches palette={palette} />)
     const swatch = container.querySelector('[data-testid="palette-swatch-color"]') as HTMLElement
     expect(swatch).toBeTruthy()
-    // jsdom normalizes to rgb(...) — assert the inline style.backgroundColor is a non-empty string
-    // and the inline style attribute contains the hex (case-insensitive).
+    // jsdom normalizes #a8e0b0 → rgb(168, 224, 176). Either the original hex
+    // OR the rgb-equivalent satisfies the assertion — the contract is "the
+    // inline backgroundColor reflects the input hex," not the literal token.
+    const styleAttr = (swatch.getAttribute('style') ?? '').toLowerCase()
+    const containsHex = styleAttr.includes('#a8e0b0')
+    const containsRgb = styleAttr.includes('rgb(168, 224, 176)') || styleAttr.includes('rgb(168,224,176)')
+    expect(containsHex || containsRgb).toBe(true)
+    // Sanity-check that React preserved the value as a non-empty CSS color.
     expect(swatch.style.backgroundColor.length).toBeGreaterThan(0)
-    expect((swatch.getAttribute('style') ?? '').toLowerCase()).toContain('#a8e0b0')
   })
 
   it('Test 4: when palette.mode === "duotone", renders a "Duotone" mode badge', () => {
