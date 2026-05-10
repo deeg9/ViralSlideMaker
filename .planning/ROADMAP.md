@@ -77,7 +77,10 @@
   3. Every reference is run through a refusal pre-pass (second Gemini Vision call) that flags `{contains_logo, contains_face, contains_watermark}`; flagged images are surfaced as warnings in the Phase 76 UI (NOT auto-rejected — user gets choice).
   4. When `BLOCK_ONLY_HIGH` safety filter triggers (`promptFeedback.blockReason` populated), the response carries structured `{blocked: true, reason, recovery_suggestion}` for Phase 76 UI to render.
   5. Per-extraction telemetry records `vision_calls_count`, `tokens_in/out`, `cache_hit/miss`, `duration_ms` — observable in the bill-alarm cron from Phase 73.
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 75-01-PLAN.md — extract-style-spec.ts orchestrator + types + two-phase firewall + Promise.race timeout + telemetry + safety routing (EXTRACT-01, EXTRACT-02, EXTRACT-03, EXTRACT-06, EXTRACT-07, EXTRACT-08) — Wave 2 (depends on 75-02 + 75-03)
+  - [ ] 75-02-PLAN.md — refusal-pre-pass.ts (second Gemini Vision call: logo/face/watermark flags; graceful-degradation contract) (EXTRACT-05, EXTRACT-06) — Wave 1
+  - [ ] 75-03-PLAN.md — palette-extraction.ts (node-vibrant deterministic palette + multi-image dominant-color voting merge) (EXTRACT-04) — Wave 1
 
 ### Phase 76: Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery
 **Goal**: Stand the mandatory non-skippable spec-preview panel between extraction and emit so users see exactly what will be applied, can toggle aspects off, and have a recovery path when references are flagged or blocked.
@@ -135,7 +138,7 @@
 |-------|----------------|--------|-----------|
 | 73. Cost & Preprocessing Rails (Foundation) | 0/3 | Not started | — |
 | 74. Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline | 0/4 | Not started | — |
-| 75. Vision Extraction + Two-Phase Architecture + Safety Config | 0/? | Not started | — |
+| 75. Vision Extraction + Two-Phase Architecture + Safety Config | 0/3 | Not started | — |
 | 76. Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery | 0/? | Not started | — |
 | 77. Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff | 0/? | Not started | — |
 | 78. Remix / Fork / Publish Snapshot | 0/? | Not started | — |
