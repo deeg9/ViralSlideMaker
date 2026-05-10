@@ -25,7 +25,7 @@
 ## Phases
 
 - [x] **Phase 73: Cost & Preprocessing Rails (Foundation)** — sharp pipeline + SHA-256 cache + per-user-per-day rate cap + bill alarm; NO vision call code lands until this ships. ✅ Shipped 2026-05-10 (3 plans, 54+1todo tests, 8/8 reqs).
-- [ ] **Phase 74: Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline** — `StyleSpec` type + closed-enum design + idempotent-absence PTF baseline + `slide-references` bucket + reference upload pipeline.
+- [x] **Phase 74: Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline** — `StyleSpec` type + closed-enum design + idempotent-absence PTF baseline + `slide-references` bucket + reference upload pipeline. ✅ Shipped 2026-05-10 (4 plans, 168 tests, 22/22 reqs, closed-enum CI gate live).
 - [ ] **Phase 75: Vision Extraction + Two-Phase Architecture + Safety Config** — `extract-style-spec.ts` + refusal pre-pass + `BLOCK_ONLY_HIGH` safety + `node-vibrant` for palette.
 - [ ] **Phase 76: Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery** — mandatory non-skippable spec-preview panel + per-aspect checkboxes + brand-kit toggle + safety-block recovery UI.
 - [ ] **Phase 77: Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff** — `generate-from-style-spec.ts` + two content paths + spec replaces `aiVoiceNote` + roundtrip parity + editor handoff.
