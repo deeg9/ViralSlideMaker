@@ -83,7 +83,13 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
     const e1: ExtractError = {
       ok: false,
       error: 'cap_reached',
-      detail: { allowed: false },
+      detail: {
+        allowed: false,
+        reason: 'daily_cap_reached',
+        callsToday: 5,
+        callsRemaining: 0,
+        imagesPerCallCap: 3,
+      },
       telemetry: {
         vision_calls_count: 0,
         tokens_in: 0,
