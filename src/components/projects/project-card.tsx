@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
+import { MorphingSquare } from '@/components/ui/morphing-square'
 import { deleteProject } from '@/app/(dashboard)/dashboard/actions'
 import { EditVisibilityModal } from './edit-visibility-modal'
 import { SlidePreview } from '@/components/slides/slide-preview'
@@ -48,6 +49,14 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
   // mounted, the preview stays mounted (sticky-true) so flipping slides
   // and scrolling back keeps state without re-render cost.
   const [hasBeenVisible, setHasBeenVisible] = useState(false)
+  // quick-260510-card-loading: show a full-viewport morphing-square overlay
+  // while router.push transitions to /project/{id}. The project page server-
+  // fetches slide_data + brand_kit + subscription state and the editor canvas
+  // is heavy to mount, so the navigation routinely takes a couple seconds —
+  // without an indicator the card just looks unresponsive after a click.
+  // The overlay clears automatically when the dashboard component unmounts
+  // post-navigation. Esc/back recover via the same unmount path.
+  const [navigating, setNavigating] = useState(false)
   const menuWrapperRef = useRef<HTMLDivElement>(null)
   const thumbRef = useRef<HTMLDivElement>(null)
   const isPublic = !!publishedState
@@ -69,6 +78,8 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
   }
 
   function handleCardClick() {
+    if (navigating) return
+    setNavigating(true)
     router.push(`/project/${project.id}`)
   }
 
@@ -268,6 +279,19 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
       initialVisibility={isPublic ? 'public' : 'private'}
       initialTags={publishedState?.tags ?? []}
     />
+    {navigating && (
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label="Loading carousel"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-[#fff5f5]/80 backdrop-blur-sm"
+      >
+        <MorphingSquare
+          className="bg-[#3d0000]"
+          message="Loading carousel…"
+        />
+      </div>
+    )}
     </>
   )
 }
