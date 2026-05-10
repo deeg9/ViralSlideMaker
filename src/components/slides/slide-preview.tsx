@@ -24,7 +24,7 @@ import {
 import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
-import { getHookFontSize, hasHookFit } from '@/lib/render/hook-fit'
+import { getHookFontSize, hasHookFit, clampManualHookSize } from '@/lib/render/hook-fit'
 // Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
 // decoration → DOM markup. BOTH renderers (render-slide-satori.tsx + this
 // React preview path) import renderDecoration from this exact module path.
@@ -625,13 +625,28 @@ export function SlidePreview({
   // Templates with a hook-fit registry entry auto-shrink the hook size for long
   // headlines so multi-line hooks don't overflow the reserved hook zone.
   // Templates not in the registry keep their declared hookFontSize unchanged.
-  // Manual `hook_font_size` override always wins.
+  // quick-260510-export-overlap: in news layouts (where bodyY is fixed by
+  // NEWS_LAYOUT preset), manual `hook_font_size` is also clamped to 1.6× the
+  // auto-fit value — without this cap, a too-big manual size wraps the hook
+  // into more lines than the (bodyY - hookY) zone can hold and produces
+  // exports where hook + body overlap. Identical clamp also applied in
+  // render-slide-satori.tsx (TPLREND-05 parity contract).
+  // Mirrors the newsZone gate computed below (line ~684 — template.backgroundMode
+  // gates news layout: legacy templates leave it undefined, premium templates
+  // set 'image-bleed'|'image-with-bottom-card'|'color'). When set,
+  // `overrides.layout` selects NEWS_LAYOUT.cover|body whose bodyY is fixed.
+  const isNewsLayoutSlide =
+    template.backgroundMode == null && overrides.layout != null
   const baseHookSize = parseInt(template.hookFontSize)
   const autoFitHookSize =
     overrides.hook_font_size == null && hasHookFit(template.id)
       ? getHookFontSize(template.id, slide.hook_text, baseHookSize)
       : null
-  const hookFontSize = overrides.hook_font_size ?? autoFitHookSize ?? baseHookSize
+  const hookFontSize = overrides.hook_font_size != null
+    ? (isNewsLayoutSlide
+        ? clampManualHookSize(overrides.hook_font_size, template.id, slide.hook_text, baseHookSize)
+        : overrides.hook_font_size)
+    : (autoFitHookSize ?? baseHookSize)
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
   // Font family overrides (Phase 12)
