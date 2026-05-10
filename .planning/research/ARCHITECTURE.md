@@ -1,585 +1,817 @@
-# Architecture Patterns — v2.12 Shapes & Icons (Decoration Primitives)
+# Architecture Patterns — v2.13 Style-from-Reference Generation
 
-**Domain:** Slide-element decorations (`kind: 'icon' | 'shape'`) as first-class peers of `text_boxes[]` / `custom_images[]` / `watermark` in the v2.11 multi-element editor.
-**Researched:** 2026-05-03
-**Overall confidence:** HIGH (codebase inspection of every named v2.11 surface; integration points enumerated by reading reducer + both renderers + selection model + layers panel + AI ingest + fork RPC).
+**Domain:** Vision-extracted "style spec" from N reference slideshow images, fed into the existing Gemini emit pipeline (or a new style-only transform endpoint) to produce a `Slide[]` carousel that mimics the reference's full design template (palette, type, layout, decoration patterns, slide-to-slide structure) with user-supplied or AI-generated content.
+**Researched:** 2026-05-10
+**Overall confidence:** HIGH (codebase inspection of `src/lib/types/slide.ts`, `src/lib/ai/generate-slides.ts`, `src/lib/ai/schemas.ts`, `src/lib/services/carousel.ts`, `src/lib/render/templates/{magazine-bold,validate}.ts`, `src/lib/storage/upload-image.ts`, `supabase/migrations/20260504_fork_strip_decoration_locked.sql`. Every integration point enumerated against the actual files.)
+
+---
+
+## TL;DR (the 5 decisions)
+
+| # | Decision | Recommendation |
+|---|----------|----------------|
+| 1 | **Style spec shape** | **(b) Separate `StyleSpec` type** — independent of `Slide`. Captures palette / typography / layout-rhythm / decoration-language / surface-treatment / per-slot copy-density. Renders **into** `Slide[]` via the emit pipeline; never IS a `Slide`. |
+| 2 | **Storage** | **(a) `style_spec` JSONB column on `projects`** — same row as `slide_data`. + `reference_assets jsonb` co-located (URLs only). NO separate `style_specs` table — pre-PMF, shareability comes for free via the existing publish/fork pipeline. |
+| 3 | **Emit integration** | **NEW endpoint pair under `src/lib/ai/`** — `extract-style-spec.ts` (vision call, idempotent) + `generate-from-style-spec.ts` (text-only call, replaces `generateSlideContent` callsite when a spec is present). Existing `generateSlideContent` left untouched. Single new orchestration entry: `generateCarouselFromReferences()` in `src/lib/services/carousel.ts`. |
+| 4 | **Style-only path** | **Same emit pipeline, different content-source flag.** `generate-from-style-spec.ts` accepts `mode: 'ai-copy' \| 'user-copy'`; when `'user-copy'`, the user-supplied lines are passed as `slides[].hook_text/body_text` and Gemini is asked to **structure** them (segments, bold runs, role assignment, layout/decoration mapping) but not to invent copy. |
+| 5 | **Reference uploads** | **Persisted via the existing `slide-backgrounds` bucket** (public, per-user folder), URLs stored in `projects.reference_assets`. Re-extraction is cheap (vision call), so persistence is for **provenance + remix**, not caching. |
+
+**Build order:** Schema/migration → Vision-extraction endpoint → Emit-integration → UI → Remix/Fork. (Five phases; details in §Phase Sequence.)
 
 ---
 
 ## Recommended Architecture
 
-### High-level Picture
+### High-level picture
 
-`decorations[]` is a **fourth scope** on `Slide`, structurally symmetric to the existing three (`text_boxes[]`, `custom_images[]`, `watermark`). Every v2.11 reducer action that already routes per-scope gets a fourth branch; both renderers (Satori + React preview) gain one new iteration site each; the selection model's id-based contract is **unchanged**. The schema lift is **purely additive** — when `slide.decorations` is `undefined`, every renderer site short-circuits and TPLREND-05 byte-identity is preserved on legacy 11 templates.
-
-### Discriminated Union: shared base + per-kind delta
-
-```ts
-// Phase 67 (working name; numbers TBD per /gsd-new-milestone)
-export interface DecorationBase {
-  id: string                         // crypto.randomUUID()
-  kind: 'icon' | 'shape'             // discriminator
-  position: { x: number; y: number; width: number; height: number }  // % 0-100, mirrors CustomImage
-  rotation?: number                  // degrees; Satori SUPPORTS transform: rotate (verified: resolve-overlay.ts:471)
-  opacity?: number                   // 0-100, default 100; mirrors CustomImage
-  effects?: { shadow?: TextShadowEffect }  // ONLY shadow (NOT outline/highlight — text-only); see DEC-EFFECT below
-
-  // v2.11 multi-select fields — IDENTICAL surface to TextBox + CustomImage
-  groupId?: string
-  locked?: boolean
-  hidden?: boolean
-  name?: string                      // optional layers-panel rename override
-}
-
-export interface IconDecoration extends DecorationBase {
-  kind: 'icon'
-  lucideName: string                 // closed enum (validated against lucide-react export keys at module load)
-  color: string                      // hex; renderer applies via SVG `color` (currentColor strokes)
-  strokeWidth: number                // 0.5 - 4 (lucide native scale)
-}
-
-export interface ShapeDecoration extends DecorationBase {
-  kind: 'shape'
-  shapeKind: 'rect' | 'circle' | 'ellipse' | 'triangle' | 'line' | 'arrow' | 'star' | 'polygon'
-  fill: string                       // 8-digit hex (alpha supported); 'none' for outlined-only
-  stroke?: string                    // hex
-  strokeWidth?: number               // px
-  borderRadius?: number              // rect only; px (Satori SUPPORTS borderRadius)
-  // shape-specific extras
-  polygonSides?: number              // polygon (3-12) / star (3-12 points)
-  arrowHeadStyle?: 'triangle' | 'open'
-}
-
-export type Decoration = IconDecoration | ShapeDecoration
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  CLIENT (Next.js editor)                                                 │
+│                                                                          │
+│   1. New "Style from reference" launcher                                 │
+│      ↓                                                                   │
+│   2. Upload 1..N reference PNG/JPG  ─┐                                   │
+│   3. (optional) Paste user copy      │  Server Action                    │
+│   4. Submit                          │  generateCarouselFromReferences() │
+└──────────────────────────────────────┴───────────────────────────────────┘
+                                       │
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  SERVER (services + ai layers)                                           │
+│                                                                          │
+│  src/lib/services/carousel.ts                                            │
+│   └─ generateCarouselFromReferences(supabase, userId, input)             │
+│        │                                                                 │
+│        ├─ uploadReferenceAssets()       ── Supabase Storage              │
+│        │     reference-images bucket → returns { url, sha256 }[]         │
+│        │                                                                 │
+│        ├─ extract-style-spec.ts         ── Gemini 2.5 Flash (vision)     │
+│        │     extractStyleSpec(urls[])  → StyleSpec                       │
+│        │     • triple-layer silent-drop (mirror v2.12 AI ingest)         │
+│        │     • returns canonical Zod-validated StyleSpec                 │
+│        │                                                                 │
+│        ├─ persist:  projects.reference_assets + projects.style_spec      │
+│        │                                                                 │
+│        ├─ generate-from-style-spec.ts   ── Gemini 2.5 Flash (text)       │
+│        │     generateFromStyleSpec(spec, contentSource) → Carousel       │
+│        │     • spec-driven prompt scaffolding                            │
+│        │     • mode: 'ai-copy'   → AI invents hook/body                  │
+│        │     • mode: 'user-copy' → AI structures user lines              │
+│        │                                                                 │
+│        ├─ image fetch (existing) ── Pexels OR Imagen OR none             │
+│        │     • spec.imagery.treatmentPreset hints duotone/bw upstream    │
+│        │                                                                 │
+│        └─ persist slide_data + style_spec_id pointer back to projects    │
+└──────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  RENDERER (unchanged)                                                    │
+│   • Both renderers consume Slide[] exactly as they do today              │
+│   • style_spec is NEVER read by the renderer — it's emit-side only       │
+│   • TPLREND-05 invariant: zero new fields on Slide                       │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Why `position: { x, y, width, height }` (not the TextBox `TextBoxPosition` discriminator)?** Decorations are **always freeform** — they have no `top/center/bottom` semantic anchor. Mirroring `CustomImage` (4-tuple of % numbers) keeps the snap/marquee/align math identical (`element-rect-intersect.ts:64-79`, `selection-bounds.ts`, `align.ts`) — no extra anchor branch needed.
-
-**Why `effects?` carries `shadow` only?** `TextOutlineEffect` is `WebkitTextStroke` (text-glyph stroke, meaningless on shapes — they already have `stroke`). `TextHighlightEffect` is a per-segment background pill (no segments on shapes). Reusing **only** `TextShadowEffect` keeps the renderer style helper (`satoriEffectStyles` in `render-slide-satori.tsx:70-79`) reusable but specialized.
-
-### Slide schema lift
-
-```ts
-// src/lib/types/slide.ts — additive only
-export interface Slide {
-  // ... existing fields unchanged ...
-  /** v2.12 (DEC-01): icons + shapes as first-class addressable elements.
-      Optional. When undefined, both renderers short-circuit before any DOM
-      emission — TPLREND-05 byte-identity preserved across legacy 11 templates. */
-  decorations?: Decoration[]
-}
-```
-
-The **idempotent absence guarantee** is critical. Every iteration site uses `(slide.decorations ?? []).filter(...)` — when the array is missing, the filter is a no-op and the JSX subtree emits zero nodes. Same defensive pattern as `slide.text_boxes ?? []` and `slide.custom_images ?? []`.
+**Key principle:** the StyleSpec is a **pre-emit contract** — it lives between vision and text generation, never touches the renderer. Once `slide_data` is populated, the spec is metadata (provenance) — every slide is fully self-describing via the existing v2.12 schema.
 
 ---
 
-## Component Boundaries (1-line each)
+## Q1 — Style Spec Schema (chosen: (b) separate `StyleSpec` type)
 
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `decoration-renderer.tsx` (NEW) | Pure JSX emitter for ONE Decoration; consumed by both renderers | resolve-overlay.ts, render-slide-satori.tsx, slide-preview.tsx |
-| `lucide-registry.ts` (NEW) | Closed-enum registry of supported Lucide names + on-demand SVG path resolver | lucide-react |
-| `shape-renderer.tsx` (NEW) | Pure SVG/div emitter per shapeKind (rect → `<div>`, others → `<svg>`) | (none — leaf module) |
-| `decoration-card.tsx` (NEW, in `text-rail/`) | Right-rail Inspector: fill/stroke/size/effects | editor-actions.ts |
-| `lucide-picker.tsx` (NEW) | Modal/popover with virtualized 1,500-icon grid + fuzzy search | lucide-registry |
-| `editor-reducer.ts` (MODIFIED) | + `ADD_DECORATION` / `UPDATE_DECORATION` / `REMOVE_DECORATION`; extend 9 multi-select cases | All reducer call sites |
-| `text-box-adapter.ts` (UNCHANGED) | Legacy text-box round-trip — decorations DO NOT touch text legacy fields | (no change) |
-| `decoration-adapter.ts` (NEW, optional) | AI-ingest boundary normalization (mirrors `legacyToTextBoxes` pattern) | generate-slides.ts |
+### Decision
 
-**Why no `legacy*` adapter equivalent?** Decorations are **net-new** in v2.12 — no legacy field to mirror. `applyDualWrite` only exists because v2.8 added a unified `text_boxes[]` ON TOP of pre-v2.8 `hook_text` / `body_text` / `custom_texts`. v2.12 `decorations[]` is greenfield: write straight to `decorations[]`, no dual-write needed. (This is a major scope reducer vs. v2.8.)
+Define a new TypeScript type `StyleSpec` in `src/lib/types/style-spec.ts`. It is **NOT a `Slide`**, **NOT a discriminator on `Slide`**, **NOT** an extended `SlideTemplate`. It is a separate emit-side artifact whose fields map onto Slide fields via the `generate-from-style-spec.ts` projector.
+
+### Why not (a) snapshot of a fully-realized first slide?
+
+- A first-slide snapshot conflates **content-bearing** fields (`hook_text`, `body_text`, `image_query`) with **style-bearing** fields (palette, fonts, decorations). The vision LLM should NOT be returning topic-specific copy — that's the job of the downstream text generator.
+- Multi-slide reference uploads (1..N) need to capture **slide-to-slide rhythm** (cover/reframe/support/pivot/close cadence), which a single-slide snapshot can't represent.
+- A snapshot would require pattern-matching at consumer time — fragile, hard to test.
+
+### Why not (c) direct override on `Slide`?
+
+- Violates **TPLREND-05 byte-identity**: any new style field on `Slide` must be readable by both renderers, and would need byte-identity test coverage. The whole point of the spec is to be **upstream of the renderer**.
+- Bloats every slide row in storage with redundant style data (palette repeated N times per project).
+- Forking a slide would carry style baggage that the new template might re-resolve.
+
+### Why (b)?
+
+- **Single source of truth** for the design template, rendered once into N slides at emit time.
+- **Renderer-agnostic** — survives v2.13+ template additions without schema migrations on `Slide`.
+- **Composable** with v2.12 decorations + v2.9 palette extraction + v2.7 premium overlays without re-touching any of those modules.
+- **Testable**: you can unit-test the projector (`StyleSpec → Slide[]`) independently of vision extraction.
+
+### Concrete shape (proposed)
+
+```ts
+// src/lib/types/style-spec.ts
+//
+// v2.13: Vision-extracted "style spec" from 1..N reference images.
+// Lives in projects.style_spec (JSONB), populated by extract-style-spec.ts,
+// consumed by generate-from-style-spec.ts, never read by either renderer.
+// Shape mirrors existing concepts (closed enums where possible) so the
+// projector can map fields 1:1 to Slide / SlideStyleOverrides / Decoration.
+
+export type StyleSpecVersion = 1  // bump on breaking shape change
+
+export interface StyleSpec {
+  spec_version: StyleSpecVersion
+  // Provenance — useful for "why does my carousel look like this?" debugging
+  source: {
+    reference_image_urls: string[]   // Supabase Storage URLs (provenance only)
+    extracted_at: string             // ISO timestamp
+    model: string                    // 'gemini-2.5-flash'
+    sha256: string                   // hash of (sorted urls + spec_version) — re-extract cache key
+  }
+
+  // ─── 1. Palette ─────────────────────────────────────────────────────
+  palette: {
+    background: string               // hex; primary surface color
+    text_primary: string             // hex; main text on background
+    text_secondary?: string          // hex; muted body text
+    accent: string                   // hex; the "pop" color (replaces template.accentColor)
+    surface?: string                 // hex; secondary card/chip background
+    extracted_dominant?: string[]    // hex[]; up to 6 dominant colors (mirror node-vibrant)
+  }
+
+  // ─── 2. Typography ──────────────────────────────────────────────────
+  // Closed-enum from existing font catalog (src/lib/fonts/) — vision LLM
+  // emits the named token, server resolves to the nearest available family.
+  typography: {
+    hook: {
+      font_family: string            // resolved family name (e.g. 'Anton' / 'Plus Jakarta Sans')
+      font_weight: number            // 400..900
+      case: 'upper' | 'normal' | 'title'
+      size_band: 'sm' | 'md' | 'lg' | 'xl'   // resolves to px in projector
+    }
+    body: {
+      font_family: string
+      font_weight: number
+      size_band: 'sm' | 'md' | 'lg'
+    }
+    pairing_strategy: 'mono-display' | 'serif-sans' | 'sans-sans-contrast' | 'ransom-note'
+  }
+
+  // ─── 3. Layout / structure ──────────────────────────────────────────
+  layout: {
+    aspect: '9:16' | '4:5' | '1:1'   // we always emit 9:16; this is observed-not-mandated
+    hook_position: 'top' | 'center' | 'bottom' | 'overlap'
+    body_position: 'top' | 'center' | 'bottom' | 'paired-with-hook'
+    text_align: 'left' | 'center' | 'right'
+    body_density: 'sparse' | 'medium' | 'dense'   // ≤8 / ≤20 / ≤40 words
+    hook_word_cap: number            // 1..15 — per-slide hook length cap
+    body_word_cap: number            // 0..50 — 0 = hook-only slides
+    has_page_counter: boolean
+    has_topic_chip: boolean
+  }
+
+  // ─── 4. Imagery treatment ───────────────────────────────────────────
+  imagery: {
+    mode: 'photo-bleed' | 'photo-card' | 'no-photos' | 'mixed'
+    treatment_preset?: 'bw' | 'duotone-cream' | 'duotone-cobalt' | 'contrast-bump' | 'none'
+    grain_intensity?: 'off' | 'subtle' | 'medium' | 'heavy'
+    vignette: boolean
+  }
+
+  // ─── 5. Decoration language ─────────────────────────────────────────
+  // Hints — the projector wires these into Phase 71's decoration emit path.
+  decorations: {
+    density: 'none' | 'minimal' | 'moderate' | 'heavy'  // 0 / 0-1 / 1-2 / 2-3 per slide
+    style: 'geometric' | 'organic' | 'editorial-tag' | 'sticker'
+    preferred_lucide: string[]       // up to 8 names from AI_LUCIDE_ALLOWLIST
+    preferred_shapes: ('rect' | 'circle' | 'star' | 'arrow')[]
+    palette_role: 'accent' | 'palette-vibrant' | 'on-light' | 'on-dark'  // AI_COLOR_TOKENS
+  }
+
+  // ─── 6. Slide-to-slide rhythm ───────────────────────────────────────
+  // Observed cadence across the N reference slides; consumed by the role
+  // assignment in generate-from-style-spec.ts. Lifts v2.9 AIROLE-01 to
+  // a per-spec contract instead of a per-template default.
+  rhythm: {
+    suggested_slide_count: number    // 3..10; clamp to that range
+    role_sequence?: ('cover' | 'reframe' | 'support' | 'pivot' | 'close')[]
+    // e.g. ['cover', 'support', 'support', 'pivot', 'close']
+    layout_per_role?: Record<
+      'cover' | 'reframe' | 'support' | 'pivot' | 'close',
+      'photo-bleed' | 'photo-card' | 'no-photos'
+    >
+  }
+
+  // ─── 7. Free-form notes (for AI prompt steering) ───────────────────
+  // Vision LLM emits a 1-3 sentence "design vibe" string the text generator
+  // gets in the system prompt verbatim. NOT a structured field — just a
+  // tone-and-voice carrier (mirrors template.aiVoiceNote pattern from v2.7).
+  voice_note: string
+}
+```
+
+### Example StyleSpec (Murphy Campbell magazine reference)
+
+```json
+{
+  "spec_version": 1,
+  "source": {
+    "reference_image_urls": [
+      "https://<project>.supabase.co/storage/v1/object/public/reference-images/u_xx/2026-05/abc.png"
+    ],
+    "extracted_at": "2026-05-10T15:24:00Z",
+    "model": "gemini-2.5-flash",
+    "sha256": "ab12..."
+  },
+  "palette": {
+    "background": "#000000",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#CCCCCC",
+    "accent": "#A8E0B0",
+    "surface": "rgba(0,0,0,0.6)",
+    "extracted_dominant": ["#000000", "#FFFFFF", "#A8E0B0", "#444444"]
+  },
+  "typography": {
+    "hook": { "font_family": "Anton", "font_weight": 400, "case": "upper", "size_band": "xl" },
+    "body": { "font_family": "Plus Jakarta Sans", "font_weight": 500, "size_band": "md" },
+    "pairing_strategy": "mono-display"
+  },
+  "layout": {
+    "aspect": "9:16",
+    "hook_position": "bottom",
+    "body_position": "paired-with-hook",
+    "text_align": "left",
+    "body_density": "medium",
+    "hook_word_cap": 12,
+    "body_word_cap": 35,
+    "has_page_counter": true,
+    "has_topic_chip": true
+  },
+  "imagery": {
+    "mode": "photo-bleed",
+    "treatment_preset": "bw",
+    "grain_intensity": "subtle",
+    "vignette": false
+  },
+  "decorations": {
+    "density": "minimal",
+    "style": "editorial-tag",
+    "preferred_lucide": [],
+    "preferred_shapes": ["rect"],
+    "palette_role": "accent"
+  },
+  "rhythm": {
+    "suggested_slide_count": 5,
+    "role_sequence": ["cover", "support", "support", "pivot", "close"],
+    "layout_per_role": {
+      "cover": "photo-bleed",
+      "reframe": "photo-bleed",
+      "support": "photo-bleed",
+      "pivot": "photo-bleed",
+      "close": "photo-bleed"
+    }
+  },
+  "voice_note": "Tabloid-pitched magazine headlines. Statistics over adjectives. Urgent and confident voice. Mint highlight pills on key phrases."
+}
+```
+
+### Projector contract (`StyleSpec → Slide[]`)
+
+The projector lives in `generate-from-style-spec.ts` and maps spec → emit-side state. Critically, it **does not invent fields the renderer doesn't already understand** — every output landing on a Slide flows through the existing `Slide` schema, `SlideStyleOverrides`, `Decoration`, and `text_boxes[]`.
+
+| StyleSpec field | Projector output |
+|-----------------|------------------|
+| `palette.background` | `style_overrides.derived_palette[0]` + Imagen prompt steering |
+| `palette.accent` | Maps to a synthetic `template_id_override` resolution — see Q3 |
+| `typography.hook.font_family` | `style_overrides.hook_font_family` per slide |
+| `typography.body.font_family` | `style_overrides.body_font_family` per slide |
+| `typography.hook.case` | Hook text uppercased before insertion (case='upper') |
+| `layout.hook_position` | `style_overrides.text_position` (closed enum match) |
+| `layout.text_align` | `style_overrides.text_align` |
+| `layout.body_density` → caps | Length validation in `validate-slides.ts` (Phase 58 hook_word_cap layered) |
+| `imagery.treatment_preset` | Drives sharp pre-bake in `photo-treatment/treat.ts` (existing v2.9 path) |
+| `imagery.grain_intensity` | `style_overrides.grain_intensity` |
+| `decorations.preferred_lucide` | Restricts Phase 71 `AI_LUCIDE_ALLOWLIST` to the spec subset |
+| `decorations.preferred_shapes` | Same — restricts Phase 71 shape enum |
+| `decorations.density` | Sets `decorations.maxItems` per slide (0..3) |
+| `decorations.palette_role` | Pins Phase 71 `AI_COLOR_TOKENS` choice |
+| `rhythm.suggested_slide_count` | Clamps slideCount input (3..10) |
+| `rhythm.role_sequence` | Pre-fills `slide.role` so AI can skip role assignment |
+| `voice_note` | Verbatim into Gemini system prompt (mirror `template.aiVoiceNote`) |
 
 ---
 
-## Data Flow
+## Q2 — Storage (chosen: (a) JSONB column on `projects`)
+
+### Decision
+
+Two new columns on `public.projects`:
+
+```sql
+ALTER TABLE public.projects
+  ADD COLUMN IF NOT EXISTS style_spec       jsonb,
+  ADD COLUMN IF NOT EXISTS reference_assets jsonb;  -- [{ url, sha256, uploaded_at }]
+```
+
+NO separate `style_specs` table. NO ephemeral re-extraction.
+
+### Trade-off matrix
+
+| Option | Cost of re-extraction | Remix support | Shareability | Schema cost |
+|--------|----------------------|---------------|--------------|-------------|
+| **(a) JSONB on projects** ✓ chosen | Zero — stored once | Native (forks copy spec via RPC) | First-class via `published_carousels` snapshot | 1 column add, no FK, no JOIN |
+| (b) Separate `style_specs` table | Zero | Requires JOIN + cascade | First-class as table row | New table + FK + RLS + cascade-delete |
+| (c) Ephemeral on request | ~$0.001/extraction × N requests | Impossible (spec lost on save) | Impossible | Zero, but blocks v2.4 fork |
+
+### Why (a) wins for v2.13
+
+- **Pre-PMF discipline.** A separate table is a forward bet on "users want to share style specs as standalone artifacts." Zero validated demand. Defer.
+- **Fork RPC compatibility.** v2.4's `fork_published_carousel` already does a deep-copy of `slide_data`. Adding `style_spec + reference_assets` to the JSONB-copy list is a one-line change. A separate `style_specs` table would require RPC redesign (FK rewrite, cascade across published+private snapshots).
+- **`published_carousels` snapshot pattern (v2.4) makes shareability free.** When a carousel is published, the snapshot copies `slide_data`; we extend it to copy `style_spec` too. Anyone who forks a published carousel gets the spec in their projects row. Zero new infra.
+- **Re-extraction is cheap** (Gemini 2.5 Flash vision call, ~$0.0005). Caching via JSONB persistence is a nice-to-have, not a savings argument.
+
+### Storage shape on projects
+
+```sql
+-- Migration: 20260510_add_style_spec.sql (proposed)
+ALTER TABLE public.projects
+  ADD COLUMN IF NOT EXISTS style_spec       jsonb,
+  ADD COLUMN IF NOT EXISTS reference_assets jsonb;
+
+-- Legacy projects (pre-v2.13) have NULL — safe (consumers null-check)
+-- No backfill, no migration data — additive only (same pattern as v2.12 decorations)
+
+CREATE INDEX IF NOT EXISTS projects_has_style_spec_idx
+  ON public.projects ((style_spec IS NOT NULL))
+  WHERE style_spec IS NOT NULL;
+-- Optional: enables fast filter "show me my style-from-reference projects"
+```
+
+### Reference assets bucket
+
+Use a NEW bucket: `reference-images` (parallel to `slide-backgrounds` and `slide-backgrounds-treated`).
+
+```sql
+-- Migration: 20260510_reference_images_bucket.sql
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('reference-images', 'reference-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- RLS: per-user folder, mirror slide-backgrounds policies
+CREATE POLICY "Users can upload reference images"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'reference-images');
+
+CREATE POLICY "Public read access for reference images"
+  ON storage.objects FOR SELECT TO public
+  USING (bucket_id = 'reference-images');
+
+CREATE POLICY "Users can delete own reference images"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'reference-images'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+```
+
+**Public bucket** (not signed-URL) — same as `slide-backgrounds`. Reference images need to be readable by the vision LLM (which calls fetch from Google's side); signed URLs would either need 24h TTL extensions or expose a public-but-obscure path. Public-bucket-with-uuid-folder is the simpler model the codebase already uses.
+
+**No retention cron** in v2.13 — references are provenance, not ephemeral cache. If storage costs balloon post-PMF, add a cron mirroring `20260501_treated_backgrounds_retention_cron.sql`.
+
+---
+
+## Q3 — Emit Integration (chosen: NEW endpoint pair, not modify `generateSlideContent`)
+
+### Decision
+
+Add two new modules under `src/lib/ai/`, leave `generate-slides.ts` untouched:
+
+1. **`src/lib/ai/extract-style-spec.ts`** — vision call, takes `imageUrls[]`, returns `StyleSpec`. Triple-layer silent-drop pattern (mirror v2.12 decorations ingest).
+2. **`src/lib/ai/generate-from-style-spec.ts`** — text call, takes `(spec, contentSource)`, returns `CarouselWithTextBoxes` (same return type as `generateSlideContent`).
+
+Add ONE new orchestrator entry in `src/lib/services/carousel.ts`:
+
+3. **`generateCarouselFromReferences(supabase, userId, input)`** — sibling of existing `generateCarousel()`.
+
+### Why NOT extend `generateSlideContent`
+
+- **Conditional-branching anti-pattern.** Adding `if (styleSpec) { ... } else { ... }` to a 331-line module that's already doing 4 things (Gemini call → role distribution → decorations resolution → legacy-to-textboxes adapter) is a maintainability nightmare.
+- **Different prompt scaffolding.** Style-spec generation needs the spec inlined as a system-prompt template ("respect this palette / use this voice / restrict decorations to this subset"), which is structurally distinct from the topic-driven prompt in `prompts.ts:buildSystemPrompt`.
+- **Different test surface.** `generateSlideContent` is byte-locked by ~50 tests. A spec-aware variant has different failure modes (spec→slide projector errors, palette-mapping errors) that deserve their own test file.
+- **Matches v2.9 precedent.** `match-photos-to-slides.ts` was added as a sibling rather than collapsed into `generate-slides.ts` for the same reason — separable concern, separable testability.
+
+### Why a NEW orchestrator (`generateCarouselFromReferences`)
+
+- `generateCarousel()` in `carousel.ts` is the sole creator-of-projects path today. Forking it to a sibling preserves the existing one byte-identical, gives the new path room to breathe, and makes phase boundaries clean.
+- **Different inputs:** `{ topic, templateId, slideCount, imageSource }` vs `{ referenceImageUrls, contentSource: { mode, topic?, copy? }, slideCount? }`.
+- **Different image-fetch strategy.** Spec dictates `imagery.mode`; if spec says `'no-photos'`, skip Pexels/Imagen entirely (mirror existing `wantsNoPhotos` short-circuit at `carousel.ts:80`).
+
+### Pros / cons table
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **NEW endpoint** ✓ chosen | Clean separation of concerns; easy to test; no risk to existing `generateSlideContent`; matches v2.9/v2.7 precedent of "new path for new behavior" | Two AI modules; modest code duplication on prompt-building |
+| Extend existing endpoint | One module to maintain | Conditional-branching mess; touches v2.12-audit-passed code; harder to test in isolation; risk of regressing v2.12 decorations emit |
+
+### Module layout (proposed)
 
 ```
-1. AI generation (generate-slides.ts)
-   → Gemini emits slide.decorations[]  (NEW Phase 71 — schema lift in responseSchema)
-   → validateAndRepair() strips invalid lucideName / shapeKind values (NEVER throws)
-   → CarouselSchema.parse() (Zod) confirms shape
-   → light-touch adapter (optional): decorationsAdapter() validates per-element bounds
-   → Supabase write
+src/lib/ai/
+├── extract-style-spec.ts          ← NEW (vision call)
+├── generate-from-style-spec.ts    ← NEW (text call, projector)
+├── generate-slides.ts             ← UNCHANGED
+├── schemas.ts                     ← MODIFIED (add StyleSpecSchema export)
+├── prompts.ts                     ← MODIFIED (add buildStyleSpecPrompt + buildFromSpecPrompt)
+├── resolve-ai-decoration.ts       ← UNCHANGED
+└── ...
 
-2. Slide load (use-slide-editor.ts createInitialState)
-   → eager mirror via legacyWatermarkToElement is UNCHANGED (only watermark mirror)
-   → decorations[] flows through verbatim (no migration needed — additive field)
+src/lib/services/
+├── carousel.ts                    ← MODIFIED (add generateCarouselFromReferences)
+└── ...
 
-3. Editor mutation (any v2.11 reducer action)
-   → SET_LOCKED / SET_HIDDEN / GROUP / UNGROUP / Z_ORDER / ALIGN / DISTRIBUTE /
-     BULK_TRANSLATE / BULK_DELETE / DUPLICATE_ELEMENTS_AT
-   → reducer extends fourth branch on slide.decorations[]
-   → pushHistory() unchanged (single dispatch per gesture; PERF-01 carry-forward)
-
-4. Render — React preview (slide-preview.tsx)
-   → DecorationLayer component iterates (slide.decorations ?? []).filter(d => d.hidden !== true)
-   → Each decoration wrapped in <Rnd> when editable={true} (mirrors CustomImage Rnd wrapper at line ~2347)
-   → Click → onDecorationSelect → selection.replaceWith([id])
-
-5. Render — Satori PNG export (render-slide-satori.tsx)
-   → Same iteration, same filter, NO Rnd wrapper, NO selection chrome
-   → Uses shared <DecorationRenderer> primitive from resolve-overlay.ts (TPLREND-05)
-
-6. Publish/Fork (Supabase RPCs)
-   → publish: snapshot pattern (slide_data jsonb) carries decorations[] verbatim
-   → fork: _strip_decoration_locked() helper mirrors v2.4 brand_kit_id strip pattern
+src/lib/types/
+├── style-spec.ts                  ← NEW (StyleSpec interface + version)
+├── slide.ts                       ← UNCHANGED (TPLREND-05 invariant)
+└── ...
 ```
+
+---
+
+## Q4 — Style-Only Path (chosen: SAME pipeline, `mode` flag in `generate-from-style-spec.ts`)
+
+### Decision
+
+`generate-from-style-spec.ts` accepts a discriminated input:
+
+```ts
+export type ContentSource =
+  | { mode: 'ai-copy'; topic: string }                    // user provides topic, AI invents copy
+  | { mode: 'user-copy'; lines: { hook: string; body?: string }[] }  // user provides copy, AI structures it
+
+export async function generateFromStyleSpec(
+  spec: StyleSpec,
+  content: ContentSource,
+  slideCount?: number,   // overrides spec.rhythm.suggested_slide_count
+): Promise<CarouselWithTextBoxes>
+```
+
+**Both modes use the same Gemini call**, just with different system-prompt scaffolding.
+
+### Why same pipeline (not separate `applyStyleSpec` endpoint)
+
+- **Same output contract** (`CarouselWithTextBoxes`). Same downstream wiring (image fetch, save, render).
+- **Same v2.12 decorations ingest** — both modes need the resolved decoration emit path; duplicating it means risking divergence.
+- **Same `legacyToTextBoxes` adapter** at the boundary.
+- **Mode is a prompt-shape concern, not an architectural concern.** `'ai-copy'` says *"invent copy in this style"*; `'user-copy'` says *"keep my copy verbatim, just structure it (segments, role, decoration choice, layout)"*. The Zod-validated response shape is identical.
+
+### Prompt skeleton (illustrative)
+
+```
+SYSTEM:
+You are styling a TikTok carousel from a provided style spec.
+
+STYLE SPEC:
+- Palette: bg=#000 / text=#FFF / accent=#A8E0B0
+- Typography: hook=Anton uppercase / body=Plus Jakarta Sans
+- Layout: text bottom-aligned, 5 slides, role sequence cover→support→support→pivot→close
+- Decorations: minimal density, editorial-tag style, preferred shapes [rect]
+- Voice: Tabloid magazine headlines. Statistics over adjectives.
+
+[mode='ai-copy']
+USER: Generate 5 slides about: ${topic}
+
+[mode='user-copy']
+USER: Structure these 5 lines into slides (do NOT change wording):
+1. HOOK="..." BODY="..."
+2. HOOK="..."
+...
+For each, choose: role (from sequence above), text segments (mark accent words for highlight pills),
+optional decoration (max 1 from preferred enums), layout slot.
+```
+
+### Why NOT a separate `transform` endpoint
+
+- A `transform({style_spec, user_copy[]}) → Slide[]` endpoint that bypasses Gemini entirely would mean **manual structuring** of segments / role / decorations in TS code. That's a worse outcome — Gemini's structuring is the value-add here (it picks which words to highlight, which slide gets the decoration, etc.).
+- A second endpoint doubles the prompt-engineering surface; future spec fields would need to be threaded through both.
+- The mode flag is the lightweight choice — one Zod input variant, one branch in prompt-building.
+
+---
+
+## Q5 — Upload Pipeline
+
+### Decision
+
+**1..N reference images uploaded via the existing public-bucket pattern**, persisted to `projects.reference_assets` JSONB at carousel-creation time.
+
+### Flow
+
+```
+1. Client picks N files (1..N, recommend N≤4 — vision call cost grows linearly)
+2. For each file:
+     a. Client calls a NEW server action: getReferenceUploadUrl()
+        → returns { uploadUrl, publicUrl, path }
+     b. Client uploads directly to Supabase Storage (slide-backgrounds bucket-style PUT)
+     c. Client computes SHA-256 (or server does on receipt)
+3. Client calls generateCarouselFromReferences({ referenceImageUrls: [...], contentSource })
+4. Server:
+     a. Validates user owns all URLs (path prefix check — userId/.../filename)
+     b. Calls extractStyleSpec(urls)
+     c. Persists projects row with:
+          reference_assets = [{url, sha256, uploaded_at}, ...]
+          style_spec = <extracted spec>
+          slide_data = <generated carousel>
+```
+
+### Why public bucket + URLs (vs base64 inline to Gemini)
+
+- **Vision LLM input.** Gemini 2.5 Flash accepts both base64 and URL — URL is cheaper (no double-upload, smaller request bodies).
+- **Provenance.** Persisted URL is the ONLY way to support remix-by-reference (Q7) and "regenerate this carousel" UX.
+- **Cost.** Reference images are typically ≤500KB each; the existing `slide-backgrounds` bucket already handles user uploads of similar size.
+- **Existing pattern.** `src/lib/storage/upload-image.ts` already implements the per-user-folder bucket pattern. Mirror it in a new `src/lib/storage/upload-reference.ts`.
+
+### Why persist (not ephemeral)
+
+- **Remix UX requires it.** v2.4 Explore + Remix lets one user fork another's carousel. If the original user's references vanish on save, the forker can't see what inspired the design.
+- **Re-extraction UX.** "I tweaked the references — regenerate" requires the URLs to still exist.
+- **Cost is negligible.** N ≤ 4 images × ~500KB × current user count is rounding-error storage spend.
+- **Right-of-publicity guard.** v2.9 deferred `stylize-image.ts` for face-stylize legal risk. Style-from-reference is materially different — we're extracting **palette/typography/layout**, NOT pixel-stylizing the user's face. Persisting the reference does not introduce new legal risk because we never republish the reference (it lives in the user's private project view).
+
+### `reference_assets` JSONB shape
+
+```json
+[
+  { "url": "https://...supabase.co/.../u_xx/2026-05/abc.png", "sha256": "ab12...", "uploaded_at": "2026-05-10T15:24:00Z" },
+  { "url": "https://...supabase.co/.../u_xx/2026-05/def.png", "sha256": "cd34...", "uploaded_at": "2026-05-10T15:24:01Z" }
+]
+```
+
+Stored as a sibling to `style_spec` so re-extraction can read it without parsing the spec.
+
+---
+
+## Q6 — TPLREND-05 Implications
+
+### Decision
+
+**ZERO new fields on `Slide`.** The style spec is consumed entirely server-side at emit time and only emits values that already round-trip through both renderers.
+
+### Why this is the right call
+
+The v2.12 PTF16 idempotent-absence baseline (73 tests / 48 snapshots across 12 templates × 6 renderer families) was hard-won. Every new field on `Slide` requires:
+
+1. Null-safe iteration in BOTH `render-slide.ts` (React preview) AND `render-slide-satori.tsx` (PNG export)
+2. Byte-identity test coverage (PTF-series fingerprint snapshots)
+3. Chrome-leak grep gate (PCL-series)
+4. Schema-source-grep symmetry gate (PRA-series)
+5. Cross-scope isolation regression suite (PRS-series)
+
+**The style spec avoids all of this by being upstream.** The projector (`StyleSpec → Slide[]`) emits values into the existing fields:
+
+| Spec field | Emits into existing Slide field |
+|-----------|----------------------------------|
+| `palette.accent` | `style_overrides.derived_palette[]` (v2.9 — already covered) |
+| `typography.hook.font_family` | `style_overrides.hook_font_family` (v1.3 — already covered) |
+| `typography.body.font_family` | `style_overrides.body_font_family` (v1.3 — already covered) |
+| `layout.hook_position` | `style_overrides.text_position` (v1.0 — already covered) |
+| `layout.text_align` | `style_overrides.text_align` (v1.0 — already covered) |
+| `imagery.treatment_preset` | Pre-bake on `background_url` via existing `photo-treatment/treat.ts` (v2.9 — already covered) |
+| `imagery.grain_intensity` | `style_overrides.grain_intensity` (v2.9 — already covered) |
+| `decorations.preferred_*` | `slide.decorations[]` (v2.12 — already covered) |
+| `rhythm.role_sequence` | `slide.role` (v2.9 — already covered, advisory only) |
+| `voice_note` | NEVER lands on a Slide; consumed by Gemini system prompt only |
+
+### What about a `template_id_override` for spec-derived templates?
+
+Two options:
+
+**Option A** — Fit the spec to an existing template (e.g. spec maps to `magazine-bold` because palette is dark + accent is mint + hook is Anton uppercase). Use `template_id_override`. **Recommended for v2.13** because zero new template registry work.
+
+**Option B** — Synthesize a new ad-hoc template at emit time. Requires `SlideTemplate` to be runtime-constructable (not just registry-static). Adds significant validator complexity. **Defer to v2.14+** if A proves insufficient.
+
+For v2.13, the projector picks the **closest matching registered template** via a similarity score (palette + font-family + layout dimensions), then layers the spec's `style_overrides` on top per-slide. The template choice is deterministic given the spec.
+
+### TPLREND-05 audit hook
+
+Add **ONE new test** to the PTF-series in v2.13: PTF19 — spec-projection determinism. Given a fixed StyleSpec input, the projector emits a `Slide[]` with deterministic ordering of overrides; render output is byte-identical across two runs. This guards against spec→slide drift WITHOUT touching the renderer-side parity gates.
+
+---
+
+## Q7 — Remix / Fork Flow (chosen: (b) inherit the persisted style spec — DEFAULT, with re-extract option)
+
+### Decision
+
+When a user remixes a published style-from-reference carousel:
+
+- **Default path:** Forker inherits `slide_data` AND `style_spec` AND `reference_assets` (provenance preserved). NO re-extraction. Forker can immediately edit slides, OR optionally click "regenerate from references" to invoke `generateCarouselFromReferences()` again with the same references.
+- **Why not (a) re-extract:** Vision calls cost money + add latency to fork. Spec is deterministic from references + model version, so re-extracting on every fork is waste.
+- **Why not (c) inherit only slides (no spec carryover):** Loses the ability to "regenerate / iterate" the spec — and that's the killer feature of style-from-reference vs. the existing template flow.
+
+### Fork RPC migration
+
+The existing `_strip_locked_from_slide_data` walks 4 array fields; for v2.13 we need a SECOND helper:
+
+```sql
+-- Migration: 20260510_fork_includes_style_spec.sql (proposed)
+--
+-- v2.13: extend fork_published_carousel + publish_carousel to copy
+-- style_spec + reference_assets alongside slide_data.
+
+-- 1. publish_carousel: snapshot style_spec + reference_assets into
+--    published_carousels (requires schema change to that table — same pattern
+--    as the original snapshot)
+ALTER TABLE public.published_carousels
+  ADD COLUMN IF NOT EXISTS style_spec       jsonb,
+  ADD COLUMN IF NOT EXISTS reference_assets jsonb;
+
+-- 2. CREATE OR REPLACE the publish + fork RPCs to read/write the new columns
+--    (one-line additions to existing INSERT...SELECT)
+
+-- 3. NO new locked-stripping needed — style_spec/reference_assets are inert
+--    metadata, no per-element ownership flags
+```
+
+### Locked stripping NOT required for spec/references
+
+`style_spec` is inert metadata (no `locked` / `groupId` / `hidden` semantics). `reference_assets` is just URLs + sha256 + timestamps. The forker takes ownership trivially — no v2.11/v2.12-style stripping logic needed.
+
+### Reference image URL ownership
+
+When a fork happens:
+
+- Original references stay in the **original user's** Storage folder (`reference-images/u_<original>/...`).
+- Forker's `projects.reference_assets` carries the **original URLs** (cross-user reads work because the bucket is public).
+- If the forker wants to "re-extract from references they own," they re-upload first, getting URLs in their own folder.
+- If the original user deletes their references, the fork's `reference_assets` URLs 404 — but `style_spec` is preserved, so the carousel still renders. Acceptable degradation.
+
+---
+
+## Q8 — Build Order
+
+### Phase sequence (5 phases, dependency-ordered)
+
+| Phase | Name | Deliverable sentence | Touches |
+|-------|------|---------------------|---------|
+| **1** | **Schema + Storage Foundation** | `StyleSpec` interface defined; `projects.style_spec` + `projects.reference_assets` columns added; `reference-images` bucket created with RLS; legacy projects unaffected (NULL = invisible to v2.13 codepath). | NEW: `src/lib/types/style-spec.ts`. NEW migrations: `20260510_add_style_spec.sql`, `20260510_reference_images_bucket.sql`. NEW Zod: `StyleSpecSchema` in `src/lib/ai/schemas.ts`. |
+| **2** | **Vision Extraction Endpoint** | `extractStyleSpec(urls[])` callable from a server action; takes 1..N reference URLs, returns canonical Zod-validated `StyleSpec`; triple-layer silent-drop on malformed Gemini output. | NEW: `src/lib/ai/extract-style-spec.ts`. NEW: `src/lib/storage/upload-reference.ts`. NEW: `src/lib/ai/prompts.ts:buildStyleSpecPrompt()`. Tests: `extract-style-spec.test.ts` with fixture images + mocked Gemini response. |
+| **3** | **Emit Integration (Projector + Generator)** | `generateFromStyleSpec(spec, content)` returns `CarouselWithTextBoxes` indistinguishable in shape from `generateSlideContent`; `generateCarouselFromReferences()` orchestrator wires extract → persist → emit → fetch images → save. | NEW: `src/lib/ai/generate-from-style-spec.ts` (projector + Gemini call). MODIFIED: `src/lib/services/carousel.ts` (sibling orchestrator). MODIFIED: `src/lib/ai/prompts.ts:buildFromSpecPrompt()`. Tests: projector unit tests + end-to-end mock generation. |
+| **4** | **UI (Editor Entry + Reference Picker)** | New "Style from reference" entry point on `/dashboard` (or generation form); 1..N image picker; optional copy paste; submit invokes `generateCarouselFromReferences()` server action; result navigates to existing `/project/[id]` editor. | NEW: `src/components/generate/style-from-reference-form.tsx`. MODIFIED: `src/app/(dashboard)/dashboard/page.tsx` or `actions.ts` (wire new form). Tests: form interaction + happy-path Playwright. |
+| **5** | **Remix / Fork Flow + Publish Snapshot** | Fork RPC carries `style_spec + reference_assets`; published carousels snapshot the spec; "Regenerate from references" button on forked projects re-invokes the extract → emit pipeline. | MODIFIED migration: `20260510_fork_includes_style_spec.sql` (extends v2.4 publish + fork RPCs + adds columns to `published_carousels`). MODIFIED: `src/components/explore/...` for showing reference images on detail page. NEW: server action `regenerateFromReferences(projectId)`. |
+
+### Phase dependency graph
+
+```
+Phase 1 (schema/storage) ──┐
+                           ├──► Phase 2 (vision extract) ──┐
+                           │                                 ├──► Phase 3 (emit integration) ──┐
+                           │                                 │                                    ├──► Phase 4 (UI)
+                           │                                 │                                    └──► Phase 5 (remix)
+                           └─────────────────────────────────┘
+```
+
+Phase 1 unblocks Phases 2+3+5 (they all touch the new schema). Phase 2 unblocks Phase 3 (projector needs spec shape locked). Phase 3 unblocks Phases 4+5 (UI and remix both invoke the orchestrator). Phases 4 and 5 are independent and can ship in parallel.
+
+### Phase boundary cleanliness check
+
+| Phase | New files | Modified files | Migration files |
+|-------|-----------|----------------|-----------------|
+| 1 | `src/lib/types/style-spec.ts` | `src/lib/ai/schemas.ts` (add export) | `20260510_add_style_spec.sql`, `20260510_reference_images_bucket.sql` |
+| 2 | `src/lib/ai/extract-style-spec.ts`, `src/lib/storage/upload-reference.ts`, `src/lib/ai/__tests__/extract-style-spec.test.ts` | `src/lib/ai/prompts.ts` | — |
+| 3 | `src/lib/ai/generate-from-style-spec.ts`, `src/lib/ai/__tests__/generate-from-style-spec.test.ts`, `src/lib/services/__tests__/carousel-from-references.test.ts` | `src/lib/services/carousel.ts`, `src/lib/ai/prompts.ts` | — |
+| 4 | `src/components/generate/style-from-reference-form.tsx`, server action wiring | `src/app/(dashboard)/dashboard/page.tsx` (or new launcher card) | — |
+| 5 | `src/components/explore/...` updates, server action `regenerateFromReferences()` | Existing fork+publish components if surfacing references | `20260510_fork_includes_style_spec.sql` |
+
+**Each phase has a single concern and a single integration point with the next.** Roadmapper should treat phases 4 and 5 as parallelizable (after phase 3 lands).
 
 ---
 
 ## Patterns to Follow
 
-### Pattern 1: Per-scope reducer routing (v2.11 norm)
+### Pattern 1: Triple-Layer Silent-Drop at Vision Ingest
 
-**What:** Every multi-select reducer action walks each addressable scope (`text_boxes`, `custom_images`, `watermark`) independently and merges results.
-**When:** Any new reducer case touching multi-select state.
-**Example (extending BULK_TRANSLATE):**
+**What:** Mirror v2.12 Phase 71's `DecorationEmitSchema → resolveAIDecoration → DecorationSchema → max-N clamp` pipeline for the StyleSpec extraction.
 
+**When:** In `extract-style-spec.ts`, the Gemini vision response is loosely typed at the wire (Gemini structured output is best-effort). Validate with:
+
+1. `StyleSpecEmitSchema.safeParse()` — closed-enum gate on token-style fields (font names, presets, palette roles)
+2. Resolver `resolveStyleSpecDefaults()` wrapped in try/catch — fills in safe defaults for any missing-but-required field
+3. Final `StyleSpecSchema.safeParse()` — canonical-shape gate
+
+If steps 1+2+3 ALL fail, throw a typed error that the orchestrator surfaces as a user-facing "couldn't extract style — try a different reference" message. **Never persist a half-baked spec.**
+
+**Example:**
 ```ts
-case 'BULK_TRANSLATE': {
-  const slides = state.present.map((slide, i) => {
-    if (i !== action.slideIndex) return slide
-    const idSet = new Set(action.ids)
-
-    // ... existing text_boxes branch (unchanged) ...
-    // ... existing custom_images branch (unchanged) ...
-
-    // NEW: decorations branch — mirrors custom_images shape exactly
-    let nextDecorations = slide.decorations
-    if (slide.decorations) {
-      nextDecorations = slide.decorations.map((d) => {
-        if (!idSet.has(d.id)) return d
-        if (d.locked === true) return d                 // Phase 64 honor
-        return { ...d, position: {
-          ...d.position,
-          x: d.position.x + action.deltaX,
-          y: d.position.y + action.deltaY,
-        }}
-      })
-    }
-
-    let next: Slide = slide
-    if (nextTextBoxes !== slide.text_boxes && nextTextBoxes !== undefined) {
-      next = applyDualWrite(next, nextTextBoxes)
-    }
-    if (nextCustomImages !== slide.custom_images) next = { ...next, custom_images: nextCustomImages }
-    if (nextDecorations !== slide.decorations) next = { ...next, decorations: nextDecorations }
-    return next
-  })
-  return pushHistory(state, slides)  // PERF-01: still exactly one pushHistory
+const rawJson = JSON.parse(geminiResponse.text)
+const emitParse = StyleSpecEmitSchema.safeParse(rawJson)
+if (!emitParse.success) throw new StyleExtractionError('emit-shape')
+let resolved: StyleSpec
+try {
+  resolved = resolveStyleSpecDefaults(emitParse.data)
+} catch (e) {
+  throw new StyleExtractionError('resolver', e)
 }
+const finalParse = StyleSpecSchema.safeParse(resolved)
+if (!finalParse.success) throw new StyleExtractionError('canonical-shape')
+return finalParse.data
 ```
 
-### Pattern 2: Idempotent absence (TPLREND-05 invariant)
+### Pattern 2: Closed-Enum Vision Tokens
 
-**What:** Every iteration site uses `(slide.decorations ?? [])` — when undefined, the filter/map produces an empty array → no DOM nodes → identical to pre-v2.12 output.
-**When:** ALL render sites + transform sites that read `slide.decorations`.
-**Why:** Legacy 11 templates never emit decorations; new templates may opt in. Byte-identity is preserved on every project that pre-dates v2.12.
+**What:** Vision LLM emits **named tokens**, not raw values, for fonts / presets / palette roles. Server-side resolver maps tokens → registered values.
 
-### Pattern 3: Shared decoration primitive (TPLREND-05 parity)
+**When:** In `extract-style-spec.ts` Gemini schema:
+- Font family → enum of registered fonts in `src/lib/fonts/` catalog (NOT free-form string — prevents "nearest match" headaches at render time)
+- `treatment_preset` → enum of `bw / duotone-cream / duotone-cobalt / contrast-bump / none` (mirror existing `photo-treatment/treat.ts` presets)
+- `pairing_strategy` → closed enum of 4 pairing names
 
-**What:** A single pure module `decoration-renderer.tsx` exports `<DecorationRenderer decoration={d} origin={...} />` consumed by **both** Satori and React preview.
-**When:** ANY visual property of a decoration (icon SVG path, shape geometry, shadow, opacity, rotation, fill color).
-**Why:** Same reason `resolve-overlay.ts` exists. Two duplicated implementations drift; one shared module cannot.
+**Why:** Gemini will hallucinate font names if free-form (`"Helvetica Neue Bold Condensed"` for a brand we don't ship). Closed-enum forces it to pick the nearest registered family, producing renderable output.
 
-```tsx
-// src/lib/render/decoration-renderer.tsx (NEW)
-export function renderDecoration(d: Decoration, origin?: string): React.ReactNode {
-  if (d.kind === 'icon') return renderIconDecoration(d, origin)
-  return renderShapeDecoration(d)
-}
+### Pattern 3: Spec-Driven Decoration Subset
+
+**What:** When the projector calls into the Phase 71 decoration emit path, it **restricts** `AI_LUCIDE_ALLOWLIST` to `spec.decorations.preferred_lucide`.
+
+**When:** In `generate-from-style-spec.ts`, before the Gemini text call, build a per-call allowlist:
+```ts
+const allowedLucide = spec.decorations.preferred_lucide.length > 0
+  ? spec.decorations.preferred_lucide
+  : AI_LUCIDE_ALLOWLIST  // fallback to full set if spec is silent
 ```
+Pass this into the Gemini schema's `enum:` array for the `decorations[].lucideName` field.
 
-Both renderers import and call this. Like `renderGrain` / `renderVignette` / `renderDecorativeOverlay`, the helper uses `React.createElement` so the file can stay `.ts` if needed (or `.tsx` — both renderers already JSX-compile).
-
-### Pattern 4: Lucide registry (closed enum)
-
-**What:** A static array of supported Lucide names, validated at module load via `validateRegistry`. Renderer reads `import * as Lucide from 'lucide-react'` and resolves SVG path data; falls back to a sentinel when the name is unknown.
-**When:** Validating `IconDecoration.lucideName` at AI ingest, render time, and editor commit.
-**Why:** Lucide ships ~1,500 icons; bundling the entire surface as the React-component ESM tree would inflate the editor bundle by ~600KB. **Use `lucide-react/dynamicIconImports`** (verified shipped pattern) — pulls the SVG path on demand for the picker, lazy-loaded; the renderer pulls the same path at render. Confirm via Context7 lookup before committing — see Pitfall 3.
+**Why:** Reference references "editorial-tag" style with NO icons → AI shouldn't sprinkle in random icons. Spec encodes the constraint; emit honors it.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: CSS filter for icon coloring
+### Anti-Pattern 1: Putting StyleSpec on `Slide`
 
-**What:** Using `filter: invert()` or `filter: hue-rotate()` to recolor a Lucide SVG.
-**Why bad:** Satori silently drops `filter` (vercel/satori#573 — already burned us in v2.9 photo treatment, see PROJECT.md "CSS filters silently break Satori"). Preview would show colored icon; PNG export would show black icon. Silent TPLREND-05 break.
-**Instead:** Use Lucide's native `color` prop (sets `currentColor`; works in both renderers) OR for paths use `fill={d.color}` directly on `<path>`.
+**What:** Adding `style_spec?: StyleSpec` to the `Slide` interface so each slide carries its own spec.
 
-### Anti-Pattern 2: SVG `<defs>` / `<symbol>` / `<use>` reuse
+**Why bad:**
+- Bloats every slide row in storage with redundant data (spec is project-level, not slide-level).
+- Breaks TPLREND-05 if the renderer is ever tempted to read it (and the temptation will arrive).
+- Makes "edit one slide" semantically ambiguous (does editing a slide override the spec?).
 
-**What:** Single `<defs>` block + `<use href="#icon-id">` for repeated icons.
-**Why bad:** Satori (per vercel/satori#41 / #162) does not honor `<use>` references — it inlines `<defs>` but does not resolve `<use>` to the referenced node. PNG would emit empty bounding boxes for every reused icon.
-**Instead:** Inline the full SVG path data per decoration. Bundle cost is negligible at ≤30 elements/slide (Lucide path strings average ~200 bytes).
+**Instead:** Spec on `projects` row only. Slides are fully self-describing via existing v1.0–v2.12 fields.
 
-### Anti-Pattern 3: CSS z-index for decoration layering
+### Anti-Pattern 2: Vision LLM Emits Raw Hex Colors
 
-**What:** `style={{ zIndex: d.zOrder }}` on each decoration.
-**Why bad:** Satori has no z-index support (verified throughout codebase: see `render-slide-satori.tsx:96-97 "No z-index support; layer order = DOM order"`). PNG would render decorations in array order; React preview would respect z-index. Drift.
-**Instead:** Decorations follow array order (same as `custom_images`). Z-order reordering uses the v2.11 `Z_ORDER` reducer action via array splice (zero CSS — `applyZOrderToArray` already does this).
+**What:** Gemini vision schema declares `palette.accent: string` and lets the model emit arbitrary `#ABCDEF`.
 
-### Anti-Pattern 4: SVG `mask` / `clip-path`
+**Why bad:**
+- Cannot be tied back to `style_overrides.derived_palette` (v2.9's named-role palette extraction).
+- Can collide with template-incompatible colors (mint accent on a Y2K template is jarring).
+- No way to enforce contrast (light text on light accent).
 
-**What:** Star/polygon shapes implemented via `clip-path: polygon(...)` on a `<div>`.
-**Why bad:** Same Satori-CSS-subset problem — `clip-path` not in supported list.
-**Instead:** Render polygons / stars as inline `<svg>` with computed `<polygon points="..."/>` strings.
+**Instead:** Vision LLM emits raw hex for `extracted_dominant[]` (observational), but `accent` is derived in the resolver as `chooseAccentFromPalette(extracted_dominant, contrast_target)`. Raw hex bypass is reserved for specific cases (e.g. user explicitly typed a hex in a UI tweak).
 
-### Anti-Pattern 5: Decoration as a TextBox subtype
+### Anti-Pattern 3: Re-Extracting on Every Render
 
-**What:** Encoding shapes as `TextBox` with `role: 'shape'` and zero text.
-**Why bad:** TextBox carries `text`, `segments`, `font_*`, `text_align`, `list_*` — none meaningful for shapes. Adapter (`text-box-adapter.ts`) round-trips through legacy fields; a "shape TextBox" would corrupt the legacy `custom_texts` mirror. Coupling without payoff.
-**Instead:** First-class `Decoration` discriminated union. The peer cost (one new schema field, one new reducer branch per action) is lower than the coupling cost.
+**What:** Editor opens a project → server re-extracts spec from references → re-applies → re-renders.
 
----
+**Why bad:**
+- $0.0005 × N edits × per-user = real money pre-PMF.
+- Adds latency to every editor open.
+- Style would visibly drift if Gemini upgrades model versions mid-session.
 
-## Integration Point Enumeration (the EVERY-CASE quality gate)
+**Instead:** Extract once at carousel-creation time, persist to `projects.style_spec`. "Regenerate from references" is an explicit user action, not an implicit one.
 
-### A. Reducer cases requiring a `decorations` branch
+### Anti-Pattern 4: Synthesizing Templates at Runtime
 
-Read sequentially from `editor-reducer.ts`. **Every** case below needs work:
+**What:** Constructing a new `SlideTemplate` object on the fly from spec values, registering it in `getTemplate()`'s registry mid-request.
 
-| # | Case | Current scopes touched | Decoration extension |
-|---|------|------------------------|----------------------|
-| 1 | `ADD_SLIDE` | (creates blank slide) | `blankSlide()` should NOT initialize `decorations` (left undefined → byte-identity) |
-| 2 | `REMOVE_SLIDE` | (no element walk) | No change |
-| 3 | `DUPLICATE_SLIDE` | text_boxes, custom_texts, custom_images | **+ regenerate decoration ids on clone** (lines 196-204 pattern) |
-| 4 | `REORDER_SLIDES` | (no element walk) | No change |
-| 5 | `UPDATE_SLIDE` | (whole-slide merge) | No change (decorations field flows through `...action.updates`) |
-| 6 | `SET_SLIDES` | (full replace) | No change |
-| 7 | `ADD_CUSTOM_TEXT` / `UPDATE_CUSTOM_TEXT` / `REMOVE_CUSTOM_TEXT` | custom_texts | No change (different scope) |
-| 8 | `ADD_CUSTOM_IMAGE` / `UPDATE_CUSTOM_IMAGE` / `REMOVE_CUSTOM_IMAGE` | custom_images | No change (different scope) |
-| 9 | `ADD_TEXT_BOX` / `UPDATE_TEXT_BOX` / `REMOVE_TEXT_BOX` | text_boxes | No change (different scope) |
-| 10 | **NEW: `ADD_DECORATION`** | — | **NEW** — append to decorations[] with crypto.randomUUID; pushHistory once |
-| 11 | **NEW: `UPDATE_DECORATION`** | — | **NEW** — id-keyed merge; honor `locked === true` short-circuit (mirrors REMOVE_TEXT_BOX gate at lines 366-372) |
-| 12 | **NEW: `REMOVE_DECORATION`** | — | **NEW** — id-keyed filter; honor locked short-circuit |
-| 13 | **`BULK_TRANSLATE`** | text_boxes (custom anchor + unlocked), custom_images (unlocked) | **+ decorations branch** (lines 396-441; mirror custom_images skip-locked logic) |
-| 14 | **`BULK_DELETE`** | text_boxes (custom role + unlocked), custom_images (unlocked) | **+ decorations branch** (lines 463-496) |
-| 15 | **`DUPLICATE_ELEMENTS_AT`** | text_boxes, custom_images | **+ decorations branch** (lines 509-579) — deep-copy with new id + position delta + optional newGroupId |
-| 16 | **`GROUP`** | text_boxes, custom_images, watermark | **+ decorations branch** (lines 593-683) — assign action.groupId; participate in subset-dissolve cascade |
-| 17 | **`UNGROUP`** | text_boxes, custom_images, watermark | **+ decorations branch** (lines 694-759) — clear groupId on listed ids |
-| 18 | **`SET_LOCKED`** | text_boxes, custom_images, watermark | **+ decorations branch** (lines 775-836) — toggle `locked` on listed ids |
-| 19 | **`SET_HIDDEN`** | text_boxes, custom_images, watermark | **+ decorations branch** (lines 852-913) — toggle `hidden` on listed ids |
-| 20 | **`ALIGN`** | (via `applyAlignPatches` → text_boxes custom-anchor + custom_images unlocked) | **+ extend `applyAlignPatches`** (lines 111-164) to walk decorations; also extend pure `align.ts` to include decorations in the alignment-target footprint computation |
-| 21 | **`DISTRIBUTE`** | (via `distributeElements` → same scope as ALIGN) | **+ extend `distributeElements`** in `align.ts` |
-| 22 | **`Z_ORDER`** | text_boxes (via applyZOrderToArray), custom_images (via applyZOrderToArray), watermark (single-slot no-op) | **+ apply `applyZOrderToArray` to decorations[]** (lines 972-1022); same single-action dispatch shape |
-| 23 | `UNDO` / `REDO` | (history pointer) | No change |
+**Why bad:**
+- Templates are validated at module load (`templates/validate.ts`); runtime registration bypasses the validator.
+- Cache invalidation nightmare across server invocations.
+- Breaks the closed-enum `template_id_override` (Phase 58 D-08).
 
-**Result: 13 of 22 reducer cases need a fourth `decorations` branch** (cases #3 + #10–#22).
-
-**Symmetry check — is a single helper enough?** Cases #13/#14/#15/#16/#17/#18/#19/#22 all share the shape `iterate-array → filter-by-idSet → map-with-locked-skip`. A helper like `applyToScope<T>(arr, idSet, fn)` would compress ~80 LOC. **Recommendation: still write each case explicitly** — the per-scope detail differs (subset-dissolve cascade, structural-anchor skip, applyDualWrite call site) and the v2.11 codebase has been audited at this verbosity. Stay congruent with the existing pattern; do not micro-refactor mid-milestone.
-
-### B. Selection model surface (no schema change required)
-
-`Selection { ids: string[]; primary: string | null }` is **id-only** — it's already scope-agnostic. Decoration ids drop in transparently.
-
-| Surface | Current behavior | Decoration extension |
-|---------|------------------|----------------------|
-| `useSelectionModel.selectAll(slide)` | `ids = text_boxes ∪ custom_images ∪ watermark` | **+ ∪ decorations** |
-| `replaceWith / addToSelection / toggleInSelection / clear` | id-only ops | No change |
-| Stale-id prune effect (SEL-11) | clears ids not present on current slide | **+ scan decorations** when computing valid-id set |
-| `enterGroup(elementId, slide)` | walks all 3 scopes for `groupId` lookup | **+ walk decorations** |
-
-**ID strategy: pure UUID** (`crypto.randomUUID()`). No `d_${slideIndex}` namespacing — mirrors `text_boxes[].id` and `custom_images[].id`. The watermark uses `w_${slideIndex}` because there's exactly one watermark per slide and the deterministic id makes legacyWatermarkToElement idempotent. Decorations are unbounded N — UUIDs match the precedent.
-
-### C. Renderer integration — DOM-order placement
-
-#### Current Satori layer order (`render-slide-satori.tsx`)
-
-```
-0   Background fill / image                      (line 313)
-1.0 backgroundMode bottom-card                   (line 349)
-1.5 renderGrain                                  (line 329)
-2.0 Overlay color tint                           (line 331)
-2.5 renderVignette                               (line 343)
-3.0 template.overlays.map (decorative + slot)    (line 374)
-4.0 Hook + body text                             (lines 449-474)
-5.0 Custom images                                (line 477)
-6.0 Watermark (brand)                            (line 495)
-7.0 Custom text boxes                            (line 511)
-8.0 Forced free-tier watermark                   (line 545)
-```
-
-**Recommended decoration insertion: layer 5.5** — between custom_images (5.0) and watermark (6.0). User-z-orderable WITHIN the decorations array via `Z_ORDER` (already plumbed); cross-array ordering (decoration above watermark, etc.) is OUT OF SCOPE for v2.12 (mirrors v2.11 Z_ORDER scope-internal contract).
-
-```tsx
-{/* v2.12 (DEC-RENDER-01): decorations layer — between custom_images (5.0)
-    and watermark (6.0). Filter hidden===true (LOCK-07 carry-forward).
-    TPLREND-05 byte-identity preserved when decorations === undefined. */}
-{(slide.decorations ?? []).filter((d) => d.hidden !== true).map((d) => (
-  <React.Fragment key={d.id}>{renderDecoration(d, origin)}</React.Fragment>
-))}
-```
-
-#### React preview (`slide-preview.tsx`)
-
-Two render branches:
-1. **Non-editable** (`editable={false}` — published carousel display): insert mirror Fragment at the same DOM-order position. Lines ~1037-1066 area.
-2. **Editable** (`editable={true}` — editor canvas): each decoration wrapped in `<Rnd>` with selection click + drag/resize/locked/hidden gates. Mirrors `custom_images` editable branch starting around line 2347.
-
-Both branches MUST use the same shared `<DecorationRenderer>` for the visual node. Editor chrome (selection ring, drag handles, lock icon) is layered ON TOP via the existing v2.11 patterns — already proven structurally gated by the `editable={true}` early return.
-
-### D. Layers panel — `synthesizeRows()` extension
-
-`layers-panel.tsx:90-160` walks `text_boxes ∪ custom_images ∪ watermark`. Extension:
-
-```ts
-// types.ts: extend the discriminated union
-export type LayerElementType = 'text' | 'image' | 'watermark' | 'decoration'
-
-// layers-panel.tsx: add a fourth walk between custom_images and watermark
-for (const d of slide.decorations ?? []) {
-  elements.push({
-    id: d.id,
-    groupId: d.groupId,
-    locked: d.locked === true,
-    hidden: d.hidden === true,
-    type: 'decoration',
-    label: decorationLabel(d),  // NEW: "Star", "Heart icon", or d.name
-  })
-}
-```
-
-`getGroupMembers` (`group-membership.ts`) already walks all scopes — extend to include decorations. `decorationLabel` is a new helper mirroring `textBoxLabel` / `customImageLabel`.
-
-### E. AI ingest boundary (`generate-slides.ts`)
-
-```ts
-// Phase 71-AI: extend Gemini schema
-const decorationSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    kind: { type: Type.STRING, enum: ['icon', 'shape'] },
-    lucideName: { type: Type.STRING, description: '(icon only) Closed enum from registry — invalid silently stripped' },
-    shapeKind: { type: Type.STRING, enum: ['rect', 'circle', 'ellipse', 'triangle', 'line', 'arrow', 'star', 'polygon'] },
-    color: { type: Type.STRING },
-    fill: { type: Type.STRING },
-    stroke: { type: Type.STRING },
-    strokeWidth: { type: Type.NUMBER },
-    position: { /* x, y, width, height */ },
-    // ... etc
-  },
-}
-
-// Append to slide schema
-slides.items.properties.decorations = { type: Type.ARRAY, items: decorationSchema }
-
-// Validation — mirror legacyToTextBoxes pattern at line 184-188
-const slidesWithTextBoxes: SlideContentWithTextBoxes[] = parsedCarousel.slides.map((slide) => ({
-  ...slide,
-  text_boxes: legacyToTextBoxes(slide as unknown as Slide),
-  decorations: validateDecorations(slide.decorations ?? []),  // NEW — strips invalid lucideName / shapeKind
-}))
-```
-
-**Advisory monoculture gate:** mirrors v2.9's `hookOpeningTrigram` advisory in `validateAndRepair`. Trigger: across N slides, if `>50%` share the same `lucideName` OR same `shapeKind`, emit a warning to the retry-once gate. Does NOT fail CI in v2.12 (advisory-only, same posture as v2.9).
-
-### F. Forking + RPC + Storage
-
-`supabase/migrations/20260502_fork_strip_locked.sql` ships a `_strip_locked_from_slide_data(jsonb)` helper called from `fork_published_carousel`. The helper walks `text_boxes`, `custom_images`, and `watermark` to strip `locked`. **NEW migration required:**
-
-```sql
--- 20260YYY_fork_strip_decoration_locked.sql
-CREATE OR REPLACE FUNCTION public._strip_locked_from_slide_data(p_slide_data jsonb)
-RETURNS jsonb AS $$
-  -- ... existing text_boxes / custom_images / watermark walks unchanged ...
-  -- NEW: decorations walk
-  IF jsonb_typeof(p_slide_data->'decorations') = 'array' THEN
-    UPDATE ... -- strip locked from each decorations[] element
-  END IF;
-$$
-```
-
-No additional Storage bucket needed — Lucide SVG paths inline; shape geometries are pure CSS/SVG. No equivalent of `slide-backgrounds-treated`.
-
-### G. Right-rail panel — `DecorationCard`
-
-Mirrors `ActiveTextBoxCard.tsx` shell pattern. Mounted in `TextEditorPanel` composition (NOT `text-editor-panel-legacy.tsx`). Selection routing:
-
-```ts
-// In TextEditorPanel — branch on selection.primary's element type:
-const primary = selection.primary
-const primaryType = resolveElementType(slide, primary)  // 'text' | 'image' | 'watermark' | 'decoration' | null
-return (
-  <>
-    {primaryType === 'text' && <ActiveTextBoxCard ... />}
-    {primaryType === 'decoration' && <DecorationCard ... />}
-    {/* ... etc */}
-    <SlideSettings ... />
-  </>
-)
-```
-
-`DecorationCard` rows:
-- **Fill** (shape only) — color picker + alpha slider
-- **Stroke** (shape only) — color + width slider
-- **Color + strokeWidth** (icon only) — color picker + 0.5–4 stepper
-- **Size + Position** — w/h/x/y numeric inputs (mirrors existing patterns)
-- **Effects** — single `EffectRow` for Shadow (reused from `text-rail/EffectRow.tsx`)
-- **Opacity** — slider 0-100
-
-**Insert entry point** lives in `editor-toolbar.tsx`. Two new buttons:
-- "Insert icon" → opens `<LucidePicker>` modal/popover
-- "Insert shape" → opens a tiny popover with 8 shape primitives
-
-Selecting from the picker dispatches `ADD_DECORATION` with sane defaults (`position: { x: 40, y: 40, width: 20, height: 20 }`), then sets selection to the new id.
-
-### H. Lucide picker placement
-
-**Recommended: Modal** (matches `publish-modal.tsx` precedent). NOT a right-rail tab (steals space from Inspector); NOT a slide-out drawer (no other drawer in current UI).
-
-Inside the modal:
-- Search input (autoFocus; debounced 100ms)
-- Virtualized grid via `react-virtuoso` (verified shipped in node_modules transitively for layers panel decision; OR use `react-window` — confirm availability via Context7 / `package.json` before committing)
-- Fuzzy match via `fuse.js` OR a simple `name.includes(query.toLowerCase())` (the latter is sufficient for 1,500 entries — no extra dependency)
-- Keyboard nav: arrow keys move focus, Enter inserts, Esc closes (matches the v2.11 keyboard contract codified in SWEEP-1..4)
-
----
-
-## Could-Silently-Break-TPLREND-05 Surfaces (HIGH FLAG)
-
-These are the integration points where decorations could break byte-identity on legacy 11 templates if not gated by parity tests. **Each MUST get a PCL/PTF/PRS-style audit test** mirroring Plan 65-03's `parity.template-fingerprint.test.tsx` patterns.
-
-| # | Surface | Silent-break risk | Mitigation |
-|---|---------|-------------------|------------|
-| **R1** | `render-slide-satori.tsx` decorations layer 5.5 insertion | If iteration emits an empty Fragment when decorations=undefined (instead of nothing), Satori may add a zero-height `<div>` that shifts subsequent absolute positioning by 0px (currently — but a future Satori upgrade could break this). | **Test:** PTF — render every legacy template with `slide.decorations === undefined` → assert PNG fingerprint identical to pre-v2.12 baseline. Use `(slide.decorations ?? []).map(...)` (no Fragment wrapper) to emit nothing when array missing. |
-| **R2** | `slide-preview.tsx` non-editable branch decoration insertion | Same as R1 — a stray `<></>` could shift DOM order or trigger React reconciliation. | **Test:** PTF runtime + source-grep dual gate (PCL pattern from Plan 65-03). |
-| **R3** | `synthesizeRows()` walk order change | If decorations are walked BEFORE custom_images instead of between custom_images and watermark, layers panel order shifts → snapshot tests break and users see regression. | **Test:** Pin walk order in 2-3 layers-panel snapshot tests (LP1/LP2 patterns). Lock decoration position to "after custom_images, before watermark" (mirrors render-DOM order). |
-| **R4** | `selection.selectAll(slide)` extension | If the `ids[]` order changes after adding decorations to the union, downstream tests asserting `selectAll` order break. | **Test:** Pin order: `text_boxes ∪ custom_images ∪ decorations ∪ watermark`. |
-| **R5** | `applyZOrderToArray(slide.decorations, ...)` | New scope; if decoration-internal z-order accidentally bleeds into custom_images array (e.g. dispatcher routes to wrong scope), legacy custom-image z-ordering breaks. | **Test:** Cross-scope z-order isolation test — dispatch Z_ORDER on a decoration id and assert custom_images array is ref-equal pre/post. |
-| **R6** | `BULK_TRANSLATE` decoration branch | If the locked-skip is forgotten, locked decorations move on Cmd+Drag. | **Test:** Mirror BL-LOCK test pattern from Phase 64 reducer suite (1 case). |
-| **R7** | Fork RPC `_strip_locked_from_slide_data` | If the SQL helper doesn't recurse into decorations[], locked flags survive a fork → forker inherits creator's locks. | **Test:** Migration-level Vitest covering the JSONB walk. Same pattern as `20260502_fork_strip_locked.sql` test. |
-| **R8** | Lucide bundle weight / dynamic import | If the editor accidentally imports the entire `lucide-react` package instead of the dynamic-icon path, editor bundle inflates ~600KB → no break in correctness, but PERF regression. | **Test:** Bundle-size gate in CI (existing `.next/analyze` step). Acceptable threshold: +20KB editor, +0KB renderer. |
-| **R9** | `align.ts` extension to include decorations in target footprint | If decorations are walked in the alignment-target AABB but not pre-filtered for locked === true, "align to selection" produces wrong target. | **Test:** ALIGN-LOCK test (1 case mirroring AR7b lock-exclusion test). |
-| **R10** | `element-rect-intersect.ts` (marquee) extension | If decoration's locked flag is not honored, marquee selects locked decorations. | **Test:** Mirror Plan 64 LOCK-05 marquee test (1 case). |
-
-**Rollup test count estimate:** 10-15 new parity/regression tests + 30-40 new reducer-case tests + 8-10 renderer fingerprint tests. Total: ~50-60 tests for the milestone (smaller than v2.11's +200; v2.12 inherits the v2.11 test infrastructure).
-
----
-
-## Suggested Build Order — 5 Phases
-
-Phase numbering picks up at **67** (v2.11 ended at 66). Five phases is the right size — v2.11 was 7 phases over 12 categories; v2.12 has fewer categories (no marquee/group/lock/z-order to BUILD — those just need to LEARN the new scope).
-
-### Phase 67 — Schema lift + null-decoration TPLREND-05 audit
-
-**Output:** `decorations?: Decoration[]` lands on `Slide`. Both renderers gain a `(slide.decorations ?? []).map(...)` no-op site at layer 5.5 / mirror branch. **Zero rendering** (no UI to insert one yet). PARITY-XX test suite proves byte-identity on legacy 11 templates with `decorations === undefined`.
-
-- Discriminated-union types + Zod schema + Lucide registry stub
-- Renderer null-iteration insertion (Satori + React preview both branches)
-- `synthesizeRows` extension (no decoration data yet → no rows added)
-- 10-12 PTF/PCL audit tests pinning byte-identity baseline
-
-**Deps:** None.
-**Risk:** Lowest. The whole phase is "type plumbing + idempotent null branches." Locks the parity invariant before any feature lands.
-
-### Phase 68 — Reducer extensions + selection model walk
-
-**Output:** Every multi-select reducer action knows about decorations. ADD/UPDATE/REMOVE_DECORATION cases. Selection model walks the new scope. NO UI — reducer-level tests prove correctness.
-
-- 13 reducer cases extended (table A above)
-- 3 new actions (`ADD_DECORATION`, `UPDATE_DECORATION`, `REMOVE_DECORATION`) routed through pushHistory
-- `align.ts` / `selection-bounds.ts` / `element-rect-intersect.ts` / `group-membership.ts` extensions (5 pure modules)
-- `useSelectionModel.selectAll` + stale-id prune effect + enterGroup walks
-- ~30-40 reducer tests (mirrors Phase 64's 33-test suite)
-
-**Deps:** Phase 67 schema.
-**Risk:** Medium. Per-scope routing is well-trodden; the temptation to over-helper-ize is real (resist).
-
-### Phase 69 — Renderers + DecorationRenderer primitive + first hand-injected decoration
-
-**Output:** Decorations actually render. Hand-crafted seed decoration in a test fixture proves both renderers emit byte-identical PNG/DOM. NO editor UI yet — fixture drives via `SET_SLIDES`.
-
-- `decoration-renderer.tsx` shared primitive
-- Lucide on-demand SVG path resolver
-- Shape SVG emitters for all 8 shapeKinds
-- Editable-branch Rnd wrapping (mirror custom_images pattern at line ~2347)
-- Selection click → onDecorationSelect wiring
-- ~15-20 renderer tests (PTF dual-renderer fingerprint for icon + each shapeKind = 9 baseline snapshots)
-
-**Deps:** Phase 67 (schema), Phase 68 (selection routing for click handler).
-**Risk:** HIGH for TPLREND-05 — this is where Satori-CSS-subset gotchas could silently break parity. Verify Satori support for `<svg>`, `<polygon>`, `transform: rotate`, `borderRadius` via Context7 BEFORE writing renderer code.
-
-### Phase 70 — Editor UI: insert + DecorationCard + Layers panel surfacing
-
-**Output:** Users can now actually create and edit decorations. Lucide picker modal + shape picker popover + DecorationCard right-rail Inspector + layers-panel chips for decorations.
-
-- `editor-toolbar.tsx` two new insert buttons
-- `<LucidePicker>` modal — virtualized grid, fuzzy search, keyboard nav
-- `<ShapePicker>` popover — 8 primitives
-- `<DecorationCard>` right-rail composition (mirrors ActiveTextBoxCard shell)
-- `DecorationLabel` helper + LayerElementType union extension to 'decoration'
-- `synthesizeRows` decoration walk inserts data (only iteration site that previously emitted no rows)
-- ~25-30 component tests + 5-8 layers-panel tests
-
-**Deps:** Phases 67, 68, 69.
-**Risk:** Medium. Most surface area, but most of it is conventional component composition.
-
-### Phase 71 — AI emit + Fork RPC + comprehensive parity audit
-
-**Output:** Gemini emits decorations natively. Fork strips locked. Final PARITY-XX audit suite covers all 10 silent-break surfaces. Milestone ships.
-
-- Gemini schema extension + light-touch validation adapter
-- Advisory monoculture gate (lucideName / shapeKind repetition trigger; advisory-only)
-- Supabase migration for `_strip_locked_from_slide_data` decoration walk
-- Final R1–R10 audit suite (~20-25 tests)
-- Bundle-size gate verification
-- Manual ship-gate: render 5 legacy projects → confirm PNG byte-identical pre/post v2.12
-
-**Deps:** All prior phases.
-**Risk:** Low — Gemini schema extension is well-trodden; fork RPC migration is a copy-of-copy pattern from v2.4 → v2.11.
-
----
-
-## Phase Dependency Graph
-
-```
-Phase 67 (Schema + Null Audit)  ──►  Phase 68 (Reducer + Selection)  ──►  Phase 69 (Renderers)  ──►  Phase 70 (Editor UI)  ──►  Phase 71 (AI + Fork + Final Audit)
-                          │                                                     │
-                          └──────────────►  optional parallel: ───────────────────┘
-                                            Lucide registry research /
-                                            picker UX wireframes
-```
+**Instead:** Spec maps to an EXISTING template via similarity score; per-slide overrides via `style_overrides`. If template coverage proves insufficient post-launch, register new templates the normal way (add to `templates/index.ts`) — not synthesize them.
 
 ---
 
 ## Scalability Considerations
 
-| Concern | At 5 decorations/slide | At 30 decorations/slide (v2.11 stated bound) | At 100/slide (post-PMF; defer) |
-|---------|------------------------|-----------------------------------------------|--------------------------------|
-| Marquee perf | <0.5ms `elementsInRect` | <2ms (Plan 63's perf budget); fine | Profile; consider AABB index |
-| Render DOM nodes | +10-15 nodes/slide | +60-90 nodes/slide; well within Satori budget | Profile Satori SVG compile |
-| Selection ring AABB compute | <0.2ms `computeSelectionBounds` | <1ms | Memoize via useMemo on selection |
-| Layers panel list height | 5 chips | 30 chips (current vanilla list works) | Virtualize (defer per LAYERS-D-01) |
-| Lucide bundle weight | Negligible (dynamic import) | Negligible | Negligible |
-| Z_ORDER array splice | O(N) on text_boxes scope | O(N) — fine | Profile if user complains |
+| Concern | At 100 users | At 10K users | At 1M users |
+|---------|-------------|-------------|-------------|
+| Vision call cost | ~$0.05/day | ~$5/day | ~$500/day — add per-user cap (e.g. 5 spec extractions/day on free tier) |
+| `reference-images` bucket size | <1 GB | ~50 GB | Add cron retention (mirror `treated-backgrounds` 7-day pattern) for unpaid users |
+| `style_spec` JSONB size | ~2KB/row × 100 = 200KB | 20MB | 2GB — well within Postgres JSONB sweet spot; no concern |
+| Fork RPC perf | trivial | trivial | Same as v2.4 fork — adds 2 column copies, negligible |
+| Gemini structured-output reliability | 5-10% schema failures expected | Same | Same — silent-drop pipeline already handles this |
 
 ---
 
 ## Sources
 
-**Codebase inspection (primary):**
-- `src/lib/types/slide.ts` (full read — all interfaces enumerated)
-- `src/lib/render/resolve-overlay.ts` (full read — TPLREND-05 invariant pinned)
-- `src/lib/render/render-slide-satori.tsx` (lines 1-550 — layer order pinned)
-- `src/components/slides/slide-preview.tsx` (lines 1-275, hidden-filter sites grep)
-- `src/lib/editor/editor-reducer.ts` (full read — every reducer case enumerated, 22 cases counted)
-- `src/lib/ai/generate-slides.ts` (full read — AI ingest boundary mapped)
-- `src/components/editor/layers-panel/layers-panel.tsx` (lines 1-160, synthesizeRows + types)
-- `src/components/editor/layers-panel/types.ts` (full read — LayerRow union)
-- `src/lib/editor/use-selection-model.ts` (lines 40-140 — Selection contract)
-- `src/lib/editor/transforms/{align,selection-bounds,element-rect-intersect,group-membership,snap-index}.ts` (relevant excerpts)
-- `src/lib/editor/watermark-adapter.ts` (referenced — the legacy adapter precedent)
-- `supabase/migrations/20260502_fork_strip_locked.sql` (lines 1-130 — fork strip pattern)
+- **Codebase inspection** (HIGH confidence — direct file reads):
+  - `src/lib/types/slide.ts` (Slide schema, decoration union, style_overrides)
+  - `src/lib/types/decoration.ts` (Decoration discriminated union)
+  - `src/lib/types/project.ts` (Project shape)
+  - `src/lib/ai/generate-slides.ts` (Gemini emit pipeline + triple-layer silent-drop pattern)
+  - `src/lib/ai/schemas.ts` (Zod schemas, AI_LUCIDE_ALLOWLIST, AI_COLOR_TOKENS, AI_POSITION_ANCHORS, DecorationEmitSchema)
+  - `src/lib/services/carousel.ts` (orchestration pattern, image fetch branches)
+  - `src/lib/render/templates/{magazine-bold,index,validate}.ts` (template registry validator)
+  - `src/lib/storage/upload-image.ts` (existing per-user-folder Storage pattern)
+  - `supabase/schema.sql` + `supabase/migrations/20260504_fork_strip_decoration_locked.sql` (projects table + fork RPC pattern)
 
-**Project documents:**
-- `.planning/PROJECT.md` (v2.11 retrospective, v2.12 active scope)
-- `.planning/MILESTONES.md` (v2.11 phase decomposition reference)
+- **Project memory** (HIGH confidence):
+  - `.planning/PROJECT.md` (v2.13 milestone goals, v2.12 close-out, TPLREND-05 invariant)
+  - `.planning/research/archive-v2.12/ARCHITECTURE.md` (decorations architecture template — stylistic reference)
 
-**Verified Satori limitations** (training-data + codebase comments cross-checked):
-- vercel/satori#573 — CSS filter dropped silently (referenced throughout v2.9 codebase)
-- vercel/satori#41 / #162 — `<defs>`/`<use>` SVG reuse limitations (mentioned in resolve-overlay.ts comments)
-- "No z-index support; layer order = DOM order" — verified in `render-slide-satori.tsx:96-97`
-
-**Confidence:** HIGH on every codebase-grounded claim (reducer case enumeration, layer order, integration points). MEDIUM on Lucide-react dynamic-import bundle weight (verify via Context7 lookup before Phase 70). HIGH on Phase ordering rationale (mirrors v2.11's proven 5-phase shape, smaller in scope).
+- **No external sources required** — this is integration architecture for an existing codebase; the question is "how does the new piece slot into the existing patterns," and the existing patterns are fully documented in code.
