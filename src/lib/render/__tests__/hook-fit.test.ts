@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getHookFontSize, hasHookFit, HOOK_FIT_TEMPLATE_IDS } from '../hook-fit'
+import { getHookFontSize, hasHookFit, HOOK_FIT_TEMPLATE_IDS, clampManualHookSize } from '../hook-fit'
 import { templates } from '../templates'
 
 describe('hook-fit registry', () => {
@@ -105,6 +105,43 @@ describe('hook-fit registry', () => {
     expect(getHookFontSize('news-drop', undefined, 110)).toBe(110)
     expect(getHookFontSize('news-drop', '', 110)).toBe(110)
     expect(getHookFontSize('news-drop', '   ', 110)).toBe(110) // trim + len 0
+  })
+
+  // quick-260510-export-overlap regression: a too-big manual hook_font_size on
+  // a news layout must be clamped so hook + body don't overlap in export.
+  // Real reported bug: news-cyan cover, hook "YOUR BRAIN IS OUTSOURCING
+  // THINKING TO AI" (40 chars), manual hook_font_size: 114 → wraps to 5 lines
+  // and collides with body at bodyY=83%. autoFit returns 50; clamp at 1.6× →
+  // 80, which fits in 3 lines.
+  describe('clampManualHookSize', () => {
+    it('passes through manual size unchanged for templates without hook-fit', () => {
+      expect(clampManualHookSize(120, 'highlight-bar', 'anything', 88)).toBe(120)
+      expect(clampManualHookSize(200, 'y2k-pop', 'anything', 96)).toBe(200)
+    })
+
+    it('clamps oversized manual size on news templates with long hook', () => {
+      // news-cyan, 40-char hook → autoFit step 0.45 → 50px. Cap = 1.6 × 50 = 80.
+      expect(
+        clampManualHookSize(114, 'news-cyan', 'YOUR BRAIN IS OUTSOURCING THINKING TO AI', 110),
+      ).toBe(80)
+      // news-drop, same pattern.
+      expect(clampManualHookSize(150, 'news-drop', 'A'.repeat(40), 110)).toBe(80)
+    })
+
+    it('leaves manual size unchanged when below the clamp', () => {
+      // news-cyan, 40 chars: cap = 80. Manual 64 < 80 → passthrough.
+      expect(
+        clampManualHookSize(64, 'news-cyan', 'YOUR BRAIN IS OUTSOURCING THINKING TO AI', 110),
+      ).toBe(64)
+    })
+
+    it('scales with autoFit per template (short hooks get higher cap)', () => {
+      // news-drop, 14-char hook → autoFit 110px. Cap = 1.6 × 110 = 176.
+      // Manual 200 > 176 → clamped to 176.
+      expect(clampManualHookSize(200, 'news-drop', 'A'.repeat(14), 110)).toBe(176)
+      // Manual 150 < 176 → passthrough.
+      expect(clampManualHookSize(150, 'news-drop', 'A'.repeat(14), 110)).toBe(150)
+    })
   })
 
   // Regression guard — every template's actual sample.hook_text must resolve

@@ -5,7 +5,7 @@ import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
-import { getHookFontSize, hasHookFit } from './hook-fit'
+import { getHookFontSize, hasHookFit, clampManualHookSize } from './hook-fit'
 // Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
 // decoration → DOM markup. BOTH renderers (this satori path + slide-preview.tsx
 // React preview) import renderDecoration from this exact module path.
@@ -148,23 +148,6 @@ export function buildSlideElement(
   const bodyTextAlign = bodyBoxAlign ?? slideAlign
   // Kept for unrelated callers below (custom-text path uses its own ct.text_align).
   const textAlign = slideAlign
-  // Templates with a hook-fit registry entry auto-shrink hook size for long
-  // headlines. Manual override always wins.
-  const baseHookSizePx = parseInt(template.hookFontSize, 10) || 64
-  const autoFitHookPx =
-    overrides.hook_font_size == null && hasHookFit(template.id)
-      ? getHookFontSize(template.id, slide.hook_text, baseHookSizePx)
-      : null
-  const hookFontSize = overrides.hook_font_size
-    ? overrides.hook_font_size
-    : autoFitHookPx != null
-      ? autoFitHookPx
-      : baseHookSizePx
-  const bodyFontSize = overrides.body_font_size
-    ? overrides.body_font_size
-    : parseInt(template.bodyFontSize, 10) || 32
-
-  const accentColor = template.accentColor ?? template.textColor
 
   // Phase 45 mutual-exclusion gate: when a template declares an explicit
   // `backgroundMode` (premium tier — magazine-bold, tr3nding-news, documentary),
@@ -184,6 +167,30 @@ export function buildSlideElement(
     !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
       ? NEWS_LAYOUT[overrides.layout]
       : null
+
+  // Templates with a hook-fit registry entry auto-shrink hook size for long
+  // headlines. quick-260510-export-overlap: in news layouts (where bodyY is
+  // fixed by preset), manual `hook_font_size` is also clamped to 1.6× the
+  // auto-fit value — without this cap, a too-big manual size wraps the hook
+  // into more lines than the (bodyY - hookY) zone can hold and produces
+  // exports where hook + body overlap.
+  const baseHookSizePx = parseInt(template.hookFontSize, 10) || 64
+  const autoFitHookPx =
+    overrides.hook_font_size == null && hasHookFit(template.id)
+      ? getHookFontSize(template.id, slide.hook_text, baseHookSizePx)
+      : null
+  const hookFontSize = overrides.hook_font_size
+    ? newsZone
+      ? clampManualHookSize(overrides.hook_font_size, template.id, slide.hook_text, baseHookSizePx)
+      : overrides.hook_font_size
+    : autoFitHookPx != null
+      ? autoFitHookPx
+      : baseHookSizePx
+  const bodyFontSize = overrides.body_font_size
+    ? overrides.body_font_size
+    : parseInt(template.bodyFontSize, 10) || 32
+
+  const accentColor = template.accentColor ?? template.textColor
   const useBgMode = isTemplateBgMode
   const useBottomCard =
     useBgMode && template.backgroundMode === 'image-with-bottom-card'

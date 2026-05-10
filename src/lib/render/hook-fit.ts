@@ -142,3 +142,42 @@ export function hasHookFit(templateId: string): boolean {
 
 // Test-only export so the unit suite can iterate the registry.
 export const HOOK_FIT_TEMPLATE_IDS = Object.keys(HOOK_FIT_REGISTRY)
+
+/**
+ * quick-260510-export-overlap: cap manual `hook_font_size` overrides in
+ * layouts where bodyY is fixed by a preset (NEWS_LAYOUT cover/body).
+ *
+ * Without this cap, a user-set hook size that exceeds what auto-fit produces
+ * causes the hook to wrap into more lines than the (bodyY - hookY) zone can
+ * hold, and the export renders hook + body overlapping. (Reproduced on
+ * news-cyan cover layout with hook_font_size: 114 — wraps to 5 lines and
+ * collides with body at bodyY=84%.)
+ *
+ * Both renderers (render-slide-satori.tsx + slide-preview.tsx) call this
+ * helper at the same point in the resolution pipeline (TPLREND-05 parity
+ * contract — both must produce identical clamped fontSize).
+ *
+ * Behavior:
+ *   - When `hookFit` is unknown for the template, returns `manualSize`
+ *     unchanged (templates outside the registry have no calibrated cap).
+ *   - When `hookFit` is registered, allows the manual override to grow
+ *     up to MANUAL_GROWTH_MAX × the auto-fit value. Past that, the hook
+ *     would wrap into the body zone in nearly all cases.
+ *
+ * The 1.6× constant is calibrated empirically for news templates: at 1.6×
+ * the auto-fit, hook wraps to ≤4 lines on the cover layout (24% zone =
+ * 460px on 1920 canvas, lineHeight 1.1 → 4 × 1.1 × 104 = 458px).
+ */
+const MANUAL_GROWTH_MAX = 1.6
+
+export function clampManualHookSize(
+  manualSize: number,
+  templateId: string,
+  hookText: string | null | undefined,
+  baseSize: number,
+): number {
+  if (!hasHookFit(templateId)) return manualSize
+  const autoFit = getHookFontSize(templateId, hookText, baseSize)
+  const cap = Math.round(autoFit * MANUAL_GROWTH_MAX)
+  return Math.min(manualSize, cap)
+}
