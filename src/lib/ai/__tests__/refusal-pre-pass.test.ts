@@ -10,7 +10,7 @@
 //   - Test 6:  graceful degradation — malformed JSON
 //   - Test 7:  graceful degradation — wrong-length array (length mismatch)
 //   - Test 8:  graceful degradation — non-boolean fields (type mismatch)
-//   - Test 9:  no-real-Gemini gate (no GEMINI_API_KEY in this file)
+//   - Test 9:  no-real-Gemini gate (no real-API env var read in this file)
 //   - Test 10: single Gemini call per batch (NOT N calls — efficiency invariant)
 //   - Test 11: empty input — returns empty result without calling Gemini
 //   - Test 12: function never throws (graceful degradation contract)
