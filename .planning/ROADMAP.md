@@ -61,7 +61,11 @@
   3. `git grep "reference_artist\|reference_brand\|copy_exactly\|style_freetext"` returns zero matches in production source; only `voice_note` is free-text (sanitized, ≤200 chars, single line); all other StyleSpec fields are closed enums backed by existing v2.9/v2.12 catalogs.
   4. The Zod validator at the AI-ingest boundary silently drops unknown enum values and increments a silent-drop counter (mirror v2.12 DECOR-05); upload ≠ extraction trigger (user must explicitly click "Extract style").
   5. `projects.style_spec jsonb` and `projects.reference_assets jsonb` columns exist via migration; `Slide` type has zero new fields (StyleSpec consumed entirely server-side at emit time).
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 74-01-PLAN.md — StyleSpec type + Zod validator + silent-drop counter + closed-enum CI grep gate (STYLESPEC-01, 03–10, PARITY-03, PARITY-05)
+  - [ ] 74-02-PLAN.md — Migration: projects.style_spec + reference_assets jsonb columns + slide-references private bucket + per-user RLS (STYLESPEC-02, REF-01, REF-07)
+  - [ ] 74-03-PLAN.md — Signed-URL upload route + ReferenceImageUploader component (drag-drop, 1–8 cap, REF-06 separation) (REF-02, REF-03, REF-04, REF-05, REF-06)
+  - [ ] 74-04-PLAN.md — PTF baseline test (12 templates × 2 renderers) + Slide-zero-new-fields invariant (STYLESPEC-11, STYLESPEC-12, PARITY-01)
 
 ### Phase 75: Vision Extraction + Two-Phase Architecture + Safety Config
 **Goal**: Stand up the extraction endpoint with the load-bearing two-phase firewall (vision → validated spec → emit; raw image bytes never reach text emit), refusal pre-pass for logos/faces/watermarks, and structured safety-block routing.
@@ -130,7 +134,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 73. Cost & Preprocessing Rails (Foundation) | 0/3 | Not started | — |
-| 74. Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline | 0/? | Not started | — |
+| 74. Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline | 0/4 | Not started | — |
 | 75. Vision Extraction + Two-Phase Architecture + Safety Config | 0/? | Not started | — |
 | 76. Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery | 0/? | Not started | — |
 | 77. Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff | 0/? | Not started | — |
