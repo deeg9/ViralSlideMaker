@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.12
-milestone_name: Shapes & Icons (Decoration Primitives)
-status: completed
-stopped_at: "v2.12 milestone archived 2026-05-04. All 81/81 reqs satisfied. 52 gates / 347 ship-gate tests GREEN. 6 manual QA smoke tests awaiting user. Run /gsd-new-milestone to start v2.13."
-last_updated: "2026-05-04T00:00:00.000Z"
-last_activity: 2026-05-04 — v2.12 milestone archived (81/81 reqs, 6 phases, 19 plans, ~875 tests added)
+milestone: v2.13
+milestone_name: Style-from-Reference Generation
+status: planning
+last_updated: "2026-05-10T18:47:51.552Z"
+last_activity: 2026-05-10
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -26,14 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-04 — v2.12 milestone started)
 
 ## Current Position
 
-Phase: 72 — Interactive Rotation Handles + Rotation-Aware AABB **COMPLETE** (3/3 plans shipped — PARITY-08 closed; v2.12 milestone READY-TO-SHIP)
-Plan: 72-03 SHIPPED (Wave 3 — PTF15 45°-rotated arrow byte-identity baseline + V2.12-SHIP-GATES.md final close-out). NEW src/lib/render/__tests__/parity.template-fingerprint-decorations-rotated.test.tsx: 7 PTF15 tests (1 PRIMARY 45° + 4 defense-in-depth angles 30°/90°/-45°/180° + 1 rotation=0 sanity for transform-omitted branch + 1 stability test) covering arrow ShapeDecoration with explicit hex fill #FF0000 + solid blue stroke (PCL12 invariant). Each test asserts BOTH cross-renderer byte-identity (expect(preview).toBe(satori)) + committed snapshot pin (toMatchSnapshot, defense-in-depth, mirror PTF13/14/17/18 pattern); 6 snapshots committed; second-run stability verified. V2.12-SHIP-GATES.md updated: PTF15 row DEFERRED → GREEN (commit ef208e9, 7 tests); PRA13 row added (BULK_ROTATE multi-select reducer, Phase 72-01); NEW Phase 72-01 transforms section (5 gates / 36 tests + PRA13 net delta) for bulk-rotate + rotated-aabb + selection-bounds-rotated + align-rotated + element-rect-intersect-rotated; NEW Phase 72-02 handle UI section (3 gates / 24 tests) for DecorationRotationHandle + slide-preview mount + DecorationCard rotation input. Combined PTF count refreshed 111 → 118; total ship-gate count refreshed 275 → 347 across 24 files; aggregate gates 42 → 52; closing milestone status changed to "v2.12 READY-TO-SHIP". Pre-existing 33 failures in src/__tests__/ legacy tests (Stripe / Pexels / project CRUD / Phase 45-46 Satori snapshots) confirmed pre-dating Phase 72 via git stash test; documented as out-of-scope deferred items in doc footnote (NOT v2.12 ship-gates). Closes PARITY-08 (last open v2.12 byte-identity gate); tsc baseline 17 preserved. 2 atomic commits `ef208e9` (test) / `9d16c5a` (docs).
-Plan: 72-02 SHIPPED (Wave 2 — DecorationRotationHandle 16px overlay + slide-preview mount + DecorationCard numeric rotation input). 12 + 6 + 6 = 24 tests GREEN; T-72-05 mitigated (handle gated to editable={true} branch only). 3 atomic commits `937ced2` / `a249bbf` / `0aaa00e` + SUMMARY `11c01e5`.
-Plan: 72-01 SHIPPED (Wave 1 — BULK_ROTATE multi-select reducer + 4 rotation-aware AABB transform helpers + PRA13 audit extension). 53 tests GREEN across 6 test files. 2 atomic commits `4cda151` (reducer) / `c62007c` (transforms) + SUMMARY `d415af2`.
-Plan: 71-02 SHIPPED (Wave 2 — AI-05 advisory monoculture gate + MIGR-01 fork RPC strip-decoration-locked migration). decoration-diversity-check.ts: pure helper exporting decorationDiversityCheck(slides, opts?) + DEFAULT_MONOCULTURE_THRESHOLD=0.60 (v3.0+ promote-to-fail anchor); per-discriminator dominance (icons + shapes are independent populations); ≥60% triggers console.warn with [decoration-diversity] prefix; never blocks; never throws; wired into generate-slides.ts post-ingest (3 LOC). 20260504_fork_strip_decoration_locked.sql: CREATE OR REPLACE _strip_locked_from_slide_data adding 'decorations' to FOREACH ARRAY[]; fork_published_carousel body unchanged (helper update propagates). T-71-09 mitigated (forker inherits decoration positions/colors but never lock state). 20 new tests (12 diversity + 8 migration) GREEN; tsc baseline 17 preserved. Closes AI-05 + MIGR-01 (2 reqs). 2 atomic commits `cec0791` (diversity) / `ffaef03` (migration).
-Plan: 71-01 SHIPPED (Wave 1 — DecorationEmitSchema closed-enum AI emit + resolveAIDecoration token/anchor resolvers + Gemini responseSchema lift + post-Zod-parse ingest adapter). DecorationEmitSchema is the closed-enum SUBSET of full DecorationSchema; AI emits NAMED COLOR TOKENS (never raw hex) + SEMANTIC POSITION ANCHORS (never raw % coords) + closed 100-icon PascalCase allowlist (subset of Phase 69's 118-name registry; AI_LUCIDE_ALLOWLIST). 6 color tokens (accent / palette-vibrant / palette-dark-muted / palette-light / on-light / on-dark) + 7 anchors (top/bottom/center × left/right/center). NEW src/lib/ai/resolve-ai-decoration.ts: pure-function resolvers (resolveAIColor / resolveAIPosition / resolveAIDecoration / buildAIDecorationId) + locked AI_POSITION_RECTS safe-zone offsets that explicitly avoid central 24..76% hook+body band. generate-slides.ts: responseSchema gains slides[].decorations field (maxItems='2' soft cap); post-CarouselSchema.parse ingest pass runs triple-layer silent-drop pipeline (DecorationEmitSchema.safeParse → resolveAIDecoration try/catch → DecorationSchema.safeParse → resolved.length<2 hard cap). SlideContentSchema extended with loose `decorations` + `style_overrides` passthrough. 35 new tests (12 schema + 13 resolver + 10 ingest); 113/113 AI tests GREEN; 73/73 PTF16 idempotent-absence baseline preserved (slides without AI-emitted decorations still render byte-identical); tsc baseline 17 preserved. Closes AI-01..04 (4/7 phase reqs). 3 atomic commits `4bf0900` (schema) / `a84ab87` (resolver) / `f255aa9` (ingest).
-Phase 72 status: COMPLETE; PARITY-08 closed (PTF15 GREEN). v2.12 milestone (Phases 67-72) is officially READY-TO-SHIP per .planning/phases/71-…/71-V2.12-SHIP-GATES.md (52 gates × 347 tests GREEN across 24 files); 7 manual QA smoke tests pending user (Lucide picker scroll, Gemini AI-emit live, fork RPC live, v2.11→v2.12 load idempotency, rotation handle drag-snap, multi-select rotation, rotated decoration PNG export parity).
-Last activity: 2026-05-03 — Plan 72-03 SHIPPED (PTF15 45° rotated arrow byte-identity + V2.12-SHIP-GATES.md final close-out; v2.12 milestone READY-TO-SHIP)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-10 — Milestone v2.13 started
 
 ### Phase 69 carry-over
 
