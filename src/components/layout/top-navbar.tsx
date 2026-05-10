@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { ProfileMenu } from './profile-menu'
+import { useNavigationLoader } from './navigation-loader'
 
 interface TopNavbarProps {
   variant: 'marketing' | 'app'
@@ -28,9 +29,28 @@ function Logo({ size = 32 }: { size?: number }) {
   )
 }
 
+// Map nav-icon keys to the loading message shown while routing there.
+const NAV_LOAD_MESSAGES: Record<string, string> = {
+  dashboard: 'Loading dashboard…',
+  create: 'Loading…',
+  explore: 'Loading explore…',
+}
+
 export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }: TopNavbarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { startNavigation } = useNavigationLoader()
+  // Skip the overlay when the click would land on the page we're already on
+  // (e.g. clicking "Dashboard" while on /dashboard) — Next short-circuits the
+  // navigation and never commits, so the overlay would hang until the 15s
+  // safety timeout. Same for ?new=1 toggling the create dialog open.
+  function navigateMaybe(href: string, message: string) {
+    const isCreate = href.includes('new=1')
+    const onCreate = searchParams.get('new') === '1'
+    const targetPath = href.split('?')[0]
+    if (targetPath === pathname && (isCreate ? onCreate : !onCreate)) return
+    startNavigation(message)
+  }
 
   if (variant === 'marketing') {
     return (
@@ -65,7 +85,10 @@ export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }:
     <header className="sticky top-0 z-30 bg-[#fff8f7]/80 backdrop-blur-md shadow-[0px_20px_40px_rgba(61,0,0,0.06)]">
       <div className="flex justify-between items-center w-full px-8 py-3">
         {/* Left: Logo */}
-        <Link href="/dashboard">
+        <Link
+          href="/dashboard"
+          onClick={() => navigateMaybe('/dashboard', NAV_LOAD_MESSAGES.dashboard)}
+        >
           <Logo size={30} />
         </Link>
 
@@ -80,6 +103,7 @@ export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }:
                   key={item.key}
                   href={item.href}
                   title={item.label}
+                  onClick={() => navigateMaybe(item.href, NAV_LOAD_MESSAGES[item.key])}
                   className={`p-2.5 rounded-full transition-colors ${
                     isActive
                       ? 'bg-[#fadbdb] text-[#3d0000]'
