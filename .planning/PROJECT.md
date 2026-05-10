@@ -11,7 +11,22 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.12 Shapes & Icons (Decoration Primitives) (2026-05-04)
-**Current Milestone:** Planning next milestone (run /gsd-new-milestone to start)
+**Current Milestone:** v2.13 Style-from-Reference Generation
+
+---
+
+## Current Milestone: v2.13 Style-from-Reference Generation
+
+**Goal:** Let users upload reference slideshow images and generate a new slideshow that mimics the reference's full design template (palette, type, layout, shape/decoration patterns) with their own content.
+
+**Target features:**
+- Reference upload — accept 1–N slideshow images per generation
+- Vision-based style extraction — vision LLM emits a structured "style spec" (palette, type pairing, hook position/framing, body density, shape language, decoration patterns, slide-to-slide structure)
+- Full-template emit — apply extracted spec at high fidelity (tokens + structure + decoration), not just colors/fonts
+- Two content paths — (a) user types a new topic → AI generates new copy in the reference's style, (b) user pastes their own copy → AI applies style only
+- Editor handoff — result lands in the existing project editor for refinement (consistent with current Gemini emit flow)
+
+**Key context:** Built on the existing Gemini AI emit pipeline + decoration primitives shipped in v2.12. Vision capable model required (Gemini 2.5 Flash already supports vision per project memory — cost-aligned). Output framing: "inspired by this style" rather than "1:1 clone" while delivering high template fidelity. Pre-PMF wedge feature — ship lean.
 
 ---
 
@@ -525,4 +540,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-04 — v2.12 Shapes & Icons (Decoration Primitives) milestone shipped (81/81 reqs, 6 phases, 19 plans, ~80 commits, ~875 tests added, 17 baseline tsc errors maintained)*
+*Last updated: 2026-05-10 — v2.13 Style-from-Reference Generation milestone started (style transfer wedge: vision LLM extracts template from uploaded slideshow images and applies to new content)*
