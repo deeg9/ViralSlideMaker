@@ -7,6 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "lint:gates": "bash scripts/grep-gates/closed-enum-styleSpec.sh",
     "thumbs": "tsx scripts/generate-template-thumbnails.ts",
     "textures": "tsx scripts/build-textures.ts",
     "shapes": "tsx scripts/build-shapes.ts",
