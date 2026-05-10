@@ -11,49 +11,32 @@ function fontStack(name: string | null | undefined): string | undefined {
 /**
  * Merge brand kit overrides onto a base template.
  *
- * Precedence chain:
- *   template defaults -> brand kit overrides -> per-slide style_overrides
- *   (style_overrides are handled in buildSlideHtml; this function covers the first two layers)
+ * quick-260510-brand-kit-scope: brand kit overrides ONLY apply to the
+ * synthesized brand-kit template (id === BRAND_KIT_TEMPLATE_ID). For any
+ * built-in template, this is now a passthrough — picking "news-cyan"
+ * means getting news-cyan's exact design, not news-cyan with the brand
+ * kit's accent + background painted over it.
  *
- * Returns the template unchanged when brandKit is null OR when the template
- * declares `paletteMode: 'fixed'` — those templates (paper-essay,
- * brutalist-grid) promise a locked typographic identity. Letting a brand
- * kit's `background_color` / `text_color` / fonts paint over them produced
- * the user-reported divergence where the browser preview rendered a cream
- * serif paper-essay but the Satori export came back as a dark-navy
- * sans-serif slab — the preview component does not apply this merge, so
- * the brand kit's identity only leaked into the export path.
+ * Why: previously a user with a brand kit that set
+ * `accent_color: '#ff3b30'` + `background_color: '#1a1a2e'` saw the
+ * editor render news-cyan correctly (cyan + black) but the export came
+ * back red + navy because /api/render and the download endpoint both
+ * called this merge function while the editor preview did not. The user
+ * expected `news-cyan = cyan accent`, not "cyan unless you have a brand
+ * kit, in which case maybe red." Brand kit theming is now reserved for
+ * the explicit "Brand Kit" template path
+ * (BRAND_KIT_TEMPLATE_ID → synthesizeBrandKitTemplate).
+ *
+ * The function is kept (rather than removed) so callers don't need to
+ * change — the precedence chain still reads cleanly as
+ * `template -> mergeWithBrandKit -> style_overrides`, the merge layer
+ * just no-ops for built-in templates now.
  */
 export function mergeWithBrandKit(
   template: SlideTemplate,
-  brandKit: BrandKit | null
+  _brandKit: BrandKit | null
 ): SlideTemplate {
-  if (!brandKit) return template
-  if (template.paletteMode === 'fixed') return template
-
-  // Body / general font: prefer body_font_family, fall back to legacy font_family.
-  const bodyFont = fontStack(brandKit.body_font_family ?? brandKit.font_family)
-  // Heading font: prefer heading_font_family; if absent, leave undefined so the
-  // renderer falls back to template.fontFamily (no surprise override on built-ins).
-  const headingFont = fontStack(brandKit.heading_font_family)
-
-  return {
-    ...template,
-    ...(brandKit.text_color ? { textColor: brandKit.text_color } : {}),
-    ...(brandKit.background_color
-      ? { backgroundColor: brandKit.background_color }
-      : {}),
-    ...(bodyFont ? { fontFamily: bodyFont } : {}),
-    ...(headingFont ? { headingFontFamily: headingFont } : {}),
-    ...(brandKit.primary_color ? { overlayColor: brandKit.primary_color } : {}),
-    ...(brandKit.accent_color ? { accentColor: brandKit.accent_color } : {}),
-    ...(brandKit.text_align ? { textAlign: brandKit.text_align } : {}),
-    ...(brandKit.text_position ? { textPosition: brandKit.text_position } : {}),
-    ...(brandKit.hook_style ? { hookStyle: brandKit.hook_style } : {}),
-    ...(brandKit.overlay_opacity_pct != null
-      ? { overlayOpacity: brandKit.overlay_opacity_pct / 100 }
-      : {}),
-  }
+  return template
 }
 
 /**
