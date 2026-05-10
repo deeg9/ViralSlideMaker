@@ -155,4 +155,98 @@
 
 ## Traceability
 
-(Filled by gsd-roadmapper after roadmap creation.)
+**Coverage:** 75/75 v2.13 reqs mapped to phases 73–79 (100%). Zero orphans, zero duplicates. Mapping locked 2026-05-10 by gsd-roadmapper.
+
+| Requirement | Phase | Status | Notes |
+|-------------|-------|--------|-------|
+| COST-01 | Phase 73 | Pending | sharp ≤1024×1024 downscale |
+| COST-02 | Phase 73 | Pending | HEIC → JPEG@85 transcode |
+| COST-03 | Phase 73 | Pending | `style_spec_cache` table (SHA-256 keyed) |
+| COST-04 | Phase 73 | Pending | 5 calls × 3 images = 15/day cap |
+| COST-05 | Phase 73 | Pending | Daily Vercel cron bill-alarm |
+| COST-06 | Phase 73 | Pending | Charge-then-refund ledger (v2.6 mirror) |
+| COST-07 | Phase 73 | Pending | Retry cap = 1 (not 3) |
+| REF-01 | Phase 74 | Pending | `slide-references` private bucket |
+| REF-02 | Phase 74 | Pending | Signed-URL upload (avoid 4MB cap) |
+| REF-03 | Phase 74 | Pending | 1–8 images per generation |
+| REF-04 | Phase 74 | Pending | Drag-drop + click + validation |
+| REF-05 | Phase 74 | Pending | 20MB per file pre-preprocessing |
+| REF-06 | Phase 74 | Pending | Upload ≠ extraction trigger |
+| REF-07 | Phase 74 | Pending | `projects.reference_assets jsonb` |
+| STYLESPEC-01 | Phase 74 | Pending | `StyleSpec` TypeScript type |
+| STYLESPEC-02 | Phase 74 | Pending | `projects.style_spec jsonb` (nullable) |
+| STYLESPEC-03 | Phase 74 | Pending | Closed-enum `palette.mode` |
+| STYLESPEC-04 | Phase 74 | Pending | Closed-enum `typography.hookFontCategory` |
+| STYLESPEC-05 | Phase 74 | Pending | Closed-enum `preferredLucide` (v2.12 100-icon) |
+| STYLESPEC-06 | Phase 74 | Pending | Closed-enum `preferredShapes` (v2.12 8-shape) |
+| STYLESPEC-07 | Phase 74 | Pending | Closed-enum `layout.hookPosition` |
+| STYLESPEC-08 | Phase 74 | Pending | Closed-enum `imagery.treatmentPreset` (v2.9) |
+| STYLESPEC-09 | Phase 74 | Pending | `voice_note` ONLY free-text (sanitized ≤200) |
+| STYLESPEC-10 | Phase 74 | Pending | Zod silent-drop + counter (DECOR-05 mirror) |
+| STYLESPEC-11 | Phase 74 | Pending | PTF baseline locked BEFORE feature code |
+| STYLESPEC-12 | Phase 74 | Pending | Zero new Slide fields (TPLREND-05 by construction) |
+| EXTRACT-01 | Phase 75 | Pending | `extract-style-spec.ts` endpoint |
+| EXTRACT-02 | Phase 75 | Pending | Two-phase firewall (vision → validated → emit) |
+| EXTRACT-03 | Phase 75 | Pending | Gemini 2.5 Flash + responseSchema + BLOCK_ONLY_HIGH |
+| EXTRACT-04 | Phase 75 | Pending | `node-vibrant` for palette (deterministic) |
+| EXTRACT-05 | Phase 75 | Pending | Refusal pre-pass (logo/face/watermark flags) |
+| EXTRACT-06 | Phase 75 | Pending | 10s Promise.race timeout |
+| EXTRACT-07 | Phase 75 | Pending | `promptFeedback.blockReason` structured response |
+| EXTRACT-08 | Phase 75 | Pending | Per-extraction cost telemetry |
+| PREVIEW-01 | Phase 76 | Pending | Mandatory non-skippable spec-preview panel |
+| PREVIEW-02 | Phase 76 | Pending | Palette swatches with hex labels |
+| PREVIEW-03 | Phase 76 | Pending | Font category badges |
+| PREVIEW-04 | Phase 76 | Pending | Layout sketch |
+| PREVIEW-05 | Phase 76 | Pending | Sanitized voice_note caption |
+| PREVIEW-06 | Phase 76 | Pending | Per-aspect checkboxes |
+| PREVIEW-07 | Phase 76 | Pending | Re-extract (2 free retries) |
+| PREVIEW-08 | Phase 76 | Pending | Remix with Brand Kit toggle |
+| PREVIEW-09 | Phase 76 | Pending | Sticky reference thumbnails |
+| PREVIEW-10 | Phase 76 | Pending | Refusal-warning inline surface |
+| PREVIEW-11 | Phase 76 | Pending | Visible credit cost pre-Generate |
+| PREVIEW-12 | Phase 76 | Pending | Safety-block recovery guidance |
+| EMIT-01 | Phase 77 | Pending | `generate-from-style-spec.ts` endpoint |
+| EMIT-02 | Phase 77 | Pending | `generateCarouselFromReferences()` orchestrator |
+| EMIT-03 | Phase 77 | Pending | Mode `ai-copy` (topic → AI copy in reference voice) |
+| EMIT-04 | Phase 77 | Pending | Mode `user-copy` (style-only application) |
+| EMIT-05 | Phase 77 | Pending | Spec REPLACES template `aiVoiceNote` |
+| EMIT-06 | Phase 77 | Pending | CI 12K-token prompt-budget gate |
+| EMIT-07 | Phase 77 | Pending | Projector emits round-trip-safe values only |
+| EMIT-08 | Phase 77 | Pending | Triple-layer silent-drop + emit-boundary counter |
+| EMIT-09 | Phase 77 | Pending | `style-spec-roundtrip.test.ts` (PTF17 mirror) |
+| EMIT-10 | Phase 77 | Pending | Single dispatch + single pushHistory per gen |
+| EDITOR-01 | Phase 77 | Pending | Lands in existing editor (no new wiring) |
+| EDITOR-02 | Phase 77 | Pending | "From references" dashboard badge |
+| EDITOR-03 | Phase 77 | Pending | Persistent reference thumbnails on detail page |
+| REMIX-01 | Phase 78 | Pending | `published_carousels.style_spec` + `reference_assets` columns |
+| REMIX-02 | Phase 78 | Pending | Publish snapshots spec + assets |
+| REMIX-03 | Phase 78 | Pending | Fork RPC copies spec + assets |
+| REMIX-04 | Phase 78 | Pending | Forker sees inherited reference thumbnails |
+| REMIX-05 | Phase 78 | Pending | "Regenerate from references" action on fork |
+| LEGAL-01 | Phase 79 | Pending | ToS clickwrap on first upload |
+| LEGAL-02 | Phase 79 | Pending | `style_reference_uploads` audit table (12mo retention) |
+| LEGAL-03 | Phase 79 | Pending | "Inspired by" framing in all UI copy |
+| LEGAL-04 | Phase 79 | Pending | DMCA process docs |
+| LEGAL-05 | Phase 79 | Pending | ToS document update (Canva AI Product Terms pattern) |
+| LEGAL-06 | Phase 79 | Pending | Closed-enum structural defense (covered by STYLESPEC-03..09) |
+| PARITY-01 | Phase 74 | Pending | Covered by STYLESPEC-11 (PTF baseline lock) |
+| PARITY-02 | Phase 77 | Pending | Covered by EMIT-09 (spec→emit→render byte-identity) |
+| PARITY-03 | Phase 74 | Pending | Silent-drop counter introduced (STYLESPEC-10); verified at emit boundary in Phase 77 (EMIT-08) |
+| PARITY-04 | Phase 73 | Pending | 9:16 aspect-normalize regression in sharp preprocessing (defends v2.12 ASPECT-01 class) |
+| PARITY-05 | Phase 74 | Pending | Closed-enum CI grep gate introduced (load-bearing on STYLESPEC-03..09); verified end-to-end in Phase 79 |
+
+### Coverage Summary
+
+| Category | Count | Phase(s) | Status |
+|----------|-------|----------|--------|
+| COST | 7 | 73 | Pending |
+| REF | 7 | 74 | Pending |
+| STYLESPEC | 12 | 74 | Pending |
+| EXTRACT | 8 | 75 | Pending |
+| PREVIEW | 12 | 76 | Pending |
+| EMIT | 10 | 77 | Pending |
+| EDITOR | 3 | 77 | Pending |
+| REMIX | 5 | 78 | Pending |
+| LEGAL | 6 | 79 | Pending |
+| PARITY | 5 | 73, 74, 77, 79 | Pending |
+| **TOTAL** | **75** | **73–79** | **0/75 complete** |
