@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
 import { GenerationForm } from '@/components/slides/generation-form'
+import { ProjectNamingDialog } from '@/components/projects/project-naming-dialog'
 import { SlideEditor } from '@/components/editor/slide-editor'
 import { getUserTier } from '@/lib/credits/check-credits'
 import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
@@ -97,6 +98,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         hasSlides={false}
         userTier={tier}
         brandKit={brandKit}
+      />
+
+      {/* quick-260510-modal-on-prompt-page: invisible until ?naming=1 is in
+          the URL — StartNewProject lands here right after creating the row,
+          and the dialog auto-opens for the user to enter a real title. */}
+      <ProjectNamingDialog
+        projectId={p.id}
+        initialTitle={p.title}
+        initialDescription={p.description ?? undefined}
       />
     </div>
   )

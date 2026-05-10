@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { ProfileMenu } from './profile-menu'
 import { useNavigationLoader } from './navigation-loader'
+import { StartNewProject } from '@/components/projects/start-new-project'
 
 interface TopNavbarProps {
   variant: 'marketing' | 'app'
@@ -14,11 +15,9 @@ interface TopNavbarProps {
   signedIn?: boolean
 }
 
-const navItems = [
-  { key: 'dashboard', icon: 'dashboard',     label: 'Dashboard', href: '/dashboard' },
-  { key: 'create',    icon: 'add_circle',    label: 'Create',    href: '/dashboard?new=1' },
-  { key: 'explore',   icon: 'explore',       label: 'Explore',   href: '/explore' },
-] as const
+// quick-260510-modal-on-prompt-page: Create is no longer a route — it
+// triggers StartNewProject inline. Dashboard + Explore are inlined as Link
+// items in the JSX below.
 
 function Logo({ size = 32 }: { size?: number }) {
   return (
@@ -32,23 +31,19 @@ function Logo({ size = 32 }: { size?: number }) {
 // Map nav-icon keys to the loading message shown while routing there.
 const NAV_LOAD_MESSAGES: Record<string, string> = {
   dashboard: 'Loading dashboard…',
-  create: 'Loading…',
   explore: 'Loading explore…',
 }
 
 export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }: TopNavbarProps) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const { startNavigation } = useNavigationLoader()
   // Skip the overlay when the click would land on the page we're already on
   // (e.g. clicking "Dashboard" while on /dashboard) — Next short-circuits the
   // navigation and never commits, so the overlay would hang until the 15s
   // safety timeout. Same for ?new=1 toggling the create dialog open.
   function navigateMaybe(href: string, message: string) {
-    const isCreate = href.includes('new=1')
-    const onCreate = searchParams.get('new') === '1'
     const targetPath = href.split('?')[0]
-    if (targetPath === pathname && (isCreate ? onCreate : !onCreate)) return
+    if (targetPath === pathname) return
     startNavigation(message)
   }
 
@@ -78,8 +73,7 @@ export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }:
     )
   }
 
-  const isCreate = searchParams.get('new') === '1'
-  const isDashboard = pathname === '/dashboard' && !isCreate
+  const isDashboard = pathname === '/dashboard'
 
   return (
     <header className="sticky top-0 z-30 bg-[#fff8f7]/80 backdrop-blur-md shadow-[0px_20px_40px_rgba(61,0,0,0.06)]">
@@ -96,24 +90,46 @@ export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }:
         <div className="flex items-center gap-2">
           {/* Nav icons (hidden on mobile) */}
           <div className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
-              const isActive = item.key === 'dashboard' ? isDashboard : isCreate
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  title={item.label}
-                  onClick={() => navigateMaybe(item.href, NAV_LOAD_MESSAGES[item.key])}
-                  className={`p-2.5 rounded-full transition-colors ${
-                    isActive
-                      ? 'bg-[#fadbdb] text-[#3d0000]'
-                      : 'text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000]'
-                  }`}
+            {/* Dashboard link */}
+            <Link
+              href="/dashboard"
+              title="Dashboard"
+              onClick={() => navigateMaybe('/dashboard', NAV_LOAD_MESSAGES.dashboard)}
+              className={`p-2.5 rounded-full transition-colors ${
+                isDashboard
+                  ? 'bg-[#fadbdb] text-[#3d0000]'
+                  : 'text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000]'
+              }`}
+            >
+              <Icon name="dashboard" size="sm" />
+            </Link>
+            {/* Create — triggers project creation + nav to /project/{id}?naming=1 */}
+            <StartNewProject>
+              {({ start, pending }) => (
+                <button
+                  type="button"
+                  title="Create"
+                  onClick={start}
+                  disabled={pending}
+                  className="p-2.5 rounded-full transition-colors text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Icon name={item.icon} size="sm" />
-                </Link>
-              )
-            })}
+                  <Icon name="add_circle" size="sm" />
+                </button>
+              )}
+            </StartNewProject>
+            {/* Explore link */}
+            <Link
+              href="/explore"
+              title="Explore"
+              onClick={() => navigateMaybe('/explore', NAV_LOAD_MESSAGES.explore)}
+              className={`p-2.5 rounded-full transition-colors ${
+                pathname === '/explore'
+                  ? 'bg-[#fadbdb] text-[#3d0000]'
+                  : 'text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000]'
+              }`}
+            >
+              <Icon name="explore" size="sm" />
+            </Link>
           </div>
 
           {/* Profile menu (identity zone) — or Log In/Sign Up for anonymous viewers */}

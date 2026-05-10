@@ -1,5 +1,9 @@
-import { CreateProjectDialog } from './create-project-dialog'
+'use client'
+
+import { useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ProjectCard, type ProjectPublishedState } from './project-card'
+import { StartNewProject } from './start-new-project'
 import { Icon } from '@/components/ui/icon'
 import type { Project } from '@/lib/types/project'
 import type { BrandKit } from '@/lib/types/brand-kit'
@@ -11,13 +15,54 @@ interface ProjectListProps {
   brandKit?: BrandKit | null
 }
 
+// quick-260510-modal-on-prompt-page: anyone hitting /dashboard?new=1 (legacy
+// URL from before this change) gets the new flow auto-fired and the param
+// dropped off the URL. Rendered as a hidden StartNewProject child so the
+// effect runs in the same component tree that owns the start fn.
+function LegacyNewQueryBridge() {
+  return (
+    <StartNewProject>
+      {({ start }) => <LegacyNewQueryEffect start={start} />}
+    </StartNewProject>
+  )
+}
+
+function LegacyNewQueryEffect({ start }: { start: () => void }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const wantsNew = searchParams.get('new') === '1'
+  const firedRef = useRef(false)
+  useEffect(() => {
+    if (!wantsNew || firedRef.current) return
+    firedRef.current = true
+    router.replace('/dashboard')
+    start()
+  }, [wantsNew, router, start])
+  return null
+}
+
 export function ProjectList({ projects, showCreateOnly, publishedByProjectId, brandKit }: ProjectListProps) {
   if (showCreateOnly) {
-    return <CreateProjectDialog />
+    return (
+      <StartNewProject>
+        {({ start, pending }) => (
+          <button
+            type="button"
+            onClick={start}
+            disabled={pending}
+            className="bg-[#3d0000] text-white px-8 py-4 rounded-xl font-bold tracking-tight shadow-lg shadow-[#3d0000]/10 hover:translate-y-[-2px] transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          >
+            <Icon name="add" size="sm" />
+            Create New Slide
+          </button>
+        )}
+      </StartNewProject>
+    )
   }
 
   return (
     <section className="space-y-8">
+      <LegacyNewQueryBridge />
       <div className="flex items-center justify-between border-b border-[#dbc1bc]/15 pb-6">
         <div className="flex items-center gap-6">
           <h2 className="text-xl font-medium tracking-tight text-[#3d0000] whitespace-nowrap">Recent Carousels</h2>
@@ -51,8 +96,22 @@ export function ProjectList({ projects, showCreateOnly, publishedByProjectId, br
               brandKit={brandKit ?? null}
             />
           ))}
-          {/* Start Fresh card */}
-          <CreateProjectDialog asPlaceholderCard />
+          {/* Start Fresh card — same trigger as header button */}
+          <StartNewProject>
+            {({ start, pending }) => (
+              <button
+                type="button"
+                onClick={start}
+                disabled={pending}
+                className="aspect-[9/16] bg-[#fff0f0] border-2 border-dashed border-[#dbc1bc]/30 rounded-xl flex flex-col items-center justify-center gap-4 hover:bg-[#ffe1e1] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#fadbdb] flex items-center justify-center">
+                  <Icon name="add" className="text-[#3d0000]" />
+                </div>
+                <span className="text-[0.75rem] font-bold uppercase tracking-widest text-[#7d6161]">Start Fresh</span>
+              </button>
+            )}
+          </StartNewProject>
         </div>
       )}
     </section>
