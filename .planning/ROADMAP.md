@@ -24,7 +24,7 @@
 
 ## Phases
 
-- [ ] **Phase 73: Cost & Preprocessing Rails (Foundation)** — sharp pipeline + SHA-256 cache + per-user-per-day rate cap + bill alarm; NO vision call code lands until this ships.
+- [x] **Phase 73: Cost & Preprocessing Rails (Foundation)** — sharp pipeline + SHA-256 cache + per-user-per-day rate cap + bill alarm; NO vision call code lands until this ships. ✅ Shipped 2026-05-10 (3 plans, 54+1todo tests, 8/8 reqs).
 - [ ] **Phase 74: Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline** — `StyleSpec` type + closed-enum design + idempotent-absence PTF baseline + `slide-references` bucket + reference upload pipeline.
 - [ ] **Phase 75: Vision Extraction + Two-Phase Architecture + Safety Config** — `extract-style-spec.ts` + refusal pre-pass + `BLOCK_ONLY_HIGH` safety + `node-vibrant` for palette.
 - [ ] **Phase 76: Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery** — mandatory non-skippable spec-preview panel + per-aspect checkboxes + brand-kit toggle + safety-block recovery UI.
