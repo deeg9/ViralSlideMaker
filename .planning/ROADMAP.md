@@ -46,7 +46,10 @@
   3. The `style_spec_cache` table returns the persisted StyleSpec on SHA-256 hash hit without invoking Gemini Vision (cache miss + persist + cache hit round-trip observable in telemetry).
   4. A daily Vercel cron emits an alert when extraction-call cost crosses the configured ceiling for the day.
   5. A failed vision call refunds credits via the charge-then-refund ledger pattern (mirror v2.6 `gemini_vision_match`); transient errors fail loud after 1 retry, not 3.
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 73-01-PLAN.md — Sharp preprocessing pipeline + 9:16 PARITY-04 regression test (COST-01, COST-02, PARITY-04)
+  - [ ] 73-02-PLAN.md — `style_spec_cache` table + SHA-256 lookup/persist helpers (COST-03)
+  - [ ] 73-03-PLAN.md — Rate cap + charge-then-refund ledger + single-retry policy + bill-alarm cron (COST-04, COST-05, COST-06, COST-07)
 
 ### Phase 74: Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline
 **Goal**: Land the StyleSpec contract, the closed-enum invariant, the reference upload pipeline, and the byte-identity baseline so all subsequent feature work has a stable surface and proven non-regression on legacy projects.
@@ -126,7 +129,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 73. Cost & Preprocessing Rails (Foundation) | 0/? | Not started | — |
+| 73. Cost & Preprocessing Rails (Foundation) | 0/3 | Not started | — |
 | 74. Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline | 0/? | Not started | — |
 | 75. Vision Extraction + Two-Phase Architecture + Safety Config | 0/? | Not started | — |
 | 76. Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery | 0/? | Not started | — |
