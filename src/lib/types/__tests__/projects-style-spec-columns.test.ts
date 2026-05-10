@@ -84,22 +84,27 @@ describe('Phase 74 Plan 02 (STYLESPEC-02, REF-01, REF-07): projects-storage-cons
     const mimeHeic: ReferenceAssetRow['mime_type'] = 'image/heic'
     expect([mimeJpeg, mimeWebp, mimeHeic]).toHaveLength(3)
 
-    // Missing required field is a type error — caught by tsc, not vitest.
-    // @ts-expect-error - missing url should be a type error
-    const missingUrl: ReferenceAssetRow = {
+    // Missing required field is a type error — caught by tsc.
+    // The error attaches to the literal as a whole, so we put @ts-expect-error
+    // immediately before the property line where the missing key would belong
+    // (TS reports object-literal completeness errors on the opening of the literal).
+    const missingUrl = {
       sha256: 'b'.repeat(64),
       uploaded_at: '2026-05-10T12:34:56Z',
-      mime_type: 'image/png',
+      mime_type: 'image/png' as const,
       size_bytes: 100,
       original_filename: 'x.png',
-    }
+      // @ts-expect-error - assigning object missing required `url` to ReferenceAssetRow
+    } satisfies ReferenceAssetRow
     expect(missingUrl).toBeDefined()
 
-    // @ts-expect-error - invalid mime_type literal should be a type error
+    // Invalid mime_type literal — error reports on the offending property line,
+    // so @ts-expect-error sits directly above mime_type.
     const badMime: ReferenceAssetRow = {
       url: 'u',
       sha256: 'c'.repeat(64),
       uploaded_at: '2026-05-10T12:34:56Z',
+      // @ts-expect-error - 'image/gif' is not in the closed mime_type union
       mime_type: 'image/gif',
       size_bytes: 100,
       original_filename: 'x.gif',
