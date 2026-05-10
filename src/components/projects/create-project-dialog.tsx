@@ -30,7 +30,18 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
     if (wantsNew && !asPlaceholderCard) setOpen(true)
   }, [wantsNew, asPlaceholderCard])
 
-  async function handleSubmit(formData: FormData) {
+  // quick-260510: must use onSubmit + preventDefault rather than React 19's
+  // form `action` prop. When a function is passed to `action={...}`, React
+  // wraps the call in startTransition — which DEFERS the setSubmitting(true)
+  // state update until the awaited server action resolves. That means the
+  // overlay never paints during the in-flight window: by the time React
+  // commits the state, the action is already done and we're closing the
+  // modal + navigating. Plain onSubmit keeps state updates outside the
+  // transition so the overlay paints on the very next frame.
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (submitting) return
+    const formData = new FormData(e.currentTarget)
     setSubmitting(true)
     try {
       const projectId = await createProject(formData)
@@ -82,7 +93,7 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
           <Dialog.Description className="mb-6 text-sm text-[#7d6161]">
             Give your slideshow project a name to get started.
           </Dialog.Description>
-          <form ref={formRef} action={handleSubmit} className="flex flex-col gap-4">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="title" className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
                 Title
