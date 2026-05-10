@@ -76,7 +76,15 @@ function makeBlobFromBytes(bytes: Buffer) {
 }
 
 beforeEach(() => {
+  // Reset only the per-call queues — clearAllMocks preserves mockReturnValue
+  // (createClient + createAdminClient) but does NOT clear queued
+  // .mockResolvedValueOnce; we drain those individually so prior tests can't
+  // bleed unconsumed queued returns into the next test (Test 5 regression).
   vi.clearAllMocks()
+  mockGetUser.mockReset()
+  mockStorageDownload.mockReset()
+  mockGetUserTier.mockReset()
+  mockExtractStyleSpec.mockReset()
 })
 
 describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier mapping', () => {
