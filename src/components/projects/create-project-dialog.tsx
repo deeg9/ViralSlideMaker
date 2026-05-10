@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Dialog } from '@base-ui/react/dialog'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
+import { MorphingSquare } from '@/components/ui/morphing-square'
 import { createProject } from '@/app/(dashboard)/dashboard/actions'
 
 interface CreateProjectDialogProps {
@@ -13,6 +14,13 @@ interface CreateProjectDialogProps {
 
 export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogProps) {
   const [open, setOpen] = useState(false)
+  // quick-260510-card-loading: covers the full createProject() server action
+  // PLUS the subsequent router.push to /project/{id}. The createProject server
+  // action does a Supabase insert; the project page is server-rendered with
+  // additional fetches and then mounts the heavy editor canvas — together
+  // routinely 1-3 seconds. Without an indicator the modal just freezes after
+  // submit. Cleared on error or when this component unmounts post-navigation.
+  const [submitting, setSubmitting] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -23,12 +31,22 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
   }, [wantsNew, asPlaceholderCard])
 
   async function handleSubmit(formData: FormData) {
-    const projectId = await createProject(formData)
-    setOpen(false)
-    formRef.current?.reset()
-    if (wantsNew) router.replace('/dashboard')
-    if (projectId) {
-      router.push(`/project/${projectId}`)
+    setSubmitting(true)
+    try {
+      const projectId = await createProject(formData)
+      setOpen(false)
+      formRef.current?.reset()
+      if (wantsNew) router.replace('/dashboard')
+      if (projectId) {
+        router.push(`/project/${projectId}`)
+      } else {
+        // No projectId → server action rejected (e.g. free-tier limit). Clear
+        // the overlay so the user can correct and retry.
+        setSubmitting(false)
+      }
+    } catch (err) {
+      setSubmitting(false)
+      throw err
     }
   }
 
@@ -97,14 +115,28 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
               } />
               <button
                 type="submit"
-                className="bg-[#3d0000] text-white px-6 py-2.5 rounded-xl font-bold text-sm active:scale-95 transition-transform"
+                disabled={submitting}
+                className="bg-[#3d0000] text-white px-6 py-2.5 rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
               >
-                Create Project
+                {submitting ? 'Creating…' : 'Create Project'}
               </button>
             </div>
           </form>
         </Dialog.Popup>
       </Dialog.Portal>
+      {submitting && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Creating project"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#fff5f5]/80 backdrop-blur-sm"
+        >
+          <MorphingSquare
+            className="bg-[#3d0000]"
+            message="Creating project…"
+          />
+        </div>
+      )}
     </Dialog.Root>
   )
 }
