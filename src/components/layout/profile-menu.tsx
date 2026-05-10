@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { logout } from '@/app/(auth)/login/actions'
+import { useNavigationLoader } from './navigation-loader'
 
 interface ProfileMenuProps {
   userName: string
@@ -15,6 +16,7 @@ interface MenuRow {
   label: string
   icon: string
   href: string
+  message: string
   isActive: (pathname: string) => boolean
 }
 
@@ -23,18 +25,21 @@ const rows: MenuRow[] = [
     label: 'Bookmarks',
     icon: 'bookmark',
     href: '/bookmarks',
+    message: 'Loading bookmarks…',
     isActive: (p) => p.startsWith('/bookmarks'),
   },
   {
     label: 'Settings',
     icon: 'settings',
     href: '/settings',
+    message: 'Loading settings…',
     isActive: (p) => p.startsWith('/settings'),
   },
   {
     label: 'Resources',
     icon: 'science',
     href: '/resources',
+    message: 'Loading resources…',
     isActive: (p) => p.startsWith('/resources'),
   },
 ]
@@ -44,6 +49,7 @@ export function ProfileMenu({ userName, creditDisplay }: ProfileMenuProps) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const closeTimeoutRef = useRef<number | null>(null)
+  const { startNavigation } = useNavigationLoader()
 
   // Outside-click listener (mainly for touch devices)
   useEffect(() => {
@@ -127,7 +133,10 @@ export function ProfileMenu({ userName, creditDisplay }: ProfileMenuProps) {
                 key={row.label}
                 href={row.href}
                 role="menuitem"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false)
+                  if (!active) startNavigation(row.message)
+                }}
                 className={`flex items-center gap-3 px-4 py-2.5 text-sm text-[#3d0000] hover:bg-[#fff0f0] transition-colors w-full text-left ${
                   active ? 'bg-[#fadbdb]' : ''
                 }`}
@@ -140,7 +149,16 @@ export function ProfileMenu({ userName, creditDisplay }: ProfileMenuProps) {
 
           <div className="my-2 border-t border-[#dbc1bc]/20" />
 
-          <form action={logout}>
+          <form
+            action={logout}
+            onSubmit={() => {
+              // logout server action redirects to /login. Show overlay for the
+              // round-trip; safety timeout in NavigationLoaderProvider covers
+              // any case where the redirect doesn't land.
+              setOpen(false)
+              startNavigation('Logging out…')
+            }}
+          >
             <button
               type="submit"
               role="menuitem"

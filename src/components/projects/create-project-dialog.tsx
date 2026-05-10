@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Dialog } from '@base-ui/react/dialog'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
-import { MorphingSquare } from '@/components/ui/morphing-square'
+import { useNavigationLoader } from '@/components/layout/navigation-loader'
 import { createProject } from '@/app/(dashboard)/dashboard/actions'
 
 interface CreateProjectDialogProps {
@@ -14,17 +14,16 @@ interface CreateProjectDialogProps {
 
 export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogProps) {
   const [open, setOpen] = useState(false)
-  // quick-260510-card-loading: covers the full createProject() server action
-  // PLUS the subsequent router.push to /project/{id}. The createProject server
-  // action does a Supabase insert; the project page is server-rendered with
-  // additional fetches and then mounts the heavy editor canvas — together
-  // routinely 1-3 seconds. Without an indicator the modal just freezes after
-  // submit. Cleared on error or when this component unmounts post-navigation.
+  // quick-260510-card-loading: tracks just the in-flight server action so we
+  // can disable the submit button + show "Creating…". The full-screen overlay
+  // itself is rendered by NavigationLoaderProvider — same morphing square
+  // used by every other navigation in the shell.
   const [submitting, setSubmitting] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const wantsNew = searchParams.get('new') === '1'
+  const { startNavigation, stopNavigation } = useNavigationLoader()
 
   useEffect(() => {
     if (wantsNew && !asPlaceholderCard) setOpen(true)
@@ -43,6 +42,7 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
     if (submitting) return
     const formData = new FormData(e.currentTarget)
     setSubmitting(true)
+    startNavigation('Creating project…')
     try {
       const projectId = await createProject(formData)
       setOpen(false)
@@ -52,11 +52,15 @@ export function CreateProjectDialog({ asPlaceholderCard }: CreateProjectDialogPr
         router.push(`/project/${projectId}`)
       } else {
         // No projectId → server action rejected (e.g. free-tier limit). Clear
-        // the overlay so the user can correct and retry.
+        // the overlay + button so the user can correct and retry. The path
+        // didn't change, so the loader's pathname-based auto-clear won't fire
+        // — call stopNavigation explicitly.
         setSubmitting(false)
+        stopNavigation()
       }
     } catch (err) {
       setSubmitting(false)
+      stopNavigation()
       throw err
     }
   }
