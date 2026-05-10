@@ -5,6 +5,7 @@ export type CreditTransactionType =
   | 'carousel_generation'
   | 'imagen_generation'
   | 'gemini_vision_match' // Phase 58 (MATCH-05, D-10): premium photo↔slide matching
+  | 'gemini_vision_extract_style' // Phase 73 (COST-06): style-from-reference vision extraction
   | 'credit_pack_purchase'
   | 'refund'
   | 'admin_adjustment'
@@ -35,6 +36,7 @@ export const CREDIT_COSTS = {
   carousel_generation: 1,   // Generate a carousel with stock images + text
   imagen_generation: 1,     // AI-generate a single image (Imagen)
   gemini_vision_match: 1,   // Phase 58 (MATCH-05, D-10): premium photo↔slide matching
+  gemini_vision_extract_style: 1, // Phase 73 (COST-06): style-from-reference vision extraction (1 credit per call, NOT per image)
   text_regeneration: 0,     // Rewrite text with AI — free
   image_regeneration: 0,    // New stock photo — free
 } as const
