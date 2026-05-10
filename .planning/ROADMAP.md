@@ -92,7 +92,10 @@
   3. The user can click "Re-extract" up to 2 times per generation (free retries) and the spec-preview panel updates in place; the visible credit cost ("Generating will use N credits") refreshes accordingly.
   4. When EXTRACT-05 flags a logo/face/watermark, an inline warning appears with "Inspired by"-framing copy and a confirm-and-continue control; reference thumbnails stay sticky throughout the flow.
   5. When EXTRACT-07 reports a safety block, the recovery UI shows specific, actionable guidance ("Try cropping high-skin areas / try a different image / describe the style in text instead").
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 76-01-PLAN.md — State machine + page shell + Server Action + sticky strip + spec-preview panel skeleton (PREVIEW-01, PREVIEW-09)
+  - [ ] 76-02-PLAN.md — Display components: palette swatches + font badges + layout sketch + voice-note caption + per-aspect toggles + brand-kit remix toggle + credit cost (PREVIEW-02, PREVIEW-03, PREVIEW-04, PREVIEW-05, PREVIEW-06, PREVIEW-08, PREVIEW-11)
+  - [ ] 76-03-PLAN.md — Recovery surfaces: refusal warning + safety-block recovery + error router + Re-extract counter wiring + dashboard CTA (PREVIEW-07, PREVIEW-10, PREVIEW-12)
 **UI hint**: yes
 
 ### Phase 77: Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff
