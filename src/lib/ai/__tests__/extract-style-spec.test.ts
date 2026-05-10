@@ -149,16 +149,6 @@ function makeRefBytes(n: number): Buffer[] {
   return Array.from({ length: n }, (_, i) => Buffer.from(`fake-image-${i}`))
 }
 
-function makePrepared(n: number) {
-  return Array.from({ length: n }, (_, i) => ({
-    bytes: Buffer.from(`prep-${i}`),
-    sha256: `sha-${i}-${'0'.repeat(60)}`,
-    width: 800,
-    height: 1200,
-    mimeType: 'image/jpeg' as const,
-  }))
-}
-
 function makeValidStyleSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
   return {
     schema_version: 1,
@@ -377,8 +367,8 @@ describe('Phase 75 Plan 01: extractStyleSpec — two-phase firewall (Phase B str
     expect(result.ok).toBe(true)
     if (result.ok) {
       // Returned spec does NOT contain injected fields.
-      expect((result.spec as Record<string, unknown>).reference_artist).toBeUndefined()
-      expect((result.spec as Record<string, unknown>).evil_instruction).toBeUndefined()
+      expect((result.spec as unknown as Record<string, unknown>).reference_artist).toBeUndefined()
+      expect((result.spec as unknown as Record<string, unknown>).evil_instruction).toBeUndefined()
       // silent_drops telemetry surfaced.
       expect(result.telemetry.silent_drops).toEqual({
         reference_artist: 1,
@@ -510,9 +500,10 @@ describe('Phase 75 Plan 01: extractStyleSpec — 10s timeout', () => {
     vi.useRealTimers()
 
     expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.error).toBe('extraction_failed')
+    if (!result.ok && result.error === 'extraction_failed') {
       expect(result.detail.toLowerCase()).toMatch(/timeout|10s/)
+    } else {
+      throw new Error(`expected extraction_failed; got ${result.ok ? 'ok' : result.error}`)
     }
     expect(mockRefundExtractionCredit).toHaveBeenCalledTimes(1)
   })
@@ -818,18 +809,27 @@ describe('Phase 75 Plan 01: structural gates', () => {
     const src = fs.readFileSync(sourcePath, 'utf-8')
     const lines = src.split('\n')
 
-    // Find the line where parseStyleSpecSafe is called (NOT the import line).
+    // Skip comments + imports — find the first NON-COMMENT, NON-IMPORT line
+    // where parseStyleSpecSafe is called. This is the Phase B boundary.
+    const isCommentOrImport = (line: string): boolean => {
+      const t = line.trimStart()
+      return (
+        t.startsWith('//') ||
+        t.startsWith('*') ||
+        t.startsWith('/*') ||
+        /^\s*import\b/.test(line)
+      )
+    }
     const parseSafeCallLine = lines.findIndex(
-      (line) => /parseStyleSpecSafe\s*\(/.test(line) && !/^\s*import\b/.test(line),
+      (line) => /parseStyleSpecSafe\s*\(/.test(line) && !isCommentOrImport(line),
     )
     expect(parseSafeCallLine).toBeGreaterThan(0)
 
-    // Every rawGemini / rawObject mention must appear BEFORE that line.
+    // Every rawGemini / rawObject mention (in code, not comments) must appear
+    // at or BEFORE that line — i.e., raw bytes never propagate past Phase B.
     const rawRefLines: number[] = []
     lines.forEach((line, idx) => {
-      // Skip comments — comments naming the firewall invariant are allowed everywhere.
-      const trimmed = line.trimStart()
-      if (trimmed.startsWith('//') || trimmed.startsWith('*')) return
+      if (isCommentOrImport(line)) return
       if (/\b(rawGemini|rawObject)\b/.test(line)) rawRefLines.push(idx)
     })
 
