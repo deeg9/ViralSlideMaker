@@ -32,6 +32,9 @@ import type { ExtractResult, ExtractTelemetry } from '@/lib/ai/extract-style-spe
 // the persisted-spec → emit → persist → projectId-return flow that the
 // Phase 76 dashboard shell consumes via existing router.push routing.
 import { generateCarouselFromReferences } from '@/lib/services/carousel'
+// Phase 78 Plan 02 Task 1 (REMIX-05): regenerateFromReferencesAction creates
+// a NEW (sibling) project and runs extract+emit against the inherited refs.
+import { createProjectService } from '@/lib/services/projects'
 import type { StyleSpec } from '@/lib/types/style-spec'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
@@ -216,5 +219,177 @@ export async function regenerateAction(
     // leak). T-77-12: do NOT echo spec content into the error path.
     const detail = err instanceof Error ? err.message : 'unknown'
     return { ok: false, error: 'gemini_error', detail }
+  }
+}
+
+// ------------------------------------------------------------------------- //
+// regenerateFromReferencesAction — Phase 78 Plan 02 Task 1 (REMIX-05)        //
+// ------------------------------------------------------------------------- //
+//
+// "Regenerate from references" UX entry point. Composes:
+//   1. Auth gate
+//   2. Source-project lookup (RLS gates by user_id; the calling user must be
+//      able to read the source — owner OR via fork inheritance after Plan 78-01)
+//   3. Source `reference_assets` presence + non-empty check (REMIX-04 inherit)
+//   4. Storage path → Buffer hydration (admin client; mirror extractStyleSpecAction)
+//   5. Sibling-create: NEW projects row owned by the CURRENT user (NEVER mutates
+//      the source project — verified by Test 8)
+//   6. Phase 75 extractStyleSpec({ projectId: NEW_PROJECT_ID, ... })
+//   7. Phase 77 generateCarouselFromReferences({ projectId: NEW_PROJECT_ID,
+//      spec, ... }) using sane defaults (mode='ai-copy', topic derived from
+//      source title/topic, all aspects on, no brand-kit remix by default)
+//   8. Returns { ok: true, projectId: NEW_PROJECT_ID } — client navigates
+//      to /project/{projectId} via existing router.push pattern
+//
+// Sibling-create invariant: the only writes are
+//   - createProjectService(...) → INSERT a NEW row owned by the CURRENT user
+//   - generateCarouselFromReferences(...) → UPDATE the NEW row only
+// The source project's row is read-only throughout. Test 8 enforces this by
+// inspecting createProjectService + orchestrator inputs and asserting the
+// source projectId never appears as a write target.
+//
+// LEGAL-03 framing: this Server Action's Input/Output shape carries no
+// user-facing copy. The button component (Task 2) owns the "Inspired by"
+// confirmation copy and the LEGAL-03 grep gate.
+
+export interface RegenerateFromReferencesActionInput {
+  sourceProjectId: string
+}
+
+export type RegenerateFromReferencesActionResult =
+  | { ok: true; projectId: string }
+  | {
+      ok: false
+      error:
+        | 'unauthenticated'
+        | 'source_not_found'
+        | 'no_references'
+        | 'extract_failed'
+        | 'emit_failed'
+      detail?: string
+    }
+
+export async function regenerateFromReferencesAction(
+  input: RegenerateFromReferencesActionInput,
+): Promise<RegenerateFromReferencesActionResult> {
+  // 1. Auth gate — fires before any DB / Storage / Gemini work.
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { ok: false, error: 'unauthenticated' }
+  }
+
+  // 2. Source-project lookup. RLS gates row visibility; we project just the
+  // columns we need. .single() returns { data: null } when the row is
+  // missing OR when RLS denies — both surface as source_not_found.
+  const { data: sourceRow } = await supabase
+    .from('projects')
+    .select('id, reference_assets, topic, title, template_id')
+    .eq('id', input.sourceProjectId)
+    .single()
+  if (!sourceRow) {
+    return { ok: false, error: 'source_not_found' }
+  }
+  const source = sourceRow as {
+    id: string
+    reference_assets: ReferenceAssetRow[] | null
+    topic: string | null
+    title: string | null
+    template_id: string | null
+  }
+
+  // 3. References must be non-null AND non-empty. REMIX-04 inheritance from
+  // Plan 78-01's fork RPC populates this column on forks; legacy projects
+  // and non-style-from-reference projects keep null and short-circuit here.
+  const references = source.reference_assets
+  if (!references || references.length === 0) {
+    return { ok: false, error: 'no_references' }
+  }
+
+  // 4. Sibling-create: NEW projects row owned by the CURRENT user. Title +
+  // topic derived from the source — this surface intentionally has no
+  // user-facing copy (the button modal doesn't ask for a title; the source
+  // metadata is the best signal). The new row starts with empty slide_data;
+  // generateCarouselFromReferences UPDATEs it in step 7.
+  const baseTitle = (source.title ?? source.topic ?? 'Inspired by references').trim()
+  const newTitle = `${baseTitle} — Inspired by`
+  const newTopic = source.topic ?? baseTitle
+
+  let newProjectId: string
+  try {
+    const { id } = await createProjectService(supabase, user.id, {
+      title: newTitle,
+      topic: newTopic,
+      template_id: source.template_id ?? null,
+    })
+    newProjectId = id as string
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : 'unknown'
+    return { ok: false, error: 'emit_failed', detail: `create-failed:${detail}` }
+  }
+
+  // 5. Hydrate Storage paths → Buffer[] via admin client (slide-references
+  // bucket is private; mirror extractStyleSpecAction step 3).
+  const admin = createAdminClient()
+  const referenceBytes: Buffer[] = []
+  try {
+    for (const row of references) {
+      const { data, error } = await admin.storage
+        .from(SLIDE_REFERENCES_BUCKET)
+        .download(row.url)
+      if (error) {
+        return {
+          ok: false,
+          error: 'extract_failed',
+          detail: `storage-fetch-failed:${error.message ?? 'unknown'}`,
+        }
+      }
+      const ab = await (data as Blob).arrayBuffer()
+      referenceBytes.push(Buffer.from(ab))
+    }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : 'unknown'
+    return { ok: false, error: 'extract_failed', detail: `storage-fetch-failed:${detail}` }
+  }
+
+  // 6. Tier mapping (same shape as extractStyleSpecAction).
+  const rawTier = await getUserTier(user.id)
+  const tier: 'free' | 'paid' = rawTier === 'free' ? 'free' : 'paid'
+
+  // 7. Phase 75 extractStyleSpec — projectId is the NEW project so the cost
+  // ledger / cache lookups attribute correctly.
+  const extractResult = await extractStyleSpec({
+    projectId: newProjectId,
+    userId: user.id,
+    tier,
+    referenceBytes,
+    admin,
+  })
+  if (!extractResult.ok) {
+    return {
+      ok: false,
+      error: 'extract_failed',
+      detail: extractResult.error,
+    }
+  }
+
+  // 8. Phase 77 generateCarouselFromReferences — sane defaults (ai-copy mode
+  // with the source's topic; all aspects on; no brand-kit remix by default).
+  // Project being UPDATEd is the NEW one; sibling-create invariant preserved.
+  try {
+    const emitResult = await generateCarouselFromReferences(admin, user.id, {
+      projectId: newProjectId,
+      spec: extractResult.spec,
+      aspects: { palette: true, typography: true, layout: true, decorations: true },
+      useBrandKitRemix: false,
+      brandKit: null,
+      content: { mode: 'ai-copy', topic: newTopic },
+    })
+    return { ok: true, projectId: emitResult.projectId }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : 'unknown'
+    return { ok: false, error: 'emit_failed', detail }
   }
 }
