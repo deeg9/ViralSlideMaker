@@ -6,6 +6,7 @@ import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
 import { GenerationForm } from '@/components/slides/generation-form'
 import { ProjectNamingDialog } from '@/components/projects/project-naming-dialog'
+import { ReferenceThumbnailsStrip } from '@/components/projects/reference-thumbnails-strip'
 import { SlideEditor } from '@/components/editor/slide-editor'
 import { getUserTier } from '@/lib/credits/check-credits'
 import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
@@ -54,19 +55,26 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       }
     : null
 
-  // Editor mode: render full-width with no extra chrome
+  // Editor mode: render full-width with no extra chrome.
+  // Phase 77 EDITOR-03: ReferenceThumbnailsStrip renders ABOVE the editor —
+  // it returns null when reference_assets is null/empty, so legacy projects
+  // (every pre-v2.13 project) keep the byte-identical full-bleed editor; only
+  // style-from-reference projects gain the slim provenance bar.
   if (hasSlides) {
     return (
-      <SlideEditor
-        initialSlides={slides}
-        projectId={p.id}
-        templateId={p.template_id ?? 'highlight-bar'}
-        topic={p.topic ?? ''}
-        title={p.title}
-        userTier={tier}
-        brandKit={brandKit}
-        initialPublishedState={initialPublishedState}
-      />
+      <>
+        <ReferenceThumbnailsStrip references={p.reference_assets ?? null} />
+        <SlideEditor
+          initialSlides={slides}
+          projectId={p.id}
+          templateId={p.template_id ?? 'highlight-bar'}
+          topic={p.topic ?? ''}
+          title={p.title}
+          userTier={tier}
+          brandKit={brandKit}
+          initialPublishedState={initialPublishedState}
+        />
+      </>
     )
   }
 

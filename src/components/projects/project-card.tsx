@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon'
 import { useNavigationLoader } from '@/components/layout/navigation-loader'
 import { deleteProject } from '@/app/(dashboard)/dashboard/actions'
 import { EditVisibilityModal } from './edit-visibility-modal'
+import { FromReferencesBadge } from './from-references-badge'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import { getTemplate } from '@/lib/render/templates'
 import type { Project } from '@/lib/types/project'
@@ -250,11 +251,19 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
             </div>
           )}
         </div>
-        {isPublic && (
-          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#3d0000] text-white text-[0.625rem] font-bold uppercase tracking-wider">
-            Public
-          </span>
-        )}
+        {/* Top-left badge stack: Public visibility + From-references provenance.
+            Phase 77 EDITOR-02: FromReferencesBadge is rendered ONLY when
+            project.style_spec is non-null — legacy projects (style_spec null)
+            see zero visual change. pointer-events-none so the chips never
+            intercept the card's click handler. */}
+        <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1 pointer-events-none">
+          {isPublic && (
+            <span className="px-2 py-0.5 rounded-full bg-[#3d0000] text-white text-[0.625rem] font-bold uppercase tracking-wider">
+              Public
+            </span>
+          )}
+          <FromReferencesBadge hasStyleSpec={project.style_spec != null} />
+        </div>
       </div>
       <h3 className="text-sm font-semibold text-[#3d0000] truncate">{project.title}</h3>
       <div className="flex items-center gap-2 mt-1">
