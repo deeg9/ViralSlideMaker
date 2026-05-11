@@ -105,6 +105,14 @@ export function ErrorRouter({ state, dispatch }: ErrorRouterProps) {
             The extraction timed out or returned an unexpected response. Try
             again, or upload a different reference set.
           </p>
+          {state.error.detail && (
+            <p
+              data-testid="error-extraction-detail"
+              className="text-xs text-[#5a3a3a] font-mono break-all bg-white/60 p-2 rounded"
+            >
+              Detail: {state.error.detail}
+            </p>
+          )}
           <button
             type="button"
             data-testid="try-again-cta"
