@@ -12,6 +12,7 @@ export type ApiErrorCode =
   | 'INSUFFICIENT_CREDITS'
   | 'NOT_FOUND'
   | 'FORBIDDEN'
+  | 'TOS_REQUIRED'
 
 /**
  * Create a structured error response with CORS headers.
