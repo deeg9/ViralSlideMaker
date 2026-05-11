@@ -23,6 +23,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getUserTier } from '@/lib/credits/check-credits'
 import { extractStyleSpec } from '@/lib/ai/extract-style-spec'
+// Phase 79 Plan 02 Task 1 (LEGAL-01): clickwrap server action calls the
+// audit-log writer from Plan 79-01. Helper NEVER throws — defense in depth
+// here wraps the call in try/catch anyway so a future helper change can't
+// silently start propagating exceptions through the dispatch path.
+import { recordStyleFromReferenceTosAcceptance } from '@/lib/legal/audit-log'
 import {
   SLIDE_REFERENCES_BUCKET,
   type ReferenceAssetRow,
@@ -391,5 +396,70 @@ export async function regenerateFromReferencesAction(
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'unknown'
     return { ok: false, error: 'emit_failed', detail }
+  }
+}
+
+// ------------------------------------------------------------------------- //
+// acceptStyleFromReferenceTosAction — Phase 79 Plan 02 Task 1 (LEGAL-01)    //
+// ------------------------------------------------------------------------- //
+//
+// Wires the clickwrap modal's Accept CTA to the Plan 79-01 audit writer.
+//   1. Auth gate — anonymous calls return { ok:false, error:'unauthenticated' }
+//      WITHOUT writing an audit row (no user_id to attribute it to)
+//   2. recordStyleFromReferenceTosAcceptance(admin, { userId, sha256s: [],
+//      tosVersion: version }) — empty sha256s is intentional: this records
+//      the version-acceptance, not a per-image acknowledgement. The
+//      reference-image audit row (sha256-keyed) is recorded by the upload
+//      route (Plan 79-02 Task 2 server-side enforcement) when the user
+//      actually uploads.
+//   3. Recorder fail-secures via the discriminated union; we map { ok:false,
+//      error } from the helper to { ok:false, error:'record_failed', detail }
+//      so the modal can show a re-try message instead of an opaque crash.
+//
+// Try/catch wrapper around the recorder is defense-in-depth: the helper
+// contract NEVER throws, but if a future change started rejecting we still
+// surface a structured result so the modal stays functional.
+
+export type AcceptStyleFromReferenceTosResult =
+  | { ok: true }
+  | { ok: false; error: 'unauthenticated' | 'record_failed'; detail?: string }
+
+export async function acceptStyleFromReferenceTosAction(
+  version: string,
+): Promise<AcceptStyleFromReferenceTosResult> {
+  // 1. Auth gate
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { ok: false, error: 'unauthenticated' }
+  }
+
+  // 2. Audit-log write via service-role admin client (RLS routes inserts
+  //    through service_role only).
+  const admin = createAdminClient()
+  try {
+    const result = await recordStyleFromReferenceTosAcceptance(admin, {
+      userId: user.id,
+      sha256s: [],
+      tosVersion: version,
+    })
+    if (result.ok) return { ok: true }
+
+    // Helper returned a structured failure — surface it as record_failed
+    // and pass the original error along as detail for forensics.
+    const detail =
+      result.error instanceof Error
+        ? result.error.message
+        : typeof result.error === 'string'
+          ? result.error
+          : 'unknown'
+    return { ok: false, error: 'record_failed', detail }
+  } catch (err) {
+    // Defense-in-depth — the helper contract says it NEVER throws, but if
+    // a future change starts rejecting we still surface a structured result.
+    const detail = err instanceof Error ? err.message : 'unknown'
+    return { ok: false, error: 'record_failed', detail }
   }
 }
