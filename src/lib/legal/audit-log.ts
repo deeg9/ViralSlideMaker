@@ -50,23 +50,34 @@ export type RecordTosAcceptanceResult =
  * @param admin - Supabase service-role client (server-only).
  * @param args  - userId + sha256s to acknowledge + tosVersion literal.
  */
+/**
+ * Sentinel sha256 for "version-only acceptance" rows — used when the user
+ * accepts the ToS BEFORE any image upload (the LEGAL-01 first-touch flow).
+ * `hasUserAcceptedCurrentTos` queries by (user_id, tos_version) and ignores
+ * sha256, so the sentinel doesn't affect correctness; it satisfies the NOT
+ * NULL constraint and is explicit enough to grep for in audit dumps.
+ */
+export const VERSION_ONLY_ACCEPTANCE_SHA = '__version_acceptance__'
+
 export async function recordStyleFromReferenceTosAcceptance(
   admin: SupabaseClient,
   args: RecordTosAcceptanceArgs,
 ): Promise<RecordTosAcceptanceResult> {
   const { userId, sha256s, tosVersion } = args
 
-  // Empty-array no-op — keeps callers cheap. accepted_at defaults to now()
-  // in the schema, so we omit it from the payload.
-  if (sha256s.length === 0) {
-    return { ok: true }
-  }
-
-  const rows = sha256s.map((sha256) => ({
-    user_id: userId,
-    sha256,
-    tos_version: tosVersion,
-  }))
+  // Empty-array path: insert ONE version-only acceptance row using the
+  // sentinel sha256. Without this, the LEGAL-01 first-touch flow (accept ToS
+  // BEFORE any image is selected) records no audit row and the server-side
+  // gate on the next upload still rejects with TOS_REQUIRED.
+  // Quick 260510-tos-page-wire surfaced this in live smoke.
+  const rows =
+    sha256s.length === 0
+      ? [{ user_id: userId, sha256: VERSION_ONLY_ACCEPTANCE_SHA, tos_version: tosVersion }]
+      : sha256s.map((sha256) => ({
+          user_id: userId,
+          sha256,
+          tos_version: tosVersion,
+        }))
 
   try {
     const { error } = await admin.from(TABLE).insert(rows)

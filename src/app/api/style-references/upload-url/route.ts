@@ -1,6 +1,11 @@
 // Phase 74 Plan 03 (REF-02): signed-URL upload route for the slide-references
-// bucket. Mirrors src/app/api/v1/me/brand-kit/logo-upload-url/route.ts shape
-// with three deliberate divergences:
+// bucket. In-app cookie-session auth (NOT Bearer/API-key) — this route is
+// called from the dashboard browser, where the user has a Supabase session
+// cookie. Mirrors src/app/api/render/route.ts auth pattern (NOT the public
+// REST API /v1/* routes which use withApiAuth).
+//
+// Three deliberate divergences from the original brand-kit logo-upload-url
+// mirror used during planning:
 //
 //   1. Bucket: SLIDE_REFERENCES_BUCKET (PRIVATE — no publicUrl in response;
 //      Phase 75 mints signed READ URLs at extraction time via createSignedUrl).
@@ -12,15 +17,20 @@
 // Validation logic lives in @/lib/storage/upload-reference-validation so the
 // React component can run the SAME checks fail-fast before round-tripping the
 // network. Defense-in-depth: client validates for UX, server re-validates for
-// trust. Drift between the two is a class of bug we don't want to ship.
+// trust.
 //
 // Phase 79 Plan 02 Task 2 (LEGAL-01): server-side ToS enforcement. Runs the
 // `hasUserAcceptedCurrentTos` audit-log check BEFORE minting a signed URL —
 // no row matching the current ToS version => 403 TOS_REQUIRED. Defense in
-// depth alongside the client clickwrap modal (CLI scripts / direct API hits
-// / malicious extensions cannot bypass acceptance).
+// depth alongside the client clickwrap modal.
+//
+// Quick 260510-tos-page-wire follow-up: switched from withApiAuth (Bearer
+// token) to cookie-session auth (createClient from @/lib/supabase/server).
+// The original planner mirror was the public REST API route which uses API
+// keys; this route is in-app browser-only, so cookies are the right surface.
 
-import { withApiAuth } from '@/lib/api/with-api-auth'
+import { NextRequest } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { apiSuccess } from '@/lib/api/response'
 import { apiError } from '@/lib/api/errors'
 import { SLIDE_REFERENCES_BUCKET } from '@/lib/types/projects-storage-constants'
@@ -29,7 +39,17 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
 import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
 
-export const POST = withApiAuth(async (req, ctx) => {
+export async function POST(req: NextRequest) {
+  // 1. Auth gate — cookie session
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return apiError('UNAUTHORIZED', 'Sign in to upload reference images.', 401)
+  }
+
+  // 2. Body parse + validation
   let body: Record<string, unknown> = {}
   try {
     const text = await req.text()
@@ -47,16 +67,14 @@ export const POST = withApiAuth(async (req, ctx) => {
     return apiError('VALIDATION_ERROR', validation.message, 400)
   }
 
-  // Phase 79 Plan 02 Task 2 (LEGAL-01): defense-in-depth ToS gate. Service
-  // role admin client because RLS routes audit-table reads through service_role
-  // (the helper signature requires it). Helper NEVER throws — fail-secures to
-  // false on any DB error, which forces a 403 here. The worst outcome is a
-  // false-negative requiring the user to click Accept again; the unacceptable
-  // outcome would be silently letting an un-accepted upload through.
+  // 3. Phase 79 LEGAL-01 ToS gate. Service-role admin client because RLS
+  // routes audit-table reads through service_role (the helper signature
+  // requires it). Helper NEVER throws — fail-secures to false on any DB
+  // error, which forces a 403 here.
   const admin = createAdminClient()
   const accepted = await hasUserAcceptedCurrentTos(
     admin,
-    ctx.userId,
+    user.id,
     STYLE_FROM_REFERENCE_TOS_VERSION,
   )
   if (!accepted) {
@@ -67,9 +85,10 @@ export const POST = withApiAuth(async (req, ctx) => {
     )
   }
 
-  const path = `${ctx.userId}/${crypto.randomUUID()}-${validation.safeFilename}`
-
-  const { data, error } = await ctx.supabase.storage
+  // 4. Mint signed upload URL via cookie-session client (RLS allows the
+  // user to write to their own slide-references/{user_id}/* path).
+  const path = `${user.id}/${crypto.randomUUID()}-${validation.safeFilename}`
+  const { data, error } = await supabase.storage
     .from(SLIDE_REFERENCES_BUCKET)
     .createSignedUploadUrl(path)
   if (error || !data) {
@@ -81,8 +100,7 @@ export const POST = withApiAuth(async (req, ctx) => {
   }
 
   // No publicUrl in the response — bucket is private. Phase 75 mints a
-  // short-lived signed READ URL at extraction time. Returning a publicUrl here
-  // would be a security regression (public exposure of private references).
+  // short-lived signed READ URL at extraction time.
   return apiSuccess({
     data: {
       uploadUrl: data.signedUrl,
@@ -92,4 +110,4 @@ export const POST = withApiAuth(async (req, ctx) => {
       path,
     },
   })
-})
+}
