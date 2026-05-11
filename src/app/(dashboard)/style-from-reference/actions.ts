@@ -28,6 +28,14 @@ import {
   type ReferenceAssetRow,
 } from '@/lib/types/projects-storage-constants'
 import type { ExtractResult, ExtractTelemetry } from '@/lib/ai/extract-style-spec.types'
+// Phase 77 Plan 02 Task 4 (EMIT-02 + EDITOR-01): regenerateAction wires
+// the persisted-spec → emit → persist → projectId-return flow that the
+// Phase 76 dashboard shell consumes via existing router.push routing.
+import { generateCarouselFromReferences } from '@/lib/services/carousel'
+import type { StyleSpec } from '@/lib/types/style-spec'
+import type { BrandKit } from '@/lib/types/brand-kit'
+import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
+import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
 const ZERO_TELEMETRY: ExtractTelemetry = {
   vision_calls_count: 0,
@@ -120,17 +128,93 @@ export async function extractStyleSpecAction(
 }
 
 // ------------------------------------------------------------------------- //
-// regenerateAction — Phase 77 placeholder seam                              //
+// regenerateAction — Phase 77 EMIT-02 + EDITOR-01                           //
 // ------------------------------------------------------------------------- //
+//
+// Wires the style-from-reference emit path:
+//   1. Auth gate
+//   2. Spec presence check (input.spec MUST be non-null)
+//   3. Content shape validation (ai-copy needs topic; user-copy needs lines[])
+//   4. generateCarouselFromReferences orchestrator (applies aspect filter +
+//      brand-kit remix, calls generateFromStyleSpec, persists slide_data)
+//   5. Discriminated-union return: { ok:true, projectId, slideCount } OR
+//      { ok:false, error: 'unauthenticated' | 'no_spec' | 'invalid_input' |
+//        'gemini_error' | 'token_budget_exceeded' | 'extraction_stale',
+//        detail? }
+//
+// EDITOR-01 BY-CONSTRUCTION: this action returns projectId; the client
+// (Phase 76 shell) navigates to /project/${projectId} via existing
+// router.push pattern (same as today's generateCarousel emit flow). The
+// SlideEditor mounts with persisted slide_data → useSlideEditor's
+// initial state has past=[], present=slides → one Cmd+Z restores empty
+// state. EMIT-10 single-pushHistory satisfied by construction with NO
+// new editor wiring needed.
 
-export interface RegenerateNotImplemented {
-  ok: false
-  error: 'not_implemented'
-  detail: string
+export interface RegenerateActionInput {
+  projectId: string
+  spec: StyleSpec
+  aspects: SpecPreviewAspects
+  useBrandKitRemix: boolean
+  brandKit: BrandKit | null
+  content: ContentSource
 }
 
-export async function regenerateAction(): Promise<RegenerateNotImplemented> {
-  // Phase 77 will replace this body with the actual emit path that consumes
-  // state.spec + state.aspects + state.useBrandKitRemix from the reducer.
-  return { ok: false, error: 'not_implemented', detail: 'Phase 77 will wire the emit path' }
+export type RegenerateActionResult =
+  | { ok: true; projectId: string; slideCount: number }
+  | {
+      ok: false
+      error:
+        | 'unauthenticated'
+        | 'no_spec'
+        | 'invalid_input'
+        | 'gemini_error'
+        | 'token_budget_exceeded'
+        | 'extraction_stale'
+      detail?: string
+    }
+
+export async function regenerateAction(
+  input: RegenerateActionInput,
+): Promise<RegenerateActionResult> {
+  // 1. Auth gate
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { ok: false, error: 'unauthenticated' }
+  }
+
+  // 2. Spec presence — defends against client-side state desync
+  if (!input.spec) {
+    return { ok: false, error: 'no_spec' }
+  }
+
+  // 3. Content shape validation
+  if (input.content.mode === 'ai-copy' && !input.content.topic) {
+    return { ok: false, error: 'invalid_input', detail: 'ai-copy requires topic' }
+  }
+  if (
+    input.content.mode === 'user-copy' &&
+    (!Array.isArray(input.content.lines) || input.content.lines.length === 0)
+  ) {
+    return { ok: false, error: 'invalid_input', detail: 'user-copy requires lines[]' }
+  }
+
+  // 4. EDITOR-01: orchestrator persists to projects.slide_data; client
+  //    navigates to /project/${projectId} via existing router.push pattern
+  //    — SlideEditor mounts with the persisted slides exactly the way today's
+  //    generateCarousel flow lands a project. EMIT-10 single-pushHistory
+  //    satisfied by construction (initial state has past=[], present=slides;
+  //    one Cmd+Z restores empty initial state — same as today's emit flow).
+  const admin = createAdminClient()
+  try {
+    const result = await generateCarouselFromReferences(admin, user.id, input)
+    return { ok: true, projectId: result.projectId, slideCount: result.slideCount }
+  } catch (err) {
+    // T-77-07: only return err.message — never the Error object (no stack
+    // leak). T-77-12: do NOT echo spec content into the error path.
+    const detail = err instanceof Error ? err.message : 'unknown'
+    return { ok: false, error: 'gemini_error', detail }
+  }
 }

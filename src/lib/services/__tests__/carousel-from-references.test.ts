@@ -4,6 +4,17 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Pexels client crashes at module load if PEXELS_API_KEY is missing —
+// generateCarousel (sibling) imports searchPhotos transitively. Mock
+// the module BEFORE the import. Phase 77 generateCarouselFromReferences
+// itself never calls searchPhotos, but the carousel.ts module load chain
+// needs to succeed.
+vi.mock('pexels', () => ({
+  createClient: () => ({
+    photos: { search: vi.fn().mockResolvedValue({ photos: [] }) },
+  }),
+}))
+
 const {
   mockGenerateFromStyleSpec,
   mockApplyAspectFilter,
