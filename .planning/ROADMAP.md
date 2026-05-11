@@ -30,7 +30,7 @@
 - [x] **Phase 76: Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery** — mandatory non-skippable spec-preview panel + per-aspect checkboxes + brand-kit toggle + safety-block recovery UI. ✅ Shipped 2026-05-10 (3 plans, 112 tests, 12/12 reqs, PREVIEW-01 enforced by reducer + source-grep gate).
 - [x] **Phase 77: Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff** — `generate-from-style-spec.ts` + two content paths + spec replaces `aiVoiceNote` + roundtrip parity + editor handoff. ✅ Shipped 2026-05-10 (3 plans, 98 tests, 14/14 reqs, PTF77 byte-identity locked, 12K-token CI gate live).
 - [x] **Phase 78: Remix / Fork / Publish Snapshot** — `published_carousels` columns + publish/fork RPC extensions + "Regenerate from references". ✅ Shipped 2026-05-10 (2 plans, 30 tests, 5/5 reqs).
-- [ ] **Phase 79: Legal Hardening + ToS Clickwrap + Audit Log + Copy Review** — ToS clickwrap + `style_reference_uploads` audit table + DMCA docs + Inspired-by copy enforcement.
+- [x] **Phase 79: Legal Hardening + ToS Clickwrap + Audit Log + Copy Review** — ToS clickwrap + `style_reference_uploads` audit table + DMCA docs + Inspired-by copy enforcement. ✅ Shipped 2026-05-10 (2 plans, 87 tests, 7/7 reqs, all 3 CI gates GREEN).
 
 ---
 
