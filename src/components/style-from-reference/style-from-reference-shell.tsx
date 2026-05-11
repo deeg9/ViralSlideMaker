@@ -41,6 +41,11 @@ export interface StyleFromReferenceShellProps {
   projectId: string
   brandKit: BrandKit | null
   brandKitAvailable: boolean
+  // Phase 79 LEGAL-01: ToS clickwrap props pass through to ReferenceImageUploader.
+  // tosAlreadyAccepted = false forces the modal to render before first upload.
+  // Defaults preserve existing test behavior (ToS treated as accepted) when omitted.
+  tosAlreadyAccepted?: boolean
+  acceptTosAction?: () => Promise<{ ok: true } | { ok: false; error: string }>
 }
 
 function dispatchExtractResult(
@@ -159,6 +164,8 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
           onExtractRequested={(rows) => {
             void handleExtract(rows)
           }}
+          tosAlreadyAccepted={props.tosAlreadyAccepted}
+          acceptTosAction={props.acceptTosAction}
         />
       )}
 
