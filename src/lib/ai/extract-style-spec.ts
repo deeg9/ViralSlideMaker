@@ -183,11 +183,20 @@ export const STYLE_SPEC_RESPONSE_SCHEMA: Schema = {
         preferredLucide: {
           type: Type.ARRAY,
           items: {
+            // NOTE: NOT using `enum` here — the 100-icon allowlist exceeds
+            // Gemini's responseSchema branching limit (quick 260511 live
+            // smoke: `400 INVALID_ARGUMENT — "The specified schema produces a
+            // constraint that has too much branching for serving"`). Closed-
+            // enum invariant is still enforced at the Phase B Zod boundary
+            // (parseStyleSpecSafe + silent-drop counter strip non-allowlisted
+            // values), so we lose nothing on the validation side; we only
+            // lose Gemini's structured constraint, which it can't honor at
+            // this enum size anyway. Prompt below hard-references the
+            // allowlist as guidance for Gemini.
             type: Type.STRING,
-            enum: [...LUCIDE_DECORATION_ALLOWLIST] as string[],
           },
           description:
-            'Lucide icon names (PascalCase) that fit the reference style. Strictly from the allowlist.',
+            'Lucide icon names (PascalCase) that fit the reference style. MUST be drawn from the allowlist named in the prompt — any value outside the allowlist will be silently dropped by post-processing.',
         },
         preferredShapes: {
           type: Type.ARRAY,
