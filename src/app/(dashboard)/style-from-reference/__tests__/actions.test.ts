@@ -169,10 +169,9 @@ describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier map
         decorations: {},
         rhythm: {},
       },
-      refusal_flags: [],
       cached: false,
       telemetry: {
-        vision_calls_count: 2,
+        vision_calls_count: 1,
         tokens_in: 100,
         tokens_out: 50,
         cache_hit: false,
@@ -209,7 +208,6 @@ describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier map
     const successResult = {
       ok: true as const,
       spec: {} as never,
-      refusal_flags: [],
       cached: false,
       telemetry: { vision_calls_count: 0, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
     }
@@ -250,7 +248,7 @@ describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier map
       detail: { whatever: 1 },
       reason: 'IMAGE_SAFETY',
       recovery_suggestion: 'Try cropping high-skin areas, try a different image, or describe the style in text instead.',
-      telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1 },
+      telemetry: { vision_calls_count: 1, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1 },
     }
     mockExtractStyleSpec.mockResolvedValueOnce(blocked)
 

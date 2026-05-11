@@ -98,3 +98,61 @@ describe('Phase 76 Plan 03: SafetyBlockRecovery (PREVIEW-12)', () => {
     }
   })
 })
+
+// quick 260511-flj: nudity/CSAM is the single hard-block category; this
+// regression pins the no-override invariant. After the Phase 79 LEGAL-05
+// T&C strengthening, the SafetyBlockRecovery surface MUST remain terminal
+// for the offending reference — the user's only paths forward are "Try a
+// different image" (UPLOAD_RESET) or describing in text. Any future copy
+// regression that introduces a "Continue anyway / Force / Override / I
+// accept" CTA fails this test before it can ship.
+describe('quick 260511-flj: SafetyBlockRecovery — no-override hard-block invariant', () => {
+  it('exposes ZERO override CTAs (no force / anyway / override / proceed / i accept buttons)', () => {
+    const { container } = render(
+      <SafetyBlockRecovery
+        recoverySuggestion="Try cropping high-skin areas"
+        dispatch={vi.fn()}
+      />,
+    )
+    const buttons = container.querySelectorAll('button, a[role="button"]')
+    const overrideRe = /force|anyway|override|proceed anyway|i accept|continue anyway/i
+    for (const btn of Array.from(buttons)) {
+      const label = (btn.textContent ?? '') + ' ' + (btn.getAttribute('aria-label') ?? '')
+      expect(
+        label,
+        `button "${label.trim()}" should NOT expose an override affordance`,
+      ).not.toMatch(overrideRe)
+    }
+  })
+
+  it('"Try a different image" CTA dispatches UPLOAD_RESET — NOT a generate/continue/force action', () => {
+    const dispatch = vi.fn()
+    render(
+      <SafetyBlockRecovery
+        recoverySuggestion="Try cropping high-skin areas"
+        dispatch={dispatch}
+      />,
+    )
+    fireEvent.click(screen.getByTestId('try-different-image-cta'))
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    const action = dispatch.mock.calls[0][0]
+    expect(action.type).toBe('UPLOAD_RESET')
+    expect(action.type).not.toBe('GENERATE_CLICK')
+    // No phantom CONFIRM/FORCE-shaped action types
+    expect(action.type).not.toMatch(/CONFIRM|FORCE|OVERRIDE/i)
+  })
+
+  it('pins the hard-refusal header copy — "We couldn\'t analyze that reference"', () => {
+    // If a future refactor softens this header to something like "Optional:
+    // try anyway" we want CI to fail loudly. The header is the user's
+    // primary signal that this surface is terminal for THIS reference.
+    render(
+      <SafetyBlockRecovery
+        recoverySuggestion="Try cropping high-skin areas"
+        dispatch={vi.fn()}
+      />,
+    )
+    const heading = screen.getByRole('heading', { level: 2 })
+    expect(heading.textContent ?? '').toMatch(/couldn'?t analyze that reference/i)
+  })
+})

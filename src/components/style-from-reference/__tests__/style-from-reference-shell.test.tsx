@@ -81,9 +81,8 @@ function successResult(): ExtractResult {
   return {
     ok: true,
     spec: makeSpec(),
-    refusal_flags: [],
     cached: false,
-    telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
+    telemetry: { vision_calls_count: 1, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
   }
 }
 
@@ -214,7 +213,7 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
       detail: { x: 1 },
       reason: 'IMAGE_SAFETY',
       recovery_suggestion: 'try cropping',
-      telemetry: { vision_calls_count: 2, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
+      telemetry: { vision_calls_count: 1, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
     })
     render(
       <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />,

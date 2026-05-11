@@ -1,11 +1,18 @@
-// Phase 76 Plan 03 (PREVIEW-07/10/12):
+// Phase 76 Plan 03 (PREVIEW-07/12):
 // Recovery integration tests covering shell + sticky strip + spec-preview
 // + ErrorRouter wiring. The shell drives the reducer; tests inject state
 // transitions through the existing uploader/Action stub pattern then
 // assert the right surfaces appear.
+//
+// quick 260511-flj: PREVIEW-10 RefusalWarning gate REMOVED. The original
+// Test 9 (sticky-strip refusal-warning placement), Test 10 (Generate gating
+// behind refusal acknowledgement), and Test 16 (CONFIRM_REFUSAL_WARNING
+// dispatch on Continue) are DELETED — refusalFlags / refusalAcknowledged
+// no longer exist on the reducer. Generate is now gated solely on
+// hasAtLeastOneAspect(state).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
 import type { ExtractResult } from '@/lib/ai/extract-style-spec.types'
 import type { StyleSpec } from '@/lib/types/style-spec'
@@ -87,64 +94,12 @@ beforeEach(() => {
 })
 
 describe('Phase 76 Plan 03: recovery integration', () => {
-  it('Test 9 (PREVIEW-10 sticky-strip warning placement): refusal chip renders inside the matching thumbnail container', async () => {
-    mockExtractStyleSpecAction.mockResolvedValueOnce({
-      ok: true,
-      spec: makeSpec(),
-      refusal_flags: [
-        { contains_logo: true, contains_face: false, contains_watermark: false },
-        { contains_logo: false, contains_face: false, contains_watermark: false },
-      ],
-      cached: false,
-      telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
-    } as ExtractResult)
-    render(<StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />)
-    fireEvent.click(screen.getByTestId('stub-extract-btn'))
-    await waitFor(() => {
-      expect(screen.getByTestId('spec-preview-panel')).toBeTruthy()
-    })
-    const thumbs = screen.getAllByTestId('sticky-reference-thumb')
-    expect(thumbs).toHaveLength(2)
-    // First thumb has refusal-warning child; second does NOT
-    expect(thumbs[0].querySelector('[data-testid="refusal-warning"]')).toBeTruthy()
-    expect(thumbs[1].querySelector('[data-testid="refusal-warning"]')).toBeNull()
-  })
+  // Test 9 (PREVIEW-10 sticky-strip refusal-warning placement) — DELETED
+  // quick 260511-flj: refusal warning gate removed; sticky strip renders
+  // only thumbnails, no per-reference slot.
 
-  it('Test 10 (PREVIEW-10 Generate gating): Generate disabled until refusal acknowledged', () => {
-    // Render SpecPreviewPanel directly with controlled state — the
-    // refusalAcknowledgedOrAbsent predicate (Plan 76-01) gates Generate.
-    const dispatch = vi.fn()
-    const { rerender } = render(
-      <SpecPreviewPanel
-        state={fullPreviewState({
-          refusalFlags: [{ contains_logo: true, contains_face: false, contains_watermark: false }],
-          refusalAcknowledged: false,
-        })}
-        dispatch={dispatch}
-        brandKit={null as BrandKit | null}
-        onGenerate={vi.fn()}
-        onReExtract={vi.fn()}
-      />,
-    )
-    const generate = screen.getByTestId('generate-cta') as HTMLButtonElement
-    expect(generate.disabled).toBe(true)
-
-    // Re-render with refusalAcknowledged=true; Generate enables.
-    rerender(
-      <SpecPreviewPanel
-        state={fullPreviewState({
-          refusalFlags: [{ contains_logo: true, contains_face: false, contains_watermark: false }],
-          refusalAcknowledged: true,
-        })}
-        dispatch={dispatch}
-        brandKit={null as BrandKit | null}
-        onGenerate={vi.fn()}
-        onReExtract={vi.fn()}
-      />,
-    )
-    const generateAfter = screen.getByTestId('generate-cta') as HTMLButtonElement
-    expect(generateAfter.disabled).toBe(false)
-  })
+  // Test 10 (PREVIEW-10 Generate gating behind refusal-acknowledged) — DELETED
+  // quick 260511-flj: Generate is gated solely on hasAtLeastOneAspect now.
 
   it('Test 11 (PREVIEW-12 spec-preview replaced): SafetyBlockRecovery present, SpecPreviewPanel ABSENT on safety_blocked', async () => {
     mockExtractStyleSpecAction.mockResolvedValueOnce({
@@ -153,7 +108,7 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       detail: { x: 1 },
       reason: 'IMAGE_SAFETY',
       recovery_suggestion: 'Try cropping high-skin areas',
-      telemetry: { vision_calls_count: 2, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
+      telemetry: { vision_calls_count: 1, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
     } as ExtractResult)
     render(<StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />)
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
@@ -255,12 +210,8 @@ describe('Phase 76 Plan 03: recovery integration', () => {
     mockExtractStyleSpecAction.mockResolvedValueOnce({
       ok: true,
       spec: makeSpec(),
-      refusal_flags: [
-        { contains_logo: false, contains_face: false, contains_watermark: false },
-        { contains_logo: false, contains_face: false, contains_watermark: false },
-      ],
       cached: false,
-      telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
+      telemetry: { vision_calls_count: 1, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
     } as ExtractResult)
     render(<StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />)
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
@@ -272,34 +223,6 @@ describe('Phase 76 Plan 03: recovery integration', () => {
     expect(generates).toHaveLength(1)
   })
 
-  it('Test 16: ack flow — clicking Continue inside the sticky-strip refusal chip dispatches CONFIRM_REFUSAL_WARNING (no other actions)', async () => {
-    mockExtractStyleSpecAction.mockResolvedValueOnce({
-      ok: true,
-      spec: makeSpec(),
-      refusal_flags: [
-        { contains_logo: true, contains_face: false, contains_watermark: false },
-        { contains_logo: false, contains_face: false, contains_watermark: false },
-      ],
-      cached: false,
-      telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
-    } as ExtractResult)
-    render(<StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />)
-    fireEvent.click(screen.getByTestId('stub-extract-btn'))
-    await waitFor(() => {
-      expect(screen.getByTestId('spec-preview-panel')).toBeTruthy()
-    })
-    // Generate is disabled (flagged + not acknowledged)
-    expect((screen.getByTestId('generate-cta') as HTMLButtonElement).disabled).toBe(true)
-    // Click the Continue inside the refusal chip — react updates state
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('refusal-continue-cta'))
-    })
-    // Generate becomes enabled now (aspects all default-on)
-    await waitFor(() => {
-      expect((screen.getByTestId('generate-cta') as HTMLButtonElement).disabled).toBe(false)
-    })
-    // Acknowledged badge appears, Continue gone
-    expect(screen.getByTestId('refusal-acknowledged-badge')).toBeTruthy()
-    expect(screen.queryByTestId('refusal-continue-cta')).toBeNull()
-  })
+  // Test 16 (CONFIRM_REFUSAL_WARNING ack flow) — DELETED
+  // quick 260511-flj: refusal acknowledgement removed entirely.
 })

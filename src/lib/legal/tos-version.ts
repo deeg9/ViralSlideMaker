@@ -6,7 +6,7 @@
 //      `tos_version` column when recording acceptance and read it back when
 //      asking "did this user accept the current ToS?".
 //   2. The clickwrap modal (Plan 79-02) imports it to label the
-//      "I have read and agree to the Terms (v2026-05-10-v1)" copy and to pass
+//      "I have read and agree to the Terms (vYYYY-MM-DD-vN)" copy and to pass
 //      to the server action that records acceptance.
 //   3. The Style-from-Reference section of `src/app/terms/page.tsx`
 //      (Plan 79-02 / LEGAL-05) renders the same literal so the displayed
@@ -17,11 +17,15 @@
 // matches on the literal, bumping it forces every existing user to re-accept
 // before their next upload — that is the intended legal effect.
 //
+// 2026-05-11: bumped to v2 — quick 260511-flj added Section 7b "Assumption
+// of Liability for Reference Content" and removed the in-app RefusalWarning
+// gate; forcing universal re-acceptance.
+//
 // FORMAT: `YYYY-MM-DD-vN` — date the clause was authored, plus a same-day
 // revision counter. The audit-log stores it as opaque text; only the format
 // test in __tests__/tos-version.test.ts enforces the convention.
 
-export const STYLE_FROM_REFERENCE_TOS_VERSION = '2026-05-10-v1' as const
+export const STYLE_FROM_REFERENCE_TOS_VERSION = '2026-05-11-v2' as const
 
 export type StyleFromReferenceTosVersion = typeof STYLE_FROM_REFERENCE_TOS_VERSION
 

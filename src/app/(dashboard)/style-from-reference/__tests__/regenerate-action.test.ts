@@ -244,7 +244,6 @@ describe('Phase 78 Plan 02 Task 1: regenerateFromReferencesAction (REMIX-05)', (
     mockExtractStyleSpec.mockResolvedValueOnce({
       ok: true,
       spec: makeSpec(),
-      refusal_flags: [],
       cached: false,
       telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
     })
@@ -309,7 +308,6 @@ describe('Phase 78 Plan 02 Task 1: regenerateFromReferencesAction (REMIX-05)', (
     mockExtractStyleSpec.mockResolvedValueOnce({
       ok: true,
       spec: makeSpec(),
-      refusal_flags: [],
       cached: false,
       telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1 },
     })
@@ -340,7 +338,6 @@ describe('Phase 78 Plan 02 Task 1: regenerateFromReferencesAction (REMIX-05)', (
     mockExtractStyleSpec.mockResolvedValueOnce({
       ok: true,
       spec: makeSpec(),
-      refusal_flags: [],
       cached: false,
       telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1 },
     })
@@ -384,7 +381,6 @@ describe('Phase 78 Plan 02 Task 1: regenerateFromReferencesAction (REMIX-05)', (
     mockExtractStyleSpec.mockResolvedValueOnce({
       ok: true,
       spec,
-      refusal_flags: [],
       cached: false,
       telemetry: { vision_calls_count: 2, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1 },
     })
