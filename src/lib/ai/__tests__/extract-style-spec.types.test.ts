@@ -3,6 +3,10 @@
 // type contract. Mirrors the pattern of "type-shape gate via expectTypeOf"
 // — these assertions fail at TS compile time when the contract drifts.
 //
+// quick 260511-flj: RefusalFlags re-export removed from extract-style-spec.types
+// (refusal pre-pass module deleted entirely). Type test 6 deleted; Type test 3
+// no longer asserts refusal_flags field.
+//
 // References:
 //   - CONTEXT.md D-04 (error taxonomy)
 //   - CONTEXT.md D-08 (telemetry shape)
@@ -17,7 +21,6 @@ import type {
   ExtractSuccess,
   ExtractError,
   ExtractTelemetry,
-  RefusalFlags,
 } from '../extract-style-spec.types'
 import type { StyleSpec } from '@/lib/types/style-spec'
 
@@ -50,7 +53,7 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
     expect(typeof consume).toBe('function')
   })
 
-  it('Type test 3: ExtractSuccess shape (ok:true, spec, refusal_flags, cached, telemetry)', () => {
+  it('Type test 3: ExtractSuccess shape (ok:true, spec, cached, telemetry)', () => {
     const success: ExtractSuccess = {
       ok: true,
       spec: {
@@ -62,7 +65,6 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
         decorations: {},
         rhythm: {},
       } as StyleSpec,
-      refusal_flags: [],
       cached: true,
       telemetry: {
         vision_calls_count: 0,
@@ -74,7 +76,6 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
     }
     expectTypeOf(success.ok).toEqualTypeOf<true>()
     expectTypeOf(success.spec).toEqualTypeOf<StyleSpec>()
-    expectTypeOf(success.refusal_flags).toEqualTypeOf<RefusalFlags[]>()
     expectTypeOf(success.cached).toEqualTypeOf<boolean>()
     expectTypeOf(success.telemetry).toEqualTypeOf<ExtractTelemetry>()
   })
@@ -117,7 +118,7 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
       reason: 'SAFETY',
       recovery_suggestion: 'Try a different image.',
       telemetry: {
-        vision_calls_count: 2,
+        vision_calls_count: 1,
         tokens_in: 100,
         tokens_out: 0,
         cache_hit: false,
@@ -130,7 +131,7 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
       error: 'extraction_failed',
       detail: 'Gemini timeout (10s)',
       telemetry: {
-        vision_calls_count: 2,
+        vision_calls_count: 1,
         tokens_in: 100,
         tokens_out: 0,
         cache_hit: false,
@@ -147,7 +148,7 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
 
   it('Type test 5: ExtractTelemetry shape (D-08)', () => {
     const t: ExtractTelemetry = {
-      vision_calls_count: 2,
+      vision_calls_count: 1,
       tokens_in: 1500,
       tokens_out: 600,
       cache_hit: false,
@@ -164,14 +165,7 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
     expectTypeOf(t.block_reason).toEqualTypeOf<string | undefined>()
   })
 
-  it('Type test 6: RefusalFlags is re-exported from this module (single import surface)', () => {
-    const f: RefusalFlags = {
-      contains_logo: false,
-      contains_face: false,
-      contains_watermark: false,
-    }
-    expectTypeOf(f.contains_logo).toEqualTypeOf<boolean>()
-    expectTypeOf(f.contains_face).toEqualTypeOf<boolean>()
-    expectTypeOf(f.contains_watermark).toEqualTypeOf<boolean>()
-  })
+  // Type test 6 (RefusalFlags re-export) — DELETED
+  // quick 260511-flj: refusal pre-pass module deleted; RefusalFlags type
+  // no longer exists.
 })

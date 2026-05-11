@@ -14,12 +14,14 @@ import {
 
 describe('tos-version', () => {
   it('exports the locked v2.13 ToS version literal', () => {
-    expect(STYLE_FROM_REFERENCE_TOS_VERSION).toBe('2026-05-10-v1')
+    // quick 260511-flj: bumped 2026-05-10-v1 → 2026-05-11-v2 to force
+    // universal re-acceptance after Section 7b assumption-of-liability addition.
+    expect(STYLE_FROM_REFERENCE_TOS_VERSION).toBe('2026-05-11-v2')
   })
 
   it('getStyleFromReferenceTosVersion() returns the same literal', () => {
     expect(getStyleFromReferenceTosVersion()).toBe(STYLE_FROM_REFERENCE_TOS_VERSION)
-    expect(getStyleFromReferenceTosVersion()).toBe('2026-05-10-v1')
+    expect(getStyleFromReferenceTosVersion()).toBe('2026-05-11-v2')
   })
 
   it('the literal is a non-empty date-versioned string (YYYY-MM-DD-vN shape)', () => {

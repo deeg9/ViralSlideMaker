@@ -3,6 +3,10 @@
 // extract-style-spec orchestrator. Single import surface for Plan 75-01,
 // Phase 76 (Server Action), Phase 77 (emit pipeline).
 //
+// quick 260511-flj: refusal_flags REMOVED from ExtractSuccess (Phase 75 D-05
+// superseded — the refusal pre-pass module is deleted entirely). RefusalFlags
+// re-export REMOVED.
+//
 // References:
 //   - REQUIREMENTS.md EXTRACT-01 (endpoint signature)
 //   - REQUIREMENTS.md EXTRACT-08 (telemetry: vision_calls_count, tokens, cache_hit, duration_ms)
@@ -20,11 +24,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { StyleSpec } from '@/lib/types/style-spec'
-import type { RefusalFlags } from './refusal-pre-pass'
 import type { RateCapResult } from '@/lib/cost/style-extraction-rate-cap'
-
-// Re-export so consumers (Plan 75-01, Phase 76 UI) have ONE import surface.
-export type { RefusalFlags }
 
 /**
  * Input contract for extractStyleSpec.
@@ -51,8 +51,8 @@ export interface ExtractInput {
 /**
  * Per-extraction telemetry — feeds bill-alarm cron + future per-user analytics.
  *
- * `vision_calls_count` is 2 on a non-cached extraction (1 main + 1 refusal)
- * even though the rate-cap consumes 1 charge per CONTEXT.md Discretion.
+ * `vision_calls_count` is 1 on a non-cached extraction (quick 260511-flj —
+ * refusal pre-pass call removed; only the main Phase A extraction call remains).
  *
  * `silent_drops` and `block_reason` are optional — present only when the
  * relevant code path executes (silent-drop counter populated on Phase B,
@@ -72,7 +72,6 @@ export interface ExtractTelemetry {
 export interface ExtractSuccess {
   ok: true
   spec: StyleSpec
-  refusal_flags: RefusalFlags[]
   cached: boolean
   telemetry: ExtractTelemetry
 }

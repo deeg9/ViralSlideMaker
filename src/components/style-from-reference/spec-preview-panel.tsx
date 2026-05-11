@@ -3,28 +3,18 @@
 // Phase 76 Plan 01 (PREVIEW-01) + Plan 02 (PREVIEW-02..06 + 08 + 11):
 // SpecPreviewPanel. Owns the Generate + Re-extract CTAs because their
 // enable/disable + click handlers are state-machine-driven invariants
-// (76-01's contract). Plan 76-02 filled the slot CONTENT:
+// (76-01's contract).
 //
-//   palette-slot     → <PaletteSwatches palette={spec.palette} />
-//   typography-slot  → <FontCategoryBadges hook=... body=... />
-//   layout-slot      → <LayoutSketch layout=... decorationsDensity=... />
-//   voice-note-slot  → <VoiceNoteCaption voiceNote={spec.voice_note} />
-//   aspects-slot     → <PerAspectToggles aspects=... dispatch=... />
-//   brand-kit-slot   → <BrandKitRemixToggle ... />  (returns null when no kit)
-//   credit-cost-slot → <CreditCostDisplay cost={1} />
-//
-// Plan 76-03 will inject inline RefusalWarning chips via the existing
-// `refusalWarningSlot` ReactNode prop and fill error-mount in the shell
-// (this file does NOT own the error-mount slot — see style-from-reference-shell).
-//
-// Plans 76-02 and 76-03 MUST NOT both modify this file in parallel
-// (shared-file dependency forces them into Wave 2 sequentially per the
-// plan's depends_on graph).
+// quick 260511-flj: PREVIEW-10 RefusalWarning gate REMOVED. Generate is
+// disabled ONLY when no aspect is checked (single-predicate). The
+// refusalWarningSlot prop and the refusalAcknowledgedOrAbsent helper have
+// been deleted; liability for IP / right-of-publicity / trademark exposure
+// shifted to the user via the strengthened Phase 79 LEGAL-05 T&C clickwrap
+// (STYLE_FROM_REFERENCE_TOS_VERSION bumped to force re-acceptance).
 //
 // Copy posture: Generate / Re-extract / "Inspired by" framing only. Phase 79
-// grep gate will enforce zero mimicry-framing tokens project-wide.
+// grep gate enforces zero mimicry-framing tokens project-wide.
 
-import type { ReactNode } from 'react'
 import type { StyleSpec } from '@/lib/types/style-spec'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { SpecPreviewState, SpecPreviewAction } from './state-machine'
@@ -43,9 +33,6 @@ export interface SpecPreviewPanelProps {
   brandKit: BrandKit | null
   onGenerate: () => void
   onReExtract: () => void
-  /** Optional slot for Plan 76-03's RefusalWarning render — kept here so
-   *  76-03 can inject its surface without forking the panel. */
-  refusalWarningSlot?: ReactNode
 }
 
 function hasAtLeastOneAspect(state: SpecPreviewState): boolean {
@@ -53,28 +40,14 @@ function hasAtLeastOneAspect(state: SpecPreviewState): boolean {
   return a.palette || a.typography || a.layout || a.decorations
 }
 
-function refusalAcknowledgedOrAbsent(state: SpecPreviewState): boolean {
-  // PREVIEW-10: refusal warning is non-blocking BUT Generate is gated until
-  // the user explicitly acknowledges it. If no flagged refs, treat as
-  // acknowledged (no warning to confirm).
-  const anyFlagged = state.refusalFlags.some(
-    (f) => f.contains_logo || f.contains_face || f.contains_watermark,
-  )
-  if (!anyFlagged) return true
-  return state.refusalAcknowledged
-}
-
 export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
   const { state } = props
   const spec: StyleSpec | null = state.spec
 
-  const generateDisabled =
-    !hasAtLeastOneAspect(state) || !refusalAcknowledgedOrAbsent(state)
+  // quick 260511-flj: single-predicate gate — Generate disabled iff no aspect checked.
+  const generateDisabled = !hasAtLeastOneAspect(state)
   const reExtractDisabled = state.retriesRemaining <= 0
 
-  // Plan 76-02 will replace these inert placeholders with real components.
-  // The skeleton renders empty mount-point divs whose testids are the
-  // contract Plan 76-02 + 76-03 build against.
   return (
     <section
       data-testid="spec-preview-panel"
@@ -90,8 +63,6 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
           applied, or re-extract to try again.
         </p>
       </header>
-
-      {props.refusalWarningSlot ?? null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div data-testid="palette-slot" data-slot="palette" className="min-h-[64px]">
@@ -158,16 +129,11 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
             data-testid="generate-cta"
             disabled={generateDisabled}
             onClick={props.onGenerate}
-            // Quick 260511-generate-disabled-affordance: surface WHY when
-            // disabled so users don't stare at a dead button. Two gates:
-            // (1) at least one aspect checked, (2) refusal warnings (if any)
-            // acknowledged. The tooltip names the active blocker so the user
-            // knows exactly what to fix.
+            // quick 260511-flj: single gate. Title surfaces WHY when disabled
+            // so users don't stare at a dead button.
             title={
               generateDisabled
-                ? !hasAtLeastOneAspect(state)
-                  ? 'Check at least one aspect above (palette, typography, layout, or decorations) before generating.'
-                  : 'Confirm the reference warning above to continue.'
+                ? 'Check at least one aspect above (palette, typography, layout, or decorations) before generating.'
                 : undefined
             }
             aria-describedby={generateDisabled ? 'generate-cta-blocker' : undefined}
@@ -186,9 +152,7 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
               data-testid="generate-cta-blocker"
               className="text-xs text-[#7d6161] mt-1"
             >
-              {!hasAtLeastOneAspect(state)
-                ? 'Check at least one aspect above to enable Generate.'
-                : 'Confirm the reference warning above to enable Generate.'}
+              Check at least one aspect above to enable Generate.
             </p>
           )}
         </div>
