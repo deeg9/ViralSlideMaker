@@ -2,9 +2,15 @@
 // Unit tests for the extract-style-spec orchestrator. Mocks @google/genai +
 // every Phase 73/74 dependency — DOES NOT make real Gemini calls.
 //
-// Coverage (14 behavior tests + 1 source-grep firewall gate):
-//   1.  cache hit short-circuit (no Gemini call, no charge, no refusal)
-//   2.  cache miss happy path + Promise.all parallel + telemetry shape
+// quick 260511-flj: refusal pre-pass module deleted. Test 12 (refusal
+// errored → ok:true with errored:true flag) is DELETED entirely. Parallel-
+// dispatch assertions (refusalStarted / refusalDelayMs / Math.abs(...))
+// in Test 2 are DELETED. `vi.mock('../refusal-pre-pass', ...)` block is
+// DELETED. `visionCallsCount` expectations are 1 (was 2).
+//
+// Coverage (13 behavior tests + 1 source-grep firewall gate):
+//   1.  cache hit short-circuit (no Gemini call, no charge)
+//   2.  cache miss happy path + telemetry shape
 //   3.  two-phase firewall — INJECTED extra keys stripped by Phase B
 //   4.  rate-cap reached → no charge, no Gemini call
 //   5.  insufficient credits → no Gemini call, no refund
@@ -14,7 +20,6 @@
 //   9.  permanent error → no retry → refund + extraction_failed
 //   10. schema-violation degraded spec — silent-drop counter populated
 //   11. truly invalid JSON → refund + extraction_failed
-//   12. refusal pre-pass errored → orchestrator returns ok:true + flags marked errored
 //   13. telemetry duration_ms is real wall clock
 //   14. no-real-Gemini gate (test file has zero GEMINI_API_KEY references)
 //   15. source-grep firewall: rawGemini/rawObject only appear BEFORE parseStyleSpecSafe
@@ -36,7 +41,6 @@ const {
   mockCheckExtractionRateCap,
   mockChargeExtractionCredit,
   mockRefundExtractionCredit,
-  mockRunRefusalPrePass,
   mockExtractPaletteFromBytes,
   mockMergePalettes,
   mockParseStyleSpecSafe,
@@ -54,7 +58,6 @@ const {
   mockCheckExtractionRateCap: vi.fn(),
   mockChargeExtractionCredit: vi.fn(),
   mockRefundExtractionCredit: vi.fn(),
-  mockRunRefusalPrePass: vi.fn(),
   mockExtractPaletteFromBytes: vi.fn(),
   mockMergePalettes: vi.fn(),
   mockParseStyleSpecSafe: vi.fn(),
@@ -83,6 +86,7 @@ vi.mock('@google/genai', () => ({
   },
   HarmBlockThreshold: {
     BLOCK_ONLY_HIGH: 'BLOCK_ONLY_HIGH',
+    BLOCK_LOW_AND_ABOVE: 'BLOCK_LOW_AND_ABOVE',
   },
 }))
 
@@ -110,13 +114,7 @@ vi.mock('@/lib/cost/style-extraction-retry', () => ({
   isTransientError: vi.fn(() => false),
 }))
 
-vi.mock('../refusal-pre-pass', () => ({
-  runRefusalPrePass: mockRunRefusalPrePass,
-  REFUSAL_TIMEOUT_MS: 10_000,
-  REFUSAL_GEMINI_MODEL: 'gemini-2.5-flash',
-  REFUSAL_SAFETY_SETTINGS: [],
-  REFUSAL_RESPONSE_SCHEMA: {},
-}))
+// quick 260511-flj: refusal-pre-pass mock removed — module deleted entirely.
 
 vi.mock('../palette-extraction', () => ({
   extractPaletteFromBytes: mockExtractPaletteFromBytes,
@@ -213,50 +211,32 @@ describe('Phase 75 Plan 01: extractStyleSpec — cache hit', () => {
       expect(result.telemetry.cache_hit).toBe(true)
       expect(result.telemetry.vision_calls_count).toBe(0)
     }
-    // Cache check happens BEFORE charge / Gemini / refusal per Phase 73 contract.
+    // Cache check happens BEFORE charge / Gemini per Phase 73 contract.
     expect(mockPrepareForVision).toHaveBeenCalledTimes(1)
     expect(mockChargeExtractionCredit).not.toHaveBeenCalled()
     expect(mockGenerateContent).not.toHaveBeenCalled()
-    expect(mockRunRefusalPrePass).not.toHaveBeenCalled()
     expect(mockCheckExtractionRateCap).not.toHaveBeenCalled()
   })
 })
 
-describe('Phase 75 Plan 01: extractStyleSpec — cache miss happy path + parallel + telemetry', () => {
-  it('Test 2: happy path emits validated spec, palette merged from node-vibrant, parallel dispatch', async () => {
+describe('Phase 75 Plan 01: extractStyleSpec — cache miss happy path + telemetry', () => {
+  it('Test 2: happy path emits validated spec, palette merged from node-vibrant', async () => {
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
 
-    const refusalDelayMs = 50
-    const geminiDelayMs = 50
-    let refusalStarted = 0
-    let geminiStarted = 0
-    mockRunRefusalPrePass.mockImplementationOnce(async () => {
-      refusalStarted = Date.now()
-      await new Promise((r) => setTimeout(r, refusalDelayMs))
-      return {
-        flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-        errored: false,
-        duration_ms: refusalDelayMs,
-      }
-    })
-    mockGenerateContent.mockImplementationOnce(async () => {
-      geminiStarted = Date.now()
-      await new Promise((r) => setTimeout(r, geminiDelayMs))
-      return {
-        text: JSON.stringify({
-          schema_version: 1,
-          palette: { mode: 'solid' },
-          typography: { hookFontCategory: 'sans-serif' },
-          layout: { hookPosition: 'top', density: 'medium' },
-          imagery: { treatmentPreset: 'bw' },
-          decorations: { density: 'sparse' },
-          rhythm: { cadence: 'punchy' },
-          voice_note: 'Bold magazine voice',
-        }),
-        usageMetadata: { promptTokenCount: 1500, candidatesTokenCount: 600 },
-      }
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        schema_version: 1,
+        palette: { mode: 'solid' },
+        typography: { hookFontCategory: 'sans-serif' },
+        layout: { hookPosition: 'top', density: 'medium' },
+        imagery: { treatmentPreset: 'bw' },
+        decorations: { density: 'sparse' },
+        rhythm: { cadence: 'punchy' },
+        voice_note: 'Bold magazine voice',
+      }),
+      usageMetadata: { promptTokenCount: 1500, candidatesTokenCount: 600 },
     })
 
     const palette = { hex: ['#A8E0B0', '#000000', '#FFFFFF'], dominant: '#A8E0B0' }
@@ -273,7 +253,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — cache miss happy path + paralle
       return { ok: true, spec: validatedSpec, counter: makeCounter({}) }
     })
 
-    const start = Date.now()
     const result = await extractStyleSpec({
       projectId: 'p2',
       userId: 'u2',
@@ -281,15 +260,13 @@ describe('Phase 75 Plan 01: extractStyleSpec — cache miss happy path + paralle
       referenceBytes: makeRefBytes(1),
       admin: makeAdmin(),
     })
-    const wallClock = Date.now() - start
 
     expect(result.ok).toBe(true)
     if (result.ok) {
       // Palette comes from node-vibrant, NOT from Gemini (which had no `primary` field).
       expect(result.spec.palette.primary).toBe('#A8E0B0')
-      expect(result.refusal_flags).toHaveLength(1)
-      // 2 vision calls (1 main + 1 refusal) per CONTEXT.md D-Discretion
-      expect(result.telemetry.vision_calls_count).toBe(2)
+      // quick 260511-flj: 1 vision call (refusal pre-pass deleted)
+      expect(result.telemetry.vision_calls_count).toBe(1)
       expect(result.telemetry.tokens_in).toBe(1500)
       expect(result.telemetry.tokens_out).toBe(600)
       expect(result.telemetry.cache_hit).toBe(false)
@@ -300,15 +277,8 @@ describe('Phase 75 Plan 01: extractStyleSpec — cache miss happy path + paralle
       palette: expect.objectContaining({ primary: '#A8E0B0' }),
     })
     expect(mockPersistStyleSpec).toHaveBeenCalledTimes(1)
-
-    // Parallel dispatch: refusal + Gemini both started before either resolved.
-    // Wall clock should be ≈ max(50, 50) ≈ 50-100ms, NOT 100ms+ that sequential would be.
-    expect(refusalStarted).toBeGreaterThan(0)
-    expect(geminiStarted).toBeGreaterThan(0)
-    // Both started within ~5ms of each other (parallel kicks them in same Promise.all).
-    expect(Math.abs(refusalStarted - geminiStarted)).toBeLessThan(20)
-    // And the total wall clock is closer to one delay than two.
-    expect(wallClock).toBeLessThan(refusalDelayMs + geminiDelayMs - 5)
+    // Gemini called exactly once (no refusal pre-pass parallel call any more).
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -317,11 +287,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — two-phase firewall (Phase B str
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 100,
-    })
     mockGenerateContent.mockResolvedValueOnce({
       text: JSON.stringify({
         schema_version: 1,
@@ -405,7 +370,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — rate-cap reached', () => {
     }
     expect(mockChargeExtractionCredit).not.toHaveBeenCalled()
     expect(mockGenerateContent).not.toHaveBeenCalled()
-    expect(mockRunRefusalPrePass).not.toHaveBeenCalled()
   })
 })
 
@@ -435,11 +399,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — safety block', () => {
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 50,
-    })
     mockGenerateContent.mockResolvedValueOnce({
       text: '',
       promptFeedback: { blockReason: 'SAFETY' },
@@ -477,11 +436,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — 10s timeout', () => {
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 10,
-    })
     // Gemini never resolves.
     mockGenerateContent.mockImplementationOnce(
       () => new Promise(() => { /* never */ }),
@@ -514,11 +468,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — transient error retried via wit
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 50,
-    })
 
     // Simulate withSingleRetry by invoking the inner fn TWICE — first throws, second resolves.
     let attempt = 0
@@ -577,11 +526,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — permanent error (4xx) NOT retri
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 50,
-    })
 
     mockGenerateContent.mockImplementationOnce(async () => {
       const err = new Error('400 Bad Request')
@@ -611,11 +555,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — schema-violation degraded spec'
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 50,
-    })
     mockGenerateContent.mockResolvedValueOnce({
       text: JSON.stringify({
         schema_version: 1,
@@ -664,11 +603,6 @@ describe('Phase 75 Plan 01: extractStyleSpec — invalid JSON', () => {
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 30,
-    })
     mockGenerateContent.mockResolvedValueOnce({
       text: 'not json at all <broken>',
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 5 },
@@ -688,67 +622,14 @@ describe('Phase 75 Plan 01: extractStyleSpec — invalid JSON', () => {
   })
 })
 
-describe('Phase 75 Plan 01: extractStyleSpec — refusal pre-pass errored (graceful degradation)', () => {
-  it('Test 12: refusal returns errored:true → orchestrator still returns ok:true', async () => {
-    mockLookupStyleSpec.mockResolvedValueOnce(null)
-    mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
-    mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: true, // <-- refusal errored, graceful degrade
-      duration_ms: 200,
-    })
-    mockGenerateContent.mockResolvedValueOnce({
-      text: JSON.stringify({
-        schema_version: 1,
-        palette: { mode: 'solid' },
-        typography: {},
-        layout: {},
-        imagery: {},
-        decorations: {},
-        rhythm: {},
-      }),
-      usageMetadata: { promptTokenCount: 800, candidatesTokenCount: 200 },
-    })
-
-    const palette = { hex: ['#000000'], dominant: '#000000' }
-    mockExtractPaletteFromBytes.mockResolvedValueOnce(palette)
-    mockMergePalettes.mockReturnValueOnce(palette)
-    mockParseStyleSpecSafe.mockReturnValueOnce({
-      ok: true,
-      spec: makeValidStyleSpec({ palette: { mode: 'solid', primary: '#000000' } }),
-      counter: makeCounter({}),
-    })
-
-    const result = await extractStyleSpec({
-      projectId: 'p12',
-      userId: 'u12',
-      tier: 'free',
-      referenceBytes: makeRefBytes(1),
-      admin: makeAdmin(),
-    })
-
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.refusal_flags).toEqual([
-        { contains_logo: false, contains_face: false, contains_watermark: false },
-      ])
-      // Telemetry counts attempts not successes — both vision calls attempted.
-      expect(result.telemetry.vision_calls_count).toBe(2)
-    }
-  })
-})
+// Test 12 (refusal pre-pass errored → graceful degradation) — DELETED
+// quick 260511-flj: refusal pre-pass module deleted entirely.
 
 describe('Phase 75 Plan 01: extractStyleSpec — telemetry duration_ms is real wall clock', () => {
   it('Test 13: duration_ms reflects actual wall time including Gemini delay', async () => {
     mockLookupStyleSpec.mockResolvedValueOnce(null)
     mockCheckExtractionRateCap.mockResolvedValueOnce({ allowed: true, callsToday: 0, callsRemaining: 5, imagesPerCallCap: 3 })
     mockChargeExtractionCredit.mockResolvedValueOnce(true)
-    mockRunRefusalPrePass.mockResolvedValueOnce({
-      flags_per_reference: [{ contains_logo: false, contains_face: false, contains_watermark: false }],
-      errored: false,
-      duration_ms: 50,
-    })
     mockGenerateContent.mockImplementationOnce(async () => {
       await new Promise((r) => setTimeout(r, 50))
       return {

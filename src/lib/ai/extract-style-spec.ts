@@ -51,7 +51,10 @@ import { withSingleRetry } from '@/lib/cost/style-extraction-retry'
 import { parseStyleSpecSafe } from '@/lib/validators/style-spec'
 import { createSilentDropCounter, type SilentDropCounter } from '@/lib/validators/silent-drop-counter'
 
-import { runRefusalPrePass } from './refusal-pre-pass'
+// quick 260511-flj: runRefusalPrePass import removed — refusal pre-pass module
+// is deleted entirely (Phase 75 D-05 superseded). Liability for IP /
+// right-of-publicity / trademark exposure shifted to the user via the
+// strengthened Phase 79 LEGAL-05 T&C clickwrap.
 import { extractPaletteFromBytes, mergePalettes, type ExtractedPalette } from './palette-extraction'
 
 // Phase 74 closed-enum constants — sourced from the SAME modules
@@ -79,14 +82,21 @@ export const EXTRACTION_TIMEOUT_MS = 10_000
 export const GEMINI_VISION_MODEL = 'gemini-2.5-flash'
 
 /**
- * BLOCK_ONLY_HIGH for all 4 categories per CONTEXT.md D-04 + EXTRACT-03 +
- * PITFALLS Pitfall 7. Minimum permissive that still blocks the worst
- * content; lifestyle/fitness slideshows should not be auto-rejected.
+ * Gemini safety thresholds for the Phase A vision call.
+ *
+ * Three categories at BLOCK_ONLY_HIGH (CONTEXT.md D-04 + EXTRACT-03) — minimum
+ * permissive that still blocks the worst content; lifestyle/fitness slideshows
+ * should not be auto-rejected.
+ *
+ * quick 260511-flj: tightened the sexually-explicit category threshold to
+ * a low-and-above block per locked decision — nudity/CSAM is the only hard-block
+ * category; logos/faces/watermarks moved to T&C assumption-of-liability.
+ * CSAM remains hard-blocked at Gemini's API layer regardless of threshold.
  */
 export const VISION_SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT,        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,       threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
 ]
 
@@ -406,7 +416,9 @@ function toSubscriptionTier(t: 'free' | 'paid'): SubscriptionTier {
  *   2. cache check on combined sha256 — HIT short-circuits (free per Phase 73-02)
  *   3. rate-cap check (anti-abuse — Phase 73-03)
  *   4. charge BEFORE call (charge-then-refund — Phase 73-03)
- *   5. PARALLEL: refusal pre-pass + main Phase A vision call (saves wall time per D-Discretion)
+ *   5. main Phase A vision call (quick 260511-flj: refusal pre-pass deleted —
+ *      single Gemini vision call; the BLOCK_LOW_AND_ABOVE sexually-explicit
+ *      threshold + T&C clickwrap absorb the prior gate's role)
  *   6. detect promptFeedback.blockReason → refund + safety_blocked
  *   7. parse Phase A text JSON → invalid JSON → refund + extraction_failed
  *   8. extract palette via node-vibrant (Plan 75-03 — D-07)
@@ -437,7 +449,6 @@ export async function extractStyleSpec(input: ExtractInput): Promise<ExtractResu
     return {
       ok: true,
       spec: cached as StyleSpec,
-      refusal_flags: [],
       cached: true,
       telemetry: {
         vision_calls_count: 0,
@@ -489,15 +500,12 @@ export async function extractStyleSpec(input: ExtractInput): Promise<ExtractResu
   }
 
   try {
-    // Step 5 — PARALLEL refusal pre-pass + Phase A main extraction.
-    // Saves ~10s wall time per D-Discretion. Refusal NEVER throws (Plan 75-02
-    // graceful-degradation contract); main extraction is wrapped in
-    // withSingleRetry (Phase 73-03 — transient errors only, capped at 2 attempts).
-    const [refusal, rawGemini] = await Promise.all([
-      runRefusalPrePass(prepared),
-      withSingleRetry(() => callGeminiVisionWithTimeout(prepared)),
-    ])
-    visionCallsCount = 2 // 1 main + 1 refusal — D-Discretion (rate-cap consumes 1 charge)
+    // Step 5 — Phase A main extraction (quick 260511-flj: refusal pre-pass
+    // deleted; the parallel call wrapping is gone — a single Gemini Vision
+    // call, wrapped in withSingleRetry per Phase 73-03 — transient errors
+    // only, capped at 2 attempts).
+    const rawGemini = await withSingleRetry(() => callGeminiVisionWithTimeout(prepared))
+    visionCallsCount = 1 // quick 260511-flj: 1 main only (refusal pre-pass removed)
     tokensIn = rawGemini.usageMetadata?.promptTokenCount ?? 0
     tokensOut = rawGemini.usageMetadata?.candidatesTokenCount ?? 0
 
@@ -591,7 +599,6 @@ export async function extractStyleSpec(input: ExtractInput): Promise<ExtractResu
     return {
       ok: true,
       spec: parseResult.spec,
-      refusal_flags: refusal.flags_per_reference,
       cached: false,
       telemetry: {
         vision_calls_count: visionCallsCount,

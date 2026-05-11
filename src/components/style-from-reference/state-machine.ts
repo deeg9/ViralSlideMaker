@@ -1,6 +1,11 @@
 // Phase 76 Plan 01 (PREVIEW-01, PREVIEW-09):
 // Pure-function reducer for the spec-preview-and-confirm flow.
 //
+// quick 260511-flj: PREVIEW-10 refusal gate REMOVED — liability shifted to T&C
+// (Phase 79 LEGAL-05). refusalFlags / refusalAcknowledged / CONFIRM_REFUSAL_WARNING
+// have been deleted from this reducer. Generate is gated solely on
+// hasAtLeastOneAspect now.
+//
 // =====================================================================
 // PREVIEW-01 INVARIANT (LOAD-BEARING — DO NOT VIOLATE):
 // =====================================================================
@@ -26,7 +31,6 @@
 
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
 import type { StyleSpec } from '@/lib/types/style-spec'
-import type { RefusalFlags } from '@/lib/ai/refusal-pre-pass'
 import type { ExtractTelemetry } from '@/lib/ai/extract-style-spec.types'
 
 // ------------------------------------------------------------------------- //
@@ -68,8 +72,6 @@ export interface SpecPreviewState {
   status: SpecPreviewStatus
   references: ReferenceAssetRow[]
   spec: StyleSpec | null
-  refusalFlags: RefusalFlags[]
-  refusalAcknowledged: boolean
   /** PREVIEW-07: 2 retries per generation; resets on UPLOAD_RESET (fresh upload). */
   retriesRemaining: number
   /** PREVIEW-06: per-aspect emit toggles. Defaults all-on per CONTEXT.md D-XX. */
@@ -89,7 +91,6 @@ export type SpecPreviewAction =
   | {
       type: 'EXTRACT_SUCCESS'
       spec: StyleSpec
-      refusalFlags: RefusalFlags[]
       telemetry: ExtractTelemetry
     }
   | {
@@ -100,7 +101,6 @@ export type SpecPreviewAction =
   | { type: 'RE_EXTRACT_CLICK' }
   | { type: 'TOGGLE_ASPECT'; aspect: keyof SpecPreviewAspects }
   | { type: 'TOGGLE_BRAND_KIT_REMIX' }
-  | { type: 'CONFIRM_REFUSAL_WARNING' }
   | { type: 'GENERATE_CLICK' }
   | { type: 'GENERATE_DONE' }
   | { type: 'BRAND_KIT_AVAILABILITY'; available: boolean }
@@ -114,8 +114,6 @@ export const initialSpecPreviewState: SpecPreviewState = {
   status: 'idle',
   references: [],
   spec: null,
-  refusalFlags: [],
-  refusalAcknowledged: false,
   retriesRemaining: 2,
   aspects: { palette: true, typography: true, layout: true, decorations: true },
   useBrandKitRemix: false,
@@ -179,8 +177,6 @@ export function specPreviewReducer(
         ...state,
         status: 'preview',
         spec: action.spec,
-        refusalFlags: action.refusalFlags,
-        refusalAcknowledged: false,
         lastTelemetry: action.telemetry,
         error: null,
       }
@@ -221,11 +217,6 @@ export function specPreviewReducer(
       // PREVIEW-08: the toggle is hidden when no brand kit; reducer enforces.
       if (!state.brandKitAvailable) return state
       return { ...state, useBrandKitRemix: !state.useBrandKitRemix }
-
-    case 'CONFIRM_REFUSAL_WARNING':
-      // Non-blocking: flips ACK, never advances status.
-      if (state.status !== 'preview') return state
-      return { ...state, refusalAcknowledged: true }
 
     case 'GENERATE_CLICK':
       // PREVIEW-01 INVARIANT — load-bearing structural defense.
