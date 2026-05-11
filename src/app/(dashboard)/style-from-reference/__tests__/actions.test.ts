@@ -20,11 +20,17 @@ const {
   mockStorageDownload,
   mockGetUserTier,
   mockExtractStyleSpec,
+  mockGenerateCarouselFromReferences,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockStorageDownload: vi.fn(),
   mockGetUserTier: vi.fn(),
   mockExtractStyleSpec: vi.fn(),
+  mockGenerateCarouselFromReferences: vi.fn(),
+}))
+
+vi.mock('@/lib/services/carousel', () => ({
+  generateCarouselFromReferences: mockGenerateCarouselFromReferences,
 }))
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -85,6 +91,7 @@ beforeEach(() => {
   mockStorageDownload.mockReset()
   mockGetUserTier.mockReset()
   mockExtractStyleSpec.mockReset()
+  mockGenerateCarouselFromReferences.mockReset()
 })
 
 describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier mapping', () => {
@@ -255,15 +262,6 @@ describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier map
     expect(result).toEqual(blocked)
   })
 
-  it('Test 7: regenerateAction returns Phase 77 placeholder', async () => {
-    const result = await regenerateAction()
-    expect(result).toEqual({
-      ok: false,
-      error: 'not_implemented',
-      detail: 'Phase 77 will wire the emit path',
-    })
-  })
-
   it("Test 8: 'use server' directive is the first non-empty, non-comment line of actions.ts", () => {
     const filePath = path.resolve(__dirname, '../actions.ts')
     const src = fs.readFileSync(filePath, 'utf-8')
@@ -292,5 +290,128 @@ describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier map
     // Gemini surface; this Server Action only composes it.
     const hits = (src.match(/@google\/genai/g) ?? []).length
     expect(hits).toBe(0)
+  })
+})
+
+describe('Phase 77 Plan 02 Task 4: regenerateAction (EMIT-02 + EDITOR-01)', () => {
+  function makeSpec(): import('@/lib/types/style-spec').StyleSpec {
+    return {
+      schema_version: 1,
+      palette: { mode: 'solid', primary: '#A8E0B0' },
+      typography: {},
+      layout: {},
+      imagery: {},
+      decorations: {},
+      rhythm: {},
+    }
+  }
+
+  function makeInput(overrides?: Partial<Parameters<typeof regenerateAction>[0]>): Parameters<typeof regenerateAction>[0] {
+    return {
+      projectId: 'project-1',
+      spec: makeSpec(),
+      aspects: { palette: true, typography: true, layout: true, decorations: true },
+      useBrandKitRemix: false,
+      brandKit: null,
+      content: { mode: 'ai-copy', topic: 'urban gardening' },
+      ...overrides,
+    }
+  }
+
+  it('Test 1 (R): no authenticated user → unauthenticated error', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null } })
+    const result = await regenerateAction(makeInput())
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthenticated')
+    expect(mockGenerateCarouselFromReferences).not.toHaveBeenCalled()
+  })
+
+  it('Test 2 (R): null spec → no_spec error, no orchestrator call', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
+    const input = makeInput()
+    // Force null spec — bypass type via cast for this validation test
+    ;(input as unknown as { spec: null }).spec = null
+    const result = await regenerateAction(input)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('no_spec')
+    expect(mockGenerateCarouselFromReferences).not.toHaveBeenCalled()
+  })
+
+  it('Test 3 (R): ai-copy mode without topic → invalid_input', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
+    const input = makeInput({ content: { mode: 'ai-copy', topic: '' } })
+    const result = await regenerateAction(input)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid_input')
+  })
+
+  it('Test 4 (R): user-copy mode with empty lines[] → invalid_input', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
+    const input = makeInput({ content: { mode: 'user-copy', lines: [] } })
+    const result = await regenerateAction(input)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid_input')
+  })
+
+  it('Test 5 (R): happy path returns { ok: true, projectId, slideCount }', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
+    mockGenerateCarouselFromReferences.mockResolvedValueOnce({
+      projectId: 'project-1',
+      slideCount: 5,
+    })
+    const result = await regenerateAction(makeInput())
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.projectId).toBe('project-1')
+      expect(result.slideCount).toBe(5)
+    }
+    expect(mockGenerateCarouselFromReferences).toHaveBeenCalledTimes(1)
+  })
+
+  it('Test 6 (R): orchestrator throw → gemini_error with detail', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
+    mockGenerateCarouselFromReferences.mockRejectedValueOnce(new Error('emit.carousel-shape-failed'))
+    const result = await regenerateAction(makeInput())
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('gemini_error')
+      expect(result.detail).toContain('carousel-shape-failed')
+    }
+  })
+
+  it('Test 7 (R): orchestrator called with userId from auth + full input passthrough', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-xyz' } } })
+    mockGenerateCarouselFromReferences.mockResolvedValueOnce({
+      projectId: 'project-1',
+      slideCount: 3,
+    })
+    const input = makeInput()
+    await regenerateAction(input)
+    const [client, userId, orchestratorInput] = mockGenerateCarouselFromReferences.mock.calls[0]
+    expect(userId).toBe('user-xyz')
+    expect(client).toBeDefined()
+    expect((orchestratorInput as { projectId: string }).projectId).toBe('project-1')
+  })
+
+  it('Test 8 (R): result is discriminated union — no Gemini SDK objects leak', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } } })
+    mockGenerateCarouselFromReferences.mockResolvedValueOnce({
+      projectId: 'p',
+      slideCount: 1,
+    })
+    const result = await regenerateAction(makeInput())
+    // Result has ONLY ok/projectId/slideCount keys (no leaked SDK fields)
+    if (result.ok) {
+      const keys = Object.keys(result).sort()
+      expect(keys).toEqual(['ok', 'projectId', 'slideCount'])
+    }
+  })
+
+  it('Test 9 (R): EDITOR-01 BY-CONSTRUCTION — actions.ts comment cites EDITOR-01 + routing', () => {
+    const filePath = path.resolve(__dirname, '../actions.ts')
+    const src = fs.readFileSync(filePath, 'utf-8')
+    expect(src).toMatch(/EDITOR-01/)
+    // Should reference /project/{id} or similar routing comment
+    expect(src).toMatch(/project\/.*\$\{|project\/\{id\}|project\/.*id/i)
   })
 })
