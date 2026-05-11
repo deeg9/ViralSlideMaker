@@ -21,7 +21,7 @@ export default function TermsOfServicePage() {
 
       <main className="max-w-3xl mx-auto px-8 py-16">
         <h1 className="text-4xl font-bold text-[#3d0000] mb-2">Terms of Service</h1>
-        <p className="text-sm text-[#7d6161] mb-12">Last updated: March 20, 2026</p>
+        <p className="text-sm text-[#7d6161] mb-12">Last updated: May 11, 2026</p>
 
         <div className="prose prose-sm max-w-none text-[#55423f] space-y-8">
           <section>
@@ -130,6 +130,24 @@ export default function TermsOfServicePage() {
             </p>
             <p className="mt-3 text-xs text-[#7d6161]">
               Style-from-Reference clause version: {STYLE_FROM_REFERENCE_TOS_VERSION}
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-[#3d0000] mb-3">
+              7b. Assumption of Liability for Reference Content
+            </h2>
+            <p>
+              When you upload a reference image so that ViralSlideMaker can produce a carousel <strong>inspired by</strong> its visual style, you represent and warrant that you have all rights, licenses, consents, and permissions necessary to share that image with us — including any rights held by the photographer, the subjects depicted, the trademark owners of any brands shown, and any other rights holders.
+            </p>
+            <p className="mt-3">
+              You assume full responsibility and liability for any claim, demand, loss, or expense arising from your reference upload or from any carousel that derives style cues from it. This includes, without limitation, claims of <strong>intellectual property infringement</strong> (copyright, trademark, design rights), <strong>trademark dilution</strong>, <strong>right of publicity</strong> or right of privacy claims by any person whose likeness appears in a reference, and <strong>defamation</strong> claims arising from the way you combine generated text with imagery derived from your references. ViralSlideMaker is not in a position to evaluate the rights status of every reference uploaded, and is not your legal counsel — the determination is yours to make before you upload.
+            </p>
+            <p className="mt-3">
+              Generated carousels reflect aesthetic patterns drawn from your references — palette, typography, layout rhythm — and are not reproductions of the source images, the brands depicted, or the individuals shown. We do not, however, warrant that any particular generated output is non-infringing, and you remain responsible for reviewing each carousel before you publish, distribute, or commercially use it.
+            </p>
+            <p className="mt-3">
+              We reserve the right to remove any reference upload and any derivative carousel from our systems upon receipt of a valid takedown request or for any other lawful reason, and to suspend or terminate accounts that exhibit a pattern of infringing uploads. Takedown requests should follow the DMCA process referenced in Section 7a above.
             </p>
           </section>
 
