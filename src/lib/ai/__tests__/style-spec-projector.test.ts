@@ -79,16 +79,28 @@ describe('projectStyleSpecToSlideOverrides', () => {
     expectTypeOf(result).toMatchTypeOf<ProjectedSpec>()
   })
 
-  // Test 2
-  it('maps spec.palette.primary → style_overrides.background_color', () => {
+  // Test 2 — DEVIATION: SlideStyleOverrides has no background_color field.
+  // Per v2.9 D-08, palette colors flow through derived_palette: string[]
+  // (consumed by templates with paletteMode='palette-dominant'). The
+  // primary lands at index 0 (dominant); accent (when present) at index 1.
+  it('maps spec.palette.primary → style_overrides.derived_palette[0]', () => {
     const result = projectStyleSpecToSlideOverrides(buildSpec(), template)
-    expect(result.style_overrides.background_color).toBe('#000000')
+    expect(result.style_overrides.derived_palette).toBeDefined()
+    expect(result.style_overrides.derived_palette?.[0]).toBe('#000000')
   })
 
-  // Test 3
-  it('maps spec.palette.accent → style_overrides.accent_color', () => {
+  // Test 3 — DEVIATION: spec.palette.accent lands at derived_palette[1].
+  it('maps spec.palette.accent → style_overrides.derived_palette[1]', () => {
     const result = projectStyleSpecToSlideOverrides(buildSpec(), template)
-    expect(result.style_overrides.accent_color).toBe('#A8E6CF')
+    expect(result.style_overrides.derived_palette?.[1]).toBe('#A8E6CF')
+  })
+
+  // Test 3b — derived_palette omits accent when spec.palette.accent undefined
+  it('emits derived_palette with only primary when spec.palette.accent undefined', () => {
+    const spec = buildSpec()
+    spec.palette = { mode: 'solid', primary: '#000000' }
+    const result = projectStyleSpecToSlideOverrides(spec, template)
+    expect(result.style_overrides.derived_palette).toEqual(['#000000'])
   })
 
   // Test 4

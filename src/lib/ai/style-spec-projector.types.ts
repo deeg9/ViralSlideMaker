@@ -19,13 +19,37 @@
 // =====================================================================
 // PICK SET (locked):
 // =====================================================================
-//   - background_color   ← spec.palette.primary
-//   - accent_color       ← spec.palette.accent
+//   - derived_palette    ← [spec.palette.primary, spec.palette.accent]
+//                          (existing v2.9 SlideStyleOverrides field used by
+//                          templates with paletteMode: 'palette-dominant';
+//                          see DEVIATION note below)
 //   - hook_font_family   ← spec.typography.hookFontCategory (catalog lookup)
 //   - body_font_family   ← spec.typography.bodyFontCategory (catalog lookup)
 //   - text_position      ← spec.layout.hookPosition (closed-enum exact match)
 //   - treatment_applied  ← spec.imagery.treatmentPreset (descriptor string;
 //                          Phase 54 D-03 cache-key suffix slot)
+//
+// =====================================================================
+// DEVIATION (Rule 1 / Rule 2 — Plan 77-01 grounding mismatch):
+// =====================================================================
+// The original plan grounding referenced 'background_color' and
+// 'accent_color' fields on SlideStyleOverrides. THOSE FIELDS DO NOT
+// EXIST in src/lib/types/slide.ts as of Phase 76. The actual
+// SlideStyleOverrides ships:
+//   text_color, hook_text_color, body_text_color (text colors),
+//   derived_palette: string[] (v2.9 D-08, used by paletteMode='palette-dominant'),
+//   treatment_applied: string (v2.9 Phase 54).
+// Per-slide background color overrides are NOT a concept in v2.x — the
+// slide's background image (Slide.background_url) + the template's
+// backgroundColor handle that. The plan's "DO NOT add any new field"
+// rule is load-bearing; we honor it by routing palette colors through
+// derived_palette[] instead.
+//
+// Behavior preserved:
+//   - palette-dominant templates render derived_palette[0] as accent
+//     (Phase 57 wires this read).
+//   - fixed-palette templates ignore derived_palette unchanged.
+// =====================================================================
 //
 // NOT PICKED (intentional):
 //   - hook_text_color / body_text_color: spec.palette has no semantic text
@@ -43,8 +67,7 @@ import type { SlideStyleOverrides } from '@/lib/types/slide'
  */
 export type ProjectedSlideOverrides = Pick<
   SlideStyleOverrides,
-  | 'background_color'
-  | 'accent_color'
+  | 'derived_palette'
   | 'hook_font_family'
   | 'body_font_family'
   | 'text_position'
