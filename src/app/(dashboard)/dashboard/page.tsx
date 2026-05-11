@@ -94,7 +94,7 @@ export default async function DashboardPage() {
           LEGAL-03 forward-compat. */}
       <section>
         <Link
-          href="/dashboard/style-from-reference/new"
+          href="/style-from-reference/new"
           data-testid="from-references-cta"
           className="block rounded-2xl border border-[#dbc1bc] bg-white p-6 hover:border-[#3d0000] transition-colors"
         >
