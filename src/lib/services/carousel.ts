@@ -6,6 +6,15 @@ import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createProjectService, updateProjectService } from '@/lib/services/projects'
 import { getTemplate } from '@/lib/render/templates/index'
 import type { Slide } from '@/lib/types/slide'
+// Phase 77 Plan 02 Task 4 (EMIT-02): sibling orchestrator that consumes
+// the persisted-spec + Plan 01 helpers + generateFromStyleSpec.
+import { applyAspectFilter } from '@/lib/ai/style-spec-aspect-filter'
+import { applyBrandKitRemix } from '@/lib/ai/style-spec-brand-kit-merge'
+import { generateFromStyleSpec } from '@/lib/ai/generate-from-style-spec'
+import type { StyleSpec } from '@/lib/types/style-spec'
+import type { BrandKit } from '@/lib/types/brand-kit'
+import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
+import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
 // Templates that share the news-carousel skip-default-effects behavior.
 // Keep this list in sync with src/lib/ai/prompts.ts and the actions.ts copy.
@@ -202,4 +211,76 @@ export async function generateCarousel(
 
     throw err
   }
+}
+
+// ============================================================================
+// Phase 77 Plan 02 Task 4 (EMIT-02 + EDITOR-01):
+// generateCarouselFromReferences — sibling orchestrator for the
+// style-from-reference path.
+// ============================================================================
+//
+// Composition order (locked per Plan 01 SUMMARY):
+//   1. applyAspectFilter — neutralizes unchecked spec sections (Phase 76 toggle)
+//   2. applyBrandKitRemix — merges brand-kit colors + font categories (when on)
+//   3. generateFromStyleSpec — Gemini text emit with projector-fused overrides
+//   4. UPDATE projects.slide_data + generation_status:'complete' (existing
+//      project — Phase 75 already created the row with extracted spec)
+//
+// Differences from generateCarousel (existing — UNTOUCHED):
+//   - UPDATE not INSERT (project already exists)
+//   - No Pexels / Imagen background fetch (style-from-reference is text-emit
+//     only at this milestone; backgrounds are a v2.14 enhancement)
+//   - No advancedOptions overrides (the spec is the design template)
+//
+// EDITOR-01 BY-CONSTRUCTION:
+//   This function persists slide_data. The Server Action returns projectId.
+//   The client navigates to /project/{projectId} via existing router.push
+//   pattern (same as today's emit flow). SlideEditor mounts with persisted
+//   slides → useSlideEditor(initialSlides) → past=[], present=slides. One
+//   Cmd+Z restores empty initial state — EMIT-10 single-pushHistory satisfied
+//   by construction with NO new editor wiring.
+
+export interface CarouselFromReferencesInput {
+  projectId: string
+  spec: StyleSpec
+  aspects: SpecPreviewAspects
+  brandKit: BrandKit | null
+  useBrandKitRemix: boolean
+  content: ContentSource
+  slideCount?: number
+}
+
+export async function generateCarouselFromReferences(
+  supabase: SupabaseClient,
+  userId: string,
+  input: CarouselFromReferencesInput,
+): Promise<{ projectId: string; slideCount: number }> {
+  // Step 1: aspect filter (per CONTEXT.md per-aspect zeroing)
+  const filtered = applyAspectFilter(input.spec, input.aspects)
+  // Step 2: brand-kit merge (per CONTEXT.md PREVIEW-08 + Plan 01); skip
+  // entirely when toggle is OFF — Object.is short-circuit elsewhere is
+  // already a fast path, but bypass keeps spy assertions clean.
+  const merged = input.useBrandKitRemix
+    ? applyBrandKitRemix(filtered, input.brandKit)
+    : filtered
+  // Step 3: text-only Gemini emit through projector + closed-enum responseSchema
+  const carousel = await generateFromStyleSpec(merged, input.content, {
+    slideCount: input.slideCount,
+  })
+  // Step 4: persist via UPDATE on the existing project row. Belt-and-braces
+  // ownership check via .eq('user_id', userId) on top of RLS — defense-in-depth
+  // against T-77-06 (project_id tampering).
+  const { error } = await supabase
+    .from('projects')
+    .update({
+      slide_data: carousel.slides,
+      generation_status: 'complete',
+      title: carousel.title,
+    })
+    .eq('id', input.projectId)
+    .eq('user_id', userId)
+  if (error) {
+    throw new Error(`carousel-from-refs persist failed: ${error.message}`)
+  }
+  return { projectId: input.projectId, slideCount: carousel.slides.length }
 }
