@@ -1,5 +1,10 @@
 import Link from 'next/link'
 import { Footer } from '@/components/layout/footer'
+// Phase 79 Plan 02 Task 3 (LEGAL-05): the ToS page renders the current
+// style-from-reference clause version literal. Importing the constant keeps
+// the displayed string in lock-step with what the audit-log helpers record
+// — bumping STYLE_FROM_REFERENCE_TOS_VERSION updates both at once.
+import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
 
 export const metadata = {
   title: 'Terms of Service — ViralSlideMaker',
@@ -104,6 +109,27 @@ export default function TermsOfServicePage() {
             </p>
             <p className="mt-3">
               We do not use your private content or prompts to train our AI models. Your data is processed solely to generate the requested output.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-[#3d0000] mb-3">
+              7a. Style-from-Reference Generation
+            </h2>
+            <p>
+              ViralSlideMaker offers a style-from-reference feature that lets you upload images so the Service can generate carousel slides <strong>inspired by</strong> their visual style (palette, typography, layout patterns). The output reflects aesthetic patterns drawn from the references; it is not a reproduction of the source images, brands depicted, or any individuals shown in them.
+            </p>
+            <p className="mt-3">
+              By uploading a reference image, you represent and warrant that you have the rights needed to share that image with us, and that your upload does not infringe another party&rsquo;s intellectual property, publicity, or privacy rights. We are not able to provide legal advice on whether a particular image is safe to upload — that determination is yours to make.
+            </p>
+            <p className="mt-3">
+              We retain an audit record of each accepted upload (a one-way SHA-256 fingerprint of the bytes plus the version of these terms you accepted) for twelve (12) months for takedown forensics. We do not redistribute your reference images to other users, and the underlying objects are stored in a private, access-restricted bucket.
+            </p>
+            <p className="mt-3">
+              If you believe a generated carousel was produced from a reference you own and you wish to request removal, please follow the DMCA takedown procedure described in our public DMCA notice document (see <code>docs/legal/dmca-style-references.md</code> in the project repository, or contact the address listed there). We aim to respond within five (5) business days of a complete notice.
+            </p>
+            <p className="mt-3 text-xs text-[#7d6161]">
+              Style-from-Reference clause version: {STYLE_FROM_REFERENCE_TOS_VERSION}
             </p>
           </section>
 
