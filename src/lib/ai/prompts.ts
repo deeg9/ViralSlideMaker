@@ -1,6 +1,9 @@
 import { getTemplate } from '@/lib/render/templates'
 import { isPremiumTemplate } from './validate-slides'
 import { AI_HOOK_VARIETY_ADDENDUM, AI_SLOP_AVOID_ADDENDUM } from './slop-guardrails'
+import type { SlideTemplate } from '@/lib/render/templates'
+import type { StyleSpec } from '@/lib/types/style-spec'
+import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
 // Templates that share the news-carousel prompt branch + skip-default-effects
 // behavior. News Cyan reuses the entire News Drop generation flow — only the
@@ -113,4 +116,141 @@ LAYOUT & DESIGN RULES (for TikTok/Instagram posting):
 - Use a semi-transparent overlay on background images so text remains readable. The background image adds mood, not information.
 - Hook text should be large and bold. Body text should be smaller and have reduced opacity for visual hierarchy.
 - Keep text concise per slide — aim for a glanceable read (under 3 seconds per slide).`
+}
+
+// ========================================================================= //
+// Phase 77 Plan 02 (EMIT-01..05): buildFromSpecPrompt                       //
+// ========================================================================= //
+//
+// SIBLING to buildSystemPrompt — NOT a branch. The legacy generate-slides.ts
+// path keeps using buildSystemPrompt unchanged (regression-guarded by
+// `prompts.test.ts` Test 9). The new style-from-reference emit path
+// (generate-from-style-spec.ts) uses buildFromSpecPrompt.
+//
+// Why a sibling instead of branching the existing function? CONTEXT.md
+// decisions §New endpoint pair — clean separation keeps the legacy path
+// stable + makes the spec-driven path's contract obvious at the call site.
+//
+// EMIT-05 PRECEDENCE (load-bearing):
+//   spec.voice_note REPLACES template.aiVoiceNote when both are present.
+//   The whole point of style-from-reference is that the EXTRACTED spec is
+//   the design source-of-truth — it wins over template defaults.
+//
+// Token-budget discipline (EMIT-06):
+//   This function is invoked by the 12K-token CI gate
+//   (scripts/grep-gates/prompt-token-budget.cjs). Keep the spec block
+//   COMPACT — one line per section where possible, no decorative
+//   whitespace. Adding verbose sections will trip the gate at build time.
+
+/**
+ * Format the spec as a Gemini-friendly compact block. Token-cheap
+ * (~150 tokens for a max-size spec). Order is locked: palette →
+ * typography → layout → imagery → decorations → rhythm.
+ */
+function serializeSpecForPrompt(spec: StyleSpec): string {
+  const lines: string[] = []
+  // Palette
+  const palette = spec.palette
+  const palParts = [`mode=${palette.mode}`, `primary=${palette.primary}`]
+  if (palette.secondary) palParts.push(`secondary=${palette.secondary}`)
+  if (palette.accent) palParts.push(`accent=${palette.accent}`)
+  lines.push(`PALETTE: ${palParts.join(' ')}`)
+  // Typography
+  const typo = spec.typography
+  const typoParts: string[] = []
+  if (typo.hookFontCategory) typoParts.push(`hook=${typo.hookFontCategory}`)
+  if (typo.bodyFontCategory) typoParts.push(`body=${typo.bodyFontCategory}`)
+  lines.push(`TYPOGRAPHY: ${typoParts.length > 0 ? typoParts.join(' ') : '(template default)'}`)
+  // Layout
+  const layout = spec.layout
+  const layoutParts: string[] = []
+  if (layout.hookPosition) layoutParts.push(`hookPosition=${layout.hookPosition}`)
+  if (layout.density) layoutParts.push(`density=${layout.density}`)
+  lines.push(`LAYOUT: ${layoutParts.length > 0 ? layoutParts.join(' ') : '(template default)'}`)
+  // Imagery
+  const imagery = spec.imagery
+  const imgParts: string[] = []
+  if (imagery.treatmentPreset) imgParts.push(`treatment=${imagery.treatmentPreset}`)
+  lines.push(`IMAGERY: ${imgParts.length > 0 ? imgParts.join(' ') : '(template default)'}`)
+  // Decorations
+  const dec = spec.decorations
+  const lucide = dec.preferredLucide && dec.preferredLucide.length > 0
+    ? dec.preferredLucide.join(',')
+    : '(any)'
+  const shapes = dec.preferredShapes && dec.preferredShapes.length > 0
+    ? dec.preferredShapes.join(',')
+    : '(any)'
+  const decDensity = dec.density ? ` density=${dec.density}` : ''
+  lines.push(`DECORATIONS: lucide=[${lucide}] shapes=[${shapes}]${decDensity}`)
+  // Rhythm
+  const rhythm = spec.rhythm
+  lines.push(`RHYTHM: ${rhythm.cadence ? `cadence=${rhythm.cadence}` : '(template default)'}`)
+  return lines.join('\n')
+}
+
+/**
+ * Phase 77 EMIT-01..05: build the system prompt for the style-from-reference
+ * emit endpoint. SIBLING to buildSystemPrompt — does NOT touch the legacy
+ * path.
+ *
+ * EMIT-05: spec.voice_note REPLACES template.aiVoiceNote when both present.
+ *
+ * @param spec     The (Phase-75-validated, possibly aspect-filtered, possibly
+ *                 brand-kit-merged) StyleSpec.
+ * @param template The slide template — used for aiVoiceNote fallback only.
+ * @param content  The content source (ai-copy with topic OR user-copy with
+ *                 per-slide lines).
+ * @returns        The assembled system prompt for Gemini.
+ */
+export function buildFromSpecPrompt(
+  spec: StyleSpec,
+  template: SlideTemplate,
+  content: ContentSource,
+): string {
+  // EMIT-05: spec.voice_note REPLACES template.aiVoiceNote when present.
+  // Explicit precedence — spec wins (the whole point of style-from-reference).
+  // This is the load-bearing precedence rule for Phase 77.
+  const voiceNote = spec.voice_note ?? template.aiVoiceNote ?? null
+  const voiceNoteBlock = voiceNote
+    ? `\n\nVOICE NOTE:\n${voiceNote}\n`
+    : ''
+
+  // Compact spec serialization — one line per section, token-cheap.
+  // Token-budget gate (scripts/grep-gates/prompt-token-budget.cjs) computes
+  // a worst-case prompt and asserts < 12K tokens; verbose sections here
+  // would trip the gate.
+  const specBlock = `\n\nSTYLE SPEC (extracted from reference; closed-enum design template):\n${serializeSpecForPrompt(spec)}\n`
+
+  // Per-content-mode block.
+  let contentBlock = ''
+  if (content.mode === 'ai-copy') {
+    contentBlock = `\nGenerate slides about: ${content.topic}\n\nWrite copy in the spec's voice (palette/typography/layout/imagery + voice note above) — the spec is the design template extracted from the user's reference image.\n`
+  } else {
+    // user-copy: structure these lines into Slide segments. Gemini MUST NOT
+    // change wording — only assign role, segment accents, decoration choices,
+    // layout. Defends EMIT-04 contract at the prompt layer.
+    const numbered = content.lines.map((line, idx) => `${idx + 1}. ${line}`).join('\n')
+    contentBlock = `\nStructure these ${content.lines.length} lines into slides — DO NOT change wording, only structure (assign role, segment accents, decoration choices, layout):\n${numbered}\n`
+  }
+
+  return `You are an expert TikTok carousel content creator generating slides from a style spec extracted from a reference image. You generate slide content for vertical carousel posts (1080x1920 images).${voiceNoteBlock}${specBlock}${contentBlock}
+PER-ROLE COPY GUIDANCE — every slide has a role; write each accordingly:
+- cover (slide 1): pattern-interrupt hook, ≤8 words, designed to stop the scroll
+- reframe: introduce a "wait, but" tension that contradicts the cover
+- support: concrete evidence, example, or specific number
+- pivot: unexpected angle that reframes what came before
+- close (last slide): action / CTA / bookmark prompt — tell the viewer what to do next
+
+DECORATIONS: when emitting decorations, use the lucide/shape names listed above (closed allowlist enforced by the responseSchema enum). Color tokens: 'accent', 'palette-vibrant', 'palette-dark-muted', 'palette-light', 'on-light', 'on-dark'. Position anchors: top-left, top-right, top-center, center, bottom-left, bottom-right, bottom-center. Max 2 per slide.
+
+LAYOUT & DESIGN RULES (TikTok/Instagram posting):
+- Text centered vertically; avoid bottom 15% (platform UI overlays).
+- Top ~15% should be clear (profile name + follow button overlay).
+- Hook text large + bold; body text smaller with reduced opacity for visual hierarchy.
+- Keep text concise — glanceable read (under 3 seconds per slide).
+
+${AI_SLOP_AVOID_ADDENDUM}
+
+HOOK VARIETY:
+${AI_HOOK_VARIETY_ADDENDUM}`
 }
