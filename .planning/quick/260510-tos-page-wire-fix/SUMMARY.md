@@ -60,3 +60,16 @@ Thumbnail rendering surfaces a 404 on `http://localhost:3000/style-from-referenc
 - `src/lib/legal/audit-log.ts` (sentinel-row insert)
 - `src/lib/legal/__tests__/audit-log.test.ts` (sentinel test)
 - `src/components/dashboard/__tests__/reference-image-uploader-tos-reroute.test.tsx` (new)
+
+---
+
+## Fix 6 — credit_transactions.type CHECK constraint (LATER REGRESSION)
+After the upload was working end-to-end, clicking "Extract style" surfaced a misleading "Out of credits" panel even though the user had 1 credit (header showed it correctly). Root cause: Plan 73-03 added `EXTRACTION_CHARGE_TYPE = 'gemini_vision_extract_style'` but never extended the existing `credit_transactions_type_check` CHECK constraint (originally from `005_credit_system.sql`). Insert with new type → constraint violation → `deduct_credits` RPC threw → returned false → `chargeExtractionCredit` returned false → orchestrator surfaced `insufficient_credits`. Misleading because the actual issue was a schema constraint, not balance.
+
+Fix: new migration `supabase/migrations/20260511_v213_credit_type_extract_style.sql` drops + recreates the constraint with `gemini_vision_extract_style` added to the allowed set. Applied via Supabase MCP. SQL smoke test confirms `deduct_credits(user, 1, 'gemini_vision_extract_style', ...)` returns TRUE.
+
+**Live verification:** Extract click now reaches the vision call (page transitions from "Extracting..." to "Extraction failed" — different + correct error for our non-slideshow test image; Gemini correctly rejected a screenshot of the upload UI as not extractable). Credit balance preserved at 1 via charge-then-refund.
+
+## Known follow-on (out of scope)
+- Orchestrator's `insufficient_credits` response is misleading when `chargeExtractionCredit` returns false for reasons OTHER than balance (e.g., schema constraint, RLS, RPC failure). The deduct_credits RPC swallows exceptions and returns false. Worth a separate quick task to distinguish "balance < 1" from "deduct call failed" — surface the latter as `extraction_failed` with detail.
+- Thumbnail `<img src>` 404 (page-relative resolve of Storage path) — flagged earlier.
