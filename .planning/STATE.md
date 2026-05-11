@@ -4,8 +4,8 @@ milestone: v2.13
 milestone_name: Style-from-Reference Generation
 status: completed
 stopped_at: Roadmap locked. Awaiting `/gsd-plan-phase 73` to begin execution.
-last_updated: "2026-05-11T02:04:43.131Z"
-last_activity: 2026-05-11 -- Phase 79 marked complete
+last_updated: "2026-05-11T18:45:00.000Z"
+last_activity: 2026-05-11 -- Completed quick task 260511-flj: narrow content blocks to nudity/CSAM; shift IP liability to user via T&C (supersedes Phase 75 D-05 + Phase 76 PREVIEW-10)
 progress:
   total_phases: 7
   completed_phases: 7
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-10 — v2.13 milestone started)
 Phase: 79 — COMPLETE
 Plan: —
 Status: Phase 79 complete
-Last activity: 2026-05-11 -- Phase 79 marked complete
+Last activity: 2026-05-11 -- Completed quick task 260511-flj: narrow content blocks to nudity/CSAM; shift IP liability to user via T&C (supersedes Phase 75 D-05 + Phase 76 PREVIEW-10)
 
 ## v2.13 Phase Map
 
@@ -173,6 +173,12 @@ Last activity: 2026-05-11 -- Phase 79 marked complete
 - Watch item: Phase 74 is largest at 22 reqs (>15 instruction threshold). REF (7) + STYLESPEC (12) + PARITY (3 cross-cutting) substructure mitigates; if Wave decomposition during plan-phase produces a >5-plan phase, may need to consider splitting REF off into Phase 73.5 (upload pipeline). Roadmap currently keeps them combined because both are pre-extraction surfaces with identical "no vision call yet" posture, and the PTF baseline lock applies to the combined surface.
 - Carry-over reminder: TPLREND-05 parity invariant — every editor-only addition must gate behind `editable={true}` so Satori/HTML render paths stay byte-identical. v2.13 adds NO new editor chrome (StyleSpec is server-side only); the spec-preview UI in Phase 76 lives BEFORE editor handoff in a separate flow.
 - Carry-over reminder: Closed-enum invariant (PARITY-05) is structurally load-bearing — any free-text artist/brand field reintroduced in any phase fails the CI grep gate. Plan reviewers must scan StyleSpec changes for new free-text fields.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260511-flj | Narrow content blocks to nudity/CSAM only; shift IP/right-of-publicity liability to user via T&C (supersedes Phase 75 D-05 + Phase 76 PREVIEW-10) | 2026-05-11 | 740823c | [260511-flj-narrow-content-blocks-to-nudity-and-csam](./quick/260511-flj-narrow-content-blocks-to-nudity-and-csam/) |
 
 ## Session Continuity
 
