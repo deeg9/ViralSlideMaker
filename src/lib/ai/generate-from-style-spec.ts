@@ -335,28 +335,37 @@ export async function generateFromStyleSpec(
   // fields (the spec is the design template).
   const projected = projectStyleSpecToSlideOverrides(spec, template)
 
-  // Phase 6: per-slide decoration ingest (triple-layer silent-drop pipeline)
-  // + projector fusion for style_overrides.
+  // Phase 6: per-slide PROJECTOR FUSION FIRST, then decoration ingest.
+  //
+  // Order matters (load-bearing): the decoration resolver reads
+  // slide.style_overrides.derived_palette to resolve the `palette-vibrant`
+  // color token. We MUST fuse the projector's derived_palette into the
+  // slide BEFORE decoration ingest runs, otherwise palette-vibrant always
+  // falls back to template.accentColor instead of spec.palette.primary.
+  //
+  // PROJECTOR FUSION: spec's projected fields WIN over Gemini's emitted
+  // ones (Gemini may not emit style_overrides at all in v1; projected
+  // fields are the canonical visual contract).
   const carousel = parsedCarousel.data
   const slidesProcessed: SlideContent[] = carousel.slides.map((slide, slideIndex) => {
-    const withDecorations = processSlideDecorations(
-      slide,
+    // Step A: PROJECTOR FUSION — derived_palette + text_position + fonts
+    // applied to the raw slide so the decoration resolver sees them.
+    const mergedStyleOverrides = {
+      ...((slide.style_overrides as Record<string, unknown> | undefined) ?? {}),
+      ...projected.style_overrides,
+    }
+    const slideWithProjector: SlideContent = {
+      ...slide,
+      style_overrides: mergedStyleOverrides,
+    }
+    // Step B: decoration ingest (triple-layer silent-drop pipeline).
+    return processSlideDecorations(
+      slideWithProjector,
       slideIndex,
       template,
       silentDrop,
       spec.schema_version,
     )
-    // PROJECTOR FUSION: spec's projected fields WIN over Gemini's emitted ones.
-    // (Gemini may not emit style_overrides at all in v1 — projected fields
-    // are the canonical visual contract.)
-    const mergedStyleOverrides = {
-      ...(withDecorations.style_overrides ?? {}),
-      ...projected.style_overrides,
-    }
-    return {
-      ...withDecorations,
-      style_overrides: mergedStyleOverrides,
-    }
   })
 
   // Phase 7: text_boxes population — server-side adapter (mirror generate-slides.ts:323-328).
