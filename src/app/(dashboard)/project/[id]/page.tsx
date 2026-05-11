@@ -7,6 +7,10 @@ import type { Slide } from '@/lib/types/slide'
 import { GenerationForm } from '@/components/slides/generation-form'
 import { ProjectNamingDialog } from '@/components/projects/project-naming-dialog'
 import { ReferenceThumbnailsStrip } from '@/components/projects/reference-thumbnails-strip'
+// Phase 78 Plan 02 Task 3 (REMIX-05): "Regenerate from references" entry
+// point — internally null-renders when reference_assets is null/empty, so
+// it's safe to mount unconditionally; the gate lives in the component.
+import { RegenerateFromReferencesButton } from '@/components/projects/regenerate-from-references-button'
 import { SlideEditor } from '@/components/editor/slide-editor'
 import { getUserTier } from '@/lib/credits/check-credits'
 import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
@@ -61,9 +65,21 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // (every pre-v2.13 project) keep the byte-identical full-bleed editor; only
   // style-from-reference projects gain the slim provenance bar.
   if (hasSlides) {
+    const hasReferences =
+      Array.isArray(p.reference_assets) && p.reference_assets.length > 0
     return (
       <>
-        <ReferenceThumbnailsStrip references={p.reference_assets ?? null} />
+        {hasReferences && (
+          <div className="flex items-center justify-between gap-3 bg-[#fff5f5] border-b border-[#dbc1bc]/30">
+            {/* Strip carries its own background + border; rendered first so
+                "Inspired by" reads at the start of the row, regenerate CTA
+                trails on the right */}
+            <ReferenceThumbnailsStrip references={p.reference_assets ?? null} />
+            <div className="px-4">
+              <RegenerateFromReferencesButton project={p} />
+            </div>
+          </div>
+        )}
         <SlideEditor
           initialSlides={slides}
           projectId={p.id}
