@@ -1,5 +1,6 @@
 // Phase 76 Plan 01 (PREVIEW-01, PREVIEW-09):
-// Server-component shell for /dashboard/style-from-reference/new.
+// Server-component shell for /style-from-reference/new.
+// (File lives under (dashboard) route group — parens strip from URL.)
 //
 // Composition:
 //   - server-side: auth gate (redirect to /login if no user) + brandKit fetch

@@ -18,8 +18,10 @@ const dashboardPath = resolve(
 describe('Phase 76 Plan 03: dashboard CTA wiring (entry point)', () => {
   const src = readFileSync(dashboardPath, 'utf8')
 
-  it('Test 1: dashboard page links to /dashboard/style-from-reference/new', () => {
-    expect(src).toContain('/dashboard/style-from-reference/new')
+  it('Test 1: dashboard page links to /style-from-reference/new (Next.js (dashboard) route group is stripped from URL)', () => {
+    expect(src).toContain('href="/style-from-reference/new"')
+    // Defensive: assert we did NOT regress to the broken /dashboard/-prefixed URL
+    expect(src).not.toContain('/dashboard/style-from-reference/new')
   })
 
   it('Test 2: CTA copy mentions references (entry-point discoverability)', () => {
