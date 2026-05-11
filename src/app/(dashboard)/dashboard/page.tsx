@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { ProjectList } from '@/components/projects/project-list'
 import type { ProjectPublishedState } from '@/components/projects/project-card'
@@ -84,6 +85,33 @@ export default async function DashboardPage() {
         <div className="flex-shrink-0">
           <ProjectList projects={projectList} showCreateOnly />
         </div>
+      </section>
+
+      {/* Phase 76 Plan 03 — entry-point CTA for the v2.13 spec-from-reference
+          flow. Sits beside the existing project-creation affordance so users
+          discover the new path on first visit. Card-style for visual parity
+          with neighboring summary cards. Copy uses "Inspired by" framing per
+          LEGAL-03 forward-compat. */}
+      <section>
+        <Link
+          href="/dashboard/style-from-reference/new"
+          data-testid="from-references-cta"
+          className="block rounded-2xl border border-[#dbc1bc] bg-white p-6 hover:border-[#3d0000] transition-colors"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 mt-1">
+              <Icon name="image" className="text-[#3d0000]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-[#3d0000] mb-1">
+                From references
+              </h3>
+              <p className="text-sm text-[#7d6161]">
+                Upload up to 8 images and generate a slideshow inspired by their style.
+              </p>
+            </div>
+          </div>
+        </Link>
       </section>
 
       {/* Summary Cards */}
