@@ -151,6 +151,24 @@ export async function publishProjectAdmin(
   const { data: pub } = admin.storage.from('hero-thumbnails').getPublicUrl(heroFilename)
   const heroUrl = pub.publicUrl
 
+  // Phase 78 REMIX-02 (Plan 01 Task 3): snapshot style_spec + reference_assets
+  // from the source project row into the published row. Both columns nullable
+  // (Plan 01 Task 1 migration) — legacy projects with both null produce
+  // published rows with both null (back-compat invariant).
+  //
+  // Deep-clone via JSONB-safe round-trip (the columns are jsonb in Postgres
+  // and the validated app-layer types are JSON-serializable). This guarantees
+  // the snapshot is point-in-time: subsequent edits to projects.style_spec
+  // (or its nested fields) do not retro-mutate the published row's payload.
+  // structuredClone would also work but JSON round-trip matches the wire
+  // shape Postgres will store and is dependency-free.
+  const styleSpecSnapshot =
+    project.style_spec != null ? JSON.parse(JSON.stringify(project.style_spec)) : null
+  const referenceAssetsSnapshot =
+    project.reference_assets != null
+      ? JSON.parse(JSON.stringify(project.reference_assets))
+      : null
+
   // Slug retry loop (mirrors publish_carousel RPC behavior)
   const baseSlug = slugifyTitle(title)
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -166,6 +184,9 @@ export async function publishProjectAdmin(
         hero_image_url: heroUrl,
         slide_data: project.slide_data,
         tags: opts.tags ?? [],
+        // Phase 78 REMIX-02: point-in-time snapshot (Plan 01 Task 3)
+        style_spec: styleSpecSnapshot,
+        reference_assets: referenceAssetsSnapshot,
       })
       .select('id, slug')
       .maybeSingle()
