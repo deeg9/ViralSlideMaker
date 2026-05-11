@@ -100,7 +100,7 @@ describe('audit-log', () => {
       })
     })
 
-    it('returns { ok: true } on empty sha256s without calling insert (no-op)', async () => {
+    it('on empty sha256s inserts ONE version-only acceptance row with the sentinel sha256 (LEGAL-01 first-touch flow — Quick 260510-tos-page-wire)', async () => {
       const m = buildAdmin()
       const result = await recordStyleFromReferenceTosAcceptance(m.admin, {
         userId: '00000000-0000-0000-0000-000000000001',
@@ -108,7 +108,14 @@ describe('audit-log', () => {
         tosVersion: '2026-05-10-v1',
       })
       expect(result).toEqual({ ok: true })
-      expect(m.insertMock).not.toHaveBeenCalled()
+      expect(m.insertMock).toHaveBeenCalledTimes(1)
+      expect(m.insertMock).toHaveBeenCalledWith([
+        {
+          user_id: '00000000-0000-0000-0000-000000000001',
+          sha256: '__version_acceptance__',
+          tos_version: '2026-05-10-v1',
+        },
+      ])
     })
 
     it('returns { ok: false, error } when insert returns an error payload (does NOT throw)', async () => {

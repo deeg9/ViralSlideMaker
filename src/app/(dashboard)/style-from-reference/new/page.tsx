@@ -17,7 +17,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
 import { StyleFromReferenceShell } from '@/components/style-from-reference/style-from-reference-shell'
-import { acceptStyleFromReferenceTosAction } from '@/app/(dashboard)/style-from-reference/actions'
+import { acceptStyleFromReferenceTosCurrentVersionAction } from '@/app/(dashboard)/style-from-reference/actions'
 import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
 import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
 
@@ -42,12 +42,6 @@ export default async function StyleFromReferenceNewPage() {
     STYLE_FROM_REFERENCE_TOS_VERSION,
   )
 
-  // Bind the action to the current ToS version so the client doesn't have
-  // to import the version constant. The action itself records the audit row
-  // for (user_id, version) on success.
-  const acceptTosAction = async () =>
-    acceptStyleFromReferenceTosAction(STYLE_FROM_REFERENCE_TOS_VERSION)
-
   return (
     <div className="mx-auto max-w-4xl py-8">
       <h1 className="text-2xl font-bold text-[#3d0000] mb-2">
@@ -62,7 +56,7 @@ export default async function StyleFromReferenceNewPage() {
         brandKit={brandKit}
         brandKitAvailable={brandKit !== null}
         tosAlreadyAccepted={tosAlreadyAccepted}
-        acceptTosAction={acceptTosAction}
+        acceptTosAction={acceptStyleFromReferenceTosCurrentVersionAction}
       />
     </div>
   )

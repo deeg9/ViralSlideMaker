@@ -463,3 +463,20 @@ export async function acceptStyleFromReferenceTosAction(
     return { ok: false, error: 'record_failed', detail }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// acceptStyleFromReferenceTosCurrentVersionAction — Quick 260510-tos-page-wire
+// No-arg wrapper that binds the current ToS version server-side. Required
+// because React Server Components forbid passing arbitrary closures across
+// the Server→Client boundary; only top-level functions in `'use server'`
+// files can cross. The page passes THIS function (matching the shell's
+// `() => Promise<...>` prop signature) instead of an inline closure.
+// ─────────────────────────────────────────────────────────────────────────
+
+export async function acceptStyleFromReferenceTosCurrentVersionAction(): Promise<AcceptStyleFromReferenceTosResult> {
+  // Lazy require to avoid an import-cycle warning if someone re-orders the
+  // top-level imports later. The version constant is a literal string —
+  // resolution cost is trivial.
+  const { STYLE_FROM_REFERENCE_TOS_VERSION } = await import('@/lib/legal/tos-version')
+  return acceptStyleFromReferenceTosAction(STYLE_FROM_REFERENCE_TOS_VERSION)
+}

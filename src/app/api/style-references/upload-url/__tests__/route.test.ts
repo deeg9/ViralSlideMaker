@@ -4,38 +4,23 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 // Phase 74 Plan 03 (REF-02): contract tests for POST /api/style-references/upload-url.
-// Mocks `withApiAuth` so we can inject `ctx.userId` + `ctx.supabase.storage`
-// without spinning up real auth/rate-limit/admin-client wiring. Mirrors the
-// existing src/__tests__/api/with-api-auth.test.ts pattern.
+// Quick 260510-tos-page-wire follow-up: route now uses cookie-session auth
+// (createClient from @/lib/supabase/server) rather than withApiAuth Bearer.
+// Tests mock createClient to control both the auth user AND storage.from.
 
-// ---- Mock withApiAuth (pass through, inject ctx) ----
+// ---- Mock cookie-session client ----
 const mockCreateSignedUploadUrl = vi.fn()
+const mockGetUser = vi.fn()
 const mockSupabaseStorage = {
   from: vi.fn().mockReturnValue({
     createSignedUploadUrl: mockCreateSignedUploadUrl,
   }),
 }
-const mockCtx = {
-  userId: 'user_test_123',
-  keyId: 'key_test',
-  supabase: { storage: mockSupabaseStorage },
-  creditBalance: 10,
-}
-
-vi.mock('@/lib/api/with-api-auth', () => ({
-  withApiAuth:
-    (handler: (req: NextRequest, ctx: typeof mockCtx) => Promise<NextResponse>) =>
-    async (req: NextRequest) => {
-      // Auth gate: tests pass an `x-test-auth` header to control whether we
-      // simulate authenticated vs unauthenticated.
-      if (req.headers.get('x-test-auth') === 'no') {
-        return NextResponse.json(
-          { error: { code: 'UNAUTHORIZED', message: 'Invalid or missing API key' } },
-          { status: 401 },
-        )
-      }
-      return handler(req, mockCtx)
-    },
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn().mockResolvedValue({
+    auth: { getUser: mockGetUser },
+    storage: mockSupabaseStorage,
+  }),
 }))
 
 // ---- Mock apiSuccess / apiError (pass through to NextResponse) ----
@@ -62,6 +47,8 @@ vi.mock('@/lib/legal/audit-log', () => ({
 describe('Phase 74 Plan 03 (REF-02): POST /api/style-references/upload-url', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Authenticated by default — tests can override with mockGetUser.mockResolvedValueOnce({data:{user:null}})
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user_test_123' } } })
     mockCreateSignedUploadUrl.mockResolvedValue({
       data: {
         signedUrl: 'https://supabase.example/storage/v1/object/upload/signed/abc',
@@ -69,8 +56,6 @@ describe('Phase 74 Plan 03 (REF-02): POST /api/style-references/upload-url', () 
       },
       error: null,
     })
-    // Restore the storage.from spy reference (vi.clearAllMocks resets spies but
-    // the impl on mockSupabaseStorage.from is preserved via the inline object).
     mockSupabaseStorage.from.mockReturnValue({
       createSignedUploadUrl: mockCreateSignedUploadUrl,
     })
@@ -80,11 +65,14 @@ describe('Phase 74 Plan 03 (REF-02): POST /api/style-references/upload-url', () 
     body: unknown,
     opts: { auth?: boolean; rawText?: string } = {},
   ): NextRequest {
-    const headers: Record<string, string> = { 'content-type': 'application/json' }
-    if (opts.auth === false) headers['x-test-auth'] = 'no'
+    // Driving the auth=false path: seed the mocked getUser to return null user
+    // for THIS request only (cleared automatically before next test).
+    if (opts.auth === false) {
+      mockGetUser.mockResolvedValueOnce({ data: { user: null } })
+    }
     return new NextRequest('http://localhost:3000/api/style-references/upload-url', {
       method: 'POST',
-      headers,
+      headers: { 'content-type': 'application/json' },
       body: opts.rawText ?? JSON.stringify(body),
     })
   }
