@@ -158,6 +158,19 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
             data-testid="generate-cta"
             disabled={generateDisabled}
             onClick={props.onGenerate}
+            // Quick 260511-generate-disabled-affordance: surface WHY when
+            // disabled so users don't stare at a dead button. Two gates:
+            // (1) at least one aspect checked, (2) refusal warnings (if any)
+            // acknowledged. The tooltip names the active blocker so the user
+            // knows exactly what to fix.
+            title={
+              generateDisabled
+                ? !hasAtLeastOneAspect(state)
+                  ? 'Check at least one aspect above (palette, typography, layout, or decorations) before generating.'
+                  : 'Confirm the reference warning above to continue.'
+                : undefined
+            }
+            aria-describedby={generateDisabled ? 'generate-cta-blocker' : undefined}
             className={
               'rounded-xl px-5 py-2 text-sm font-bold transition-colors ' +
               (generateDisabled
@@ -167,6 +180,17 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
           >
             Generate
           </button>
+          {generateDisabled && (
+            <p
+              id="generate-cta-blocker"
+              data-testid="generate-cta-blocker"
+              className="text-xs text-[#7d6161] mt-1"
+            >
+              {!hasAtLeastOneAspect(state)
+                ? 'Check at least one aspect above to enable Generate.'
+                : 'Confirm the reference warning above to enable Generate.'}
+            </p>
+          )}
         </div>
       </div>
     </section>
