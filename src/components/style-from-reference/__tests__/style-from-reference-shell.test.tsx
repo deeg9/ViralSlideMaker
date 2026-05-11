@@ -201,7 +201,13 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
     expect(screen.getByTestId('sticky-reference-strip')).toBeTruthy()
   })
 
-  it('Test 7: on safety_blocked, error-mount slot renders and SpecPreviewPanel does NOT', async () => {
+  it('Test 7: on safety_blocked, SafetyBlockRecovery renders and SpecPreviewPanel does NOT', async () => {
+    // Plan 76-03 replaced the placeholder ErrorMount with ErrorRouter, which
+    // for kind=safety_blocked routes to <SafetyBlockRecovery /> (PREVIEW-12
+    // full-panel surface). PREVIEW-12 spec: the recovery panel REPLACES the
+    // spec-preview, not a sibling banner. Recovery-integration Test 11 asserts
+    // the same invariant from the integration angle; this test owns the
+    // shell-composition angle.
     mockExtractStyleSpecAction.mockResolvedValueOnce({
       ok: false,
       error: 'safety_blocked',
@@ -215,12 +221,15 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
     )
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
-      expect(screen.getByTestId('error-mount')).toBeTruthy()
+      expect(screen.getByTestId('safety-block-recovery')).toBeTruthy()
     })
     expect(screen.queryByTestId('spec-preview-panel')).toBeNull()
-    // The error-mount surface exposes the error kind so Plan 76-03 can
-    // pick the right recovery component.
-    expect(screen.getByTestId('error-mount').textContent).toMatch(/safety_blocked/)
+    // Old placeholder is gone — ErrorRouter routes to a specific surface.
+    expect(screen.queryByTestId('error-mount')).toBeNull()
+    // Recovery surface surfaces the Phase 75 recovery_suggestion verbatim
+    expect(screen.getByTestId('recovery-suggestion-text').textContent).toContain(
+      'try cropping',
+    )
   })
 
   it('Test 8: brandKitAvailable prop flows into reducer state', async () => {
