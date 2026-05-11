@@ -136,7 +136,22 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
           return
         }
         if (!mintRes.ok) {
-          setError('Failed to mint upload URL.')
+          // Phase 79 LEGAL-01 defense-in-depth: server-side ToS gate may reject
+          // with 403 TOS_REQUIRED if the user's audit row is missing or stale
+          // (e.g., ToS version bumped since last acceptance). Reopen the
+          // clickwrap modal rather than showing the cryptic generic error.
+          let body: { error?: { code?: string; message?: string } } = {}
+          try {
+            body = await mintRes.json()
+          } catch {
+            // fall through to generic error
+          }
+          if (mintRes.status === 403 && body?.error?.code === 'TOS_REQUIRED') {
+            setAccepted(false)
+            setPendingFiles(files.slice(files.indexOf(file)))
+            return
+          }
+          setError(body?.error?.message || 'Failed to mint upload URL.')
           return
         }
         const { data } = await mintRes.json()
