@@ -27,10 +27,12 @@ import { extractStyleSpecAction } from '@/app/(dashboard)/style-from-reference/a
 import {
   specPreviewReducer,
   initialSpecPreviewState,
-  type SpecPreviewState,
 } from './state-machine'
 import { StickyReferenceStrip } from './sticky-reference-strip'
 import { SpecPreviewPanel } from './spec-preview-panel'
+// Plan 76-03 wiring:
+import { ErrorRouter } from './error-router'
+import { RefusalWarning } from './refusal-warning'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { ExtractResult } from '@/lib/ai/extract-style-spec.types'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
@@ -126,8 +128,30 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
 
   return (
     <div className="space-y-6">
-      {/* PREVIEW-09: sticky strip rendered OUTSIDE every conditional block. */}
-      <StickyReferenceStrip references={state.references} />
+      {/* PREVIEW-09 + PREVIEW-10: sticky strip rendered OUTSIDE every conditional
+          block. Plan 76-03 wires `slotPerReference` so flagged references get
+          an inline RefusalWarning chip beside their thumbnail. */}
+      <StickyReferenceStrip
+        references={state.references}
+        slotPerReference={(_row, idx) => {
+          const flags = state.refusalFlags[idx]
+          if (!flags) return null
+          if (
+            !flags.contains_logo &&
+            !flags.contains_face &&
+            !flags.contains_watermark
+          ) {
+            return null
+          }
+          return (
+            <RefusalWarning
+              flags={flags}
+              acknowledged={state.refusalAcknowledged}
+              dispatch={dispatch}
+            />
+          )
+        }}
+      />
 
       {state.status === 'idle' && (
         <ReferenceImageUploader
@@ -160,8 +184,12 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
         </div>
       )}
 
+      {/* Plan 76-03: replaced placeholder ErrorMount with ErrorRouter. The
+          router renders the right recovery surface per error.kind — including
+          the full SafetyBlockRecovery panel that REPLACES the spec-preview on
+          safety_blocked (PREVIEW-12). */}
       {state.status === 'error' && state.error && (
-        <ErrorMount state={state} />
+        <ErrorRouter state={state} dispatch={dispatch} />
       )}
     </div>
   )
@@ -185,25 +213,10 @@ function ExtractingState() {
   )
 }
 
-function ErrorMount({ state }: { state: SpecPreviewState }) {
-  // Plan 76-03 will fill this slot with RefusalWarning + SafetyBlockRecovery
-  // components routed by error.kind. This shell only exposes the mount point;
-  // the error.kind text is rendered as the slot's text content so 76-03 (and
-  // tests today) can see what kind of recovery is needed.
-  return (
-    <div
-      data-testid="error-mount"
-      data-error-kind={state.error?.kind}
-      className="rounded-2xl border border-[#fadbdb] bg-[#fff0f0] p-6"
-    >
-      <p className="text-sm font-semibold text-[#a30000]">
-        {state.error?.kind}
-      </p>
-      {state.error?.recovery_suggestion ? (
-        <p className="mt-1 text-[12px] text-[#7d6161]">
-          {state.error.recovery_suggestion}
-        </p>
-      ) : null}
-    </div>
-  )
-}
+// Plan 76-03 removed the ErrorMount stub. ErrorRouter (imported above) now
+// owns the error surface and routes to specific recovery UIs per error.kind.
+// Plan 76-01's Test 7 (which asserted the placeholder error-mount testid) is
+// superseded by Plan 76-03's recovery-integration Test 11 (asserts the
+// SafetyBlockRecovery surface replaces the spec-preview on safety_blocked).
+// The 76-01 test is updated in this plan to assert the new behavior so the
+// shell test stays GREEN.
