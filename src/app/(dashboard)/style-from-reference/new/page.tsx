@@ -14,8 +14,12 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
 import { StyleFromReferenceShell } from '@/components/style-from-reference/style-from-reference-shell'
+import { acceptStyleFromReferenceTosAction } from '@/app/(dashboard)/style-from-reference/actions'
+import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
+import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
 
 export default async function StyleFromReferenceNewPage() {
   const supabase = await createClient()
@@ -26,6 +30,23 @@ export default async function StyleFromReferenceNewPage() {
 
   const brandKit = await getBrandKit()
   const projectId = crypto.randomUUID()
+
+  // Phase 79 LEGAL-01: read ToS acceptance status server-side so the client
+  // shell can render the clickwrap modal on first upload (vs hitting the
+  // server-side gate and showing the cryptic "Failed to mint upload URL").
+  // Service-role admin client because the audit-log helper requires it.
+  const admin = createAdminClient()
+  const tosAlreadyAccepted = await hasUserAcceptedCurrentTos(
+    admin,
+    user.id,
+    STYLE_FROM_REFERENCE_TOS_VERSION,
+  )
+
+  // Bind the action to the current ToS version so the client doesn't have
+  // to import the version constant. The action itself records the audit row
+  // for (user_id, version) on success.
+  const acceptTosAction = async () =>
+    acceptStyleFromReferenceTosAction(STYLE_FROM_REFERENCE_TOS_VERSION)
 
   return (
     <div className="mx-auto max-w-4xl py-8">
@@ -40,6 +61,8 @@ export default async function StyleFromReferenceNewPage() {
         projectId={projectId}
         brandKit={brandKit}
         brandKitAvailable={brandKit !== null}
+        tosAlreadyAccepted={tosAlreadyAccepted}
+        acceptTosAction={acceptTosAction}
       />
     </div>
   )
