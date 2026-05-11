@@ -12,6 +12,18 @@
 // __tests__/reference-image-uploader.test.tsx (Test C10) — adding any
 // `extract-style`, `extractStyleSpec`, or `/api/(vision|gemini|extract)*`
 // reference here will fail CI.
+//
+// Phase 79 Plan 02 Task 2 (LEGAL-01): the FIRST upload click is gated by the
+// ToS clickwrap modal when `tosAlreadyAccepted={false}` is passed. The
+// component:
+//   1. Defers the upload pipeline if the user has not yet accepted
+//   2. Shows <TosClickwrapModal> bound to the injected `acceptTosAction`
+//   3. On Accept → flips local `accepted` state → resumes the deferred upload
+//   4. On Cancel → drops the deferred upload
+// `tosAlreadyAccepted` defaults to TRUE so existing tests + non-style-from-
+// reference call sites stay untouched. The page-level wiring (the new dashboard
+// route that hosts the uploader) is responsible for computing the prop from
+// `hasUserAcceptedCurrentTos()` server-side.
 
 import { useState, useRef, useCallback } from 'react'
 import {
@@ -21,6 +33,7 @@ import {
   MIN_REFERENCE_COUNT,
 } from '@/lib/storage/upload-reference-validation'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
+import { TosClickwrapModal } from '@/components/style-from-reference/tos-clickwrap-modal'
 
 export interface ReferenceImageUploaderProps {
   /** Fired after a successful upload — every successful upload writes one row.
@@ -34,6 +47,17 @@ export interface ReferenceImageUploaderProps {
   /** Optional pre-seeded thumbnails (e.g., when re-opening a project that
    *  already has reference_assets in the DB). */
   initial?: ReferenceAssetRow[]
+  /** Phase 79 Plan 02 Task 2 (LEGAL-01): when `false`, the FIRST upload
+   *  attempt opens the ToS clickwrap modal and defers the upload until the
+   *  user accepts. Defaults to `true` so existing call sites (and the
+   *  pre-Phase-79 baseline tests) stay byte-identical. The hosting page
+   *  computes this server-side via `hasUserAcceptedCurrentTos`. */
+  tosAlreadyAccepted?: boolean
+  /** Phase 79 Plan 02 Task 2 (LEGAL-01): server action invoked when the user
+   *  ticks the modal checkbox + clicks Accept. Wired to
+   *  `acceptStyleFromReferenceTosAction` from
+   *  src/app/(dashboard)/style-from-reference/actions.ts. */
+  acceptTosAction?: (version: string) => Promise<{ ok: boolean; error?: unknown }>
 }
 
 /** Thumbnail row in component state. _objectUrl is set for files uploaded in
@@ -51,6 +75,16 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
   const [error, setError] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Phase 79 Plan 02 Task 2 (LEGAL-01): clickwrap gating state.
+  //   `accepted` mirrors the ToS-accepted lifecycle in component-local state:
+  //     - seeded from the parent prop on mount (server-checked source of truth)
+  //     - flipped to true after a successful Accept inside the modal (sticky
+  //       for the rest of the session — second/third uploads skip the modal)
+  //   `pendingFiles` holds the deferred File[] from a drop / change event
+  //     that fired BEFORE acceptance; resumed in `handleAcceptedAndResume`.
+  const [accepted, setAccepted] = useState<boolean>(props.tosAlreadyAccepted ?? true)
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
 
   const handleFiles = useCallback(
     async (files: File[]) => {
@@ -146,6 +180,45 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
     [props],
   )
 
+  // Phase 79 Plan 02 Task 2 (LEGAL-01): the gating entry point. If the user
+  // has already accepted, run the upload pipeline directly. Otherwise stash
+  // the File[] in `pendingFiles` (which mounts the modal via the conditional
+  // render below) and wait for Accept to flip `accepted` and resume.
+  const gateAndUpload = useCallback(
+    (files: File[]) => {
+      if (files.length === 0) return
+      if (accepted) {
+        void handleFiles(files)
+      } else {
+        setPendingFiles(files)
+      }
+    },
+    [accepted, handleFiles],
+  )
+
+  // Modal callbacks. On Accept we set `accepted=true` (sticky for the
+  // session) AND drain any pending upload that was waiting on the gate.
+  const handleAcceptedAndResume = useCallback(() => {
+    setAccepted(true)
+    const queued = pendingFiles
+    setPendingFiles(null)
+    if (queued && queued.length > 0) {
+      void handleFiles(queued)
+    }
+  }, [pendingFiles, handleFiles])
+
+  const handleCancelTos = useCallback(() => {
+    // Drop the deferred upload — the user explicitly declined. They can
+    // try again later; the modal will re-open on their next click.
+    setPendingFiles(null)
+  }, [])
+
+  // Default no-op accept action so a misconfigured call site (no
+  // `acceptTosAction` injected but `tosAlreadyAccepted=false`) still surfaces
+  // the modal in a recognizable state instead of crashing on undefined.
+  const acceptAction =
+    props.acceptTosAction ?? (async () => ({ ok: false, error: 'no_action_wired' }))
+
   const handleRemove = (idx: number) => {
     setThumbs((prev) => {
       const target = prev[idx]
@@ -175,7 +248,8 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
     e.preventDefault()
     setIsDragOver(false)
     const files = Array.from(e.dataTransfer.files)
-    void handleFiles(files)
+    // Phase 79 LEGAL-01: route through the ToS gate (no-op when accepted).
+    gateAndUpload(files)
   }
 
   const ctaDisabled = thumbs.length < MIN_REFERENCE_COUNT || thumbs.length > MAX_REFERENCE_COUNT
@@ -214,7 +288,8 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
           const files = Array.from(e.target.files ?? [])
           // Clear the input so re-selecting the same file fires onChange again
           e.target.value = ''
-          void handleFiles(files)
+          // Phase 79 LEGAL-01: route through the ToS gate (no-op when accepted).
+          gateAndUpload(files)
         }}
         style={{ display: 'none' }}
       />
@@ -270,6 +345,18 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
       >
         Extract style
       </button>
+
+      {/* Phase 79 Plan 02 Task 2 (LEGAL-01): clickwrap modal — mounts when
+          the user has not yet accepted AND a deferred upload is queued. The
+          modal exits the DOM as soon as `pendingFiles` clears (Accept or
+          Cancel) so the rest of the test surface (no extra a11y nodes when
+          ToS is not in play) stays clean. */}
+      <TosClickwrapModal
+        open={!accepted && pendingFiles !== null}
+        onAccepted={handleAcceptedAndResume}
+        onCancel={handleCancelTos}
+        acceptAction={acceptAction}
+      />
     </div>
   )
 }

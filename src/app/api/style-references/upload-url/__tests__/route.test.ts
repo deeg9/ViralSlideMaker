@@ -47,6 +47,18 @@ vi.mock('@/lib/api/errors', () => ({
     NextResponse.json({ error: { code, message } }, { status }),
 }))
 
+// Phase 79 Plan 02 Task 2 (LEGAL-01): the route now runs a defense-in-depth
+// ToS check via createAdminClient + hasUserAcceptedCurrentTos. The existing
+// REF-02 contract tests do not exercise that gate (sibling route-tos.test.ts
+// owns it); we mock the helper to return TRUE so the original happy paths
+// flow through unchanged.
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: vi.fn().mockReturnValue({ __admin__: true }),
+}))
+vi.mock('@/lib/legal/audit-log', () => ({
+  hasUserAcceptedCurrentTos: vi.fn().mockResolvedValue(true),
+}))
+
 describe('Phase 74 Plan 03 (REF-02): POST /api/style-references/upload-url', () => {
   beforeEach(() => {
     vi.clearAllMocks()
