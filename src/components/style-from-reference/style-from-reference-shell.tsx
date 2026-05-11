@@ -5,6 +5,11 @@
 // the sticky reference thumbnail strip, and the spec-preview panel,
 // wired to the state machine + extractStyleSpecAction Server Action.
 //
+// quick 260511-flj: PREVIEW-10 RefusalWarning gate REMOVED. The sticky strip
+// no longer wires a per-reference slot for flag chips; refusalFlags is gone
+// from the reducer. Liability for IP / right-of-publicity / trademark exposure
+// shifted to the user via Phase 79 LEGAL-05 T&C strengthening + version bump.
+//
 // =====================================================================
 // PREVIEW-01 INVARIANT (LOAD-BEARING):
 // =====================================================================
@@ -30,9 +35,7 @@ import {
 } from './state-machine'
 import { StickyReferenceStrip } from './sticky-reference-strip'
 import { SpecPreviewPanel } from './spec-preview-panel'
-// Plan 76-03 wiring:
 import { ErrorRouter } from './error-router'
-import { RefusalWarning } from './refusal-warning'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { ExtractResult } from '@/lib/ai/extract-style-spec.types'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
@@ -56,7 +59,6 @@ function dispatchExtractResult(
     ;(dispatch as unknown as (a: unknown) => void)({
       type: 'EXTRACT_SUCCESS',
       spec: result.spec,
-      refusalFlags: result.refusal_flags,
       telemetry: result.telemetry,
     })
   } else {
@@ -133,30 +135,10 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
 
   return (
     <div className="space-y-6">
-      {/* PREVIEW-09 + PREVIEW-10: sticky strip rendered OUTSIDE every conditional
-          block. Plan 76-03 wires `slotPerReference` so flagged references get
-          an inline RefusalWarning chip beside their thumbnail. */}
-      <StickyReferenceStrip
-        references={state.references}
-        slotPerReference={(_row, idx) => {
-          const flags = state.refusalFlags[idx]
-          if (!flags) return null
-          if (
-            !flags.contains_logo &&
-            !flags.contains_face &&
-            !flags.contains_watermark
-          ) {
-            return null
-          }
-          return (
-            <RefusalWarning
-              flags={flags}
-              acknowledged={state.refusalAcknowledged}
-              dispatch={dispatch}
-            />
-          )
-        }}
-      />
+      {/* PREVIEW-09: sticky strip rendered OUTSIDE every conditional block.
+          quick 260511-flj removed the per-reference refusal-warning slot
+          wiring; sticky strip now renders thumbnails only. */}
+      <StickyReferenceStrip references={state.references} />
 
       {state.status === 'idle' && (
         <ReferenceImageUploader
@@ -191,10 +173,9 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
         </div>
       )}
 
-      {/* Plan 76-03: replaced placeholder ErrorMount with ErrorRouter. The
-          router renders the right recovery surface per error.kind — including
-          the full SafetyBlockRecovery panel that REPLACES the spec-preview on
-          safety_blocked (PREVIEW-12). */}
+      {/* ErrorRouter renders the right recovery surface per error.kind —
+          including the full SafetyBlockRecovery panel that REPLACES the
+          spec-preview on safety_blocked (PREVIEW-12). */}
       {state.status === 'error' && state.error && (
         <ErrorRouter state={state} dispatch={dispatch} />
       )}
@@ -219,11 +200,3 @@ function ExtractingState() {
     </div>
   )
 }
-
-// Plan 76-03 removed the ErrorMount stub. ErrorRouter (imported above) now
-// owns the error surface and routes to specific recovery UIs per error.kind.
-// Plan 76-01's Test 7 (which asserted the placeholder error-mount testid) is
-// superseded by Plan 76-03's recovery-integration Test 11 (asserts the
-// SafetyBlockRecovery surface replaces the spec-preview on safety_blocked).
-// The 76-01 test is updated in this plan to assert the new behavior so the
-// shell test stays GREEN.

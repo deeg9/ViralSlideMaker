@@ -2,8 +2,10 @@
 // State-machine reducer tests — load-bearing invariant defense for the
 // mandatory non-skippable spec-preview flow. Pure-function tests; no DOM.
 //
-// 14 tests pin every transition + the PREVIEW-01 invariant (Test 6) that
-// makes "Generate without prior preview" structurally unreachable.
+// quick 260511-flj: PREVIEW-10 RefusalWarning gate removed — Test 13
+// (CONFIRM_REFUSAL_WARNING) deleted; Test 4 (EXTRACT_SUCCESS) and Test 12
+// (UPLOAD_RESET) rewritten to drop refusalFlags / refusalAcknowledged
+// assertions; FLAGS_FACE / FLAGS_NONE constants removed.
 
 import { describe, it, expect } from 'vitest'
 import {
@@ -14,7 +16,6 @@ import {
 } from '../state-machine'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
 import type { StyleSpec } from '@/lib/types/style-spec'
-import type { RefusalFlags } from '@/lib/ai/refusal-pre-pass'
 import type { ExtractTelemetry } from '@/lib/ai/extract-style-spec.types'
 
 // ---- Fixtures ----
@@ -46,7 +47,7 @@ function makeSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
 
 function makeTelemetry(): ExtractTelemetry {
   return {
-    vision_calls_count: 2,
+    vision_calls_count: 1,
     tokens_in: 100,
     tokens_out: 50,
     cache_hit: false,
@@ -54,19 +55,12 @@ function makeTelemetry(): ExtractTelemetry {
   }
 }
 
-const FLAGS_NONE: RefusalFlags[] = []
-const FLAGS_FACE: RefusalFlags[] = [
-  { contains_logo: false, contains_face: true, contains_watermark: false },
-]
-
 describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions', () => {
   it('Test 1: initialSpecPreviewState exposes the locked default shape', () => {
     expect(initialSpecPreviewState).toEqual<SpecPreviewState>({
       status: 'idle',
       references: [],
       spec: null,
-      refusalFlags: [],
-      refusalAcknowledged: false,
       retriesRemaining: 2,
       aspects: { palette: true, typography: true, layout: true, decorations: true },
       useBrandKitRemix: false,
@@ -103,7 +97,7 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
     expect(sOk.error).toBeNull()
   })
 
-  it('Test 4: EXTRACT_SUCCESS only fires from extracting; spec + refusalFlags set, status=preview', () => {
+  it('Test 4: EXTRACT_SUCCESS only fires from extracting; spec set, status=preview (quick 260511-flj: no refusalFlags)', () => {
     const extractingState: SpecPreviewState = {
       ...initialSpecPreviewState,
       references: [makeRow()],
@@ -113,19 +107,16 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
     const sOk = specPreviewReducer(extractingState, {
       type: 'EXTRACT_SUCCESS',
       spec,
-      refusalFlags: FLAGS_FACE,
       telemetry: makeTelemetry(),
     })
     expect(sOk.status).toBe('preview')
     expect(sOk.spec).toEqual(spec)
-    expect(sOk.refusalFlags).toEqual(FLAGS_FACE)
     expect(sOk.lastTelemetry).toEqual(makeTelemetry())
 
     // From idle → state unchanged (no leak)
     const sLeak = specPreviewReducer(initialSpecPreviewState, {
       type: 'EXTRACT_SUCCESS',
       spec,
-      refusalFlags: FLAGS_NONE,
       telemetry: makeTelemetry(),
     })
     expect(sLeak.status).toBe('idle')
@@ -262,8 +253,6 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
       spec: makeSpec(),
       references: [makeRow('old.png')],
       retriesRemaining: 0,
-      refusalFlags: FLAGS_FACE,
-      refusalAcknowledged: true,
     }
     const fresh = [makeRow('fresh.png')]
     const next = specPreviewReducer(used, { type: 'UPLOAD_RESET', references: fresh })
@@ -271,27 +260,10 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
     expect(next.spec).toBeNull()
     expect(next.references).toEqual(fresh)
     expect(next.retriesRemaining).toBe(2)
-    expect(next.refusalFlags).toEqual([])
-    expect(next.refusalAcknowledged).toBe(false)
     expect(next.error).toBeNull()
   })
 
-  it('Test 13: CONFIRM_REFUSAL_WARNING from preview flips refusalAcknowledged only — status unchanged', () => {
-    const preview: SpecPreviewState = {
-      ...initialSpecPreviewState,
-      status: 'preview',
-      spec: makeSpec(),
-      refusalFlags: FLAGS_FACE,
-      refusalAcknowledged: false,
-    }
-    const next = specPreviewReducer(preview, { type: 'CONFIRM_REFUSAL_WARNING' })
-    expect(next.status).toBe('preview') // status MUST NOT advance
-    expect(next.refusalAcknowledged).toBe(true)
-
-    // From a non-preview status → no-op (does not flip the flag)
-    const idle = specPreviewReducer(initialSpecPreviewState, { type: 'CONFIRM_REFUSAL_WARNING' })
-    expect(idle.refusalAcknowledged).toBe(false)
-  })
+  // Test 13 (CONFIRM_REFUSAL_WARNING) deleted — quick 260511-flj: gate removed.
 
   it('Test 14: discriminated-union exhaustiveness — every action type round-trips through the reducer', () => {
     // If a future action is added without a reducer case, this test still
@@ -304,12 +276,11 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
       { type: 'UPLOAD_REMOVED', index: 0 },
       { type: 'UPLOAD_RESET', references: [] },
       { type: 'EXTRACT_START' },
-      { type: 'EXTRACT_SUCCESS', spec: makeSpec(), refusalFlags: FLAGS_NONE, telemetry: makeTelemetry() },
+      { type: 'EXTRACT_SUCCESS', spec: makeSpec(), telemetry: makeTelemetry() },
       { type: 'EXTRACT_ERROR', error: { kind: 'extraction_failed' }, telemetry: makeTelemetry() },
       { type: 'RE_EXTRACT_CLICK' },
       { type: 'TOGGLE_ASPECT', aspect: 'palette' },
       { type: 'TOGGLE_BRAND_KIT_REMIX' },
-      { type: 'CONFIRM_REFUSAL_WARNING' },
       { type: 'GENERATE_CLICK' },
       { type: 'GENERATE_DONE' },
       { type: 'BRAND_KIT_AVAILABILITY', available: true },
