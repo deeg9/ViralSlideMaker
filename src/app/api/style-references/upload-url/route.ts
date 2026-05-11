@@ -13,12 +13,21 @@
 // React component can run the SAME checks fail-fast before round-tripping the
 // network. Defense-in-depth: client validates for UX, server re-validates for
 // trust. Drift between the two is a class of bug we don't want to ship.
+//
+// Phase 79 Plan 02 Task 2 (LEGAL-01): server-side ToS enforcement. Runs the
+// `hasUserAcceptedCurrentTos` audit-log check BEFORE minting a signed URL —
+// no row matching the current ToS version => 403 TOS_REQUIRED. Defense in
+// depth alongside the client clickwrap modal (CLI scripts / direct API hits
+// / malicious extensions cannot bypass acceptance).
 
 import { withApiAuth } from '@/lib/api/with-api-auth'
 import { apiSuccess } from '@/lib/api/response'
 import { apiError } from '@/lib/api/errors'
 import { SLIDE_REFERENCES_BUCKET } from '@/lib/types/projects-storage-constants'
 import { validateReferenceUpload } from '@/lib/storage/upload-reference-validation'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
+import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
 
 export const POST = withApiAuth(async (req, ctx) => {
   let body: Record<string, unknown> = {}
@@ -36,6 +45,26 @@ export const POST = withApiAuth(async (req, ctx) => {
   })
   if (!validation.ok) {
     return apiError('VALIDATION_ERROR', validation.message, 400)
+  }
+
+  // Phase 79 Plan 02 Task 2 (LEGAL-01): defense-in-depth ToS gate. Service
+  // role admin client because RLS routes audit-table reads through service_role
+  // (the helper signature requires it). Helper NEVER throws — fail-secures to
+  // false on any DB error, which forces a 403 here. The worst outcome is a
+  // false-negative requiring the user to click Accept again; the unacceptable
+  // outcome would be silently letting an un-accepted upload through.
+  const admin = createAdminClient()
+  const accepted = await hasUserAcceptedCurrentTos(
+    admin,
+    ctx.userId,
+    STYLE_FROM_REFERENCE_TOS_VERSION,
+  )
+  if (!accepted) {
+    return apiError(
+      'TOS_REQUIRED',
+      'You must accept the style-from-reference Terms of Service before uploading.',
+      403,
+    )
   }
 
   const path = `${ctx.userId}/${crypto.randomUUID()}-${validation.safeFilename}`
