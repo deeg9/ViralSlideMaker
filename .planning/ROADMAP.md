@@ -108,7 +108,11 @@
   3. The `style-spec-roundtrip.test.ts` proves byte-identity: spec → emit → React preview ≡ Satori PNG (mirror v2.12 PTF17 AI-emit parity); silent-drop counter is also instrumented at the emit boundary.
   4. The CI prompt-token-budget gate fails the build if `style_spec + topic + brand_kit + system_prompt` exceeds 12K tokens (Gemini 2.5 Flash headroom); the StyleSpec → Slide projector emits ONLY values that round-trip through both renderers (no new Slide fields).
   5. The dashboard / project list shows a "From references" badge on style-from-reference projects, and the project detail page persists reference thumbnails for visible provenance.
-**Plans**: TBD
+**Plans**: 3 plans across 2 waves
+  - [ ] 77-01-PLAN.md (wave 1) — Pure helpers: applyAspectFilter + applyBrandKitRemix + projectStyleSpecToSlideOverrides + narrowDecorationAllowlist (EMIT-07)
+  - [ ] 77-02-PLAN.md (wave 2, depends on 77-01) — generate-from-style-spec.ts + buildFromSpecPrompt + generateCarouselFromReferences + regenerateAction Server Action wiring + 12K-token CI gate + PARITY-02 roundtrip PTF (EMIT-01..06, 08, 09, 10, EDITOR-01, PARITY-02)
+  - [ ] 77-03-PLAN.md (wave 1, parallel with 77-01) — FromReferencesBadge + ReferenceThumbnailsStrip + ProjectCard + project detail page wiring + Project type extension (EDITOR-02, EDITOR-03)
+**UI hint**: yes
 
 ### Phase 78: Remix / Fork / Publish Snapshot
 **Goal**: Extend the v2.4 publish/fork pipeline so style specs and reference assets travel with published carousels, and forkers can regenerate new content from the inherited references in one click.
