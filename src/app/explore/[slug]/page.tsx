@@ -27,7 +27,7 @@ export default async function ExploreDetailPage({
   const { data: row } = await supabase
     .from('published_carousels')
     .select(
-      'id, slug, title, description, hero_image_url, slide_data, tags, owner_id, bookmark_count, remix_count, view_count, published_at',
+      'id, slug, title, description, hero_image_url, slide_data, tags, owner_id, bookmark_count, remix_count, view_count, published_at, template_id',
     )
     .eq('slug', slug)
     .is('unpublished_at', null)
@@ -48,6 +48,7 @@ export default async function ExploreDetailPage({
     remix_count: number
     view_count: number
     published_at: string
+    template_id: string | null
   }
 
   const { data: creatorRow } = await supabase
@@ -74,7 +75,14 @@ export default async function ExploreDetailPage({
     isBookmarked = !!bm
   }
 
-  const template = getTemplate('highlight-bar')
+  // quick-260511-uk1: consume the snapshotted template_id from the
+  // published row (the Phase 78 REMIX-01 gap was closed by the companion
+  // migration + publish.ts edit). Null falls back to 'highlight-bar' so
+  // legacy pre-snapshot published rows (where backfill could not resolve
+  // the source project) continue to render with their original
+  // pre-quick-260511 behavior — TPLREND-05 parity restored for every
+  // new publish; legacy rows unchanged.
+  const template = getTemplate(c.template_id ?? 'highlight-bar')
   const ownerTier = await getUserTier(c.owner_id)
 
   return (
