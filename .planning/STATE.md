@@ -4,8 +4,8 @@ milestone: v2.13
 milestone_name: Style-from-Reference Generation
 status: completed
 stopped_at: Roadmap locked. Awaiting `/gsd-plan-phase 73` to begin execution.
-last_updated: "2026-05-11T18:45:00.000Z"
-last_activity: 2026-05-11 -- Completed quick task 260511-flj: narrow content blocks to nudity/CSAM; shift IP liability to user via T&C (supersedes Phase 75 D-05 + Phase 76 PREVIEW-10)
+last_updated: "2026-05-12T05:30:00.000Z"
+last_activity: 2026-05-12 -- Completed quick task 260511-uk1: fix carousel palette divergence (template_id snapshot gap + explore-detail hardcode + fork-RPC hardcode); brand-kit decision locked at Option B
 progress:
   total_phases: 7
   completed_phases: 7
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-10 — v2.13 milestone started)
 Phase: 79 — COMPLETE
 Plan: —
 Status: Phase 79 complete
-Last activity: 2026-05-11 -- Completed quick task 260511-flj: narrow content blocks to nudity/CSAM; shift IP liability to user via T&C (supersedes Phase 75 D-05 + Phase 76 PREVIEW-10)
+Last activity: 2026-05-12 -- Completed quick task 260511-uk1: fix carousel palette divergence (template_id snapshot gap + explore-detail hardcode + fork-RPC hardcode); brand-kit decision locked at Option B
 
 ## v2.13 Phase Map
 
@@ -179,6 +179,9 @@ Last activity: 2026-05-11 -- Completed quick task 260511-flj: narrow content blo
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260511-flj | Narrow content blocks to nudity/CSAM only; shift IP/right-of-publicity liability to user via T&C (supersedes Phase 75 D-05 + Phase 76 PREVIEW-10) | 2026-05-11 | 740823c | [260511-flj-narrow-content-blocks-to-nudity-and-csam](./quick/260511-flj-narrow-content-blocks-to-nudity-and-csam/) |
+| 260511-uk1 | Fix carousel palette divergence — closes Phase 78 template_id snapshot gap + hardcoded explore-detail template + fork-RPC hardcode. Brand-kit decision locked at Option B (mergeWithBrandKit is no-op for built-in templates) | 2026-05-12 | 531ef9a | [260511-uk1-fix-carousel-palette-divergence-across-d](./quick/260511-uk1-fix-carousel-palette-divergence-across-d/) |
+
+**Follow-up note:** Hero PNG re-render for historical `published_carousels` rows is OUT OF SCOPE of quick-260511-uk1. Existing rows keep their (now-stale) `hero_image_url`; users can republish to get a fresh PNG. A future quick task could add an admin one-shot script that iterates rows and re-runs `renderHeroBuffer` against the snapshotted `(slide_data, template_id, style_spec)` triple.
 
 ## Session Continuity
 
