@@ -187,6 +187,15 @@ export async function publishProjectAdmin(
         // Phase 78 REMIX-02: point-in-time snapshot (Plan 01 Task 3)
         style_spec: styleSpecSnapshot,
         reference_assets: referenceAssetsSnapshot,
+        // quick-260511-uk1: snapshot template_id alongside style_spec +
+        // reference_assets. Closes the Phase 78 REMIX-01 gap (the original
+        // migration shipped the other two snapshot columns but omitted
+        // template_id, causing forks to default to bold-minimal and the
+        // explore/[slug] consumer to hardcode 'highlight-bar'). Plain
+        // string copy — the column is `text` (not jsonb), so no deep-clone
+        // round-trip is needed and the value is naturally point-in-time
+        // (subsequent edits to projects.template_id don't retro-mutate).
+        template_id: project.template_id ?? null,
       })
       .select('id, slug')
       .maybeSingle()
