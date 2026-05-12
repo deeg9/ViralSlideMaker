@@ -45,8 +45,13 @@ describe('quick-260511-uk1: explore detail page snapshot template_id', () => {
   it('SELECT projection passed to published_carousels includes template_id', () => {
     // Find the .select(' ... ') string passed to
     //   .from('published_carousels').select( ... )
+    // The Next.js source style uses a trailing comma after the projection
+    // string, which sits between the closing quote and the `)`:
+    //   .select(\n      '...',\n    )
+    // Allow optional whitespace + trailing comma + whitespace between the
+    // closing quote and the `)`.
     const selectMatch = SRC.match(
-      /from\(\s*['"]published_carousels['"]\s*\)\s*\.select\(\s*['"]([^'"]+)['"]\s*\)/,
+      /from\(\s*['"]published_carousels['"]\s*\)\s*\.select\(\s*['"]([^'"]+)['"]\s*,?\s*\)/,
     )
     expect(selectMatch).not.toBeNull()
     expect(selectMatch![1]).toContain('template_id')
