@@ -17,6 +17,16 @@
 import { Icon } from '@/components/ui/icon'
 import { DIVIDERS } from '@/lib/elements/dividers'
 
+/**
+ * Stroke color used for the in-picker preview tiles only — distinct from
+ * the templateTextColor baked into the actual insert. Picker tile bg is
+ * `#fdf7f2` (light cream); 7 of 12 built-in templates have white or cream
+ * textColor which would render invisibly against that bg. `#3d0000` (the
+ * project's primary brand color) gives every preview tile high contrast
+ * regardless of which template the user is editing.
+ */
+const PREVIEW_STROKE = '#3d0000'
+
 interface ElementsPanelProps {
   /** Active template's text color — baked into every inserted divider. */
   templateTextColor: string
@@ -40,20 +50,22 @@ export function ElementsPanel({ templateTextColor, onInsertDivider }: ElementsPa
 
         <div className="grid grid-cols-2 gap-2">
           {DIVIDERS.map((divider) => {
-            const dataUri = divider.build(templateTextColor)
+            const previewDataUri = divider.build(PREVIEW_STROKE)
             return (
               <button
                 key={divider.id}
                 type="button"
-                onClick={() => onInsertDivider(dataUri)}
+                onClick={() => onInsertDivider(divider.build(templateTextColor))}
                 className="group relative aspect-[3/1] rounded-md border border-[#dbc1bc]/40 bg-[#fdf7f2] hover:bg-[#fff0f0] hover:border-[#3d0000]/40 transition-colors flex items-center justify-center px-2 py-1"
                 aria-label={`Add ${divider.label} divider`}
                 title={divider.label}
               >
-                {/* Inline preview — the same SVG that gets inserted. */}
+                {/* Preview stroke is PREVIEW_STROKE for tile legibility; the
+                    actual insert uses templateTextColor (baked at click time)
+                    so the placed divider matches the active template tone. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={dataUri}
+                  src={previewDataUri}
                   alt=""
                   className="w-full h-full object-contain pointer-events-none"
                   draggable={false}
