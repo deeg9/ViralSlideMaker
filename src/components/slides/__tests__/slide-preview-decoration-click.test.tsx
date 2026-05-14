@@ -1,12 +1,17 @@
 /**
- * Phase 70 Plan 04 (EDITOR-14): click-to-select on rendered decoration in
- * the editable path of slide-preview.tsx.
+ * Phase 70 Plan 04 (EDITOR-14) + quick-260514-kct: select-on-mousedown for
+ * rendered decoration in the editable path of slide-preview.tsx.
  *
- * The wire emits an absolutely-positioned click-target overlay per non-hidden
- * decoration. Click → selection.replaceWith([d.id]). Shift-click →
- * selection.addToSelection(d.id). The overlay is gated to editable={true}
- * (PCL11 chrome-leak invariant — Satori path must NOT render selection
- * chrome).
+ * Post-kct: the click target is now the `<Rnd>` wrapper (so the decoration
+ * is draggable). Selection fires from `onMouseDown` — same UX as click — but
+ * tests must use `fireEvent.mouseDown` because `onClick` is intercepted by
+ * Rnd's drag binding. The data-testid `decoration-click-target-${d.id}` is
+ * preserved for back-compat. Rotation transform now lives on an inner
+ * `decoration-visual-wrap-${d.id}` div (Rnd's outer style is reserved for
+ * react-draggable's translate-based positioning).
+ *
+ * Editable={true} invariant carries (PCL11 chrome-leak — Satori path must
+ * NOT render selection chrome).
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -86,7 +91,7 @@ describe('Phase 70 Plan 04 — Click-to-select on rendered decoration (EDITOR-14
     const target = container.querySelector(
       `[data-testid="decoration-click-target-${SHAPE_DECO.id}"]`,
     ) as HTMLElement
-    fireEvent.click(target)
+    fireEvent.mouseDown(target)
     expect(onSelectionChange).toHaveBeenCalledTimes(1)
     expect(onSelectionChange).toHaveBeenCalledWith({
       ids: [SHAPE_DECO.id],
@@ -149,11 +154,11 @@ describe('Phase 70 Plan 04 — Click-to-select on rendered decoration (EDITOR-14
       `[data-testid="decoration-click-target-${locked.id}"]`,
     ) as HTMLElement | null
     expect(target).toBeTruthy()
-    fireEvent.click(target!)
+    fireEvent.mouseDown(target!)
     expect(onSelectionChange).toHaveBeenCalledTimes(1)
   })
 
-  it('rotated decoration inherits the same transform on click-target', () => {
+  it('rotated decoration applies rotation transform on the inner visual wrap', () => {
     const rotated: Decoration = { ...SHAPE_DECO, rotation: 45 }
     const { container } = render(
       <SlidePreview
@@ -166,11 +171,14 @@ describe('Phase 70 Plan 04 — Click-to-select on rendered decoration (EDITOR-14
         editable={true}
       />,
     )
-    const target = container.querySelector(
-      `[data-testid="decoration-click-target-${rotated.id}"]`,
+    // quick-260514-kct: rotation now lives on the inner visual-wrap div,
+    // not the Rnd outer (Rnd reserves outer `transform: translate(x,y)` for
+    // react-draggable positioning).
+    const visualWrap = container.querySelector(
+      `[data-testid="decoration-visual-wrap-${rotated.id}"]`,
     ) as HTMLElement
-    expect(target).toBeTruthy()
-    expect(target.style.transform).toContain('rotate(45deg)')
+    expect(visualWrap).toBeTruthy()
+    expect(visualWrap.style.transform).toContain('rotate(45deg)')
   })
 
   it('Shift-click adds to selection instead of replacing', () => {
@@ -192,7 +200,7 @@ describe('Phase 70 Plan 04 — Click-to-select on rendered decoration (EDITOR-14
     const target = container.querySelector(
       `[data-testid="decoration-click-target-${SHAPE_DECO.id}"]`,
     ) as HTMLElement
-    fireEvent.click(target, { shiftKey: true })
+    fireEvent.mouseDown(target, { shiftKey: true })
     expect(onSelectionChange).toHaveBeenCalledTimes(1)
     // Functional updater — call it with the previous selection and assert
     // the result includes both ids.

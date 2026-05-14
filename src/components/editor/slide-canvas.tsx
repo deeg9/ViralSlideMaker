@@ -84,6 +84,12 @@ interface SlideCanvasProps {
       | { kind: 'align'; axis: AlignAxis }
       | { kind: 'distribute'; axis: DistributeAxis },
   ) => void
+  // quick-260514-kct: decoration drag commit pass-through. slide-editor wires
+  // this to dispatch({ type: 'UPDATE_DECORATION', ... }).
+  onDecorationPositionChange?: (
+    id: string,
+    position: { x: number; y: number },
+  ) => void
 }
 
 export function SlideCanvas({
@@ -119,6 +125,7 @@ export function SlideCanvas({
   onGroupDrag,
   onAltDuplicate,
   onAlign,
+  onDecorationPositionChange,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   // Phase 57 (EDITOR-03, D-21): IG feed crop preview toggle. Component-local
@@ -171,6 +178,7 @@ export function SlideCanvas({
             onGroupDrag={onGroupDrag}
             onAltDuplicate={onAltDuplicate}
             onAlign={onAlign}
+            onDecorationPositionChange={onDecorationPositionChange}
           />
           {/* Phase 57 (EDITOR-03, D-20, D-23): IG feed safe-zone overlay.
               CSS outline (not border) so layout is unaffected. Top-aligned —

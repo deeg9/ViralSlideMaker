@@ -204,15 +204,17 @@ describe('Phase 72 Plan 02 — Rotation handle mount in slide-preview.tsx', () =
     // No dispatch yet.
     expect(onDecorationRotate).not.toHaveBeenCalled()
 
-    // The click-target overlay reflects the previewed rotation via inline
-    // transform (verified by checking the click-target's style.transform
-    // contains 'rotate'). At rotation === 0 there's no transform, but the
-    // pointerMove should set a non-zero preview value.
-    const clickTarget = container.querySelector(
-      `[data-testid="decoration-click-target-${SHAPE_DECO.id}"]`,
+    // quick-260514-kct: the click-target is now an `<Rnd>` whose outer
+    // transform is reserved for react-draggable's `translate(x,y)`
+    // positioning. The per-tick rotation preview lives on the inner
+    // `decoration-visual-wrap-${d.id}` div instead. At rotation === 0
+    // there's no transform, but the pointerMove should set a non-zero
+    // preview value.
+    const visualWrap = container.querySelector(
+      `[data-testid="decoration-visual-wrap-${SHAPE_DECO.id}"]`,
     ) as HTMLElement
-    expect(clickTarget).toBeTruthy()
-    expect(clickTarget.style.transform).toContain('rotate')
+    expect(visualWrap).toBeTruthy()
+    expect(visualWrap.style.transform).toContain('rotate')
 
     // Now release — dispatch fires once.
     fireEvent.pointerUp(handle, {

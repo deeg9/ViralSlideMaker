@@ -469,6 +469,22 @@ interface SlidePreviewProps {
     ids: string[]
     rotation: number
   }) => void
+  /**
+   * quick-260514-kct: decoration drag commit. Invoked ONCE per drag gesture
+   * (onDragStop) with the new {x, y} in % of canvas (REF_WIDTH=1080 /
+   * REF_HEIGHT=1920). slide-editor.tsx wires this into dispatch({ type:
+   * 'UPDATE_DECORATION', ... }) so the gesture lands as one history entry.
+   * Single-element commit only — multi-element group drag still flows
+   * through the existing `onGroupDrag` callback (BULK_TRANSLATE reducer
+   * already handles decorations as of Phase 68 Plan 02).
+   * Editor-only — read ONLY downstream of the editable={true} branch
+   * (TPLREND-05 / PARITY-01 carry-forward). When omitted, decorations
+   * fall back to the legacy click-only-no-drag behavior.
+   */
+  onDecorationPositionChange?: (
+    id: string,
+    position: { x: number; y: number },
+  ) => void
 }
 
 export function SlidePreview({
@@ -491,6 +507,7 @@ export function SlidePreview({
   onAltDuplicate,
   onAlign,
   onDecorationRotate,
+  onDecorationPositionChange,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
@@ -510,6 +527,9 @@ export function SlidePreview({
   const bodyDragStartRef = useRef<{ x: number; y: number } | null>(null)
   const customTextDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
   const customImageDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
+  // quick-260514-kct: per-decoration drag-start refs for the group-drag delta
+  // math (mirrors customImageDragStartRefs pattern).
+  const decorationDragStartRefs = useRef<Record<string, { x: number; y: number } | null>>({})
   // Phase 66 Plan 02 (DIFF-01): per-element alt-state-at-drag-start.
   // Captured in onDragStart from `modifiers.get().alt`. Read in onDragStop
   // to branch onAltDuplicate vs onGroupDrag/onPositionChange. Cleared (set
@@ -1109,6 +1129,7 @@ export function SlidePreview({
               const node = renderDecoration(d, {
                 slideIndex: resolveCtx.slideIndex,
                 totalSlides: resolveCtx.totalSlides,
+                target: 'browser',
               })
               return node ? React.cloneElement(node as React.ReactElement, { key: d.id }) : null
             })}
@@ -2697,6 +2718,7 @@ export function SlidePreview({
             const node = renderDecoration(d, {
               slideIndex: resolveCtx.slideIndex,
               totalSlides: resolveCtx.totalSlides,
+              target: 'browser',
             })
             // Phase 72 Plan 02 (ROTATE-02): per-tick local preview during
             // rotation-handle drag overrides the committed rotation. After
@@ -2724,42 +2746,114 @@ export function SlidePreview({
               selection.primary === d.id &&
               d.locked !== true &&
               d.hidden !== true
+            // quick-260514-kct: % → px for the Rnd wrapper (REF_WIDTH × REF_HEIGHT
+            // reference frame; Rnd scales the gesture via `scale={scale}`).
+            const dxPx = (d.position.x / 100) * REF_WIDTH
+            const dyPx = (d.position.y / 100) * REF_HEIGHT
+            const dwPx = (d.position.width / 100) * REF_WIDTH
+            const dhPx = (d.position.height / 100) * REF_HEIGHT
             return (
               <React.Fragment key={d.id}>
-                {node
-                  ? React.cloneElement(node as React.ReactElement, {
-                      key: `${d.id}-render`,
-                    })
-                  : null}
-                <div
-                  key={`${d.id}-click`}
+                <Rnd
+                  key={`${d.id}-rnd`}
                   data-testid={`decoration-click-target-${d.id}`}
-                  onClick={(e: React.MouseEvent) => {
+                  position={{ x: dxPx, y: dyPx }}
+                  size={{ width: dwPx, height: dhPx }}
+                  scale={scale}
+                  bounds="parent"
+                  disableDragging={d.locked === true}
+                  enableResizing={false}
+                  onDragStart={(_e, data) => {
+                    setDraggingElementId(d.id)
+                    decorationDragStartRefs.current[d.id] = { x: data.x, y: data.y }
+                  }}
+                  onDragStop={(_e, data) => {
+                    setDraggingElementId(null)
+                    const startRef = decorationDragStartRefs.current[d.id]
+                    delete decorationDragStartRefs.current[d.id]
+                    // Group drag fan-out — BULK_TRANSLATE handles decorations
+                    // since Phase 68 Plan 02. Mirrors custom-image branch at
+                    // ~line 2560.
+                    if (onGroupDrag && selection) {
+                      const groupIds = shouldGroupDrag(
+                        slide,
+                        selection,
+                        currentlyInsideGroup ?? null,
+                        d.id,
+                      )
+                      if (groupIds) {
+                        const deltaX = startRef
+                          ? ((data.x - startRef.x) / REF_WIDTH) * 100
+                          : 0
+                        const deltaY = startRef
+                          ? ((data.y - startRef.y) / REF_HEIGHT) * 100
+                          : 0
+                        onGroupDrag({
+                          slideIndex: index,
+                          ids: groupIds,
+                          deltaX,
+                          deltaY,
+                        })
+                        return
+                      }
+                    }
+                    // Single-element commit via UPDATE_DECORATION.
+                    const x = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+                    const y = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
+                    onDecorationPositionChange?.(d.id, { x, y })
+                  }}
+                  onMouseDown={(e) => {
                     e.stopPropagation()
-                    if (e.shiftKey) {
-                      onSelectionChange?.((prev) => {
+                    if (e.shiftKey && onSelectionChange) {
+                      onSelectionChange((prev: Selection) => {
                         if (prev.ids.includes(d.id)) {
                           return { ids: prev.ids, primary: d.id }
                         }
                         return { ids: [...prev.ids, d.id], primary: d.id }
                       })
-                    } else {
-                      onSelectionChange?.({ ids: [d.id], primary: d.id })
+                      return
                     }
+                    onSelectionChange?.({ ids: [d.id], primary: d.id })
                   }}
                   style={{
-                    position: 'absolute',
-                    left: `${d.position.x}%`,
-                    top: `${d.position.y}%`,
-                    width: `${d.position.width}%`,
-                    height: `${d.position.height}%`,
-                    ...(rotated ?? {}),
                     zIndex: 13,
-                    pointerEvents: 'auto',
-                    cursor: 'pointer',
-                    background: 'transparent',
+                    cursor: d.locked === true ? 'default' : 'grab',
                   }}
-                />
+                >
+                  {/* Inner rotation wrapper. Rnd's outer style is reserved for
+                      react-draggable's `transform: translate(x,y)` positioning —
+                      applying `transform: rotate(...)` there would clobber it.
+                      Rotation goes on this inner wrapper instead. The cloned
+                      decoration also carries its own baked-in rotation (from the
+                      renderer's style), so the inner wrapper's transform wins
+                      via spread order — letting the per-tick rotation preview
+                      take precedence over the committed value. */}
+                  <div
+                    data-testid={`decoration-visual-wrap-${d.id}`}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      pointerEvents: 'none',
+                      ...(rotated ?? {}),
+                    }}
+                  >
+                    {(() => {
+                      if (!React.isValidElement(node)) return null
+                      const el = node as React.ReactElement<{ style?: React.CSSProperties }>
+                      return React.cloneElement(el, {
+                        key: `${d.id}-render`,
+                        style: {
+                          ...(el.props.style ?? {}),
+                          left: 0,
+                          top: 0,
+                          width: '100%',
+                          height: '100%',
+                          pointerEvents: 'none',
+                        },
+                      })
+                    })()}
+                  </div>
+                </Rnd>
                 {showRotationHandle && (
                   <DecorationRotationHandle
                     key={`${d.id}-rotate`}
