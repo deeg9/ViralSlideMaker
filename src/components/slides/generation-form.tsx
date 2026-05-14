@@ -44,6 +44,9 @@ export function GenerationForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
+  const [showVisualStyle, setShowVisualStyle] = useState(true)
+  const [showSlideCount, setShowSlideCount] = useState(true)
+  const [showBackgroundImages, setShowBackgroundImages] = useState(true)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [advancedFont, setAdvancedFont] = useState<string>('')
   const [advancedFontColor, setAdvancedFontColor] = useState<string>('')
@@ -299,56 +302,108 @@ export function GenerationForm({
         )}
       </div>
 
-      {/* Template Picker */}
-      <div>
-        <div className="flex justify-between items-end mb-6">
-          <label className="text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]">
-            Select Visual Style
-          </label>
-        </div>
-        <TemplatePicker selectedId={templateId} onSelect={setTemplateId} brandKit={brandKit} />
-      </div>
-
-      {/* Slide Count */}
+      {/* Template Picker — collapsible. The References pill is the "from
+          references" entry-point relocated here from the dashboard so it
+          lives next to the in-flow style picker rather than as a dashboard-
+          level promo card. Both surfaces route to /style-from-reference/new. */}
       <div>
         <div className="flex justify-between items-center mb-3">
-          <label className="text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1">
-            Number of Slides
-          </label>
-          <span className="text-sm font-bold text-[#3d0000]">{slideCount}</span>
+          <button
+            type="button"
+            onClick={() => setShowVisualStyle(!showVisualStyle)}
+            className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]"
+            aria-expanded={showVisualStyle}
+          >
+            Select Visual Style
+            <Icon
+              name="expand_more"
+              size="sm"
+              className={`transition-transform ${showVisualStyle ? 'rotate-180' : ''}`}
+            />
+          </button>
+          <Link
+            href="/style-from-reference/new"
+            data-testid="from-references-cta"
+            title="Upload up to 8 images and generate a slideshow inspired by their style"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#dbc1bc] hover:border-[#3d0000] text-[#3d0000] text-[11px] font-bold uppercase tracking-wider transition-colors"
+          >
+            <Icon name="image" size="sm" />
+            References
+          </Link>
         </div>
-        <input
-          type="range"
-          min={isPaidUser ? 3 : 1}
-          max={sliderMax}
-          step={1}
-          value={slideCount}
-          onChange={(e) => setSlideCount(Number(e.target.value))}
-          disabled={isPending}
-          className="w-full h-1.5 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] disabled:opacity-50"
-        />
-        <div className="flex justify-between mt-1">
-          <span className="text-[10px] text-[#7d6161]">{isPaidUser ? 3 : 1}</span>
-          <span className="text-[10px] text-[#7d6161]">{sliderMax}</span>
-        </div>
-        {!isPaidUser && (
-          <div className="flex items-center gap-1.5 mt-2 ml-1">
-            <Icon name="lock" size="sm" className="text-[#7d6161]" />
-            <Link
-              href="/settings/subscription"
-              className="text-[11px] font-semibold text-[#3d0000] hover:underline"
-            >
-              Upgrade for more slides
-            </Link>
+        {showVisualStyle && (
+          <div className="mt-4">
+            <TemplatePicker selectedId={templateId} onSelect={setTemplateId} brandKit={brandKit} />
           </div>
         )}
       </div>
 
-      {/* Image Source Toggle */}
+      {/* Slide Count — collapsible */}
       <div>
-        <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1">
+        <div className="flex justify-between items-center mb-3">
+          <button
+            type="button"
+            onClick={() => setShowSlideCount(!showSlideCount)}
+            className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
+            aria-expanded={showSlideCount}
+          >
+            Number of Slides
+            <Icon
+              name="expand_more"
+              size="sm"
+              className={`transition-transform ${showSlideCount ? 'rotate-180' : ''}`}
+            />
+          </button>
+          <span className="text-sm font-bold text-[#3d0000]">{slideCount}</span>
+        </div>
+        {showSlideCount && (
+          <div className="mt-2">
+            <input
+              type="range"
+              min={isPaidUser ? 3 : 1}
+              max={sliderMax}
+              step={1}
+              value={slideCount}
+              onChange={(e) => setSlideCount(Number(e.target.value))}
+              disabled={isPending}
+              className="w-full h-1.5 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] disabled:opacity-50"
+            />
+            <div className="flex justify-between mt-1">
+              <span className="text-[10px] text-[#7d6161]">{isPaidUser ? 3 : 1}</span>
+              <span className="text-[10px] text-[#7d6161]">{sliderMax}</span>
+            </div>
+            {!isPaidUser && (
+              <div className="flex items-center gap-1.5 mt-2 ml-1">
+                <Icon name="lock" size="sm" className="text-[#7d6161]" />
+                <Link
+                  href="/settings/subscription"
+                  className="text-[11px] font-semibold text-[#3d0000] hover:underline"
+                >
+                  Upgrade for more slides
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Image Source Toggle — collapsible */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowBackgroundImages(!showBackgroundImages)}
+          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1"
+          aria-expanded={showBackgroundImages}
+        >
           Background Images
-        </label>
+          <Icon
+            name="expand_more"
+            size="sm"
+            className={`transition-transform ${showBackgroundImages ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {showBackgroundImages && (
+        <>
         <div className="grid grid-cols-3 gap-3">
           <button
             type="button"
@@ -420,6 +475,8 @@ export function GenerationForm({
           <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
             Pure typography on the template&apos;s flat background. Pairs best with Paper Essay, Brutalist Grid, or Editorial Serif.
           </p>
+        )}
+        </>
         )}
       </div>
 
