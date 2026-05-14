@@ -149,7 +149,7 @@ export function ElementsPanel({
   if (activeDecoration) {
     const isIcon = activeDecoration.kind === 'icon'
     return (
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-3 bg-[#fff0f0]">
         {onBackToLibrary && (
           <button
             type="button"
@@ -179,7 +179,7 @@ export function ElementsPanel({
   // Library mode — no decoration selected. Show the insert tiles.
   // ───────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 bg-[#fff0f0]">
       {/* Icons + shapes — open the existing pickers wired in slide-editor. */}
       <section>
         <div className="flex items-center gap-2 mb-3">

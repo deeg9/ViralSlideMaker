@@ -115,7 +115,7 @@ export function ImagePickerPanel({
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6" data-testid="image-picker-panel">
+    <div className="flex flex-col gap-6 p-6 bg-[#fff0f0]" data-testid="image-picker-panel">
       {/* Regenerate */}
       <div className="space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] block">Regenerate</span>
