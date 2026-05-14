@@ -5,16 +5,16 @@ import { getTemplate } from '@/lib/render/templates/index'
 import type { Slide } from '@/lib/types/slide'
 
 /**
- * Phase 57 (EDITOR-04, D-11, D-28): right-rail composition snapshot.
+ * Right-rail composition order regression test.
  *
- * Asserts the v2.8 right-rail composition order is preserved with the
- * Phase 57 PhotoTreatmentControls inserted between SlideSettings and the
- * conditional CustomTextEditor block:
+ * Locks the v2.8 right-rail composition order:
  *
- *   layer-strip → active-text-box-card → slide-settings → photo-treatment-controls
+ *   layer-strip → active-text-box-card → slide-settings → watermark-controls
  *
- * If a future phase changes child order, this test fails and forces an
- * intentional update.
+ * quick-260514-drop-photo-treatment-white-cards: photo-treatment-controls
+ * was unmounted from this panel; the surface itself (component + standalone
+ * tests) still exists for future re-introduction. If a future phase changes
+ * child order, this test fails and forces an intentional update.
  */
 
 const TMPL = getTemplate('editorial-serif')
@@ -32,7 +32,7 @@ function makeSlide(): Slide {
 }
 
 describe('TextEditorPanel composition order (EDITOR-04)', () => {
-  it('renders LayerStrip → ActiveTextBoxCard → SlideSettings → PhotoTreatmentControls in order', () => {
+  it('renders LayerStrip → ActiveTextBoxCard → SlideSettings → WatermarkControls in order', () => {
     const { container } = render(
       <TextEditorPanel
         slide={makeSlide()}
@@ -41,43 +41,42 @@ describe('TextEditorPanel composition order (EDITOR-04)', () => {
         onSelectTextBox={vi.fn()}
         onTextBoxAction={vi.fn()}
         onUpdate={vi.fn()}
-        onSlideTreatmentChange={vi.fn()}
-        isTreatmentPending={false}
       />,
     )
 
-    // The outer panel has data-testid="text-editor-panel"; collect direct children with data-testid
     const panel = container.querySelector('[data-testid="text-editor-panel"]')
     expect(panel).toBeTruthy()
 
     // ActiveTextBoxCard renders one of two testids depending on whether a box
     // is selected: 'active-text-box-card' OR 'active-text-box-card-empty'.
-    // Either satisfies composition order.
-    const named = ['layer-strip', 'active-text-box-card', 'active-text-box-card-empty', 'slide-settings', 'photo-treatment-controls']
+    const named = [
+      'layer-strip',
+      'active-text-box-card',
+      'active-text-box-card-empty',
+      'slide-settings',
+      'watermark-controls',
+    ]
     const all = Array.from(panel!.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id): id is string => !!id && named.includes(id))
 
-    // Each named testid should appear in our expected order. Some may be repeated
-    // (e.g., nested data-testids in children) but FIRST appearance must be in order.
     const firstIndex: Record<string, number> = {}
     all.forEach((id, i) => {
       if (firstIndex[id] === undefined) firstIndex[id] = i
     })
 
-    // All required markers present; ActiveTextBoxCard variants are ORed
     expect(firstIndex['layer-strip']).toBeDefined()
     expect(firstIndex['slide-settings']).toBeDefined()
-    expect(firstIndex['photo-treatment-controls']).toBeDefined()
+    expect(firstIndex['watermark-controls']).toBeDefined()
     const activeIndex = firstIndex['active-text-box-card'] ?? firstIndex['active-text-box-card-empty']
     expect(activeIndex, 'expected active-text-box-card OR active-text-box-card-empty in panel').toBeDefined()
 
     expect(firstIndex['layer-strip']).toBeLessThan(activeIndex)
     expect(activeIndex).toBeLessThan(firstIndex['slide-settings'])
-    expect(firstIndex['slide-settings']).toBeLessThan(firstIndex['photo-treatment-controls'])
+    expect(firstIndex['slide-settings']).toBeLessThan(firstIndex['watermark-controls'])
   })
 
-  it('PhotoTreatmentControls renders even when onSlideTreatmentChange is omitted (D-29)', () => {
+  it('PhotoTreatmentControls is NOT mounted in the right rail (quick-260514-drop-photo-treatment-white-cards)', () => {
     const { container } = render(
       <TextEditorPanel
         slide={makeSlide()}
@@ -88,6 +87,6 @@ describe('TextEditorPanel composition order (EDITOR-04)', () => {
         onUpdate={vi.fn()}
       />,
     )
-    expect(container.querySelector('[data-testid="photo-treatment-controls"]')).toBeTruthy()
+    expect(container.querySelector('[data-testid="photo-treatment-controls"]')).toBeNull()
   })
 })

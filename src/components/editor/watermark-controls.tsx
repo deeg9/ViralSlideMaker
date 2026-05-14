@@ -77,7 +77,7 @@ export function WatermarkControls({
 
   return (
     <div
-      className="bg-[#fff0f0] border border-[#fadbdb] rounded-2xl p-4 space-y-4"
+      className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-4"
       data-testid="watermark-controls"
       data-tier={userTier}
     >
