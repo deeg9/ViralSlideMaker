@@ -7,7 +7,6 @@ import { LayerStrip } from './text-rail/LayerStrip'
 import { ActiveTextBoxCard } from './text-rail/ActiveTextBoxCard'
 import { SlideSettings } from './text-rail/SlideSettings'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
-import { PhotoTreatmentControls, type TreatmentSpec } from './photo-treatment-controls'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import { MultiSelectTypeBar } from './multi-select-type-bar'
 import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
@@ -53,11 +52,6 @@ export interface TextEditorPanelProps {
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
   onCustomTextRemove?: (id: string) => void
   brandKit?: BrandKit | null
-  /** Phase 57 (D-08, D-29): per-slide photo-treatment override callback. Optional —
-      when omitted, PhotoTreatmentControls renders read-only. */
-  onSlideTreatmentChange?: (spec: TreatmentSpec) => void
-  /** Phase 57: spinner state from useTransition() at the parent (slide-editor). */
-  isTreatmentPending?: boolean
   /** quick-260502-er5: per-slide watermark override callback. Optional — when
       omitted, WatermarkControls renders read-only. */
   userTier?: 'free' | 'plus' | 'pro'
@@ -88,8 +82,6 @@ export function TextEditorPanel({
   onCustomTextUpdate,
   onCustomTextRemove,
   brandKit,
-  onSlideTreatmentChange,
-  isTreatmentPending,
   userTier = 'free',
   onSlideWatermarkChange,
   onWatermarkLogoUpload,
@@ -157,13 +149,6 @@ export function TextEditorPanel({
         template={template}
         onUpdate={onUpdate}
         brandKit={brandKit}
-      />
-
-      <PhotoTreatmentControls
-        slide={slide}
-        template={template}
-        isPending={isTreatmentPending ?? false}
-        onTreatmentChange={onSlideTreatmentChange}
       />
 
       <WatermarkControls

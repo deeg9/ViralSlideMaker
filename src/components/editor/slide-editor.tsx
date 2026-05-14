@@ -20,10 +20,8 @@ import {
   saveTemplateId,
   regenerateSlideText,
   regenerateSlideImageQuery,
-  updateSlideTreatment,
   updateProjectWatermark,
   createUploadUrl,
-  type TreatmentSpec,
   type WatermarkSpec,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
@@ -237,61 +235,14 @@ export function SlideEditor({
     selection.replaceWith([d.id])
   }, [dispatch, selectedIndex, selection, pickerMode])
 
-  // Phase 57 (D-08): photo-treatment override handling. useTransition keeps
-  // the spinner state co-located with the editor; revalidatePath fires from
-  // the server action so the slide list refreshes on Next's normal cycle.
-  //
-  // quick-260502-fv9: hybrid local-state sync — see handler below.
-  const [isTreatmentPending, startTreatmentTransition] = useTransition()
-  // quick-260502-fv9: hybrid local-state sync. Optimistically dispatch
-  // treatment_applied + grain_intensity BEFORE the server call so the
-  // active button flips instantly. After the server returns, merge the
-  // server-computed fields (background_url, original_source_url,
-  // derived_palette) so the preview swaps to the treated image without
-  // a refresh.
-  const handleSlideTreatmentChange = useCallback((spec: TreatmentSpec) => {
-    if (currentSlide) {
-      // Optimistic — flip the button + grain state immediately.
-      // background_url is server-computed (treatPhoto + Storage upload),
-      // so it stays untouched here and is merged from the response below.
-      dispatch({
-        type: 'UPDATE_SLIDE',
-        index: selectedIndex,
-        updates: {
-          style_overrides: {
-            ...(currentSlide.style_overrides ?? {}),
-            treatment_applied: spec.kind === 'none' ? undefined : spec.kind,
-            grain_intensity: spec.grain,
-          },
-        },
-      })
-    }
-    startTreatmentTransition(async () => {
-      const result = await updateSlideTreatment(projectId, selectedIndex, spec)
-      if (!result.success) {
-        console.warn('[updateSlideTreatment] failed:', result.error)
-        return
-      }
-      // Server-computed fields: background_url (treated image URL),
-      // original_source_url (back-filled if it was null pre-Phase 55),
-      // and derived_palette (re-extracted from the treated image).
-      const updated = result.slide
-      dispatch({
-        type: 'UPDATE_SLIDE',
-        index: selectedIndex,
-        updates: {
-          background_url: updated.background_url,
-          original_source_url: updated.original_source_url,
-          style_overrides: {
-            ...(currentSlide?.style_overrides ?? {}),
-            treatment_applied: updated.style_overrides?.treatment_applied,
-            grain_intensity: updated.style_overrides?.grain_intensity,
-            derived_palette: updated.style_overrides?.derived_palette,
-          },
-        },
-      })
-    })
-  }, [projectId, selectedIndex, currentSlide, dispatch])
+  // quick-260514-drop-photo-treatment-white-cards: photo-treatment controls
+  // were removed from the right rail. The reducer slot
+  // (style_overrides.treatment_applied / .grain_intensity) and the server
+  // action `updateSlideTreatment` are intentionally kept so legacy slides
+  // still render their treated background without divergence — the UI is
+  // simply no longer mounted. Remount PhotoTreatmentControls in
+  // text-editor-panel.tsx and restore handleSlideTreatmentChange + isTreatmentPending
+  // to bring the surface back.
 
   // quick-260502-er5: per-slide watermark override handling.
   // quick-260502-fai: also dispatch so the editor's React state reflects the
@@ -1714,8 +1665,6 @@ export function SlideEditor({
                   onCustomTextUpdate={handleCustomTextUpdate}
                   onCustomTextRemove={handleRemoveCustomText}
                   brandKit={brandKit}
-                  onSlideTreatmentChange={handleSlideTreatmentChange}
-                  isTreatmentPending={isTreatmentPending}
                   userTier={userTier}
                   onSlideWatermarkChange={handleSlideWatermarkChange}
                   onWatermarkLogoUpload={handleWatermarkLogoUpload}
