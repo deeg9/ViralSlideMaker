@@ -5,9 +5,7 @@ import { FontPicker } from './font-picker'
 import { TextEffectsControls } from './text-effects-controls'
 import { LayerStrip } from './text-rail/LayerStrip'
 import { ActiveTextBoxCard } from './text-rail/ActiveTextBoxCard'
-import { SlideSettings } from './text-rail/SlideSettings'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
-import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import { MultiSelectTypeBar } from './multi-select-type-bar'
 import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
@@ -52,13 +50,6 @@ export interface TextEditorPanelProps {
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
   onCustomTextRemove?: (id: string) => void
   brandKit?: BrandKit | null
-  /** quick-260502-er5: per-slide watermark override callback. Optional — when
-      omitted, WatermarkControls renders read-only. */
-  userTier?: 'free' | 'plus' | 'pro'
-  onSlideWatermarkChange?: (spec: WatermarkSpec) => void
-  onWatermarkLogoUpload?: (file: File) => void
-  onWatermarkLogoRemove?: () => void
-  isWatermarkPending?: boolean
   /** Phase 60 (SEL-12): canonical multi-select state. When N>=2, the panel
       replaces ActiveTextBoxCard with MultiSelectTypeBar. When N<=1, the
       legacy single-element flow renders unchanged. Optional — callers that
@@ -82,11 +73,6 @@ export function TextEditorPanel({
   onCustomTextUpdate,
   onCustomTextRemove,
   brandKit,
-  userTier = 'free',
-  onSlideWatermarkChange,
-  onWatermarkLogoUpload,
-  onWatermarkLogoRemove,
-  isWatermarkPending,
   selection,
   onBulkDelete,
 }: TextEditorPanelProps) {
@@ -144,21 +130,10 @@ export function TextEditorPanel({
         />
       )}
 
-      <SlideSettings
-        slide={slide}
-        template={template}
-        onUpdate={onUpdate}
-        brandKit={brandKit}
-      />
-
-      <WatermarkControls
-        slide={slide}
-        userTier={userTier}
-        isPending={isWatermarkPending ?? false}
-        onWatermarkChange={onSlideWatermarkChange}
-        onCustomLogoUpload={onWatermarkLogoUpload}
-        onCustomLogoRemove={onWatermarkLogoRemove}
-      />
+      {/* quick-260514-move-slide-cards-to-elements: SlideSettings + WatermarkControls
+          moved out of the TEXT tab — they're slide-level, not text-level — and
+          now mount in ElementsPanel. CustomTextEditor stays below as the legacy
+          per-custom-text inspector for canvas-selected free-positioned text. */}
 
       {selectedCustomText && onCustomTextUpdate && onCustomTextRemove && (
         <CustomTextEditor

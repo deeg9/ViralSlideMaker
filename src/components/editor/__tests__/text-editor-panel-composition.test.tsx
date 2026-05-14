@@ -32,7 +32,7 @@ function makeSlide(): Slide {
 }
 
 describe('TextEditorPanel composition order (EDITOR-04)', () => {
-  it('renders LayerStrip → ActiveTextBoxCard → SlideSettings → WatermarkControls in order', () => {
+  it('renders LayerStrip → ActiveTextBoxCard in order', () => {
     const { container } = render(
       <TextEditorPanel
         slide={makeSlide()}
@@ -49,13 +49,7 @@ describe('TextEditorPanel composition order (EDITOR-04)', () => {
 
     // ActiveTextBoxCard renders one of two testids depending on whether a box
     // is selected: 'active-text-box-card' OR 'active-text-box-card-empty'.
-    const named = [
-      'layer-strip',
-      'active-text-box-card',
-      'active-text-box-card-empty',
-      'slide-settings',
-      'watermark-controls',
-    ]
+    const named = ['layer-strip', 'active-text-box-card', 'active-text-box-card-empty']
     const all = Array.from(panel!.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id): id is string => !!id && named.includes(id))
@@ -66,17 +60,13 @@ describe('TextEditorPanel composition order (EDITOR-04)', () => {
     })
 
     expect(firstIndex['layer-strip']).toBeDefined()
-    expect(firstIndex['slide-settings']).toBeDefined()
-    expect(firstIndex['watermark-controls']).toBeDefined()
     const activeIndex = firstIndex['active-text-box-card'] ?? firstIndex['active-text-box-card-empty']
     expect(activeIndex, 'expected active-text-box-card OR active-text-box-card-empty in panel').toBeDefined()
 
     expect(firstIndex['layer-strip']).toBeLessThan(activeIndex)
-    expect(activeIndex).toBeLessThan(firstIndex['slide-settings'])
-    expect(firstIndex['slide-settings']).toBeLessThan(firstIndex['watermark-controls'])
   })
 
-  it('PhotoTreatmentControls is NOT mounted in the right rail (quick-260514-drop-photo-treatment-white-cards)', () => {
+  it('PhotoTreatmentControls is NOT mounted in the TEXT tab (quick-260514-drop-photo-treatment-white-cards)', () => {
     const { container } = render(
       <TextEditorPanel
         slide={makeSlide()}
@@ -88,5 +78,20 @@ describe('TextEditorPanel composition order (EDITOR-04)', () => {
       />,
     )
     expect(container.querySelector('[data-testid="photo-treatment-controls"]')).toBeNull()
+  })
+
+  it('SlideSettings and WatermarkControls are NOT mounted in the TEXT tab (quick-260514-move-slide-cards-to-elements)', () => {
+    const { container } = render(
+      <TextEditorPanel
+        slide={makeSlide()}
+        template={TMPL}
+        selectedTextBoxId={null}
+        onSelectTextBox={vi.fn()}
+        onTextBoxAction={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('[data-testid="slide-settings"]')).toBeNull()
+    expect(container.querySelector('[data-testid="watermark-controls"]')).toBeNull()
   })
 })

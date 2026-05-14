@@ -22,8 +22,11 @@
 import { Icon } from '@/components/ui/icon'
 import { DIVIDERS } from '@/lib/elements/dividers'
 import { DecorationCard } from './text-rail/decoration-card'
+import { SlideSettings } from './text-rail/SlideSettings'
+import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import type { Decoration } from '@/lib/types/decoration'
 import type { Slide } from '@/lib/types/slide'
+import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
 /**
@@ -42,10 +45,29 @@ interface ElementsPanelProps {
    *  per-slide library behavior. Optional so unit tests can render the
    *  panel in isolation. */
   slide?: Slide
+  /** Full active template — quick-260514-move-slide-cards-to-elements:
+   *  SlideSettings (mounted at the bottom of this panel) needs the template
+   *  to know whether NewsLayout controls apply. Optional so existing unit
+   *  tests that render the panel in isolation don't need to construct a
+   *  template fixture. */
+  template?: SlideTemplate
   /** Active template's text color — baked into every inserted divider. */
   templateTextColor: string
   /** Caller dispatches ADD_CUSTOM_IMAGE with the data URI + centered defaults. */
   onInsertDivider: (dataUri: string) => void
+  /** Slide-level dispatch — wired by slide-editor to its `handleUpdate`
+   *  callback. Used by the mounted SlideSettings card (News Layout +
+   *  Overlay). Optional in isolated tests. */
+  onSlideUpdate?: (updates: Partial<Slide>) => void
+  /** User tier for the Watermark card's "show/hide" affordance. */
+  userTier?: 'free' | 'plus' | 'pro'
+  /** Wired by slide-editor to dispatch + persist project-wide watermark
+   *  changes. Mirrors the prop the TextEditorPanel used to consume before
+   *  the card moved here. */
+  onSlideWatermarkChange?: (spec: WatermarkSpec) => void
+  onWatermarkLogoUpload?: (file: File) => void
+  onWatermarkLogoRemove?: () => void
+  isWatermarkPending?: boolean
   /** When set, the panel renders DecorationCard for this decoration in place
    *  of the library. Mirrors the TextEditorPanel CARD-01 contract. */
   activeDecoration?: Decoration | null
@@ -77,6 +99,7 @@ interface ElementsPanelProps {
 
 export function ElementsPanel({
   slide,
+  template,
   templateTextColor,
   onInsertDivider,
   activeDecoration,
@@ -87,15 +110,38 @@ export function ElementsPanel({
   onBackToLibrary,
   onOpenIconPicker,
   onOpenShapePicker,
+  onSlideUpdate,
+  userTier,
+  onSlideWatermarkChange,
+  onWatermarkLogoUpload,
+  onWatermarkLogoRemove,
+  isWatermarkPending,
   brandKit,
   derivedPalette,
 }: ElementsPanelProps) {
-  // `slide` is taken for consistency with sibling panels (TextEditorPanel,
-  // ImagePickerPanel both receive `slide`). The current implementation only
-  // needs derivedPalette + brandKit for swatches; the slide reference is
-  // forwarded so future slide-aware library behavior (e.g. recently-used
-  // icons per slide) can wire in without a prop-signature churn.
-  void slide
+  // quick-260514-move-slide-cards-to-elements: shared slide-level cards
+  // mounted at the bottom of BOTH selection-mode and library-mode renders.
+  // The cards are slide-scoped, not selection-scoped, so they stay visible
+  // regardless of whether a decoration is currently selected.
+  const slideLevelCards =
+    slide && template && onSlideUpdate ? (
+      <>
+        <SlideSettings
+          slide={slide}
+          template={template}
+          onUpdate={onSlideUpdate}
+          brandKit={brandKit}
+        />
+        <WatermarkControls
+          slide={slide}
+          userTier={userTier ?? 'free'}
+          isPending={isWatermarkPending ?? false}
+          onWatermarkChange={onSlideWatermarkChange}
+          onCustomLogoUpload={onWatermarkLogoUpload}
+          onCustomLogoRemove={onWatermarkLogoRemove}
+        />
+      </>
+    ) : null
   // ───────────────────────────────────────────────────────────────────
   // Selection mode — a decoration is currently selected on the canvas.
   // Render the inspector card so the user can edit + delete it here.
@@ -124,6 +170,7 @@ export function ElementsPanel({
           brandKit={brandKit}
           derivedPalette={derivedPalette}
         />
+        {slideLevelCards}
       </div>
     )
   }
@@ -216,6 +263,8 @@ export function ElementsPanel({
           })}
         </div>
       </section>
+
+      {slideLevelCards}
     </div>
   )
 }
