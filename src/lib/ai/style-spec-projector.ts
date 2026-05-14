@@ -166,12 +166,22 @@ export function pickFlatColorTemplate(primaryHex: string): string {
 }
 
 /**
- * Hex (#rrggbb or rrggbb) → hue in [0, 360); returns null on parse
- * failure. Pure, deterministic.
+ * Hex (#rrggbb or rrggbb) → hue in [0, 360); returns null on parse failure
+ * OR for achromatic colors (r === g === b: grey, white, black). Pure,
+ * deterministic.
  *
  * Standard hex-to-HSL hue extraction (delta-of-max algorithm). Saturation
  * + lightness are intentionally not computed — pickFlatColorTemplate only
  * needs the hue axis.
+ *
+ * Phase 80 WR-03: achromatic colors return `null` (not 0). Hue 0 is red,
+ * which is semantically misleading for a grey/white/black input — a future
+ * maintainer adding a new hue bucket near 0 might accidentally route
+ * neutral colors into a chromatic template. Returning null funnels
+ * achromatic inputs through the same "no meaningful hue" path as parse
+ * failures, which pickFlatColorTemplate already handles (default branch).
+ * The only caller, pickFlatColorTemplate, already null-checks the return
+ * value; no behavior change for callers.
  */
 function hexToHue(hex: string): number | null {
   const m = /^#?([0-9a-fA-F]{6})/.exec(hex)
@@ -183,7 +193,10 @@ function hexToHue(hex: string): number | null {
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
   const delta = max - min
-  if (delta === 0) return 0
+  // Achromatic (grey/white/black): no meaningful hue. Returning null
+  // routes the caller to its default-branch fallback (same path as a
+  // parse failure). See Phase 80 WR-03 above.
+  if (delta === 0) return null
   let hue: number
   if (max === r) hue = ((g - b) / delta) % 6
   else if (max === g) hue = (b - r) / delta + 2
