@@ -65,7 +65,13 @@ function styleHas(el: Element, fragment: string): boolean {
 }
 
 describe('SlidePreview — Phase 45 overlay parity', () => {
-  it('renders page-counter overlay text "2/5" when slideIndex=1, totalSlides=5', () => {
+  // quick-260514-kv9: page-counter overlay suppressed at the consumer. Three
+  // existence tests (2/5 at slideIndex=1, 5/5 at slideIndex=4, custom format)
+  // were removed because they asserted the rendered chip — which we
+  // intentionally no longer render. The opposite invariant is asserted at the
+  // end of this describe block.
+
+  it('page-counter overlay is suppressed even when declared in the template', () => {
     const t: SlideTemplate = {
       ...fixtureTemplate,
       overlays: [{ position: 'top-right', content: { type: 'page-counter' } }],
@@ -79,49 +85,9 @@ describe('SlidePreview — Phase 45 overlay parity', () => {
         totalSlides={5}
       />,
     )
-    expect(screen.getByText('2/5')).toBeInTheDocument()
-  })
-
-  it('renders page-counter overlay text "5/5" when slideIndex=4, totalSlides=5', () => {
-    const t: SlideTemplate = {
-      ...fixtureTemplate,
-      overlays: [{ position: 'top-right', content: { type: 'page-counter' } }],
-    }
-    render(
-      <SlidePreview
-        slide={fixtureSlide}
-        template={t}
-        index={4}
-        slideIndex={4}
-        totalSlides={5}
-      />,
-    )
-    expect(screen.getByText('5/5')).toBeInTheDocument()
-  })
-
-  it('renders page-counter custom format "Slide {currentSlide} of {totalSlides}"', () => {
-    const t: SlideTemplate = {
-      ...fixtureTemplate,
-      overlays: [
-        {
-          position: 'top-right',
-          content: {
-            type: 'page-counter',
-            format: 'Slide {currentSlide} of {totalSlides}',
-          },
-        },
-      ],
-    }
-    render(
-      <SlidePreview
-        slide={fixtureSlide}
-        template={t}
-        index={2}
-        slideIndex={2}
-        totalSlides={5}
-      />,
-    )
-    expect(screen.getByText('Slide 3 of 5')).toBeInTheDocument()
+    expect(screen.queryByText('2/5')).toBeNull()
+    // The overlay slot's wrapper div should not mount either.
+    expect(screen.queryByTestId('overlay-top-right')).toBeNull()
   })
 
   it('renders slide-field topic when topic prop is passed', () => {
@@ -373,14 +339,8 @@ describe('SlidePreview — Phase 45 overlay parity', () => {
     expect(overlay).toBeInTheDocument()
   })
 
-  it('renders default page-counter "1/1" when slideIndex/totalSlides props omitted', () => {
-    const t: SlideTemplate = {
-      ...fixtureTemplate,
-      overlays: [{ position: 'top-right', content: { type: 'page-counter' } }],
-    }
-    render(<SlidePreview slide={fixtureSlide} template={t} index={0} />)
-    expect(screen.getByText('1/1')).toBeInTheDocument()
-  })
+  // quick-260514-kv9: page-counter default-render test removed — the overlay
+  // is now suppressed at the consumer (verified above).
 
   it('legacy template — emits NO overlay/backgroundMode/bottom-card layers', () => {
     render(
