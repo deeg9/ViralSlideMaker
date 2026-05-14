@@ -127,6 +127,11 @@ export function TextEditorPanel({
           onUpdate={updateActiveTextBox}
           template={template}
           brandKit={brandKit}
+          textBoxNumber={
+            activeTextBox
+              ? textBoxes.findIndex((tb) => tb.id === activeTextBox.id) + 1
+              : null
+          }
         />
       )}
 
