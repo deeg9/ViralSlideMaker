@@ -30,7 +30,10 @@ describe('<ActiveTextBoxCard>', () => {
       <ActiveTextBoxCard textBox={makeBox()} onUpdate={vi.fn()} template={TEMPLATE} />,
     )
     expect(screen.getByTestId('active-text-box-card')).toBeInTheDocument()
-    expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('HOOK TEXT')
+    // quick-260514-textbox-numeric-labels: role label is now position-based.
+    // The default render here doesn't pass textBoxNumber, so the fallback
+    // "TEXT BOX" applies (defensive plain label, no number).
+    expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('TEXT BOX')
     expect(screen.getByTestId('active-text-box-textarea')).toBeInTheDocument()
     expect(screen.getByTestId('font-picker')).toBeInTheDocument()
     expect(screen.getByTestId('active-text-box-bold')).toBeInTheDocument()
@@ -149,30 +152,43 @@ describe('<ActiveTextBoxCard>', () => {
     expect(screen.getByTestId('effect-row-highlight-content')).toBeInTheDocument()
   })
 
-  it('role label maps hook → "HOOK TEXT", body → "BODY TEXT", custom → "TEXT BOX"', () => {
+  it('role label is position-based: textBoxNumber 1 → "TEXT BOX 1", 2 → "TEXT BOX 2", null → "TEXT BOX"', () => {
     const { rerender } = render(
       <ActiveTextBoxCard
         textBox={makeBox({ role: 'hook' })}
         onUpdate={vi.fn()}
         template={TEMPLATE}
+        textBoxNumber={1}
       />,
     )
-    expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('HOOK TEXT')
+    expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('TEXT BOX 1')
 
     rerender(
       <ActiveTextBoxCard
         textBox={makeBox({ role: 'body' })}
         onUpdate={vi.fn()}
         template={TEMPLATE}
+        textBoxNumber={2}
       />,
     )
-    expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('BODY TEXT')
+    expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('TEXT BOX 2')
 
     rerender(
       <ActiveTextBoxCard
         textBox={makeBox({ role: 'custom' })}
         onUpdate={vi.fn()}
         template={TEMPLATE}
+        textBoxNumber={3}
+      />,
+    )
+    expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('TEXT BOX 3')
+
+    rerender(
+      <ActiveTextBoxCard
+        textBox={makeBox({ role: 'custom' })}
+        onUpdate={vi.fn()}
+        template={TEMPLATE}
+        textBoxNumber={null}
       />,
     )
     expect(screen.getByTestId('active-text-box-role-label')).toHaveTextContent('TEXT BOX')

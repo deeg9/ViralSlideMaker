@@ -29,6 +29,11 @@ interface ActiveTextBoxCardProps {
   onUpdate: (updates: Partial<TextBox>) => void
   template: SlideTemplate
   brandKit?: BrandKit | null
+  /** quick-260514-textbox-numeric-labels: 1-indexed position in the slide's
+   *  text_boxes array. Used to render "TEXT BOX 1" / "TEXT BOX 2" / etc.
+   *  in the role-label slot instead of the legacy "HOOK TEXT" / "BODY TEXT"
+   *  per-role copy. Parent (TextEditorPanel) computes the index. */
+  textBoxNumber?: number | null
 }
 
 const DEFAULT_SHADOW: TextShadowEffect = {
@@ -48,16 +53,12 @@ const DEFAULT_HIGHLIGHT: TextHighlightEffect = {
   padding: 8,
 }
 
-function roleLabel(role: TextBox['role']): string {
-  switch (role) {
-    case 'hook':
-      return 'HOOK TEXT'
-    case 'body':
-      return 'BODY TEXT'
-    case 'custom':
-    default:
-      return 'TEXT BOX'
-  }
+function textBoxLabel(number: number | null | undefined): string {
+  // quick-260514-textbox-numeric-labels: every box gets "TEXT BOX N" by
+  // 1-indexed position. Falls back to plain "TEXT BOX" when the parent
+  // can't resolve a position (defensive — typically only the empty-state
+  // path passes null).
+  return typeof number === 'number' && number > 0 ? `TEXT BOX ${number}` : 'TEXT BOX'
 }
 
 /**
@@ -78,6 +79,7 @@ export function ActiveTextBoxCard({
   onUpdate,
   template,
   brandKit: _brandKit,
+  textBoxNumber,
 }: ActiveTextBoxCardProps) {
   if (!textBox) {
     return (
@@ -167,7 +169,7 @@ export function ActiveTextBoxCard({
           className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]"
           data-testid="active-text-box-role-label"
         >
-          {roleLabel(textBox.role)}
+          {textBoxLabel(textBoxNumber)}
         </span>
       </div>
 
@@ -180,7 +182,7 @@ export function ActiveTextBoxCard({
           value={textBox.text}
           onChange={(e) => onUpdate({ text: e.target.value, segments: undefined })}
           rows={textBox.role === 'body' ? 4 : 3}
-          aria-label={roleLabel(textBox.role)}
+          aria-label={textBoxLabel(textBoxNumber)}
           className={`w-full bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] rounded-xl p-4 text-sm text-[#3d0000] leading-relaxed resize-none ${FOCUS_RING}`}
           placeholder={textBox.role === 'hook' ? 'Enter headline...' : 'Enter text...'}
         />
