@@ -1815,8 +1815,11 @@ export function SlideEditor({
               />
             )}
 
-            {/* Footer: undo/redo, export, save -- inside scroll area */}
-            <div className="p-4 bg-[#fff0f0] border-t border-[#dbc1bc]/10 space-y-3 mt-4">
+            {/* Footer: undo/redo, export, save — inside scroll area.
+                quick-260514-portlet-bottom-and-regen: wrapped in the
+                watermark-style white card with brown border so it reads as
+                a sibling portlet to the section cards above. */}
+            <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mt-4 mx-4 mb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
                   <button
