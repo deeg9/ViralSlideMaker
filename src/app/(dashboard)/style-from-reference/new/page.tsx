@@ -23,7 +23,32 @@ import { acceptStyleFromReferenceTosCurrentVersionAction } from '@/app/(dashboar
 import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
 import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
 
-export default async function StyleFromReferenceNewPage() {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Best-effort extraction of a project UUID from the `from` searchParam (set
+// by the References pill on the prompt page as
+// `?from=/project/<projectId>`). Returns null when the param is missing,
+// malformed, or doesn't point at a /project/<uuid> path — the shell then
+// falls back to the rate-cap-only random projectId and reports an error
+// to the user if they try to generate without a target project row.
+function parseTargetProjectIdFromQuery(from: string | undefined): string | null {
+  if (!from) return null
+  // Same `safeInAppPath` shape as back-button.tsx: reject protocol-relative,
+  // protocol-bearing, or anything that isn't a single-leading-`/` in-app path.
+  if (!from.startsWith('/') || from.startsWith('//') || from.includes(':')) {
+    return null
+  }
+  const match = from.match(/^\/project\/([^/?#]+)/)
+  if (!match) return null
+  const candidate = match[1]
+  return UUID_RE.test(candidate) ? candidate : null
+}
+
+export default async function StyleFromReferenceNewPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -31,7 +56,33 @@ export default async function StyleFromReferenceNewPage() {
   if (!user) redirect('/login')
 
   const brandKit = await getBrandKit()
-  const projectId = crypto.randomUUID()
+  const params = (await searchParams) ?? {}
+  const fromParam = typeof params.from === 'string' ? params.from : undefined
+  const targetProjectId = parseTargetProjectIdFromQuery(fromParam)
+
+  // When the user came from /project/<id> via the References pill, fetch the
+  // existing project's topic so the generation step has something meaningful
+  // to write a carousel about. RLS gates the read by user_id, so a tampered
+  // `?from=` pointing at someone else's project simply returns no row and
+  // generation falls back to the placeholder topic.
+  let currentTopic: string | null = null
+  if (targetProjectId) {
+    const { data: projectRow } = await supabase
+      .from('projects')
+      .select('topic')
+      .eq('id', targetProjectId)
+      .maybeSingle()
+    if (projectRow && typeof (projectRow as { topic?: string }).topic === 'string') {
+      currentTopic = (projectRow as { topic: string }).topic
+    }
+  }
+
+  // The shell's `projectId` is the rate-cap key for extraction; when the user
+  // arrived from /project/<id> we reuse that UUID so generation writes to the
+  // same row. When they hit /style-from-reference/new directly, we mint a
+  // fresh UUID — extraction works, but generation needs a real project row,
+  // so the shell surfaces a clearer error.
+  const projectId = targetProjectId ?? crypto.randomUUID()
 
   // Phase 79 LEGAL-01: read ToS acceptance status server-side so the client
   // shell can render the clickwrap modal on first upload (vs hitting the
@@ -60,6 +111,8 @@ export default async function StyleFromReferenceNewPage() {
       </p>
       <StyleFromReferenceShell
         projectId={projectId}
+        targetProjectId={targetProjectId}
+        currentTopic={currentTopic}
         brandKit={brandKit}
         brandKitAvailable={brandKit !== null}
         tosAlreadyAccepted={tosAlreadyAccepted}
