@@ -58,6 +58,12 @@ export interface DecorationCardProps {
    *  in swap-mode. Parent is responsible for setting picker mode + dispatching
    *  UPDATE_DECORATION when the user picks a replacement. */
   onSwapIcon?: () => void
+  /** Transient live-preview callback. Wired by ElementsPanel to dispatch
+   *  UPDATE_DECORATION with noHistory:true so the canvas tracks per-keystroke
+   *  / per-tick gestures without polluting the undo stack. The final commit
+   *  still flows through `onUpdate` and pushes ONE history entry per gesture
+   *  (KBD-09 invariant). */
+  onPreview?: (updates: Partial<Decoration>) => void
   brandKit?: BrandKit | null
   derivedPalette?: string[]
 }
@@ -104,6 +110,7 @@ export function DecorationCard({
   onUpdate,
   onRemove,
   onSwapIcon,
+  onPreview,
   brandKit,
   derivedPalette,
 }: DecorationCardProps) {
@@ -313,24 +320,44 @@ export function DecorationCard({
             testid="decoration-input-w"
             initial={d.position.width}
             onCommit={(raw) => commitPositionField('width', raw)}
+            onPreview={
+              onPreview
+                ? (value) => onPreview({ position: { ...d.position, width: value } })
+                : undefined
+            }
           />
           <PositionField
             label="H"
             testid="decoration-input-h"
             initial={d.position.height}
             onCommit={(raw) => commitPositionField('height', raw)}
+            onPreview={
+              onPreview
+                ? (value) => onPreview({ position: { ...d.position, height: value } })
+                : undefined
+            }
           />
           <PositionField
             label="X"
             testid="decoration-input-x"
             initial={d.position.x}
             onCommit={(raw) => commitPositionField('x', raw)}
+            onPreview={
+              onPreview
+                ? (value) => onPreview({ position: { ...d.position, x: value } })
+                : undefined
+            }
           />
           <PositionField
             label="Y"
             testid="decoration-input-y"
             initial={d.position.y}
             onCommit={(raw) => commitPositionField('y', raw)}
+            onPreview={
+              onPreview
+                ? (value) => onPreview({ position: { ...d.position, y: value } })
+                : undefined
+            }
           />
         </div>
         {/* Aspect-ratio lock toggle (rect/circle/ellipse/star only) */}
@@ -361,6 +388,7 @@ export function DecorationCard({
       <RotationField
         rotation={typeof d.rotation === 'number' ? d.rotation : 0}
         onCommit={(rotation) => onUpdate({ rotation })}
+        onPreview={onPreview ? (rotation) => onPreview({ rotation }) : undefined}
       />
 
       {/* Per-shape extras */}
@@ -369,7 +397,7 @@ export function DecorationCard({
       )}
 
       {/* Effects (shadow + opacity) */}
-      <DecorationEffects decoration={d} onUpdate={onUpdate} />
+      <DecorationEffects decoration={d} onUpdate={onUpdate} onPreview={onPreview} />
 
       {/* Delete — single dispatch via parent's REMOVE_DECORATION channel
           (KBD-09 — one history entry per gesture). Matches the visual
@@ -397,11 +425,17 @@ function PositionField({
   testid,
   initial,
   onCommit,
+  onPreview,
 }: {
   label: string
   testid: string
   initial: number
   onCommit: (raw: string) => void
+  /** Optional per-keystroke preview callback. Called with the parsed
+   *  numeric value when the draft is finite + in-range. Caller is expected
+   *  to dispatch with noHistory:true so the canvas tracks live without
+   *  polluting the undo stack. */
+  onPreview?: (value: number) => void
 }) {
   const [draft, setDraft] = useState(String(Math.round(initial)))
   useEffect(() => {
@@ -418,9 +452,17 @@ function PositionField({
     }
   }
 
+  function handleChange(next: string) {
+    setDraft(next)
+    if (!onPreview) return
+    const n = Number(next)
+    if (!Number.isFinite(n)) return
+    onPreview(clampPct(n))
+  }
+
   return (
-    <label className="flex items-center gap-2">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] w-4">
+    <label className="flex items-stretch overflow-hidden rounded-lg border border-[#dbc1bc]/30 bg-white focus-within:border-[#3d0000] focus-within:ring-2 focus-within:ring-[#3d0000]/20">
+      <span className="flex items-center justify-center px-2.5 bg-[#fff0f0] border-r border-[#dbc1bc]/30 text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
         {label}
       </span>
       <input
@@ -428,7 +470,7 @@ function PositionField({
         inputMode="numeric"
         data-testid={testid}
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -436,7 +478,7 @@ function PositionField({
             commit()
           }
         }}
-        className="flex-1 bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] rounded px-2 py-1 text-xs text-[#3d0000] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#3d0000] focus:ring-offset-1"
+        className="flex-1 min-w-0 px-2 py-1.5 text-xs text-[#3d0000] tabular-nums focus:outline-none bg-transparent"
       />
     </label>
   )
@@ -453,9 +495,14 @@ function PositionField({
 function RotationField({
   rotation,
   onCommit,
+  onPreview,
 }: {
   rotation: number
   onCommit: (rotation: number) => void
+  /** Optional per-keystroke preview callback. Mirrors PositionField — called
+   *  with the clamped numeric value when the draft is finite. Caller dispatches
+   *  with noHistory:true so live typing doesn't pollute undo. */
+  onPreview?: (rotation: number) => void
 }) {
   const [draft, setDraft] = useState<string>(String(Math.round(rotation)))
 
@@ -486,29 +533,47 @@ function RotationField({
     setDraft(String(clamped))
   }
 
+  function handleChange(next: string) {
+    setDraft(next)
+    if (!onPreview) return
+    const n = Number(next.trim())
+    if (!Number.isFinite(n)) return
+    onPreview(Math.max(-180, Math.min(180, n)))
+  }
+
   return (
     <div className="space-y-2">
       <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
         Rotation (°)
       </span>
-      <input
-        type="number"
-        min={-180}
-        max={180}
-        step={1}
-        data-testid="decoration-input-rotation"
-        aria-label="Decoration rotation in degrees"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            commit()
-          }
-        }}
-        className="w-full bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] rounded px-2 py-1 text-xs text-[#3d0000] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#3d0000] focus:ring-offset-1"
-      />
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex items-stretch overflow-hidden rounded-lg border border-[#dbc1bc]/30 bg-white focus-within:border-[#3d0000] focus-within:ring-2 focus-within:ring-[#3d0000]/20">
+          <span
+            className="flex items-center justify-center px-2.5 bg-[#fff0f0] border-r border-[#dbc1bc]/30 text-xs text-[#7d6161]"
+            aria-hidden="true"
+          >
+            ↻
+          </span>
+          <input
+            type="number"
+            min={-180}
+            max={180}
+            step={1}
+            data-testid="decoration-input-rotation"
+            aria-label="Decoration rotation in degrees"
+            value={draft}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commit()
+              }
+            }}
+            className="flex-1 min-w-0 px-2 py-1.5 text-xs text-[#3d0000] tabular-nums focus:outline-none bg-transparent"
+          />
+        </label>
+      </div>
     </div>
   )
 }

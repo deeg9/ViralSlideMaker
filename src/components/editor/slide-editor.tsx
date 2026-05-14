@@ -1806,6 +1806,20 @@ export function SlideEditor({
                     updates,
                   })
                 }}
+                onDecorationPreview={(updates) => {
+                  if (!activeDecoration) return
+                  // quick-260514-decoration-controls-polish: transient
+                  // live-preview channel — reducer skips pushHistory when
+                  // noHistory:true, so the gesture records exactly one undo
+                  // entry on the committing dispatch above (KBD-09).
+                  dispatch({
+                    type: 'UPDATE_DECORATION',
+                    slideIndex: selectedIndex,
+                    id: activeDecoration.id,
+                    updates,
+                    noHistory: true,
+                  })
+                }}
                 onDecorationRemove={() => {
                   if (!activeDecoration) return
                   dispatch({
