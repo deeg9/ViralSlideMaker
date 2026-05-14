@@ -324,8 +324,16 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
     <div className="space-y-6">
       {/* PREVIEW-09: sticky strip rendered OUTSIDE every conditional block.
           quick 260511-flj removed the per-reference refusal-warning slot
-          wiring; sticky strip now renders thumbnails only. */}
-      <StickyReferenceStrip references={state.references} previewUrls={previewUrls} />
+          wiring; sticky strip now renders thumbnails only.
+          quick-260514-g7y: skipped in inline-collapsible mode. The
+          ReferenceImageUploader already renders an inline thumb grid
+          below the dropzone, and the strip's `sticky top-0` layering
+          fights the in-form scroll context (it leaves a white empty
+          band above the dropzone on first paint). The standalone shell
+          render path is unchanged. */}
+      {!props.hideGenerateCta && (
+        <StickyReferenceStrip references={state.references} previewUrls={previewUrls} />
+      )}
 
       {state.status === 'idle' && (
         <ReferenceImageUploader
