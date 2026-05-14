@@ -1510,17 +1510,7 @@ export function SlideEditor({
               >
                 <Icon name="text_fields" size="sm" />
               </button>
-              <button
-                onClick={() => setActiveTab('images')}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
-                title="Add Image"
-              >
-                <Icon name="add_photo_alternate" size="sm" />
-              </button>
               <div className="flex-1" />
-              <button className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors" title="Help">
-                <Icon name="help" size="sm" />
-              </button>
             </div>
           </div>
 
