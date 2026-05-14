@@ -1627,6 +1627,23 @@ export function SlideEditor({
           // distributeKeyHandler closures above (single source of truth at
           // the reducer layer).
           onAlign={handleAlign}
+          // quick-260514-kct: single-decoration drag commit. Multi-element
+          // group drag goes through onGroupDrag (BULK_TRANSLATE) above —
+          // reducer already handles decorations (Phase 68 Plan 02).
+          onDecorationPositionChange={(id, position) => {
+            const target = (currentSlide?.decorations ?? []).find(
+              (d) => d.id === id,
+            )
+            if (!target) return
+            dispatch({
+              type: 'UPDATE_DECORATION',
+              slideIndex: selectedIndex,
+              id,
+              updates: {
+                position: { ...target.position, x: position.x, y: position.y },
+              },
+            })
+          }}
         />
 
         {/* Right panel: Editor controls */}
