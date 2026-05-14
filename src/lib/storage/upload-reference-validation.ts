@@ -23,9 +23,13 @@ export const ALLOWED_REFERENCE_MIME = new Set<string>([
  *  ceiling, not the post-extraction ceiling. */
 export const MAX_REFERENCE_SIZE_BYTES = 20 * 1024 * 1024
 
-/** Per REF-03 + CONTEXT.md: 1–8 reference images per generation. */
+/** Per quick-260514-g7y: 1–3 reference images per generation (lowered
+ *  from the Phase 74 ceiling of 8 when the style-from-reference flow was
+ *  inlined into the prompt page's collapsible — 3 reference photos are
+ *  enough to anchor palette/typography/layout/style-notes extraction and
+ *  the smaller cap keeps the inline collapsible's thumb strip readable). */
 export const MIN_REFERENCE_COUNT = 1
-export const MAX_REFERENCE_COUNT = 8
+export const MAX_REFERENCE_COUNT = 3
 
 export type ValidationResult =
   | { ok: true; safeFilename: string }

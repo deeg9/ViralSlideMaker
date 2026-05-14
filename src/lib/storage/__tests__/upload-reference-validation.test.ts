@@ -26,9 +26,9 @@ describe('Phase 74 Plan 03 (REF-03/REF-04/REF-05): upload-reference-validation',
     expect(MAX_REFERENCE_SIZE_BYTES).toBe(20 * 1024 * 1024)
   })
 
-  it('Test 3: MIN_REFERENCE_COUNT === 1 and MAX_REFERENCE_COUNT === 8 (REF-03)', () => {
+  it('Test 3: MIN_REFERENCE_COUNT === 1 and MAX_REFERENCE_COUNT === 3 (quick-260514-g7y: lowered from 8 when the flow inlined)', () => {
     expect(MIN_REFERENCE_COUNT).toBe(1)
-    expect(MAX_REFERENCE_COUNT).toBe(8)
+    expect(MAX_REFERENCE_COUNT).toBe(3)
   })
 
   it('Test 4: validateReferenceUpload returns ok=true for a valid PNG within size cap', () => {
@@ -155,11 +155,11 @@ describe('Phase 74 Plan 03 (REF-03/REF-04/REF-05): upload-reference-validation',
     }
   })
 
-  it('Test 10: validateGalleryCount enforces 1–8 cap arithmetic at boundaries', () => {
-    // 7 + 1 = 8 → ok (lands at cap)
-    expect(validateGalleryCount(7, 1)).toEqual({ ok: true })
-    // 7 + 2 = 9 → too many
-    const tooMany = validateGalleryCount(7, 2)
+  it('Test 10: validateGalleryCount enforces 1–3 cap arithmetic at boundaries (quick-260514-g7y)', () => {
+    // 2 + 1 = 3 → ok (lands at cap)
+    expect(validateGalleryCount(2, 1)).toEqual({ ok: true })
+    // 2 + 2 = 4 → too many
+    const tooMany = validateGalleryCount(2, 2)
     expect(tooMany.ok).toBe(false)
     if (!tooMany.ok) expect(tooMany.code).toBe('TOO_MANY_REFERENCES')
     // 0 + 0 = 0 → too few
@@ -168,10 +168,10 @@ describe('Phase 74 Plan 03 (REF-03/REF-04/REF-05): upload-reference-validation',
     if (!tooFew.ok) expect(tooFew.code).toBe('TOO_FEW_REFERENCES')
     // 0 + 1 = 1 → ok (lands at min)
     expect(validateGalleryCount(0, 1)).toEqual({ ok: true })
-    // 0 + 8 = 8 → ok (full add)
-    expect(validateGalleryCount(0, 8)).toEqual({ ok: true })
-    // 0 + 9 = 9 → too many
-    const tooManyAtOnce = validateGalleryCount(0, 9)
+    // 0 + 3 = 3 → ok (full add)
+    expect(validateGalleryCount(0, 3)).toEqual({ ok: true })
+    // 0 + 4 = 4 → too many
+    const tooManyAtOnce = validateGalleryCount(0, 4)
     expect(tooManyAtOnce.ok).toBe(false)
     if (!tooManyAtOnce.ok) expect(tooManyAtOnce.code).toBe('TOO_MANY_REFERENCES')
   })

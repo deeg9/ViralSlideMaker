@@ -1,17 +1,24 @@
-// Phase 76 Plan 03 (entry-point wiring) — UPDATED quick-260514:
-// The "From references" CTA was moved off the dashboard and into the
-// in-flow prompt form (src/components/slides/generation-form.tsx) so the
-// affordance sits next to the visual-style picker rather than as a
-// dashboard-level promo card. Both surfaces (the old CTA, the new pill)
-// route to /style-from-reference/new — only the host file changes.
-// A source-grep on the generation-form file is the right granularity:
-// the form is a client component but rendering it in jsdom needs
-// useTransition + supabase shims, and the grep catches the wiring
-// regression class (broken href, missing testid, mimicry-framing copy)
-// without that mock weight.
+// Phase 76 Plan 03 → quick-260514-g7y final relocation:
+//
+// The "From references" CTA traveled across two refactors:
+//   1. Phase 76 Plan 03 placed it as a dashboard promo card.
+//   2. quick-260514-back-button moved it to a "References" pill on the
+//      prompt form (generation-form.tsx) routing to a standalone
+//      /style-from-reference/new page.
+//   3. quick-260514-g7y INLINED the entire style-from-reference flow as
+//      a collapsible section inside the prompt form and DELETED the
+//      standalone page. The "References" pill is gone; the collapsible
+//      is the only entry point.
+//
+// This test is now a regression guard: assert the obsolete entry points
+// stay gone so a future PR re-adding the standalone page route or the
+// dashboard CTA goes red and forces explicit intent. The new inline
+// collapsible's contract is covered by the spec-preview-panel +
+// state-machine tests (which are co-located in this directory and stay
+// green through the inlining).
 
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const generationFormPath = resolve(
@@ -22,43 +29,44 @@ const dashboardPath = resolve(
   __dirname,
   '../../../app/(dashboard)/dashboard/page.tsx',
 )
+const standalonePagePath = resolve(
+  __dirname,
+  '../../../app/(dashboard)/style-from-reference/new/page.tsx',
+)
 
-describe('Phase 76 Plan 03 (quick-260514-relocated): References CTA wiring', () => {
-  const formSrc = readFileSync(generationFormPath, 'utf8')
-
-  it('Test 1: generation form links to /style-from-reference/new (Next.js (dashboard) route group is stripped from URL)', () => {
-    // Accept either a plain href="…" or a template-literal href={`…?from=…`}
-    // since quick-260514-back-button passes a ?from= query param to give the
-    // back-button a same-origin return path. We anchor on the URL itself
-    // (followed by `?` query string, closing quote, or closing backtick)
-    // rather than the href= prefix so both JSX shapes pass.
-    expect(formSrc).toMatch(/\/style-from-reference\/new(\?|"|`)/)
-    // Defensive: assert we did NOT regress to the broken /dashboard/-prefixed URL
-    expect(formSrc).not.toContain('/dashboard/style-from-reference/new')
+describe('quick-260514-g7y: style-from-reference entry-point relocation guard', () => {
+  it('Test 1: standalone /style-from-reference/new route file does NOT exist', () => {
+    // The standalone page was deleted when the flow was inlined. If a
+    // future PR re-adds the file, this test goes red so we revisit intent.
+    expect(existsSync(standalonePagePath)).toBe(false)
   })
 
-  it('Test 2: CTA copy mentions references (entry-point discoverability)', () => {
-    expect(formSrc.toLowerCase()).toMatch(/references/)
+  it('Test 2: generation form no longer carries the "References" pill', () => {
+    const formSrc = readFileSync(generationFormPath, 'utf8')
+    // The old pill linked to /style-from-reference/new with a stable
+    // testid. Both have been removed.
+    expect(formSrc).not.toContain('data-testid="from-references-cta"')
+    expect(formSrc).not.toMatch(/href=[`"]?\/style-from-reference\/new/)
   })
 
-  it('Test 3: CTA uses a stable testid for downstream UX QA', () => {
-    expect(formSrc).toContain('data-testid="from-references-cta"')
+  it('Test 3: generation form mentions "Inspired by references" (the new collapsible)', () => {
+    const formSrc = readFileSync(generationFormPath, 'utf8')
+    // The inline collapsible header is the new entry-point affordance.
+    expect(formSrc).toMatch(/Inspired by references/i)
   })
 
-  it('Test 4: LEGAL-03 forward-compat — generation form uses safe framing', () => {
+  it('Test 4: dashboard page no longer carries the old CTA either', () => {
+    const dashSrc = readFileSync(dashboardPath, 'utf8')
+    expect(dashSrc).not.toContain('from-references-cta')
+    expect(dashSrc).not.toContain('href="/style-from-reference/new"')
+  })
+
+  it('Test 5: LEGAL-03 forward-compat — generation form uses safe framing', () => {
+    const formSrc = readFileSync(generationFormPath, 'utf8')
     const forbidden = [/exactly\s+like/i, /\bclone\b/i, /copy\s+this\s+style/i, /\bduplicate\b/i]
     for (const re of forbidden) {
       const hits = (formSrc.match(new RegExp(re.source, re.flags + 'g')) ?? []).length
       expect(hits, `forbidden token ${re} in generation-form.tsx`).toBe(0)
     }
-  })
-
-  it('Test 5 (quick-260514 relocation guard): dashboard page no longer carries the CTA', () => {
-    // The old CTA was removed from the dashboard. If a future PR re-adds a
-    // duplicate dashboard-level CTA, this test goes red so we re-confirm
-    // intent before re-introducing the dashboard-level promo card.
-    const dashSrc = readFileSync(dashboardPath, 'utf8')
-    expect(dashSrc).not.toContain('from-references-cta')
-    expect(dashSrc).not.toContain('href="/style-from-reference/new"')
   })
 })

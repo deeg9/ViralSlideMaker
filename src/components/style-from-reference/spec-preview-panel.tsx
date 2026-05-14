@@ -33,6 +33,13 @@ export interface SpecPreviewPanelProps {
   brandKit: BrandKit | null
   onGenerate: () => void
   onReExtract: () => void
+  /** quick-260514-g7y: when true (inline-collapsible mode), the bottom
+   *  Generate button + credit-cost display are hidden — the outer
+   *  GenerationForm's Generate Carousel button owns generation routing
+   *  in that context. Re-extract stays visible so the user can iterate
+   *  inside the collapsible without leaving the form. Defaults to false
+   *  so the legacy standalone-page render path is unchanged. */
+  hideGenerateCta?: boolean
 }
 
 function hasAtLeastOneAspect(state: SpecPreviewState): boolean {
@@ -103,9 +110,15 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
       </div>
 
       <div className="flex items-center justify-between gap-3 pt-2">
-        <div data-testid="credit-cost-slot" data-slot="credit-cost" className="text-[12px] text-[#7d6161]">
-          <CreditCostDisplay cost={1} />
-        </div>
+        {props.hideGenerateCta ? (
+          <span className="text-[12px] text-[#7d6161]">
+            Style ready. Use Generate Carousel below to render.
+          </span>
+        ) : (
+          <div data-testid="credit-cost-slot" data-slot="credit-cost" className="text-[12px] text-[#7d6161]">
+            <CreditCostDisplay cost={1} />
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <button
@@ -124,29 +137,31 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
             Re-extract ({state.retriesRemaining} left)
           </button>
 
-          <button
-            type="button"
-            data-testid="generate-cta"
-            disabled={generateDisabled}
-            onClick={props.onGenerate}
-            // quick 260511-flj: single gate. Title surfaces WHY when disabled
-            // so users don't stare at a dead button.
-            title={
-              generateDisabled
-                ? 'Check at least one aspect above (palette, typography, layout, or decorations) before generating.'
-                : undefined
-            }
-            aria-describedby={generateDisabled ? 'generate-cta-blocker' : undefined}
-            className={
-              'rounded-xl px-5 py-2 text-sm font-bold transition-colors ' +
-              (generateDisabled
-                ? 'bg-[#e2cfcf] text-[#7d6161] cursor-not-allowed'
-                : 'bg-[#3d0000] text-white hover:bg-[#5a0000]')
-            }
-          >
-            Generate
-          </button>
-          {generateDisabled && (
+          {!props.hideGenerateCta && (
+            <button
+              type="button"
+              data-testid="generate-cta"
+              disabled={generateDisabled}
+              onClick={props.onGenerate}
+              // quick 260511-flj: single gate. Title surfaces WHY when disabled
+              // so users don't stare at a dead button.
+              title={
+                generateDisabled
+                  ? 'Check at least one aspect above (palette, typography, layout, or decorations) before generating.'
+                  : undefined
+              }
+              aria-describedby={generateDisabled ? 'generate-cta-blocker' : undefined}
+              className={
+                'rounded-xl px-5 py-2 text-sm font-bold transition-colors ' +
+                (generateDisabled
+                  ? 'bg-[#e2cfcf] text-[#7d6161] cursor-not-allowed'
+                  : 'bg-[#3d0000] text-white hover:bg-[#5a0000]')
+              }
+            >
+              Generate
+            </button>
+          )}
+          {!props.hideGenerateCta && generateDisabled && (
             <p
               id="generate-cta-blocker"
               data-testid="generate-cta-blocker"
