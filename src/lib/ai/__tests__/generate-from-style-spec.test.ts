@@ -47,8 +47,13 @@ import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
 // Murphy Campbell base spec — mirrors Plan 01 fixtures.
 function makeSpec(overrides?: Partial<StyleSpec>): StyleSpec {
+  // Cast: Partial<StyleSpec> over a discriminated union (StyleSpec is intersected
+  // with ArchetypeSlots in Phase 80) cannot be spread back into the union without
+  // collapsing the discriminator. Spec contract is concrete here:
+  // slideArchetype='full-bleed-text-overlay' (EmptySlots variant).
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: { mode: 'solid', primary: '#A8E0B0', accent: '#11AABB' },
     typography: {
       hookFontCategory: 'sans-serif',
@@ -64,7 +69,7 @@ function makeSpec(overrides?: Partial<StyleSpec>): StyleSpec {
     rhythm: { cadence: 'punchy' },
     voice_note: 'spec-voice: lowercase essay tone',
     ...overrides,
-  }
+  } as StyleSpec
 }
 
 function baseSlide(overrides: Record<string, unknown> = {}) {
