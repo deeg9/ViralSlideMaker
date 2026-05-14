@@ -103,12 +103,28 @@ const segmentSchema: Schema = {
  * Build the Gemini responseSchema with NARROWED decoration enums per spec.
  * When spec.decorations.preferredLucide is non-empty, lucideName.enum is
  * REPLACED by that subset. Same for shapeKind.enum vs preferredShapes.
- * Empty/undefined preferences fall back to the full corpora (no narrowing).
+ *
+ * Phase 80 CR-01: when the projected narrowed list is empty (post-R7 the
+ * projector returns [] for empty/undefined preferred*), the responseSchema
+ * MUST fall back to the FULL corpora (AI_LUCIDE_ALLOWLIST / AI_SHAPE_KINDS).
+ * Passing `enum: []` to Gemini violates the JSON Schema spec — Gemini
+ * rejects empty-enum schemas with 400 INVALID_ARGUMENT. The schema layer
+ * is a Gemini-API protocol concern; zero-icon enforcement happens
+ * downstream via the system prompt + projector's empty decorations list
+ * (the AI is instructed to emit no decorations when none are preferred,
+ * and any icons it does emit are dropped at the decoration ingest stage
+ * because narrowDecorationAllowlist returned []).
  */
 function buildNarrowedResponseSchema(spec: StyleSpec): Schema {
   const narrowed = narrowDecorationAllowlist(spec)
-  const lucideEnum = [...narrowed.lucide]
-  const shapeEnum = [...narrowed.shapes]
+  // Phase 80 CR-01: fall back to full corpora when narrowed is empty.
+  // Passing enum:[] to Gemini is invalid (JSON Schema spec). The
+  // projector's empty narrowed list governs runtime emission via the
+  // decoration ingest layer + system prompt — not the Gemini schema.
+  const lucideEnum =
+    narrowed.lucide.length > 0 ? [...narrowed.lucide] : [...AI_LUCIDE_ALLOWLIST]
+  const shapeEnum =
+    narrowed.shapes.length > 0 ? [...narrowed.shapes] : [...AI_SHAPE_KINDS]
 
   return {
     type: Type.OBJECT,
