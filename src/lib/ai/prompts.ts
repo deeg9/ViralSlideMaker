@@ -3,6 +3,7 @@ import { isPremiumTemplate } from './validate-slides'
 import { AI_HOOK_VARIETY_ADDENDUM, AI_SLOP_AVOID_ADDENDUM } from './slop-guardrails'
 import type { SlideTemplate } from '@/lib/render/templates'
 import type { StyleSpec } from '@/lib/types/style-spec'
+import type { SlideArchetype } from '@/lib/types/style-spec-archetypes'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
 // Templates that share the news-carousel prompt branch + skip-default-effects
@@ -185,6 +186,30 @@ function serializeSpecForPrompt(spec: StyleSpec): string {
   // Rhythm
   const rhythm = spec.rhythm
   lines.push(`RHYTHM: ${rhythm.cadence ? `cadence=${rhythm.cadence}` : '(template default)'}`)
+  // Phase 80 R8: archetype + slot-params line. Token-cheap (~15-30 tokens).
+  // ArchetypeSlots is a discriminated union keyed on `slideArchetype` — we
+  // surface the archetype and any declared slot fields so the AI generation
+  // prompt downstream can steer text_position / custom_images / highlight
+  // rhythm consistent with the reference's composition.
+  const archetype = spec.slideArchetype as SlideArchetype | undefined
+  if (archetype) {
+    const slotParts: string[] = []
+    if (archetype === 'caption-bar-bottom' || archetype === 'caption-bar-top') {
+      // Narrow to CaptionBarSlots — conservative cast keeps this compile-stable
+      // across the discriminated-union narrowing edge cases.
+      const caption = (spec as { caption?: { heightFraction?: number; background?: string } }).caption
+      if (caption?.heightFraction !== undefined) slotParts.push(`caption.heightFraction=${caption.heightFraction}`)
+      if (caption?.background !== undefined) slotParts.push(`caption.background=${caption.background}`)
+    } else if (archetype === 'photo-collage-2up') {
+      const split = (spec as { split?: { direction?: string; ratio?: string } }).split
+      if (split?.direction !== undefined) slotParts.push(`split.direction=${split.direction}`)
+      if (split?.ratio !== undefined) slotParts.push(`split.ratio=${split.ratio}`)
+    }
+    const archetypeLine = slotParts.length > 0
+      ? `ARCHETYPE: ${archetype} (${slotParts.join(' ')})`
+      : `ARCHETYPE: ${archetype}`
+    lines.push(archetypeLine)
+  }
   return lines.join('\n')
 }
 
@@ -221,6 +246,54 @@ export function buildFromSpecPrompt(
   // would trip the gate.
   const specBlock = `\n\nSTYLE SPEC (extracted from reference; closed-enum design template):\n${serializeSpecForPrompt(spec)}\n`
 
+  // Phase 80 R8: per-archetype guidance — directs Gemini's slide structure
+  // choices (text_position, custom_images count, highlight rhythm) to match
+  // the reference's composition. Token-cheap (~80-120 tokens worst-case,
+  // single branch fires).
+  const archetype = spec.slideArchetype as SlideArchetype | undefined
+  let archetypeGuidance = ''
+  switch (archetype) {
+    case 'caption-bar-bottom':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: caption-bar-bottom — set text_position to "bottom" for each slide. ' +
+        'If palette.accent is present, emit ≥3 segments with highlightColor=palette.accent ' +
+        'and highlightStyle="pill" on the hook to recreate the highlight rhythm pattern.\n'
+      break
+    case 'caption-bar-top':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: caption-bar-top — set text_position to "top" for each slide. ' +
+        'Use layout="cover" if Gemini emits layout.\n'
+      break
+    case 'full-bleed-text-overlay':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: full-bleed-text-overlay — single full-bleed background photo per slide; ' +
+        'text floats over the image. Choose text_position based on photo composition.\n'
+      break
+    case 'photo-collage-2up':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: photo-collage-2up — emit EXACTLY 2 entries in custom_images for each slide ' +
+        'to populate the split composition.\n'
+      break
+    case 'photo-collage-grid':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: photo-collage-grid — emit EXACTLY 4 entries in custom_images for each slide ' +
+        'to populate the 2x2 grid.\n'
+      break
+    case 'flat-color-background':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: flat-color-background — solid color background, no photo. ' +
+        'Do not emit image_query unless absolutely necessary.\n'
+      break
+    case 'editorial-serif':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: editorial-serif — editorial magazine layout. Use serif typography for the hook.\n'
+      break
+    case 'notes-sticker':
+      archetypeGuidance =
+        '\nARCHETYPE GUIDANCE: notes-sticker — iOS notes / sticker aesthetic. Treat each slide as a short note.\n'
+      break
+  }
+
   // Per-content-mode block.
   let contentBlock = ''
   if (content.mode === 'ai-copy') {
@@ -233,7 +306,7 @@ export function buildFromSpecPrompt(
     contentBlock = `\nStructure these ${content.lines.length} lines into slides — DO NOT change wording, only structure (assign role, segment accents, decoration choices, layout):\n${numbered}\n`
   }
 
-  return `You are an expert TikTok carousel content creator generating slides from a style spec extracted from a reference image. You generate slide content for vertical carousel posts (1080x1920 images).${voiceNoteBlock}${specBlock}${contentBlock}
+  return `You are an expert TikTok carousel content creator generating slides from a style spec extracted from a reference image. You generate slide content for vertical carousel posts (1080x1920 images).${voiceNoteBlock}${specBlock}${archetypeGuidance}${contentBlock}
 PER-ROLE COPY GUIDANCE — every slide has a role; write each accordingly:
 - cover (slide 1): pattern-interrupt hook, ≤8 words, designed to stop the scroll
 - reframe: introduce a "wait, but" tension that contradicts the cover

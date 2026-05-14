@@ -17,8 +17,18 @@ import type { StyleSpec } from '../../src/lib/types/style-spec'
 // MAX-SIZE StyleSpec: every section populated to its widest enum cardinality.
 // This is the worst case the production code will ever see — if this fits
 // 12K tokens, every real spec will too.
+//
+// Phase 80 R8: includes slideArchetype + slot params so the worst-case
+// prompt exercises the ARCHETYPE line + ARCHETYPE GUIDANCE block added in
+// Plan 05. caption-bar-bottom selected because it carries the largest
+// guidance branch (≥3 highlighted segments + text_position directive).
 const MAX_SPEC: StyleSpec = {
-  schema_version: 1,
+  schema_version: 2,
+  slideArchetype: 'caption-bar-bottom',
+  caption: {
+    heightFraction: 0.5,
+    background: 'gradient-dark',
+  },
   palette: {
     mode: 'gradient',
     primary: '#ABCDEF',
