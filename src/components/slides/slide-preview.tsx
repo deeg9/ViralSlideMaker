@@ -553,7 +553,9 @@ export function SlidePreview({
 
   const [editingCustomTextId, setEditingCustomTextId] = useState<string | null>(null)
   const [draggingElementId, setDraggingElementId] = useState<string | null>(null)
-  const [overTrash, setOverTrash] = useState(false)
+  // quick-260514-ksh: drop-to-delete trash zone removed per user request.
+  // `draggingElementId` is still used by the smart-guide overlay to know
+  // which element to exclude from snap targets.
 
   // Phase 72 Plan 02 (ROTATE-02, PERF-01): per-decoration local rotation preview.
   // Updated per-tick during a rotation-handle drag — the rendered transform
@@ -2169,7 +2171,6 @@ export function SlidePreview({
                 const result = runSnapForDrag(queryX, queryY, queryW, queryH)
                 data.x = result.x + (data.x - queryX)
                 data.y = result.y + (data.y - queryY)
-                setOverTrash((data.y / REF_HEIGHT) * 100 > 85)
               }}
               onDragStop={(_e, data) => {
                 // Phase 63 Plan 04: clear snap state.
@@ -2177,24 +2178,18 @@ export function SlidePreview({
                 wasSnappedXRef.current = null
                 wasSnappedYRef.current = null
                 guideOverlayRef.current?.clear()
-                const yPercent = (data.y / REF_HEIGHT) * 100
                 setDraggingElementId(null)
-                setOverTrash(false)
                 // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
                 const startRef = customTextDragStartRefs.current[ct.id]
                 delete customTextDragStartRefs.current[ct.id]
                 // Phase 66 Plan 02 (DIFF-01): consume alt-start snapshot.
                 const altAtStart = customTextAltStartRefs.current[ct.id] === true
                 delete customTextAltStartRefs.current[ct.id]
-                if (yPercent > 85) {
-                  onCustomTextRemove?.(ct.id)
-                  return
-                }
+                // quick-260514-ksh: drop-to-delete trash zone removed; deletion
+                // now happens exclusively via the LayersPanel / DecorationCard
+                // delete buttons + keyboard shortcuts.
                 // Phase 66 Plan 02 (DIFF-01): Alt+drag duplicate branch — runs
-                // BEFORE the existing group-drag fan-out. Trash-zone drop above
-                // still takes precedence; alt+drag-into-trash deletes (matches
-                // BULK_TRANSLATE / per-element fall-through ordering — the
-                // primary intent of dropping in the trash is destructive).
+                // BEFORE the existing group-drag fan-out.
                 if (altAtStart && onAltDuplicate) {
                   const decision = decideAltDuplicate(
                     true,
@@ -2526,9 +2521,6 @@ export function SlidePreview({
                 const result = runSnapForDrag(queryX, queryY, queryW, queryH)
                 data.x = result.x + (data.x - queryX)
                 data.y = result.y + (data.y - queryY)
-                // Check if over trash zone (bottom 12% of canvas)
-                const yPercent = (data.y / REF_HEIGHT) * 100
-                setOverTrash(yPercent > 85)
               }}
               onDragStop={(_e, data) => {
                 // Phase 63 Plan 04: clear snap state.
@@ -2536,20 +2528,16 @@ export function SlidePreview({
                 wasSnappedXRef.current = null
                 wasSnappedYRef.current = null
                 guideOverlayRef.current?.clear()
-                const yPercent = (data.y / REF_HEIGHT) * 100
                 setDraggingElementId(null)
-                setOverTrash(false)
                 // Phase 61 Plan 02 (KBD-07): clear drag-start ref entry.
                 const startRef = customImageDragStartRefs.current[ci.id]
                 delete customImageDragStartRefs.current[ci.id]
                 // Phase 66 Plan 02 (DIFF-01): consume alt-start snapshot.
                 const altAtStart = customImageAltStartRefs.current[ci.id] === true
                 delete customImageAltStartRefs.current[ci.id]
-                if (yPercent > 85) {
-                  // Dropped on trash zone — delete
-                  onCustomImageRemove?.(ci.id)
-                  return
-                }
+                // quick-260514-ksh: drop-to-delete trash zone removed; deletion
+                // now happens via the LayersPanel / image-action buttons +
+                // keyboard shortcuts.
                 // Phase 66 Plan 02 (DIFF-01): Alt+drag duplicate branch — runs
                 // BEFORE the existing group-drag fan-out.
                 if (altAtStart && onAltDuplicate) {
@@ -2963,54 +2951,9 @@ export function SlidePreview({
           )
         })()}
 
-        {/* Trash zone — appears when dragging custom elements */}
-        {draggingElementId && (
-          <div
-            data-testid="trash-zone"
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: '15%',
-              background: overTrash
-                ? 'linear-gradient(to top, rgba(220, 38, 38, 0.5), rgba(220, 38, 38, 0.1))'
-                : 'linear-gradient(to top, rgba(220, 38, 38, 0.2), transparent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 40,
-              pointerEvents: 'none',
-              transition: 'background 0.15s ease',
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 4,
-              opacity: overTrash ? 1 : 0.6,
-              transform: overTrash ? 'scale(1.15)' : 'scale(1)',
-              transition: 'all 0.15s ease',
-            }}>
-              <span style={{
-                fontSize: overTrash ? 48 : 36,
-                transition: 'font-size 0.15s ease',
-              }}>
-                🗑️
-              </span>
-              <span style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: overTrash ? 'rgba(220, 38, 38, 0.9)' : 'rgba(220, 38, 38, 0.5)',
-                fontFamily: 'system-ui, sans-serif',
-                transition: 'color 0.15s ease',
-              }}>
-                {overTrash ? 'Release to delete' : 'Drag here to delete'}
-              </span>
-            </div>
-          </div>
-        )}
+        {/* quick-260514-ksh: drag-to-delete trash zone removed per user
+            request. Deletion routes via LayersPanel + DecorationCard delete
+            buttons + keyboard shortcuts (Backspace / Cmd-Delete). */}
 
         {/* Phase 63 Plan 04 (SNAP-02..06, SNAP-09, DIFF-03, PERF-03):
             smart-guide overlay. Persistent pool of guide-line + equal-
