@@ -389,6 +389,15 @@ interface SlidePreviewProps {
   // Both gated to editable={true} — Satori export path (editable=false) is unchanged.
   onTextBoxSelect?: (id: string | null) => void
   selectedTextBoxId?: string | null
+  /**
+   * quick-260514-l9z: in-place text edit commit. Fired ONCE on blur (or
+   * Esc) after the user double-clicks a hook/body text box and types. The
+   * editor dispatches UPDATE_TEXT_BOX with `{ text, segments: undefined }`
+   * — segments are word-index references into the old text and become stale
+   * the moment the user changes the wording. When omitted, in-place edit
+   * silently no-ops (legacy non-editor callers stay untouched).
+   */
+  onTextBoxTextEdit?: (id: string, text: string) => void
   // Phase 60 (SEL-01..04, SEL-09, SEL-13): multi-select state. Both props are
   // editor-only — used by per-element click handlers (Shift-click toggle),
   // canvas-empty-area onClick (clears), and the union-AABB ring (N>=2).
@@ -501,6 +510,7 @@ export function SlidePreview({
   selectedCustomImageId,
   onTextBoxSelect,
   selectedTextBoxId,
+  onTextBoxTextEdit,
   selection,
   onSelectionChange,
   currentlyInsideGroup,
@@ -555,6 +565,12 @@ export function SlidePreview({
   const overrides = slide.style_overrides ?? {}
 
   const [editingCustomTextId, setEditingCustomTextId] = useState<string | null>(null)
+  // quick-260514-l9z: in-place edit for hook/body text boxes. Mirrors the
+  // existing `editingCustomTextId` pattern (saved id, blur commits, drag
+  // disabled). Stored separately so the legacy custom-text edit path isn't
+  // perturbed — both states can co-exist but only one should ever be set at
+  // a time in practice (entering edit on one box blurs the other).
+  const [editingHookBodyId, setEditingHookBodyId] = useState<string | null>(null)
   const [draggingElementId, setDraggingElementId] = useState<string | null>(null)
   // quick-260514-ksh: drop-to-delete trash zone removed per user request.
   // `draggingElementId` is still used by the smart-guide overlay to know
@@ -783,6 +799,9 @@ export function SlidePreview({
     if (!editable) return
     if (!selectedCustomTextId && !selectedCustomImageId) return
     if (editingCustomTextId) return
+    // quick-260514-l9z: in-place edit on hook/body must NOT trigger the
+    // delete-selected-element shortcut while the user is typing.
+    if (editingHookBodyId) return
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
@@ -795,7 +814,35 @@ export function SlidePreview({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [editable, selectedCustomTextId, selectedCustomImageId, editingCustomTextId, onCustomTextRemove, onCustomImageRemove])
+  }, [editable, selectedCustomTextId, selectedCustomImageId, editingCustomTextId, editingHookBodyId, onCustomTextRemove, onCustomImageRemove])
+
+  // quick-260514-l9z: focus the contentEditable surface + place caret at the
+  // end when in-place edit starts. Without this, the user has to click into
+  // the box a second time to begin typing — defeats the "double-click to
+  // edit" UX. Works for hook and body (they share editingHookBodyId state).
+  useEffect(() => {
+    if (!editingHookBodyId) return
+    const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+    const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+    let host: HTMLDivElement | null = null
+    if (hookBox && hookBox.id === editingHookBodyId) host = hookRef.current
+    else if (bodyBox && bodyBox.id === editingHookBodyId) host = bodyRef.current
+    // Wrapper refs point at the padding div; the contentEditable surface is
+    // its first child div (rich text container). Local name `editableEl` to
+    // avoid shadowing the `editable` prop.
+    const editableEl = host?.querySelector('[contenteditable="true"]') as
+      | HTMLDivElement
+      | null
+    if (!editableEl) return
+    editableEl.focus()
+    // Place caret at end of existing text.
+    const range = document.createRange()
+    range.selectNodeContents(editableEl)
+    range.collapse(false)
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+  }, [editingHookBodyId, slide.text_boxes])
 
   const hookTextStyle: React.CSSProperties = {
     fontSize: `${hookFontSize}px`,
@@ -1514,14 +1561,17 @@ export function SlidePreview({
           // Satori PNG export).
           const hookLockedBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
           const hookLocked = hookLockedBox?.locked === true
+          // quick-260514-l9z: in-place edit gate for hook. Mirrors the
+          // editingCustomTextId pattern at the custom-text site.
+          const hookEditing = !!hookLockedBox && editingHookBodyId === hookLockedBox.id
           return (
         <Rnd
           position={hookPixels}
           size={{ width: hookWidthPx, height: 'auto' as unknown as number }}
           scale={scale}
           bounds="parent"
-          enableResizing={hookLocked ? false : enableResizing}
-          disableDragging={hookLocked}
+          enableResizing={hookLocked || hookEditing ? false : enableResizing}
+          disableDragging={hookLocked || hookEditing}
           resizeHandleStyles={resizeHandleStyles}
           onDragStart={(_e, data) => {
             // Phase 61 Plan 02 (KBD-07): snapshot drag-start position for
@@ -1769,14 +1819,26 @@ export function SlidePreview({
             onSelectionChange?.({ ids: [hookBox.id], primary: hookBox.id })
           }}
           onDoubleClick={(e: React.MouseEvent) => {
-            // Phase 62 (GROUP-07): double-click on a grouped hook enters the
-            // group. Subsequent single-clicks then select the LEAF (handled by
-            // the currentlyInsideGroup check in onMouseDown above).
+            // Phase 62 (GROUP-07) + quick-260514-l9z: double-click does ONE of
+            //   A) enter the group (when hook is inside a group AND the user
+            //      hasn't entered it yet) — preserves Phase 62 behavior.
+            //   B) enter in-place edit mode for the hook text — Figma/Canva
+            //      pattern; user types directly on the canvas instead of
+            //      retyping in the right-rail panel.
+            // Both pre-conditions are mutually exclusive in practice (a
+            // single-member group is treated as no group). If the group-enter
+            // branch fires it returns early; otherwise we fall through to
+            // edit mode.
             e.stopPropagation()
             const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
-            if (hookBox?.groupId) {
+            if (!hookBox) return
+            if (hookBox.groupId && currentlyInsideGroup !== hookBox.groupId) {
               onEnterGroup?.(hookBox.id, slide)
+              return
             }
+            if (hookLocked) return
+            if (!onTextBoxTextEdit) return
+            setEditingHookBodyId(hookBox.id)
           }}
           style={{
             zIndex: 10,
@@ -1790,7 +1852,7 @@ export function SlidePreview({
             data-testid="hook-text-wrapper"
             style={{
               width: '100%',
-              cursor: 'grab',
+              cursor: hookEditing ? 'text' : 'grab',
               padding: '4px 8px',
               borderRadius: '4px',
               textAlign: hookTextAlign,
@@ -1816,10 +1878,41 @@ export function SlidePreview({
                 aria-hidden="true"
               >🔒</div>
             )}
-            <div style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
-              {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
-                : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
+            {/* quick-260514-l9z: in-place edit. When hookEditing, the inner
+                div becomes a plain-text contentEditable surface; commit on
+                blur via onTextBoxTextEdit. Esc also blurs (handled below).
+                When NOT editing, render the rich text block (segments,
+                highlight wrapper, list markers) verbatim. */}
+            <div
+              style={{
+                ...hookTextStyle,
+                lineHeight: 1.1,
+                ...hookEffectCSS,
+                outline: 'none',
+              }}
+              contentEditable={hookEditing}
+              suppressContentEditableWarning={true}
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (!hookEditing) return
+                if (e.key === 'Escape') {
+                  ;(e.currentTarget as HTMLDivElement).blur()
+                }
+              }}
+              onBlur={(e) => {
+                if (!hookEditing) return
+                const newText = (e.currentTarget as HTMLDivElement).innerText
+                const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+                if (hookBox && newText !== slide.hook_text) {
+                  onTextBoxTextEdit?.(hookBox.id, newText)
+                }
+                setEditingHookBodyId(null)
+              }}
+            >
+              {hookEditing
+                ? slide.hook_text
+                : resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
+                  ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
+                  : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
             </div>
           </div>
         </Rnd>
@@ -1833,14 +1926,16 @@ export function SlidePreview({
           // + marquee-active pointer-events override + lock-icon overlay.
           const bodyLockedBox = slide.text_boxes?.find((tb) => tb.role === 'body')
           const bodyLocked = bodyLockedBox?.locked === true
+          // quick-260514-l9z: in-place edit gate for body.
+          const bodyEditing = !!bodyLockedBox && editingHookBodyId === bodyLockedBox.id
           return (
           <Rnd
             position={bodyPixels}
             size={{ width: bodyWidthPx, height: 'auto' as unknown as number }}
             scale={scale}
             bounds="parent"
-            enableResizing={bodyLocked ? false : enableResizing}
-            disableDragging={bodyLocked}
+            enableResizing={bodyLocked || bodyEditing ? false : enableResizing}
+            disableDragging={bodyLocked || bodyEditing}
             resizeHandleStyles={resizeHandleStyles}
             onDragStart={(_e, data) => {
               // Phase 61 Plan 02 (KBD-07): snapshot drag-start for axis-constrain.
@@ -2041,12 +2136,18 @@ export function SlidePreview({
               onSelectionChange?.({ ids: [bodyBox.id], primary: bodyBox.id })
             }}
             onDoubleClick={(e: React.MouseEvent) => {
-              // Phase 62 (GROUP-07): double-click on a grouped body enters the group.
+              // Phase 62 (GROUP-07) + quick-260514-l9z: enter group OR enter
+              // in-place edit. Same branch logic as hook above.
               e.stopPropagation()
               const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
-              if (bodyBox?.groupId) {
+              if (!bodyBox) return
+              if (bodyBox.groupId && currentlyInsideGroup !== bodyBox.groupId) {
                 onEnterGroup?.(bodyBox.id, slide)
+                return
               }
+              if (bodyLocked) return
+              if (!onTextBoxTextEdit) return
+              setEditingHookBodyId(bodyBox.id)
             }}
             style={{
               zIndex: 10,
@@ -2060,7 +2161,7 @@ export function SlidePreview({
               data-testid="body-text-wrapper"
               style={{
                 width: '100%',
-                cursor: 'grab',
+                cursor: bodyEditing ? 'text' : 'grab',
                 padding: '4px 8px',
                 borderRadius: '4px',
                 textAlign: bodyTextAlign,
@@ -2086,11 +2187,37 @@ export function SlidePreview({
                   aria-hidden="true"
                 >🔒</div>
               )}
-              <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
-                {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}</span>
-                  : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}
-              </p>
+              {/* quick-260514-l9z: in-place edit. <p> swapped to <div> so a
+                  contentEditable host doesn't trigger React's hydration
+                  warning about block-level descendants inside <p>. Visual
+                  styles preserved. */}
+              <div
+                className="opacity-90"
+                style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS, outline: 'none' }}
+                contentEditable={bodyEditing}
+                suppressContentEditableWarning={true}
+                onKeyDown={(e: React.KeyboardEvent) => {
+                  if (!bodyEditing) return
+                  if (e.key === 'Escape') {
+                    ;(e.currentTarget as HTMLDivElement).blur()
+                  }
+                }}
+                onBlur={(e) => {
+                  if (!bodyEditing) return
+                  const newText = (e.currentTarget as HTMLDivElement).innerText
+                  const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+                  if (bodyBox && newText !== slide.body_text) {
+                    onTextBoxTextEdit?.(bodyBox.id, newText)
+                  }
+                  setEditingHookBodyId(null)
+                }}
+              >
+                {bodyEditing
+                  ? slide.body_text
+                  : resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
+                    ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}</span>
+                    : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}
+              </div>
             </div>
           </Rnd>
           )

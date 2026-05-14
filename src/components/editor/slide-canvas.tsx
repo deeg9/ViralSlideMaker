@@ -44,6 +44,9 @@ interface SlideCanvasProps {
   // wrappers in editable mode dispatches the matching TextBox.id; right rail mirrors.
   onTextBoxSelect?: (id: string | null) => void
   selectedTextBoxId?: string | null
+  // quick-260514-l9z: in-place text edit commit (double-click → type → blur).
+  // slide-editor wires this to dispatch UPDATE_TEXT_BOX.
+  onTextBoxTextEdit?: (id: string, text: string) => void
   // Phase 60 (SEL-01..04, SEL-09, SEL-13): multi-select state forwarded to
   // SlidePreview for click handlers + union-AABB ring rendering.
   selection?: Selection
@@ -116,6 +119,7 @@ export function SlideCanvas({
   selectedCustomImageId,
   onTextBoxSelect,
   selectedTextBoxId,
+  onTextBoxTextEdit,
   selection,
   onSelectionChange,
   currentlyInsideGroup,
@@ -174,6 +178,7 @@ export function SlideCanvas({
             selectedCustomImageId={selectedCustomImageId}
             onTextBoxSelect={onTextBoxSelect}
             selectedTextBoxId={selectedTextBoxId}
+            onTextBoxTextEdit={onTextBoxTextEdit}
             selection={selection}
             onSelectionChange={onSelectionChange}
             currentlyInsideGroup={currentlyInsideGroup}

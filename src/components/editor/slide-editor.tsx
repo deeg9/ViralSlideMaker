@@ -1520,6 +1520,20 @@ export function SlideEditor({
           selectedCustomImageId={selectedCustomImageId}
           onTextBoxSelect={setSelectedTextBoxId}
           selectedTextBoxId={selectedTextBoxId}
+          // quick-260514-l9z: in-place text edit on hook/body — double-click
+          // a text box on the canvas, type, blur to commit. UPDATE_TEXT_BOX
+          // with `segments: undefined` because word-index segments become
+          // stale once the wording changes (same contract custom-text
+          // editing uses; mirror line 181 of ActiveTextBoxCard input
+          // commit path).
+          onTextBoxTextEdit={(id, text) => {
+            dispatch({
+              type: 'UPDATE_TEXT_BOX',
+              slideIndex: selectedIndex,
+              textBoxId: id,
+              updates: { text, segments: undefined },
+            })
+          }}
           selection={{ ids: selection.ids, primary: selection.primary }}
           onSelectionChange={selection.setSelection}
           // Phase 62 (GROUP-06, GROUP-07, GROUP-08, GROUP-10): group-state
