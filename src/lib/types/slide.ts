@@ -213,6 +213,16 @@ export interface SlideStyleOverrides {
     customText?: string
     position?: 'top-left' | 'bottom-left' | 'bottom-right'
   }
+  /** Phase 80 R6 — projector-emitted template routing decision derived from
+      `spec.slideArchetype` via the locked ARCHETYPE_TO_TEMPLATE map. The
+      generation pipeline (generate-from-style-spec.ts) LIFTS this value from
+      style_overrides onto the slide top-level (Slide.template_id_override —
+      line 275) after PROJECTOR FUSION, where the renderer reads it via
+      getTemplate(template_id_override). Declared here so the projector's
+      ProjectedSlideOverrides Pick<> typechecks; the SlideStyleOverrides
+      shape itself does not change rendering behavior — only Slide.template_id_override
+      drives the renderer. Closed-enum at runtime via validateAndRepair. */
+  template_id_override?: string
 }
 
 /** Phase 60 (WMARK-01): Unified watermark element. Lifted from

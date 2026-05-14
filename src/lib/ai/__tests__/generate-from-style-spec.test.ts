@@ -111,7 +111,12 @@ describe('Phase 77 Plan 02 Task 3: generateFromStyleSpec — emit pipeline', () 
     expect(shapeEnum).toEqual(['circle'])
   })
 
-  it('Test 2: responseSchema.lucideName.enum falls back to FULL AI_LUCIDE_ALLOWLIST when spec.preferredLucide is empty', async () => {
+  it('Test 2: Phase 80 R7 — responseSchema.lucideName.enum is EMPTY when spec.preferredLucide is empty (no spurious icons)', async () => {
+    // Phase 80 R7: empty preferredLucide → empty narrowed list. The prior
+    // "fall back to FULL AI_LUCIDE_ALLOWLIST" behavior caused spurious
+    // icons on references that had none (Meta-workers regression). The
+    // Gemini responseSchema's lucideName enum is therefore empty so the
+    // AI cannot emit any icon at all when the spec declares none.
     const slides = [
       baseSlide({ role: 'cover', hook_text: 'A' }),
       baseSlide({ role: 'support', hook_text: 'B' }),
@@ -128,9 +133,9 @@ describe('Phase 77 Plan 02 Task 3: generateFromStyleSpec — emit pipeline', () 
       config: { responseSchema: { properties: { slides: { items: { properties: { decorations: { items: { properties: { lucideName: { enum: string[] } } } } } } } } } }
     }
     const lucideEnum = callArg.config.responseSchema.properties.slides.items.properties.decorations.items.properties.lucideName.enum
-    expect(lucideEnum.length).toBe(AI_LUCIDE_ALLOWLIST.length)
-    expect(lucideEnum).toContain('Heart')
-    expect(lucideEnum).toContain('Star')
+    // Phase 80 R7: empty list (was AI_LUCIDE_ALLOWLIST.length before the fix).
+    expect(lucideEnum.length).toBe(0)
+    expect(lucideEnum.length).toBeLessThan(AI_LUCIDE_ALLOWLIST.length)
   })
 
   it('Test 3: user-copy mode — Gemini structures user lines into Slide segments (mocked echo)', async () => {
