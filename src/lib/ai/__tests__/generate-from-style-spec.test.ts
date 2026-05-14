@@ -116,12 +116,16 @@ describe('Phase 77 Plan 02 Task 3: generateFromStyleSpec — emit pipeline', () 
     expect(shapeEnum).toEqual(['circle'])
   })
 
-  it('Test 2: Phase 80 R7 — responseSchema.lucideName.enum is EMPTY when spec.preferredLucide is empty (no spurious icons)', async () => {
-    // Phase 80 R7: empty preferredLucide → empty narrowed list. The prior
-    // "fall back to FULL AI_LUCIDE_ALLOWLIST" behavior caused spurious
-    // icons on references that had none (Meta-workers regression). The
-    // Gemini responseSchema's lucideName enum is therefore empty so the
-    // AI cannot emit any icon at all when the spec declares none.
+  it('Test 2: Phase 80 CR-01 — responseSchema.lucideName.enum FALLS BACK to full AI_LUCIDE_ALLOWLIST when spec.preferredLucide is empty (avoids invalid enum:[])', async () => {
+    // Phase 80 R7 (projector): empty preferredLucide → empty narrowed list,
+    // so zero icons are emitted downstream when the reference declared none.
+    // Phase 80 CR-01 (Gemini schema layer): the responseSchema is a separate
+    // concern — `enum: []` is invalid per the JSON Schema spec and Gemini
+    // rejects it with 400 INVALID_ARGUMENT. Therefore the Gemini schema
+    // falls back to the FULL corpus when narrowed is empty. Zero-icon
+    // enforcement happens via the projector's empty decorations list +
+    // decoration ingest pipeline + system prompt — NOT via empty-enum
+    // coercion at the wire boundary.
     const slides = [
       baseSlide({ role: 'cover', hook_text: 'A' }),
       baseSlide({ role: 'support', hook_text: 'B' }),
@@ -138,9 +142,9 @@ describe('Phase 77 Plan 02 Task 3: generateFromStyleSpec — emit pipeline', () 
       config: { responseSchema: { properties: { slides: { items: { properties: { decorations: { items: { properties: { lucideName: { enum: string[] } } } } } } } } } }
     }
     const lucideEnum = callArg.config.responseSchema.properties.slides.items.properties.decorations.items.properties.lucideName.enum
-    // Phase 80 R7: empty list (was AI_LUCIDE_ALLOWLIST.length before the fix).
-    expect(lucideEnum.length).toBe(0)
-    expect(lucideEnum.length).toBeLessThan(AI_LUCIDE_ALLOWLIST.length)
+    // Phase 80 CR-01: full corpus fallback (was [] in the broken pre-fix path).
+    expect(lucideEnum.length).toBe(AI_LUCIDE_ALLOWLIST.length)
+    expect(lucideEnum.length).toBeGreaterThan(0)
   })
 
   it('Test 3: user-copy mode — Gemini structures user lines into Slide segments (mocked echo)', async () => {
