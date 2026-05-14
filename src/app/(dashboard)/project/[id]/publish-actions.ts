@@ -1,5 +1,6 @@
 'use server'
 
+import * as React from 'react'
 import { ImageResponse } from 'next/og'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
@@ -64,6 +65,91 @@ async function renderHero(
   return buffer
 }
 
+/**
+ * quick-260514-minimal-hero-fallback: minimal Satori-safe slide renderer used
+ * as a fallback when the full `renderHero` chokes on a CSS-subset edge case.
+ * Composes a single root flex div with two text children — no overlays,
+ * decorations, custom_images, watermarks, or template-specific layers.
+ * Always produces a valid PNG so publish never has to fall back to the raw
+ * `background_url` (which the user explicitly didn't want).
+ */
+async function renderMinimalHero(
+  project: Project,
+  brandKit: BrandKit | null,
+): Promise<Buffer> {
+  const slide = project.slide_data?.[0]
+  if (!slide) throw new Error('Project has no slides to render')
+
+  const template =
+    project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
+      ? synthesizeBrandKitTemplate(brandKit)
+      : getTemplate(project.template_id ?? 'highlight-bar')
+  const effectiveTemplate = mergeWithBrandKit(template, brandKit)
+
+  const hookText = slide.hook_text?.trim() ?? ''
+  const bodyText = slide.body_text?.trim() ?? ''
+
+  const element = React.createElement(
+    'div',
+    {
+      style: {
+        width: 1080,
+        height: 1920,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 80,
+        backgroundColor: effectiveTemplate.backgroundColor,
+        color: effectiveTemplate.textColor,
+        fontFamily: effectiveTemplate.fontFamily,
+      },
+    },
+    hookText
+      ? React.createElement(
+          'div',
+          {
+            key: 'hook',
+            style: {
+              display: 'flex',
+              fontSize: 120,
+              fontWeight: 900,
+              lineHeight: 1.1,
+              textAlign: 'center',
+              marginBottom: bodyText ? 40 : 0,
+            },
+          },
+          hookText,
+        )
+      : null,
+    bodyText
+      ? React.createElement(
+          'div',
+          {
+            key: 'body',
+            style: {
+              display: 'flex',
+              fontSize: 48,
+              fontWeight: 400,
+              lineHeight: 1.4,
+              textAlign: 'center',
+              opacity: 0.9,
+            },
+          },
+          bodyText,
+        )
+      : null,
+  )
+
+  const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
+  const imageResponse = new ImageResponse(element, {
+    width: 1080,
+    height: 1920,
+    fonts,
+  })
+  return Buffer.from(await imageResponse.arrayBuffer())
+}
+
 export async function publishProjectToExplore(
   projectId: string,
   formData: FormData,
@@ -119,40 +205,36 @@ export async function publishProjectToExplore(
     .maybeSingle()
   const brandKit = (brandKitRow as BrandKit) ?? null
 
-  // Render hero PNG (slide 1). quick-260514-visibility-fixes: render failures
-  // (typically Satori CSS-subset edge cases) used to hard-fail publish and
-  // block the user. Now we fall back to the first slide's existing
-  // `background_url` so the row still gets a usable thumbnail and publish
-  // succeeds; the divergence is logged for separate investigation.
+  // Render hero PNG (slide 1). quick-260514-minimal-hero-fallback: two-layer
+  // fallback so publish always succeeds with a RENDERED first-slide thumbnail
+  // (never the raw background_url):
+  //   1. renderHero — full Satori composition (template, overlays, decorations, etc).
+  //   2. renderMinimalHero — bg-color + hook + body only; guaranteed Satori-safe.
+  // Both are uploaded to the hero-thumbnails bucket so the published row gets
+  // a stable, project-scoped URL — never the project's raw photo bg.
   const proto =
     process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  let heroUrl: string | null = null
-  let heroFilename: string | null = null
+  let heroBuffer: Buffer
   try {
-    const heroBuffer = await renderHero(project, brandKit, proto)
-    heroFilename = `${user.id}/${crypto.randomUUID()}.png`
-    const { error: uploadErr } = await supabase.storage
-      .from('hero-thumbnails')
-      .upload(heroFilename, heroBuffer, { contentType: 'image/png', upsert: false })
-    if (uploadErr) {
-      // Upload failed after a successful render — fall through to background_url fallback.
-      console.warn('[publish] hero upload failed, using background_url fallback:', uploadErr.message)
-      heroFilename = null
-    } else {
-      const { data: pub } = supabase.storage.from('hero-thumbnails').getPublicUrl(heroFilename)
-      heroUrl = pub.publicUrl
-    }
+    heroBuffer = await renderHero(project, brandKit, proto)
   } catch (err) {
-    console.warn('[publish] hero render failed, using background_url fallback:', (err as Error).message)
+    console.warn('[publish] renderHero failed, falling back to renderMinimalHero:', (err as Error).message)
+    try {
+      heroBuffer = await renderMinimalHero(project, brandKit)
+    } catch (err2) {
+      return { success: false, error: `Hero render failed: ${(err2 as Error).message}` }
+    }
   }
 
-  if (!heroUrl) {
-    const fallback = project.slide_data[0]?.background_url
-    if (!fallback) {
-      return { success: false, error: 'Could not render or fall back to a thumbnail. Add a background image to the first slide and try again.' }
-    }
-    heroUrl = fallback
+  const heroFilename = `${user.id}/${crypto.randomUUID()}.png`
+  const { error: uploadErr } = await supabase.storage
+    .from('hero-thumbnails')
+    .upload(heroFilename, heroBuffer, { contentType: 'image/png', upsert: false })
+  if (uploadErr) {
+    return { success: false, error: `Hero upload failed: ${uploadErr.message}` }
   }
+  const { data: pub } = supabase.storage.from('hero-thumbnails').getPublicUrl(heroFilename)
+  const heroUrl = pub.publicUrl
 
   // Call publish_carousel RPC
   const { data: published, error: rpcErr } = await supabase.rpc('publish_carousel', {
@@ -164,11 +246,8 @@ export async function publishProjectToExplore(
   })
 
   if (rpcErr) {
-    // Best-effort cleanup of orphaned hero (only if we actually uploaded one;
-    // the background_url fallback path leaves heroFilename null).
-    if (heroFilename) {
-      await supabase.storage.from('hero-thumbnails').remove([heroFilename])
-    }
+    // Best-effort cleanup of orphaned hero
+    await supabase.storage.from('hero-thumbnails').remove([heroFilename])
     return { success: false, error: rpcErr.message }
   }
 
