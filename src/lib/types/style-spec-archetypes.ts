@@ -128,6 +128,7 @@ export interface PhotoCollage2upSlots {
  * Kept as a named interface (not inlined `{}`) so future slot-param
  * additions per archetype land at a single named extension point.
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- intentional placeholder; see docblock above
 export interface EmptySlots {}
 
 /**
