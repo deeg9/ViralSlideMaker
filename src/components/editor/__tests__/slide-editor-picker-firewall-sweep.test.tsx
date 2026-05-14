@@ -106,6 +106,53 @@ vi.mock('@/components/editor/image-picker-panel', () => ({
   ImagePickerPanel: () => <div data-testid="image-picker-panel" />,
 }))
 
+// quick-260514-jn5: ElementsPanel mock mirrors the TextEditorPanel data-*
+// probes so the picker-firewall tests can read decoration/selection state
+// regardless of which tab is active (the editor auto-switches to 'elements'
+// when a decoration is selected).
+vi.mock('@/components/editor/elements-panel', () => ({
+  ElementsPanel: (props: {
+    slide?: Slide
+    activeDecoration?: { id: string } | null
+  }) => {
+    const slide = props.slide ?? ({} as Slide)
+    const selectedIds = props.activeDecoration ? [props.activeDecoration.id] : []
+    return (
+      <div
+        data-testid="elements-panel"
+        data-active-id=""
+        data-textbox-count={slide.text_boxes?.length ?? 0}
+        data-selected-ids={selectedIds.join(',')}
+        data-groupids={(slide.text_boxes ?? [])
+          .map((tb) => tb.groupId ?? '')
+          .join(',')}
+        data-textbox-ids={(slide.text_boxes ?? []).map((tb) => tb.id).join(',')}
+        data-customimage-ids={(slide.custom_images ?? []).map((ci) => ci.id).join(',')}
+        data-image-positions={(slide.custom_images ?? [])
+          .map((ci) => `${ci.id}:${ci.x},${ci.y}`)
+          .join(';')}
+        data-locked-state={[
+          ...(slide.text_boxes ?? []).map(
+            (tb) => `${tb.id}:${tb.locked === true ? '1' : '0'}`,
+          ),
+          ...(slide.custom_images ?? []).map(
+            (ci) => `${ci.id}:${ci.locked === true ? '1' : '0'}`,
+          ),
+        ].join(';')}
+        data-decoration-count={slide.decorations?.length ?? 0}
+        data-textbox-positions={(slide.text_boxes ?? [])
+          .map((tb) => {
+            const a = tb.position.anchor
+            const x = tb.position.x ?? ''
+            const y = tb.position.y ?? ''
+            return `${tb.id}:${a}:${x},${y}`
+          })
+          .join(';')}
+      />
+    )
+  },
+}))
+
 vi.mock('@/components/editor/visibility-dropdown', () => ({
   VisibilityDropdown: () => <div data-testid="visibility-dropdown" />,
 }))
@@ -205,7 +252,12 @@ function renderEditor() {
 }
 
 function readPanel() {
-  return screen.getByTestId('text-editor-panel')
+  // quick-260514-jn5: activeTab auto-switches to 'elements' when a decoration
+  // is selected. Read from whichever panel is currently mounted; ElementsPanel
+  // mock below mirrors the same data-* probe surface.
+  return (
+    screen.queryByTestId('elements-panel') ?? screen.getByTestId('text-editor-panel')
+  )
 }
 
 function readImagePositions(): Record<string, { x: number; y: number }> {

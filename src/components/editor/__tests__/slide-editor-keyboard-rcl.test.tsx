@@ -24,6 +24,28 @@ import type { Slide } from '@/lib/types/slide'
  * effects are observable without a real selection model spy.
  */
 
+// Probe payload shared by both panel mocks below. quick-260514-jn5: when
+// the keyboard inserts a decoration via R/C/L, the editor auto-switches
+// activeTab to 'elements' (so the user sees the new shape's editing
+// surface immediately). Both panel mocks expose the same data-* probes so
+// readPanel() finds whichever is currently mounted.
+function probeAttrs(
+  slide: Slide,
+  selection?: { ids: string[]; primary: string | null },
+  selectedTextBoxId?: string | null,
+) {
+  return {
+    'data-active-id': selectedTextBoxId ?? '',
+    'data-textbox-count': slide.text_boxes?.length ?? 0,
+    'data-decoration-count': slide.decorations?.length ?? 0,
+    'data-decoration-kinds': (slide.decorations ?? [])
+      .map((d) => (d.kind === 'shape' ? d.shapeKind : d.lucideName))
+      .join(','),
+    'data-decoration-ids': (slide.decorations ?? []).map((d) => d.id).join(','),
+    'data-selected-ids': (selection?.ids ?? []).join(','),
+  }
+}
+
 vi.mock('@/components/editor/text-editor-panel', () => ({
   TextEditorPanel: (props: {
     slide: Slide
@@ -32,17 +54,22 @@ vi.mock('@/components/editor/text-editor-panel', () => ({
   }) => (
     <div
       data-testid="text-editor-panel"
-      data-active-id={props.selectedTextBoxId ?? ''}
-      data-textbox-count={props.slide.text_boxes?.length ?? 0}
-      // Phase 70 Plan 03 (KBD-10) probes for decoration insertions:
-      data-decoration-count={props.slide.decorations?.length ?? 0}
-      data-decoration-kinds={(props.slide.decorations ?? [])
-        .map((d) => (d.kind === 'shape' ? d.shapeKind : d.lucideName))
-        .join(',')}
-      data-decoration-ids={(props.slide.decorations ?? [])
-        .map((d) => d.id)
-        .join(',')}
-      data-selected-ids={(props.selection?.ids ?? []).join(',')}
+      {...probeAttrs(props.slide, props.selection, props.selectedTextBoxId)}
+    />
+  ),
+}))
+
+vi.mock('@/components/editor/elements-panel', () => ({
+  ElementsPanel: (props: {
+    slide?: Slide
+    activeDecoration?: { id: string } | null
+  }) => (
+    <div
+      data-testid="elements-panel"
+      {...probeAttrs(props.slide ?? ({} as Slide), {
+        ids: props.activeDecoration ? [props.activeDecoration.id] : [],
+        primary: props.activeDecoration?.id ?? null,
+      })}
     />
   ),
 }))
@@ -129,7 +156,12 @@ function renderEditor() {
 }
 
 function readPanel() {
-  return screen.getByTestId('text-editor-panel')
+  // quick-260514-jn5: activeTab auto-switches to 'elements' when a decoration
+  // is selected. Read from whichever panel is currently mounted; both surface
+  // the same data-* probes (see probeAttrs above).
+  return (
+    screen.queryByTestId('elements-panel') ?? screen.getByTestId('text-editor-panel')
+  )
 }
 
 describe('Phase 70 Plan 03 (KBD-10) — R/C/L direct-insert shortcuts', () => {
