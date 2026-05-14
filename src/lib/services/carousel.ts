@@ -4,6 +4,7 @@ import { searchPhotos } from '@/lib/pexels/search-photos'
 import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createProjectService, updateProjectService } from '@/lib/services/projects'
+import { autoPublishOnGenerate } from '@/lib/services/auto-publish-on-generate'
 import { getTemplate } from '@/lib/render/templates/index'
 import type { Slide } from '@/lib/types/slide'
 // Phase 77 Plan 02 Task 4 (EMIT-02): sibling orchestrator that consumes
@@ -201,6 +202,11 @@ export async function generateCarousel(
       })
       .eq('id', projectId)
 
+    // quick-260514-k3j: newly-generated carousels MUST default to Public.
+    // Single ritual every generation path uses — see helper docstring for
+    // the history of why this keeps regressing across new entry points.
+    await autoPublishOnGenerate(supabase, userId, projectId, carousel.title)
+
     return { projectId, slideCount: slides.length }
   } catch (err) {
     // Update status to error
@@ -327,5 +333,10 @@ export async function generateCarouselFromReferences(
   if (error) {
     throw new Error(`carousel-from-refs persist failed: ${error.message}`)
   }
+
+  // quick-260514-k3j: newly-generated carousels MUST default to Public.
+  // See generateCarousel above for context — same ritual, same reason.
+  await autoPublishOnGenerate(supabase, userId, input.projectId, carousel.title)
+
   return { projectId: input.projectId, slideCount: withBackgrounds.length }
 }

@@ -7,7 +7,7 @@ import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generat
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { publishProjectToExplore } from '@/app/(dashboard)/project/[id]/publish-actions'
+import { autoPublishOnGenerate } from '@/lib/services/auto-publish-on-generate'
 import { checkCredits, deductCredit, getCreditBalance, getUserTier } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { rateLimit } from '@/lib/rate-limit'
@@ -326,21 +326,13 @@ export async function generateCarousel(
       })
       .eq('id', projectId)
 
-    // Auto-publish so newly generated carousels default to Public.
-    // Failures here are non-fatal — slide_data is already saved; the user can
-    // re-publish from the editor.
-    try {
-      const publishFormData = new FormData()
-      publishFormData.set('title', carousel.title)
-      publishFormData.set('description', '')
-      publishFormData.set('tags', '')
-      const publishResult = await publishProjectToExplore(projectId, publishFormData)
-      if (!publishResult.success) {
-        console.warn('[generateCarousel] auto-publish failed:', publishResult.error)
-      }
-    } catch (publishErr) {
-      console.warn('[generateCarousel] auto-publish threw:', publishErr)
-    }
+    // quick-260514-k3j: auto-publish so newly-generated carousels default to
+    // Public. This is the same helper called from lib/services/carousel.ts —
+    // one ritual, one code path. Uses admin client (no auth cookies needed).
+    // Best-effort — failures don't unwind generation; slide_data is already
+    // persisted and the user can republish manually.
+    const admin = createAdminClient()
+    await autoPublishOnGenerate(admin, user.id, projectId, carousel.title)
 
     revalidatePath(`/project/${projectId}`)
     revalidatePath('/dashboard')
