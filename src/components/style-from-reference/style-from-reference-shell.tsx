@@ -27,8 +27,12 @@
 // for the exact regex list). All copy uses "Inspired by" framing.
 
 import { useReducer, useEffect, useCallback, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ReferenceImageUploader } from '@/components/dashboard/reference-image-uploader'
-import { extractStyleSpecAction } from '@/app/(dashboard)/style-from-reference/actions'
+import {
+  extractStyleSpecAction,
+  regenerateAction,
+} from '@/app/(dashboard)/style-from-reference/actions'
 import {
   specPreviewReducer,
   initialSpecPreviewState,
@@ -42,6 +46,17 @@ import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
 
 export interface StyleFromReferenceShellProps {
   projectId: string
+  /** Real `projects.id` that generation should UPDATE. Set by the page when
+   *  the user arrived from /project/<id> via the References pill (and the
+   *  UUID is parsed from `?from=`). When null, the user came directly to
+   *  /style-from-reference/new — extraction still works (rate-cap key is
+   *  per-user), but Generate has no row to write and the shell surfaces a
+   *  clearer error than the silent no-op UPDATE would. */
+  targetProjectId?: string | null
+  /** `projects.topic` for `targetProjectId`, fetched server-side. Empty
+   *  topics fall back to a generic placeholder at generation time so the
+   *  AI emit doesn't reject for missing content. */
+  currentTopic?: string | null
   brandKit: BrandKit | null
   brandKitAvailable: boolean
   // Phase 79 LEGAL-01: ToS clickwrap props pass through to ReferenceImageUploader.
@@ -80,8 +95,22 @@ function dispatchExtractResult(
   }
 }
 
+// Topic used when the source project has no topic captured yet (e.g., the
+// user opened /style-from-reference/new before typing a prompt). Keeps the
+// regenerateAction validator happy — ai-copy rejects an empty topic — and
+// gives the AI emit something to anchor on. The user can edit the
+// generated slides afterward in the editor.
+const FALLBACK_GENERATE_TOPIC =
+  'A carousel inspired by the uploaded reference images.'
+
 export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
   const [state, dispatch] = useReducer(specPreviewReducer, initialSpecPreviewState)
+  const router = useRouter()
+
+  // Guard so the generating-state effect only fires once per click. Without
+  // it, every re-render while state.status === 'generating' would dispatch
+  // another regenerateAction (or React 18 strict-mode double-invoke would).
+  const generationInFlightRef = useRef(false)
 
   // Session-local map of storage-path → blob preview URL for the sticky
   // strip. The slide-references bucket is private, so the persisted
@@ -142,6 +171,106 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
     },
     [props.projectId, state.references],
   )
+
+  // Generation orchestrator. Runs whenever state.status flips to 'generating'
+  // (set by the GENERATE_CLICK reducer transition fired from SpecPreviewPanel).
+  // Calls regenerateAction with the persisted spec + user-selected aspects;
+  // on success, transitions to 'done' and routes to the editor at
+  // /project/<targetProjectId> so SlideEditor mounts with the new slide_data.
+  // On error, dispatches EXTRACT_ERROR with kind=extraction_failed so the
+  // existing ErrorRouter surface handles it.
+  useEffect(() => {
+    if (state.status !== 'generating') {
+      generationInFlightRef.current = false
+      return
+    }
+    if (generationInFlightRef.current) return
+    generationInFlightRef.current = true
+
+    // No target project row → no UPDATE will land. Surface a clear error
+    // instead of running a silent no-op. The user can navigate back to a
+    // /project/<id> page and re-enter via the References pill.
+    if (!props.targetProjectId) {
+      ;(dispatch as unknown as (a: unknown) => void)({
+        type: 'EXTRACT_ERROR',
+        error: {
+          kind: 'extraction_failed',
+          detail:
+            'No target project. Open this page from a project via the References button.',
+        },
+        telemetry: state.lastTelemetry ?? {
+          vision_calls_count: 0,
+          tokens_in: 0,
+          tokens_out: 0,
+          cache_hit: false,
+          duration_ms: 0,
+        },
+      })
+      return
+    }
+
+    if (!state.spec) {
+      ;(dispatch as unknown as (a: unknown) => void)({
+        type: 'EXTRACT_ERROR',
+        error: {
+          kind: 'extraction_failed',
+          detail: 'Spec missing — re-run extraction before generating.',
+        },
+        telemetry: state.lastTelemetry ?? {
+          vision_calls_count: 0,
+          tokens_in: 0,
+          tokens_out: 0,
+          cache_hit: false,
+          duration_ms: 0,
+        },
+      })
+      return
+    }
+
+    const topic =
+      (props.currentTopic && props.currentTopic.trim()) || FALLBACK_GENERATE_TOPIC
+
+    ;(async () => {
+      const result = await regenerateAction({
+        projectId: props.targetProjectId as string,
+        spec: state.spec!,
+        aspects: state.aspects,
+        useBrandKitRemix: state.useBrandKitRemix,
+        brandKit: props.brandKit,
+        content: { mode: 'ai-copy', topic },
+      })
+      if (result.ok) {
+        dispatch({ type: 'GENERATE_DONE' })
+        // Navigate to the editor — SlideEditor mounts when slide_data is non-empty.
+        router.push(`/project/${result.projectId}`)
+      } else {
+        ;(dispatch as unknown as (a: unknown) => void)({
+          type: 'EXTRACT_ERROR',
+          error: {
+            kind: 'extraction_failed',
+            detail: `Generation failed (${result.error}): ${result.detail ?? 'no detail'}`,
+          },
+          telemetry: state.lastTelemetry ?? {
+            vision_calls_count: 0,
+            tokens_in: 0,
+            tokens_out: 0,
+            cache_hit: false,
+            duration_ms: 0,
+          },
+        })
+      }
+    })()
+  }, [
+    state.status,
+    state.spec,
+    state.aspects,
+    state.useBrandKitRemix,
+    state.lastTelemetry,
+    props.targetProjectId,
+    props.currentTopic,
+    props.brandKit,
+    router,
+  ])
 
   const handleReExtract = useCallback(async () => {
     dispatch({ type: 'RE_EXTRACT_CLICK' })
