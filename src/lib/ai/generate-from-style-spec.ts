@@ -354,9 +354,22 @@ export async function generateFromStyleSpec(
       ...((slide.style_overrides as Record<string, unknown> | undefined) ?? {}),
       ...projected.style_overrides,
     }
+    // Phase 80 R6 LIFT: template_id_override flows from the projector via
+    // style_overrides (the projector's Pick<>-typed carrier), but the
+    // renderer reads it from Slide.template_id_override (top-level, Phase
+    // 55 D-08). Lift the value onto the slide top-level so getTemplate()
+    // sees it. The projected value WINS over any Gemini-emitted slide
+    // override — the spec's archetype is the canonical routing decision.
+    const liftedTemplateIdOverride: string | undefined =
+      typeof mergedStyleOverrides.template_id_override === 'string'
+        ? (mergedStyleOverrides.template_id_override as string)
+        : ((slide as { template_id_override?: string }).template_id_override)
     const slideWithProjector: SlideContent = {
       ...slide,
       style_overrides: mergedStyleOverrides,
+      ...(liftedTemplateIdOverride !== undefined
+        ? { template_id_override: liftedTemplateIdOverride }
+        : {}),
     }
     // Step B: decoration ingest (triple-layer silent-drop pipeline).
     return processSlideDecorations(

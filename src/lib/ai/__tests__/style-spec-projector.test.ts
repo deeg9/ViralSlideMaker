@@ -149,12 +149,18 @@ describe('projectStyleSpecToSlideOverrides', () => {
     expect(narrowed.lucide).toEqual(['Star', 'Zap', 'Heart'])
   })
 
-  // Test 11 — empty preferences fall back to full corpus
-  it('narrowDecorationAllowlist returns full AI_LUCIDE_ALLOWLIST when preferredLucide empty', () => {
+  // Test 11 — Phase 80 R7: empty preferences return EMPTY list (not full
+  // corpus). Reverses the prior fall-back-to-full-corpus behavior which
+  // caused spurious icons to appear when the reference had none (Meta-workers
+  // regression). See style-spec-projector.ts narrowDecorationAllowlist
+  // header for the rationale.
+  it('narrowDecorationAllowlist returns empty list when preferredLucide empty (Phase 80 R7)', () => {
     const spec = buildSpec()
     spec.decorations.preferredLucide = []
     const narrowed = narrowDecorationAllowlist(spec)
-    expect(narrowed.lucide).toEqual([...AI_LUCIDE_ALLOWLIST])
+    expect(narrowed.lucide).toEqual([])
+    // Defense-in-depth: confirm the full corpus is NOT returned (regression guard).
+    expect(narrowed.lucide.length).toBeLessThan(AI_LUCIDE_ALLOWLIST.length)
   })
 
   // Test 12 — silent-drop unknown lucide names
@@ -167,11 +173,13 @@ describe('projectStyleSpecToSlideOverrides', () => {
     expect(narrowed.lucide).toEqual(['Star'])
   })
 
-  // Test 13 — same semantics for shapes
-  it('narrowDecorationAllowlist for preferredShapes: empty→full, non-empty narrows, invalid drops', () => {
+  // Test 13 — same semantics for shapes (Phase 80 R7: empty → empty list).
+  it('narrowDecorationAllowlist for preferredShapes: empty→empty, non-empty narrows, invalid drops', () => {
     const specEmpty = buildSpec()
     specEmpty.decorations.preferredShapes = []
-    expect(narrowDecorationAllowlist(specEmpty).shapes).toEqual([...AI_SHAPE_KINDS])
+    // Phase 80 R7: empty → empty list (was [...AI_SHAPE_KINDS] before R7 fix).
+    expect(narrowDecorationAllowlist(specEmpty).shapes).toEqual([])
+    expect(narrowDecorationAllowlist(specEmpty).shapes.length).toBeLessThan(AI_SHAPE_KINDS.length)
 
     const specNarrow = buildSpec()
     specNarrow.decorations.preferredShapes = ['circle', 'star']
