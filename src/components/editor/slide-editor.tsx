@@ -1474,7 +1474,7 @@ export function SlideEditor({
             </div>
 
             {/* Slide actions */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-center gap-1">
               <button
                 onClick={() => {
                   dispatch({ type: 'ADD_SLIDE', index: selectedIndex + 1 })
@@ -1510,7 +1510,6 @@ export function SlideEditor({
               >
                 <Icon name="text_fields" size="sm" />
               </button>
-              <div className="flex-1" />
             </div>
           </div>
 
