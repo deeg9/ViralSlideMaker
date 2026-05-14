@@ -44,12 +44,12 @@ export function SlideSettings({
         Slide Settings
       </span>
 
-      {/* News Layout — only when template advertises an accentColor (news templates) */}
+      {/* News Layout — only when template advertises an accentColor (news templates).
+          quick-260514-drop-news-layout-label: dropped the "News Layout" subsection
+          label per user request; "Slide Settings" card title is enough context for
+          the Cover / Body button pair. */}
       {isNewsTemplate && (
         <div className="space-y-2" data-testid="slide-settings-news-layout">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
-            News Layout
-          </span>
           <div className="flex gap-2">
             {(['cover', 'body'] as const).map((opt) => {
               const active = overrides.layout === opt
