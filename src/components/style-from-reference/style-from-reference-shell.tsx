@@ -43,6 +43,7 @@ import { ErrorRouter } from './error-router'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { ExtractResult } from '@/lib/ai/extract-style-spec.types'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
+import type { SpecPreviewState } from './state-machine'
 
 export interface StyleFromReferenceShellProps {
   projectId: string
@@ -59,6 +60,21 @@ export interface StyleFromReferenceShellProps {
   currentTopic?: string | null
   brandKit: BrandKit | null
   brandKitAvailable: boolean
+  /** quick-260514-g7y: when the shell is embedded inside the prompt-form
+   *  collapsible, the outer Generate Carousel button owns generation
+   *  routing — the inline Generate + credit-cost row inside
+   *  SpecPreviewPanel must be suppressed to avoid a double CTA. The
+   *  built-in 'generating' status branch is also skipped; the parent
+   *  reads state via `onSpecChange` and runs its own action. Defaults
+   *  to false so the standalone /style-from-reference/new shell render
+   *  path is unchanged. */
+  hideGenerateCta?: boolean
+  /** quick-260514-g7y: fires on every reducer transition while the shell
+   *  is embedded. Lets the prompt-form read the extracted spec, the per-
+   *  aspect toggles, and the useBrandKitRemix flag without duplicating
+   *  the reducer. Caller MUST treat the value as immutable (Object.is is
+   *  fine for change detection). */
+  onSpecChange?: (state: SpecPreviewState) => void
   // Phase 79 LEGAL-01: ToS clickwrap props pass through to ReferenceImageUploader.
   // tosAlreadyAccepted = false forces the modal to render before first upload.
   // Defaults preserve existing test behavior (ToS treated as accepted) when omitted.
@@ -106,6 +122,18 @@ const FALLBACK_GENERATE_TOPIC =
 export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
   const [state, dispatch] = useReducer(specPreviewReducer, initialSpecPreviewState)
   const router = useRouter()
+
+  // quick-260514-g7y: surface every state transition to the embedding
+  // parent (the prompt-form collapsible). The parent reads spec / aspects
+  // / useBrandKitRemix to decide between regenerateAction and the
+  // template-based generateCarousel path on its own submit handler.
+  useEffect(() => {
+    props.onSpecChange?.(state)
+    // Object.is on state itself is enough because the reducer produces a
+    // new state object per action — every meaningful change re-fires this
+    // effect, and React's batched-render dedup keeps re-fire rate sane.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state])
 
   // Guard so the generating-state effect only fires once per click. Without
   // it, every re-render while state.status === 'generating' would dispatch
@@ -179,7 +207,14 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
   // /project/<targetProjectId> so SlideEditor mounts with the new slide_data.
   // On error, dispatches EXTRACT_ERROR with kind=extraction_failed so the
   // existing ErrorRouter surface handles it.
+  //
+  // quick-260514-g7y: skip this effect entirely when the shell is embedded
+  // (hideGenerateCta=true). The internal Generate button is hidden in that
+  // mode, so the reducer never transitions to 'generating' — but if a
+  // future path triggers GENERATE_CLICK anyway, we let the parent handle
+  // it via onSpecChange + their own action call.
   useEffect(() => {
+    if (props.hideGenerateCta) return
     if (state.status !== 'generating') {
       generationInFlightRef.current = false
       return
@@ -269,6 +304,7 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
     props.targetProjectId,
     props.currentTopic,
     props.brandKit,
+    props.hideGenerateCta,
     router,
   ])
 
@@ -318,10 +354,15 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
           onReExtract={() => {
             void handleReExtract()
           }}
+          hideGenerateCta={props.hideGenerateCta}
         />
       )}
 
-      {state.status === 'generating' && (
+      {/* The shell's built-in 'generating' UI only renders for the legacy
+          standalone-page path. When embedded in the prompt-form
+          collapsible (hideGenerateCta=true), the parent owns the
+          generating UI and routes to the editor on success. */}
+      {state.status === 'generating' && !props.hideGenerateCta && (
         <div data-testid="generating-state" role="status" aria-live="polite">
           Generating your slideshow inspired by the references...
         </div>

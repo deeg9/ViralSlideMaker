@@ -14,6 +14,14 @@ import { RegenerateFromReferencesButton } from '@/components/projects/regenerate
 import { SlideEditor } from '@/components/editor/slide-editor'
 import { getUserTier } from '@/lib/credits/check-credits'
 import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
+// quick-260514-g7y: forward ToS clickwrap state into GenerationForm so
+// the inlined style-from-reference collapsible can open its clickwrap
+// modal on first reference upload (same gate as the deleted standalone
+// /style-from-reference/new page).
+import { createAdminClient } from '@/lib/supabase/admin'
+import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
+import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
+import { acceptStyleFromReferenceTosCurrentVersionAction } from '@/app/(dashboard)/style-from-reference/actions'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -41,6 +49,18 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   const tier = user ? await getUserTier(user.id) : 'free' as const
   const brandKit = user ? await getBrandKit() : null
+
+  // quick-260514-g7y: pre-compute ToS acceptance server-side so the
+  // inlined collapsible can decide to render the clickwrap modal without
+  // a client-side round-trip. Same pattern as the deleted standalone
+  // /style-from-reference/new page used.
+  const tosAlreadyAccepted = user
+    ? await hasUserAcceptedCurrentTos(
+        createAdminClient(),
+        user.id,
+        STYLE_FROM_REFERENCE_TOS_VERSION,
+      )
+    : true
 
   const { data: publishedRow } = user
     ? await supabase
@@ -122,6 +142,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         hasSlides={false}
         userTier={tier}
         brandKit={brandKit}
+        tosAlreadyAccepted={tosAlreadyAccepted}
+        acceptTosAction={acceptStyleFromReferenceTosCurrentVersionAction}
       />
 
       {/* quick-260510-modal-on-prompt-page: invisible until ?naming=1 is in

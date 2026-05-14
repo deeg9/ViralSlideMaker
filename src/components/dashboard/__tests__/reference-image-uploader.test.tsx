@@ -113,9 +113,9 @@ describe('Phase 74 Plan 03 (REF-02..REF-06): ReferenceImageUploader', () => {
     )
   })
 
-  it('Test C4: adding a 9th image (when 8 are already present) shows inline error and does NOT call fetch', async () => {
-    // Pre-seed component with 8 thumbnails by passing initial.
-    const initial: ReferenceAssetRow[] = Array.from({ length: 8 }, (_, i) => ({
+  it('Test C4: adding a 4th image (when 3 are already present) shows inline error and does NOT call fetch (quick-260514-g7y: MAX dropped from 8 to 3)', async () => {
+    // Pre-seed component with 3 thumbnails (the new cap) by passing initial.
+    const initial: ReferenceAssetRow[] = Array.from({ length: 3 }, (_, i) => ({
       url: `seed/path-${i}.png`,
       sha256: '',
       uploaded_at: new Date().toISOString(),
@@ -130,7 +130,7 @@ describe('Phase 74 Plan 03 (REF-02..REF-06): ReferenceImageUploader', () => {
     fireEvent.drop(dropzone, { dataTransfer: { files: [file] } })
 
     await waitFor(() => expect(screen.getByTestId('uploader-error')).toBeTruthy())
-    expect(screen.getByTestId('uploader-error').textContent).toMatch(/8/)
+    expect(screen.getByTestId('uploader-error').textContent).toMatch(/3/)
     expect(fetch).not.toHaveBeenCalled()
   })
 

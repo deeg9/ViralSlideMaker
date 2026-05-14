@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useTransition, useMemo, useRef, useEffect } from 'react'
+import { useState, useTransition, useMemo, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
+import { regenerateAction } from '@/app/(dashboard)/style-from-reference/actions'
 import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
@@ -11,6 +12,8 @@ import TetrisLoading from '@/components/ui/tetris-loading'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
+import { StyleFromReferenceShell } from '@/components/style-from-reference/style-from-reference-shell'
+import type { SpecPreviewState } from '@/components/style-from-reference/state-machine'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
 export type ImageSource = 'stock' | 'ai' | 'none'
@@ -25,6 +28,14 @@ interface GenerationFormProps {
   hasSlides: boolean
   userTier?: 'free' | 'pro' | 'plus'
   brandKit?: BrandKit | null
+  /** quick-260514-g7y: ToS clickwrap state for the inlined style-from-
+   *  reference collapsible. Forwarded into the embedded
+   *  StyleFromReferenceShell so the modal fires only when the user has
+   *  not yet accepted the current ToS version. Defaults to true so
+   *  callers that never render the references collapsible (legacy
+   *  contexts, tests) don't accidentally surface the modal. */
+  tosAlreadyAccepted?: boolean
+  acceptTosAction?: () => Promise<{ ok: true } | { ok: false; error: string }>
 }
 
 export function GenerationForm({
@@ -34,6 +45,8 @@ export function GenerationForm({
   hasSlides,
   userTier = 'free',
   brandKit,
+  tosAlreadyAccepted,
+  acceptTosAction,
 }: GenerationFormProps) {
   const [topic, setTopic] = useState(currentTopic ?? '')
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'highlight-bar')
@@ -47,6 +60,14 @@ export function GenerationForm({
   const [showVisualStyle, setShowVisualStyle] = useState(true)
   const [showSlideCount, setShowSlideCount] = useState(true)
   const [showBackgroundImages, setShowBackgroundImages] = useState(true)
+  // quick-260514-g7y: new collapsible hosting the inlined style-from-
+  // reference shell. Default closed so the form's first-paint is
+  // unchanged for users who don't use the references flow.
+  const [showInspiredByRefs, setShowInspiredByRefs] = useState(false)
+  // Mirrors the embedded shell's reducer state. Populated via
+  // <StyleFromReferenceShell onSpecChange>. handleSubmit reads this to
+  // route generation through regenerateAction when a spec is present.
+  const [inlineSpec, setInlineSpec] = useState<SpecPreviewState | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [advancedFont, setAdvancedFont] = useState<string>('')
   const [advancedFontColor, setAdvancedFontColor] = useState<string>('')
@@ -128,7 +149,36 @@ export function GenerationForm({
     setShowUpgradePrompt(false)
     const effectiveSlideCount = isPaidUser ? slideCount : Math.min(slideCount, FREE_TIER_MAX_SLIDES)
 
+    // quick-260514-g7y: branch on the inlined style-from-reference state.
+    // When the user has uploaded references and extraction reached the
+    // 'preview' status, the extracted spec drives generation (locked
+    // decision: "extracted spec wins" — template_id is ignored in this
+    // branch). Otherwise fall through to the template-based path.
+    const useReferenceSpec =
+      inlineSpec?.spec != null && inlineSpec.status === 'preview'
+
     startTransition(async () => {
+      if (useReferenceSpec && inlineSpec?.spec) {
+        // No image-attachment upload in the references path — the spec
+        // already encodes palette/typography/layout/decorations. Slide
+        // photos for ai-copy mode come from stock/AI per the existing
+        // emit pipeline downstream.
+        const result = await regenerateAction({
+          projectId,
+          spec: inlineSpec.spec,
+          aspects: inlineSpec.aspects,
+          useBrandKitRemix: inlineSpec.useBrandKitRemix,
+          brandKit: brandKit ?? null,
+          content: { mode: 'ai-copy', topic: topic.trim() },
+        })
+        if (!result.ok) {
+          setError(`Generation failed (${result.error}): ${result.detail ?? 'no detail'}`)
+        } else {
+          router.refresh()
+        }
+        return
+      }
+
       let uploadedImageUrls: string[] = []
       if (selectedFiles.length > 0) {
         try {
@@ -302,10 +352,11 @@ export function GenerationForm({
         )}
       </div>
 
-      {/* Template Picker — collapsible. The References pill is the "from
-          references" entry-point relocated here from the dashboard so it
-          lives next to the in-flow style picker rather than as a dashboard-
-          level promo card. Both surfaces route to /style-from-reference/new. */}
+      {/* Template Picker — collapsible. (quick-260514-g7y: the References
+          pill was removed from this header. The style-from-reference flow
+          now lives in its own "Inspired by references" collapsible below
+          and inherits the full upload + extract + spec preview UX. The
+          standalone /style-from-reference/new page is gone.) */}
       <div>
         <div className="flex justify-between items-center mb-3">
           <button
@@ -321,15 +372,6 @@ export function GenerationForm({
               className={`transition-transform ${showVisualStyle ? 'rotate-180' : ''}`}
             />
           </button>
-          <Link
-            href={`/style-from-reference/new?from=${encodeURIComponent(`/project/${projectId}`)}`}
-            data-testid="from-references-cta"
-            title="Upload up to 8 images and generate a slideshow inspired by their style"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#dbc1bc] hover:border-[#3d0000] text-[#3d0000] text-[11px] font-bold uppercase tracking-wider transition-colors"
-          >
-            <Icon name="image" size="sm" />
-            References
-          </Link>
         </div>
         {showVisualStyle && (
           <div className="mt-4">
@@ -477,6 +519,49 @@ export function GenerationForm({
           </p>
         )}
         </>
+        )}
+      </div>
+
+      {/* Inspired by references — collapsible (quick-260514-g7y).
+          Inlines the style-from-reference flow: upload 1–3 reference
+          images, click Extract style, review the spec, toggle Apply
+          aspects. handleSubmit reads inlineSpec on the Generate
+          Carousel click and routes through regenerateAction when a
+          spec is present (overriding the selected template — locked
+          decision: "extracted spec wins"). */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowInspiredByRefs(!showInspiredByRefs)}
+          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
+          aria-expanded={showInspiredByRefs}
+        >
+          Inspired by references
+          {inlineSpec?.spec && (
+            <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-wider">
+              · Style extracted
+            </span>
+          )}
+          <Icon
+            name="expand_more"
+            size="sm"
+            className={`transition-transform ${showInspiredByRefs ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {showInspiredByRefs && (
+          <div className="mt-4">
+            <StyleFromReferenceShell
+              projectId={projectId}
+              targetProjectId={projectId}
+              currentTopic={topic}
+              brandKit={brandKit ?? null}
+              brandKitAvailable={brandKit != null}
+              tosAlreadyAccepted={tosAlreadyAccepted}
+              acceptTosAction={acceptTosAction}
+              hideGenerateCta
+              onSpecChange={setInlineSpec}
+            />
+          </div>
         )}
       </div>
 
