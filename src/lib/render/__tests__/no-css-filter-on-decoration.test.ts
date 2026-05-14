@@ -36,9 +36,22 @@ const DECORATION_RENDER_PATH_FILES = [
   'src/components/slides/slide-preview.tsx',
 ] as const
 
+// quick-260514-decoration-controls-polish: decoration-renderer.tsx is the
+// ONE file in the scanned set that may emit `filter: drop-shadow(...)` —
+// narrowly, only for icon decorations rendered with target==='browser', so
+// the editor preview gets a glyph-shaped shadow while Satori export stays
+// on box-shadow. All other `filter:` values (blur, brightness, contrast,
+// invert, sepia, hue-rotate, saturate, grayscale, opacity, etc.) remain
+// banned in EVERY scanned file including this one — the assertion below
+// allow-lists ONLY the drop-shadow form.
+const DROP_SHADOW_ALLOWED_FILES: ReadonlySet<string> = new Set([
+  'src/lib/render/decoration-renderer.tsx',
+])
+
 describe('Phase 69 Plan 03 (PARITY-14 / PCL13): CSS filter zero-hit gate on decoration render path', () => {
   DECORATION_RENDER_PATH_FILES.forEach((relPath) => {
     const fullPath = resolve(REPO_ROOT, relPath)
+    const dropShadowAllowed = DROP_SHADOW_ALLOWED_FILES.has(relPath)
 
     describe(relPath, () => {
       it('exists', () => {
@@ -50,7 +63,16 @@ describe('Phase 69 Plan 03 (PARITY-14 / PCL13): CSS filter zero-hit gate on deco
       it('no "filter:" CSS property usage (comment-stripped, excluding "backdrop-filter:")', () => {
         const stripped = stripComments(readFileSync(fullPath, 'utf8'))
         // Negative-lookbehind for `backdrop-` so "backdrop-filter:" is checked separately.
-        expect(stripped).not.toMatch(/(?<!backdrop-)filter\s*:/)
+        const matches = stripped.match(/(?<!backdrop-)filter\s*:\s*[^;,}\n]*/g) ?? []
+        for (const match of matches) {
+          if (dropShadowAllowed) {
+            // Allow-list: filter: drop-shadow(...) is the ONLY permitted form.
+            expect(match).toMatch(/filter\s*:\s*[`'"]?\s*drop-shadow\(/)
+          } else {
+            // Strict zero-hit for all other files in the scanned set.
+            expect(stripped).not.toMatch(/(?<!backdrop-)filter\s*:/)
+          }
+        }
       })
 
       it('no "backdrop-filter:" CSS property usage (comment-stripped)', () => {
@@ -75,7 +97,15 @@ describe('Phase 69 Plan 03 (PARITY-14 / PCL13): CSS filter zero-hit gate on deco
         // backdrop-filter handled above. The boundary `\b` excludes attr names
         // like "data-filter" (even though those are not CSS-filter risks).
         const stripped = stripComments(readFileSync(fullPath, 'utf8'))
-        expect(stripped).not.toMatch(/(?<![\w-])filter\s*:/)
+        const matches = stripped.match(/(?<![\w-])filter\s*:\s*[^;,}\n]*/g) ?? []
+        for (const match of matches) {
+          if (dropShadowAllowed) {
+            // Allow-list mirrors the kebab-case test above — only drop-shadow.
+            expect(match).toMatch(/filter\s*:\s*[`'"]?\s*drop-shadow\(/)
+          } else {
+            expect(stripped).not.toMatch(/(?<![\w-])filter\s*:/)
+          }
+        }
       })
     })
   })

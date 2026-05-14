@@ -27,6 +27,12 @@ import type {
 export interface DecorationEffectsProps {
   decoration: Decoration
   onUpdate: (updates: Partial<Decoration>) => void
+  /** Transient preview channel — when set, the opacity slider's per-tick
+   *  onChange routes through this callback (dispatched with noHistory:true
+   *  by the parent) so the canvas fades live as the user drags. The
+   *  onMouseUp/onTouchEnd commit still flows through onUpdate to record
+   *  exactly one history entry per gesture (KBD-09). */
+  onPreview?: (updates: Partial<Decoration>) => void
 }
 
 const SHADOW_SIZES = ['sm', 'md', 'lg'] as const
@@ -40,10 +46,20 @@ const COMMIT_DEBOUNCE_MS = 300
 export function DecorationEffects({
   decoration: d,
   onUpdate,
+  onPreview,
 }: DecorationEffectsProps) {
   const shadow = d.effects?.shadow
   const shadowOn = shadow?.enabled === true
   const opacityPct = Math.round((d.opacity ?? 1) * 100)
+
+  // quick-260514-decoration-controls-polish: controlled slider state so the
+  // thumb (a) re-syncs when switching decorations or undo/redo lands a new
+  // value and (b) provides live preview during drag via onChange. The commit
+  // dispatch (onMouseUp/onTouchEnd) still pushes history exactly once.
+  const [opacityDraft, setOpacityDraft] = useState<number>(opacityPct)
+  useEffect(() => {
+    setOpacityDraft(opacityPct)
+  }, [opacityPct])
 
   // Debounced shadow color draft. The HexAlphaColorPicker fires onChange on
   // every drag tick; we commit ONCE after 300ms of idle (KBD-09).
@@ -173,9 +189,18 @@ export function DecorationEffects({
           min={0}
           max={100}
           step={1}
-          defaultValue={opacityPct}
-          // Per KBD-09: NEVER dispatch on per-tick `change`. Commit only on
-          // mouseup/touchend (final-value gesture).
+          value={opacityDraft}
+          // KBD-09: HISTORY-committing dispatch happens once per gesture on
+          // mouseup/touchend. The onChange channel feeds onPreview (no-history)
+          // so the canvas tracks the drag live without polluting undo. If
+          // onPreview is absent, onChange only updates local draft — no
+          // dispatch — preserving the original commit-on-release semantics.
+          onChange={(e) => {
+            const next = Number(e.currentTarget.value)
+            if (!Number.isFinite(next)) return
+            setOpacityDraft(next)
+            onPreview?.({ opacity: next / 100 })
+          }}
           onMouseUp={(e) => commitOpacity(e.currentTarget.value)}
           onTouchEnd={(e) =>
             commitOpacity((e.currentTarget as HTMLInputElement).value)

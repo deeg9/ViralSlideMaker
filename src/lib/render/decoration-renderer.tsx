@@ -56,10 +56,19 @@ import { resolveDecorationSvg } from './decorations/registry'
  * (slideIndex / totalSlides for AI advisory / parity-context lookups);
  * empty in Phase 69 but typed-and-passed-through so Plan 69-02 callers
  * thread the same shape both renderers expect.
+ *
+ * quick-260514-decoration-controls-polish: `target` lets the icon shadow
+ * path branch — browser previews can use a glyph-shaped drop shadow
+ * (CSS `filter: drop-shadow(...)`) which Satori silently drops; the
+ * Satori export path stays on `box-shadow` (rectangular halo around the
+ * bounding box — the documented parity fallback the user accepted).
+ * Default is 'satori' so any caller that forgets to pass `target` stays
+ * on the parity-safe path.
  */
 export interface DecorationRenderCtx {
   slideIndex?: number
   totalSlides?: number
+  target?: 'browser' | 'satori'
 }
 
 // CSS box-shadow size mapping. Mirrors v2.1 TextShadowEffect orders of
@@ -68,6 +77,16 @@ const SHADOW_SIZE_MAP: Record<'sm' | 'md' | 'lg', string> = {
   sm: '2px 2px 4px',
   md: '4px 4px 8px',
   lg: '6px 6px 16px',
+}
+
+// Browser-only glyph-shaped drop-shadow mapping. Used when target==='browser'
+// for icon decorations so the shadow follows the SVG outline rather than the
+// rectangular bounding box. Same magnitudes as SHADOW_SIZE_MAP so the visual
+// weight is comparable.
+const DROP_SHADOW_SIZE_MAP: Record<'sm' | 'md' | 'lg', string> = {
+  sm: '0 2px 4px',
+  md: '0 4px 8px',
+  lg: '0 8px 16px',
 }
 
 // shapeKinds that render as a CSS-styled <div> with no <img> child.
@@ -97,7 +116,7 @@ const CSS_DIV_SHAPES: ReadonlySet<ShapeKind> = new Set([
  *   - transform — only when rotation is set AND non-zero
  *   - boxShadow — only when effects.shadow.enabled is true
  */
-function buildWrapperStyle(d: Decoration): React.CSSProperties {
+function buildWrapperStyle(d: Decoration, ctx: DecorationRenderCtx = {}): React.CSSProperties {
   const style: React.CSSProperties = {
     position: 'absolute',
     left: `${d.position.x}%`,
@@ -114,12 +133,29 @@ function buildWrapperStyle(d: Decoration): React.CSSProperties {
     style.transform = `rotate(${d.rotation}deg)`
   }
 
-  // Shadow: CSS box-shadow only. NEVER filter / backdropFilter / mixBlendMode
-  // (vercel/satori#573). PCL13 grep gate enforces.
+  // Shadow strategy (quick-260514-decoration-controls-polish):
+  //   - SHAPE decorations: box-shadow always. Rectangular halo matches the
+  //     shape's bounding box, which IS the correct visual for rect/circle/
+  //     polygon/etc. Satori parity preserved.
+  //   - ICON decorations, target==='browser': filter: drop-shadow(...) so the
+  //     shadow follows the SVG outline. Satori silently drops `filter`
+  //     (vercel/satori#573/#393), so this is editor-preview-only.
+  //   - ICON decorations, target==='satori' (or unspecified): box-shadow
+  //     fallback. Export PNG keeps the rectangular halo — narrow parity
+  //     tradeoff the user accepted when picking glyph-shaped shadow.
   const shadow = d.effects?.shadow
   if (shadow?.enabled === true) {
-    const sizeStr = SHADOW_SIZE_MAP[shadow.size]
-    style.boxShadow = `${sizeStr} ${shadow.color}`
+    const useDropShadow = d.kind === 'icon' && ctx.target === 'browser'
+    if (useDropShadow) {
+      const sizeStr = DROP_SHADOW_SIZE_MAP[shadow.size]
+      // PCL13 narrow allowance: only `filter: drop-shadow(...)` is permitted in
+      // this module. no-css-filter-on-decoration.test.ts whitelists this exact
+      // form for decoration-renderer.tsx; all other filter values stay banned.
+      style.filter = `drop-shadow(${sizeStr} ${shadow.color})`
+    } else {
+      const sizeStr = SHADOW_SIZE_MAP[shadow.size]
+      style.boxShadow = `${sizeStr} ${shadow.color}`
+    }
   }
 
   return style
@@ -136,7 +172,7 @@ function renderIcon(d: IconDecoration, _ctx: DecorationRenderCtx): React.ReactNo
   // Documented Satori-safe inline-SVG path: data-URI <img>.
   const src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
-  const wrapperStyle = buildWrapperStyle(d)
+  const wrapperStyle = buildWrapperStyle(d, _ctx)
   const imgStyle: React.CSSProperties = { width: '100%', height: '100%' }
 
   return React.createElement(
@@ -173,7 +209,7 @@ function shapeAssetPath(d: ShapeDecoration): string {
 }
 
 function renderShapeCssDiv(d: ShapeDecoration, _ctx: DecorationRenderCtx): React.ReactNode {
-  const wrapperStyle = buildWrapperStyle(d)
+  const wrapperStyle = buildWrapperStyle(d, _ctx)
   const style: React.CSSProperties = {
     ...wrapperStyle,
     background: d.fill,
@@ -202,7 +238,7 @@ function renderShapeCssDiv(d: ShapeDecoration, _ctx: DecorationRenderCtx): React
 }
 
 function renderShapeAsset(d: ShapeDecoration, _ctx: DecorationRenderCtx): React.ReactNode {
-  const wrapperStyle = buildWrapperStyle(d)
+  const wrapperStyle = buildWrapperStyle(d, _ctx)
   // CSS color cascade — public/shapes/*.svg assets (Plan 69-02) use
   // `currentColor` for fill/stroke. Satori honors `style.color` cascade
   // through to the SVG asset (verified in v2.9 overlay pattern at

@@ -438,6 +438,13 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         return { ...slide, decorations: nextDecorations }
       })
       if (!mutated) return state
+      // quick-260514-decoration-controls-polish: live-preview channel. When the
+      // caller sets noHistory:true (e.g. opacity slider drag, rotation onChange,
+      // position keystroke), mutate `present` without pushing a history entry.
+      // The final commit dispatch (no flag) records the single KBD-09 step.
+      if (action.noHistory === true) {
+        return { ...state, present: slides }
+      }
       return pushHistory(state, slides)
     }
 

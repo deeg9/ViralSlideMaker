@@ -36,7 +36,17 @@ export type EditorAction =
   // `locked` short-circuit gate (lock-content-only contract; SET_LOCKED in
   // Plan 68-02 is the dedicated lock toggler).
   | { type: 'ADD_DECORATION'; slideIndex: number; decoration: Decoration }
-  | { type: 'UPDATE_DECORATION'; slideIndex: number; id: string; updates: Partial<Decoration> }
+  | {
+      type: 'UPDATE_DECORATION'
+      slideIndex: number
+      id: string
+      updates: Partial<Decoration>
+      /** When true, the reducer mutates `present` WITHOUT calling pushHistory.
+       *  Used for transient live-preview dispatches (e.g. dragging the opacity
+       *  slider) so the canvas tracks the in-progress gesture while history
+       *  still records exactly one entry on the final commit (KBD-09). */
+      noHistory?: boolean
+    }
   | { type: 'REMOVE_DECORATION'; slideIndex: number; id: string }
   // Phase 49: text-box actions (route through pushHistory; selectedTextBoxId lives outside reducer)
   | {

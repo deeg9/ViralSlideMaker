@@ -53,6 +53,11 @@ interface ElementsPanelProps {
   onDecorationUpdate?: (updates: Partial<Decoration>) => void
   /** Dispatches REMOVE_DECORATION for the active decoration + clears selection. */
   onDecorationRemove?: () => void
+  /** Transient live-preview dispatch — wired by slide-editor to fire
+   *  UPDATE_DECORATION with noHistory:true so per-keystroke / per-drag-tick
+   *  updates land on the canvas without polluting the undo stack. The committing
+   *  dispatch still flows through `onDecorationUpdate`. */
+  onDecorationPreview?: (updates: Partial<Decoration>) => void
   /** Opens the icon picker in SWAP mode — replaces the currently selected
    *  icon's lucideName in place rather than inserting a new decoration. Only
    *  wired when the active decoration is an icon. */
@@ -77,6 +82,7 @@ export function ElementsPanel({
   activeDecoration,
   onDecorationUpdate,
   onDecorationRemove,
+  onDecorationPreview,
   onSwapIcon,
   onBackToLibrary,
   onOpenIconPicker,
@@ -114,6 +120,7 @@ export function ElementsPanel({
           onUpdate={(updates) => onDecorationUpdate?.(updates)}
           onRemove={onDecorationRemove}
           onSwapIcon={isIcon ? onSwapIcon : undefined}
+          onPreview={onDecorationPreview}
           brandKit={brandKit}
           derivedPalette={derivedPalette}
         />
