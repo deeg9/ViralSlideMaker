@@ -198,7 +198,7 @@ export function ElementsPanel({
             onClick={() => onOpenIconPicker?.()}
             disabled={!onOpenIconPicker}
             data-testid="elements-panel-open-icons"
-            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#dbc1bc]/40 bg-[#fff0f0] hover:bg-[#fadbdb] hover:border-[#3d0000]/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#3d0000]/20 bg-white hover:bg-[#fff0f0] hover:border-[#3d0000]/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Browse icons"
           >
             <Icon name="emoji_symbols" size="md" className="text-[#3d0000]" />
@@ -211,7 +211,7 @@ export function ElementsPanel({
             onClick={() => onOpenShapePicker?.()}
             disabled={!onOpenShapePicker}
             data-testid="elements-panel-open-shapes"
-            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#dbc1bc]/40 bg-[#fff0f0] hover:bg-[#fadbdb] hover:border-[#3d0000]/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#3d0000]/20 bg-white hover:bg-[#fff0f0] hover:border-[#3d0000]/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Browse shapes"
           >
             <Icon name="category" size="md" className="text-[#3d0000]" />
@@ -241,7 +241,7 @@ export function ElementsPanel({
                 key={divider.id}
                 type="button"
                 onClick={() => onInsertDivider(divider.build(templateTextColor))}
-                className="group relative aspect-[3/1] rounded-md border border-[#dbc1bc]/40 bg-[#fff0f0] hover:bg-[#fadbdb] hover:border-[#3d0000]/40 transition-colors flex items-center justify-center px-2 py-1"
+                className="group relative aspect-[3/1] rounded-md border border-[#3d0000]/20 bg-white hover:bg-[#fff0f0] hover:border-[#3d0000]/40 transition-colors flex items-center justify-center px-2 py-1"
                 aria-label={`Add ${divider.label} divider`}
                 title={divider.label}
               >
