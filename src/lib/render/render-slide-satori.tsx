@@ -192,6 +192,10 @@ export function buildSlideElement(
     : parseInt(template.bodyFontSize, 10) || 32
 
   const accentColor = template.accentColor ?? template.textColor
+  // quick-260514-laa: per-text-box accent-color override (parity with
+  // slide-preview.tsx). Falls back to the template default when unset.
+  const hookAccentColor = hookBox?.accent_color ?? accentColor
+  const bodyAccentColor = bodyBox?.accent_color ?? accentColor
   const useBgMode = isTemplateBgMode
   const useBottomCard =
     useBgMode && template.backgroundMode === 'image-with-bottom-card'
@@ -474,7 +478,7 @@ export function buildSlideElement(
             hookBox?.list_type,
             hookBox?.list_indent,
             isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
-            accentColor,
+            hookAccentColor,
           )}
         </div>
       )}
@@ -487,7 +491,7 @@ export function buildSlideElement(
             bodyBox?.list_type,
             bodyBox?.list_indent,
             isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
-            accentColor,
+            bodyAccentColor,
           )}
         </div>
       )}

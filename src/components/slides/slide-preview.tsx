@@ -715,6 +715,12 @@ export function SlidePreview({
   const bodyPos = overrides.body_position
 
   const accentColor = template.accentColor ?? template.textColor
+  // quick-260514-laa: per-text-box accent-color override. Each block reads
+  // its box's `accent_color` and falls back to the template default. Threads
+  // into renderTextBlock so the right-rail "Highlight color" picker actually
+  // recolors the rendered highlighted words.
+  const hookAccentColor = hookTextBox?.accent_color ?? accentColor
+  const bodyAccentColor = bodyTextBox?.accent_color ?? accentColor
 
   // Phase 45 — graceful-fallback render context for the shared overlay resolver.
   // slideIndex defaults to `index` (the array position prop already in scope);
@@ -1130,8 +1136,8 @@ export function SlidePreview({
           }}>
             <div style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
-                : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
+                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}</span>
+                : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}
             </div>
           </div>
           )}
@@ -1151,8 +1157,8 @@ export function SlidePreview({
             }}>
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}</span>
-                  : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}
+                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}</span>
+                  : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}
               </p>
             </div>
           )}
@@ -1911,8 +1917,8 @@ export function SlidePreview({
               {hookEditing
                 ? slide.hook_text
                 : resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}</span>
-                  : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, accentColor)}
+                  ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}</span>
+                  : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}
             </div>
           </div>
         </Rnd>
@@ -2215,8 +2221,8 @@ export function SlidePreview({
                 {bodyEditing
                   ? slide.body_text
                   : resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                    ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}</span>
-                    : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, accentColor)}
+                    ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}</span>
+                    : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}
               </div>
             </div>
           </Rnd>
