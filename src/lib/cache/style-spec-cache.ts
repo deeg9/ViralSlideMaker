@@ -24,8 +24,20 @@
 // TODO(Phase 74 STYLESPEC-01): replace `unknown` style_spec with the real
 // StyleSpec type once that type ships. This module deliberately stays opaque
 // to the spec shape so Phase 73 can ship before Phase 74's schema lands.
+//
+// Phase 80 (R5) defensive filter: lookupStyleSpec now drops any row whose
+// stored `style_spec.schema_version` is not equal to the current
+// STYLE_SPEC_VERSION (=2). The deploy-time migration
+// `20260514_v213_phase80_style_spec_cache_v2_purge.sql` is the primary purge
+// mechanism, but an in-flight v1 write could land between migration apply
+// and STYLE_SPEC_VERSION rollout — the filter ensures a wrong-version row
+// can never be returned (parseStyleSpecSafe in Plan 80-02 rejects v1 with
+// ok:false; that would surface as a confusing extraction error). Treat
+// schema-mismatched rows as a cache miss; do NOT delete eagerly (the
+// migration owns deletion).
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { STYLE_SPEC_VERSION } from '@/lib/types/style-spec'
 
 const TABLE = 'style_spec_cache'
 const DEFAULT_MODEL = 'gemini-2.5-flash'
@@ -64,6 +76,27 @@ export async function lookupStyleSpec(
 
     if (error || !data) return null
 
+    // Phase 80 R5: defensive schema_version filter — even after the
+    // 20260514_v213_phase80_style_spec_cache_v2_purge.sql migration ran,
+    // an in-flight v1 write could land between the migration apply and
+    // STYLE_SPEC_VERSION rollout. A row at the wrong version cannot be
+    // returned to callers (parseStyleSpecSafe in Plan 80-02 rejects v1
+    // with ok:false; that would surface to the user as a confusing
+    // extraction error). Drop the row defensively here.
+    const candidateSpec = (data as { style_spec: unknown }).style_spec
+    const candidateVersion =
+      typeof candidateSpec === 'object' &&
+      candidateSpec !== null &&
+      !Array.isArray(candidateSpec)
+        ? (candidateSpec as { schema_version?: unknown }).schema_version
+        : undefined
+    if (candidateVersion !== STYLE_SPEC_VERSION) {
+      // Treat as a miss — do NOT bump last_hit_at, do NOT delete eagerly
+      // (the deploy migration owns deletion; this path may run concurrent
+      // with that migration and must remain side-effect-free for safety).
+      return null
+    }
+
     // Fire-and-forget last_hit_at bump — never await; never throw.
     // CONTEXT.md: "load-bearing for future LRU eviction without backfill".
     Promise.resolve(
@@ -88,7 +121,7 @@ export async function lookupStyleSpec(
         )
       })
 
-    return (data as { style_spec: unknown }).style_spec
+    return candidateSpec
   } catch (err) {
     console.warn('[style-spec-cache] lookup failed; treating as miss:', err)
     return null
