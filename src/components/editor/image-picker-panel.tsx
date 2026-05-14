@@ -123,7 +123,7 @@ export function ImagePickerPanel({
           <button
             onClick={handleRegenText}
             disabled={regeneratingText}
-            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb] hover:text-[#3d0000] transition-colors disabled:opacity-50"
             title="Rewrite the text with AI — free"
           >
             <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
@@ -133,7 +133,7 @@ export function ImagePickerPanel({
           <button
             onClick={handleRegenImage}
             disabled={regeneratingImage}
-            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb] hover:text-[#3d0000] transition-colors disabled:opacity-50"
             title="Find a new stock photo — free"
           >
             <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
@@ -244,7 +244,7 @@ export function ImagePickerPanel({
       {/* Upload */}
       {activeTab === 'upload' && (
         <div className="flex flex-col gap-3">
-          <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-[#dbc1bc]/30 rounded-xl cursor-pointer hover:bg-[#fff0f0] transition-colors">
+          <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-[#dbc1bc]/30 rounded-xl cursor-pointer bg-[#fff0f0] hover:bg-[#fadbdb] transition-colors">
             <Icon name="cloud_upload" size="xl" className="text-[#dbc1bc]" />
             <span className="text-xs text-[#7d6161] font-medium">
               {uploading ? 'Uploading...' : 'Click to upload (max 5MB)'}
@@ -279,7 +279,7 @@ export function ImagePickerPanel({
                     onAddCanvasImage(lastUploadedUrl)
                     setLastUploadedUrl(null)
                   }}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/20 bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb] hover:text-[#3d0000] transition-colors"
                 >
                   <Icon name="add_circle" size="sm" />
                   Add Last Upload to Canvas
