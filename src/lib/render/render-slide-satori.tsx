@@ -21,6 +21,7 @@ import {
   renderDecorativeOverlay,
   augmentEditorialSerifPageCounterStyle,
   getNotesAppChicAccentColor,
+  alignToJustifyContent,
   type OverlayResolveCtx,
 } from './resolve-overlay'
 
@@ -250,6 +251,12 @@ export function buildSlideElement(
     display: 'flex',
     flexWrap: 'wrap',
     textAlign: hookTextAlign,
+    // quick-260514-l9q: parity with slide-preview.tsx — also set
+    // justify-content because browsers ignore text-align on flex containers.
+    // Satori already honors text-align here, so this is defense-in-depth /
+    // explicit-intent rather than a Satori bug fix; keeps the two renderers
+    // byte-identical on the alignment axis.
+    justifyContent: alignToJustifyContent(hookTextAlign),
     fontSize: hookFontSize,
     // 260503-0f2: respect overrides + template-level hookFontWeight to match
     // slide-preview.tsx:610. Templates using single-weight display fonts (Anton)
@@ -283,6 +290,8 @@ export function buildSlideElement(
     display: 'flex',
     flexWrap: 'wrap',
     textAlign: bodyTextAlign,
+    // quick-260514-l9q: same parity reason as hookStyle above.
+    justifyContent: alignToJustifyContent(bodyTextAlign),
     fontSize: bodyFontSize,
     fontWeight: 400,
     lineHeight: 1.5,
