@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { templates } from '@/lib/render/templates/index'
+import { pickerTemplates } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { makeSampleSlide } from '@/lib/render/sample-slide'
@@ -98,7 +98,7 @@ export function TemplatePicker({ selectedId, onSelect, brandKit }: TemplatePicke
         </Link>
       )}
 
-      {templates.map((template) => {
+      {pickerTemplates.map((template) => {
         const isSelected = selectedId === template.id
         return (
           <button
