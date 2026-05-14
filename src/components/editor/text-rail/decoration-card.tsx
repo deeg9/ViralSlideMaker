@@ -21,7 +21,11 @@
  *        - polygon → points enum [5, 6, 8]
  *        - star → points enum [5, 6]
  *        - rect/circle/ellipse/star → aspect-ratio lock toggle
- *   6. <DecorationEffects /> — drop shadow + opacity slider (WR-01).
+ *   6. Delete (trash icon, right-aligned).
+ *
+ * quick-260514-ks0: removed the drop-shadow + opacity controls
+ * (DecorationEffects) from this card per user request — those toggles were
+ * adding noise without clear user value at the current product stage.
  *
  * KBD-09 contract: every dispatch is a single-pushHistory gesture.
  *   - Color pickers: 300ms debounced commit (smooth-update UX).
@@ -34,6 +38,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { HexAlphaColorPicker, HexColorPicker, HexColorInput } from 'react-colorful'
+import { Icon } from '@/components/ui/icon'
 import { decorationLabel } from '@/lib/editor/addressable-element-walkers'
 import type {
   Decoration,
@@ -43,7 +48,6 @@ import type {
   ShapeKind,
 } from '@/lib/types/decoration'
 import type { BrandKit } from '@/lib/types/brand-kit'
-import { DecorationEffects } from './decoration-card-effects'
 import { renderDecoration } from '@/lib/render/decoration-renderer'
 
 export interface DecorationCardProps {
@@ -396,21 +400,24 @@ export function DecorationCard({
         <PerShapeControls decoration={d as ShapeDecoration} onUpdate={onUpdate} />
       )}
 
-      {/* Effects (shadow + opacity) */}
-      <DecorationEffects decoration={d} onUpdate={onUpdate} onPreview={onPreview} />
-
-      {/* Delete — single dispatch via parent's REMOVE_DECORATION channel
-          (KBD-09 — one history entry per gesture). Matches the visual
-          grammar of CustomTextEditor's delete button. */}
+      {/* Delete — small trash icon, right-aligned. Single dispatch via the
+          parent's REMOVE_DECORATION channel (KBD-09 — one history entry per
+          gesture). quick-260514-ks0: replaced the "Delete shape/icon" pill
+          with an icon-only button; drop-shadow + opacity controls removed
+          from this card per the same task. */}
       {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          data-testid="decoration-card-delete"
-          className="w-full py-2 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
-        >
-          Delete {roleLabel(d) === 'ICON' ? 'icon' : 'shape'}
-        </button>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onRemove}
+            data-testid="decoration-card-delete"
+            aria-label={`Delete ${roleLabel(d) === 'ICON' ? 'icon' : 'shape'}`}
+            title={`Delete ${roleLabel(d) === 'ICON' ? 'icon' : 'shape'}`}
+            className="p-2 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            <Icon name="delete" size="sm" />
+          </button>
+        </div>
       )}
     </div>
   )

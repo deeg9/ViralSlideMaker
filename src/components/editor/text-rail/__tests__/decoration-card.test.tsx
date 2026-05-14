@@ -468,14 +468,8 @@ describe('Phase 70 Plan 04 — DecorationCard (CARD-01..05, SHAPES-06..09)', () 
     })
   })
 
-  describe('Effects sub-component mount (CARD-05)', () => {
-    it('renders DecorationEffects placeholder', () => {
-      const { container } = render(
-        <DecorationCard decoration={baseShape} onUpdate={vi.fn()} />,
-      )
-      expect(
-        container.querySelector('[data-testid="decoration-effects"]'),
-      ).toBeTruthy()
-    })
-  })
+  // quick-260514-ks0: drop-shadow + opacity controls (DecorationEffects)
+  // removed from DecorationCard per user request. Effects sub-component
+  // tests live in decoration-card-effects.test.tsx; that component is no
+  // longer mounted by the card.
 })
