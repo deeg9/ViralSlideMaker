@@ -32,17 +32,45 @@
 //   import type { StyleSpec } from '@/lib/types/style-spec'
 //   import { parseStyleSpecSafe } from '@/lib/validators/style-spec'
 //   import { createSilentDropCounter } from '@/lib/validators/silent-drop-counter'
+//
+// =====================================================================
+// PHASE 80 EXTENSION (composition-aware schema):
+// =====================================================================
+// STYLE_SPEC_VERSION is bumped 1 → 2 to land the composition-aware shape.
+//   - `slideArchetype` is an 8-value closed enum imported from
+//     `@/lib/types/style-spec-archetypes` (SLIDE_ARCHETYPES tuple).
+//   - `ArchetypeSlots` is a TypeScript discriminated union keyed on
+//     `slideArchetype`; it supplies the discriminator AND the per-archetype
+//     slot block (e.g. `caption` for caption-bar archetypes, `split` for
+//     photo-collage-2up) in a single keyed shape. The top-level StyleSpec
+//     composes via intersection (`& ArchetypeSlots`).
+//   - PARITY-05 closed-enum invariant is preserved: no new free-text
+//     fields. `voice_note` remains the sole free-text field.
+//
+// Downstream consumers blocked-on this contract:
+//   - Plan 02 enforces the discriminated union at the Zod boundary
+//     (`z.discriminatedUnion('slideArchetype', [...])`) and rejects
+//     schema_version != 2 payloads.
+//   - Plan 03 expands the Gemini system prompt + responseSchema to
+//     elicit archetype classification.
+//   - Plan 04 emits `template_id_override` from `slideArchetype` per the
+//     locked ARCHETYPE_TO_TEMPLATE map and uses DEFAULT_FALLBACK_ARCHETYPE
+//     when extraction returns no archetype.
+//   - Plan 06 purges all schema_version != 2 cache rows on deploy.
+// =====================================================================
 
 import type { FontEntry } from '@/lib/fonts/font-catalog'
 import type { LucideDecorationName } from '@/lib/render/decorations/registry'
 import type { ShapeKind } from '@/lib/types/decoration'
 import type { BrandKitTextPosition } from '@/lib/types/brand-kit'
 import type { TreatmentPreset } from '@/lib/photo-treatment/treat'
+import type { ArchetypeSlots } from '@/lib/types/style-spec-archetypes'
 
 /** Schema version literal — bump when StyleSpec shape changes. Cheap
-    future-proofing per CONTEXT.md Claude's discretion. */
-export type StyleSpecVersion = 1
-export const STYLE_SPEC_VERSION: StyleSpecVersion = 1
+    future-proofing per CONTEXT.md Claude's discretion.
+    Always 2; bumped at Phase 80 (composition-aware schema). */
+export type StyleSpecVersion = 2
+export const STYLE_SPEC_VERSION: StyleSpecVersion = 2
 
 /**
  * Palette section — color mode + role colors (all hex, validated by Zod).
@@ -120,8 +148,17 @@ export interface StyleSpecRhythm {
  * NOTE: voice_note is the ONLY free-text field (STYLESPEC-09). The Zod
  * validator HTML-strips, single-lines, and length-caps it at 200 chars
  * before storage. Every other string field is a closed enum.
+ *
+ * Phase 80: intersected with `ArchetypeSlots` (a discriminated union keyed
+ * on `slideArchetype`). This supplies the 8-value archetype discriminator
+ * AND the per-archetype slot block in a single keyed shape, so consumers
+ * narrow on `spec.slideArchetype === '...'` to access typed slot fields
+ * (e.g. `spec.caption` for caption-bar archetypes). The change from
+ * `interface` to `type` is required because TypeScript `interface` cannot
+ * extend a discriminated union; downstream `import type { StyleSpec }`
+ * usage is wire-compatible.
  */
-export interface StyleSpec {
+export type StyleSpec = {
   schema_version: StyleSpecVersion
   palette: StyleSpecPalette
   typography: StyleSpecTypography
@@ -132,4 +169,4 @@ export interface StyleSpec {
   /** ONLY free-text field. Sanitized at the Zod boundary
       (HTML-stripped, single line, <=200 chars). */
   voice_note?: string
-}
+} & ArchetypeSlots
