@@ -1820,47 +1820,50 @@ export function SlideEditor({
                 watermark-style white card with brown border so it reads as
                 a sibling portlet to the section cards above. */}
             <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mt-4 mx-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={undo}
-                    disabled={!canUndo}
-                    className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
-                    title="Undo"
-                  >
-                    <Icon name="undo" size="sm" />
-                  </button>
-                  <button
-                    onClick={redo}
-                    disabled={!canRedo}
-                    className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
-                    title="Redo"
-                  >
-                    <Icon name="redo" size="sm" />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <VisibilityDropdown
-                    projectId={projectId}
-                    title={title ?? 'Untitled Carousel'}
-                    isPublic={!!initialPublishedState}
-                    tags={initialPublishedState?.tags ?? []}
-                  />
-                  <button
-                    onClick={async () => {
-                      setExporting(true)
-                      try {
-                        await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
-                      } catch { /* silently handle */ }
-                      finally { setExporting(false) }
-                    }}
-                    disabled={exporting}
-                    className="px-4 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
-                  >
-                    <Icon name="download" size="sm" />
-                    {exporting ? 'Exporting...' : 'Export'}
-                  </button>
-                </div>
+              {/* quick-260514-footer-stack: Private + Export were sharing a row
+                  with Undo/Redo and the Export pill was bleeding past the card's
+                  right edge. Stacked into two rows instead: Undo/Redo on top,
+                  Private + Export below taking equal flex-1 widths so they
+                  always fit no matter the rail width. */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={undo}
+                  disabled={!canUndo}
+                  className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                  title="Undo"
+                >
+                  <Icon name="undo" size="sm" />
+                </button>
+                <button
+                  onClick={redo}
+                  disabled={!canRedo}
+                  className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                  title="Redo"
+                >
+                  <Icon name="redo" size="sm" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <VisibilityDropdown
+                  projectId={projectId}
+                  title={title ?? 'Untitled Carousel'}
+                  isPublic={!!initialPublishedState}
+                  tags={initialPublishedState?.tags ?? []}
+                />
+                <button
+                  onClick={async () => {
+                    setExporting(true)
+                    try {
+                      await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
+                    } catch { /* silently handle */ }
+                    finally { setExporting(false) }
+                  }}
+                  disabled={exporting}
+                  className="flex-1 min-w-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
+                >
+                  <Icon name="download" size="sm" />
+                  <span className="truncate">{exporting ? 'Exporting...' : 'Export'}</span>
+                </button>
               </div>
               {(userTier ?? 'free') === 'free' && (
                 <p className="text-[11px] text-[#7d6161] leading-snug">
