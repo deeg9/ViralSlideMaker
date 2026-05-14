@@ -1447,42 +1447,13 @@ export function SlideEditor({
         className="grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] flex-1 min-h-0 overflow-hidden gap-0 lg:gap-3 px-0 lg:px-2 py-0 lg:py-2"
         data-testid="editor-grid"
       >
-        {/* Left panel: Slide thumbnails + actions at bottom */}
+        {/* Left panel: Top actions row + slide thumbnails. quick-260514-presentation-header:
+            the old "Presentation / N Slides" label was removed and the action bar
+            (back, title, slide actions, help) moved from the bottom to here at the
+            top — same two-row composition, same paddings, same icon-button styles. */}
         <aside className="bg-[#fff0f0] lg:rounded-xl flex flex-col overflow-hidden">
-          <div className="p-4 flex flex-col gap-4 flex-1 overflow-y-auto">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#3d0000] mb-1">
-                Presentation
-              </span>
-              <span className="text-[#795e5e] text-xs">{slides.length} Slides</span>
-            </div>
-            <SlideList
-              slides={slides}
-              template={template}
-              selectedIndex={selectedIndex}
-              onSelect={setSelectedIndex}
-              brandKit={brandKit}
-              userTier={userTier ?? 'free'}
-              topic={topic}
-              onReorder={(from, to) => {
-                dispatch({ type: 'REORDER_SLIDES', from, to })
-                setSelectedIndex(to)
-              }}
-            />
-            {currentSlide && (
-              <LayersPanel
-                slide={currentSlide}
-                selection={selection}
-                onRename={handleLayerRename}
-                onLockToggle={handleLayerLockToggle}
-                onVisibilityToggle={handleLayerVisibilityToggle}
-                onReorder={handleLayerReorder}
-              />
-            )}
-          </div>
-
-          {/* Bottom actions: back, title, slide actions, help */}
-          <div className="p-3 border-t border-[#dbc1bc]/20 space-y-3">
+          {/* Top actions: back, title, slide actions, help (formerly at bottom) */}
+          <div className="p-3 border-b border-[#dbc1bc]/20 space-y-3">
             {/* Back + Title */}
             <div className="flex items-center gap-2">
               <Link
@@ -1551,6 +1522,32 @@ export function SlideEditor({
                 <Icon name="help" size="sm" />
               </button>
             </div>
+          </div>
+
+          <div className="p-4 flex flex-col gap-4 flex-1 overflow-y-auto">
+            <SlideList
+              slides={slides}
+              template={template}
+              selectedIndex={selectedIndex}
+              onSelect={setSelectedIndex}
+              brandKit={brandKit}
+              userTier={userTier ?? 'free'}
+              topic={topic}
+              onReorder={(from, to) => {
+                dispatch({ type: 'REORDER_SLIDES', from, to })
+                setSelectedIndex(to)
+              }}
+            />
+            {currentSlide && (
+              <LayersPanel
+                slide={currentSlide}
+                selection={selection}
+                onRename={handleLayerRename}
+                onLockToggle={handleLayerLockToggle}
+                onVisibilityToggle={handleLayerVisibilityToggle}
+                onReorder={handleLayerReorder}
+              />
+            )}
           </div>
         </aside>
 
