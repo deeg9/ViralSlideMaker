@@ -352,10 +352,54 @@ export function GenerationForm({
         )}
       </div>
 
+      {/* Copy style — collapsible (quick-260514-g7y + 260514-g7y-followup).
+          Inlines the style-from-reference flow: upload 1–3 reference
+          images, click Extract style, review the spec, toggle Apply
+          aspects. handleSubmit reads inlineSpec on the Generate
+          Carousel click and routes through regenerateAction when a
+          spec is present (overriding the selected template — locked
+          decision: "extracted spec wins"). Positioned ABOVE Select
+          Visual Style so users encounter the "copy a style" option
+          before the manual template picker. */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowInspiredByRefs(!showInspiredByRefs)}
+          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
+          aria-expanded={showInspiredByRefs}
+        >
+          Copy style
+          {inlineSpec?.spec && (
+            <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-wider">
+              · Style extracted
+            </span>
+          )}
+          <Icon
+            name="expand_more"
+            size="sm"
+            className={`transition-transform ${showInspiredByRefs ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {showInspiredByRefs && (
+          <div className="mt-4">
+            <StyleFromReferenceShell
+              projectId={projectId}
+              targetProjectId={projectId}
+              currentTopic={topic}
+              brandKit={brandKit ?? null}
+              brandKitAvailable={brandKit != null}
+              tosAlreadyAccepted={tosAlreadyAccepted}
+              acceptTosAction={acceptTosAction}
+              hideGenerateCta
+              onSpecChange={setInlineSpec}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Template Picker — collapsible. (quick-260514-g7y: the References
           pill was removed from this header. The style-from-reference flow
-          now lives in its own "Inspired by references" collapsible below
-          and inherits the full upload + extract + spec preview UX. The
+          now lives in its own "Copy style" collapsible above, and the
           standalone /style-from-reference/new page is gone.) */}
       <div>
         <div className="flex justify-between items-center mb-3">
@@ -519,49 +563,6 @@ export function GenerationForm({
           </p>
         )}
         </>
-        )}
-      </div>
-
-      {/* Inspired by references — collapsible (quick-260514-g7y).
-          Inlines the style-from-reference flow: upload 1–3 reference
-          images, click Extract style, review the spec, toggle Apply
-          aspects. handleSubmit reads inlineSpec on the Generate
-          Carousel click and routes through regenerateAction when a
-          spec is present (overriding the selected template — locked
-          decision: "extracted spec wins"). */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowInspiredByRefs(!showInspiredByRefs)}
-          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
-          aria-expanded={showInspiredByRefs}
-        >
-          Inspired by references
-          {inlineSpec?.spec && (
-            <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-wider">
-              · Style extracted
-            </span>
-          )}
-          <Icon
-            name="expand_more"
-            size="sm"
-            className={`transition-transform ${showInspiredByRefs ? 'rotate-180' : ''}`}
-          />
-        </button>
-        {showInspiredByRefs && (
-          <div className="mt-4">
-            <StyleFromReferenceShell
-              projectId={projectId}
-              targetProjectId={projectId}
-              currentTopic={topic}
-              brandKit={brandKit ?? null}
-              brandKitAvailable={brandKit != null}
-              tosAlreadyAccepted={tosAlreadyAccepted}
-              acceptTosAction={acceptTosAction}
-              hideGenerateCta
-              onSpecChange={setInlineSpec}
-            />
-          </div>
         )}
       </div>
 
