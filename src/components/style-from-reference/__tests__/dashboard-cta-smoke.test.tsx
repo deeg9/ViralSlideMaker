@@ -27,7 +27,12 @@ describe('Phase 76 Plan 03 (quick-260514-relocated): References CTA wiring', () 
   const formSrc = readFileSync(generationFormPath, 'utf8')
 
   it('Test 1: generation form links to /style-from-reference/new (Next.js (dashboard) route group is stripped from URL)', () => {
-    expect(formSrc).toContain('href="/style-from-reference/new"')
+    // Accept either a plain href="…" or a template-literal href={`…?from=…`}
+    // since quick-260514-back-button passes a ?from= query param to give the
+    // back-button a same-origin return path. We anchor on the URL itself
+    // (followed by `?` query string, closing quote, or closing backtick)
+    // rather than the href= prefix so both JSX shapes pass.
+    expect(formSrc).toMatch(/\/style-from-reference\/new(\?|"|`)/)
     // Defensive: assert we did NOT regress to the broken /dashboard/-prefixed URL
     expect(formSrc).not.toContain('/dashboard/style-from-reference/new')
   })

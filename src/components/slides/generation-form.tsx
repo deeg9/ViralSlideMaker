@@ -322,7 +322,7 @@ export function GenerationForm({
             />
           </button>
           <Link
-            href="/style-from-reference/new"
+            href={`/style-from-reference/new?from=${encodeURIComponent(`/project/${projectId}`)}`}
             data-testid="from-references-cta"
             title="Upload up to 8 images and generate a slideshow inspired by their style"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#dbc1bc] hover:border-[#3d0000] text-[#3d0000] text-[11px] font-bold uppercase tracking-wider transition-colors"
