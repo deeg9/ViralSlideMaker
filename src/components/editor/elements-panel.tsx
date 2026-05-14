@@ -53,6 +53,14 @@ interface ElementsPanelProps {
   onDecorationUpdate?: (updates: Partial<Decoration>) => void
   /** Dispatches REMOVE_DECORATION for the active decoration + clears selection. */
   onDecorationRemove?: () => void
+  /** Opens the icon picker in SWAP mode — replaces the currently selected
+   *  icon's lucideName in place rather than inserting a new decoration. Only
+   *  wired when the active decoration is an icon. */
+  onSwapIcon?: () => void
+  /** Clears selection so the panel returns to library mode (icons/shapes/
+   *  dividers tiles). Used by the back-to-library link rendered above the
+   *  inspector when a decoration is selected. */
+  onBackToLibrary?: () => void
   /** Opens the lazy-loaded LucidePicker modal (118-icon Lucide library). */
   onOpenIconPicker?: () => void
   /** Opens the ShapePicker popover (rect, circle, polygon, star, etc.). */
@@ -69,6 +77,8 @@ export function ElementsPanel({
   activeDecoration,
   onDecorationUpdate,
   onDecorationRemove,
+  onSwapIcon,
+  onBackToLibrary,
   onOpenIconPicker,
   onOpenShapePicker,
   brandKit,
@@ -85,12 +95,25 @@ export function ElementsPanel({
   // Render the inspector card so the user can edit + delete it here.
   // ───────────────────────────────────────────────────────────────────
   if (activeDecoration) {
+    const isIcon = activeDecoration.kind === 'icon'
     return (
-      <div className="p-4">
+      <div className="p-4 space-y-3">
+        {onBackToLibrary && (
+          <button
+            type="button"
+            onClick={onBackToLibrary}
+            data-testid="elements-panel-back-to-library"
+            className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-[#7d6161] hover:text-[#3d0000] transition-colors focus:outline-none focus-visible:underline"
+          >
+            <span aria-hidden="true">←</span>
+            <span>Browse {isIcon ? 'icon' : 'element'} library</span>
+          </button>
+        )}
         <DecorationCard
           decoration={activeDecoration}
           onUpdate={(updates) => onDecorationUpdate?.(updates)}
           onRemove={onDecorationRemove}
+          onSwapIcon={isIcon ? onSwapIcon : undefined}
           brandKit={brandKit}
           derivedPalette={derivedPalette}
         />

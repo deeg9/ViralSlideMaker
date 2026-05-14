@@ -44,6 +44,7 @@ import type {
 } from '@/lib/types/decoration'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import { DecorationEffects } from './decoration-card-effects'
+import { renderDecoration } from '@/lib/render/decoration-renderer'
 
 export interface DecorationCardProps {
   decoration: Decoration
@@ -52,6 +53,11 @@ export interface DecorationCardProps {
    *  selection.primary so the ring doesn't linger on a stale id. When omitted
    *  the Delete button does not render. */
   onRemove?: () => void
+  /** When provided AND the decoration is an icon, the header label becomes a
+   *  clickable pill (thumbnail + name + chevron) that opens the icon picker
+   *  in swap-mode. Parent is responsible for setting picker mode + dispatching
+   *  UPDATE_DECORATION when the user picks a replacement. */
+  onSwapIcon?: () => void
   brandKit?: BrandKit | null
   derivedPalette?: string[]
 }
@@ -97,6 +103,7 @@ export function DecorationCard({
   decoration: d,
   onUpdate,
   onRemove,
+  onSwapIcon,
   brandKit,
   derivedPalette,
 }: DecorationCardProps) {
@@ -198,19 +205,51 @@ export function DecorationCard({
       data-kind={d.kind}
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span
           className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]"
           data-testid="decoration-card-role"
         >
           {roleLabel(d)}
         </span>
-        <span
-          className="text-xs font-bold text-[#3d0000] truncate max-w-[60%]"
-          data-testid="decoration-card-label"
-        >
-          {decorationLabel(d)}
-        </span>
+        {isIcon && onSwapIcon ? (
+          <button
+            type="button"
+            onClick={onSwapIcon}
+            data-testid="decoration-card-swap-icon"
+            aria-label={`Swap ${decorationLabel(d)} for a different icon`}
+            className="group flex items-center gap-1.5 max-w-[70%] rounded-full border border-[#dbc1bc]/40 bg-[#fdf7f2] hover:bg-[#fff0f0] hover:border-[#3d0000]/40 px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000]/40"
+          >
+            <span
+              style={{ position: 'relative', width: 16, height: 16, flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              {renderDecoration(
+                { ...(d as IconDecoration), position: { x: 0, y: 0, width: 100, height: 100 } },
+                {},
+              )}
+            </span>
+            <span
+              className="text-xs font-bold text-[#3d0000] truncate"
+              data-testid="decoration-card-label"
+            >
+              {decorationLabel(d)}
+            </span>
+            <span
+              className="text-[#7d6161] group-hover:text-[#3d0000] text-xs leading-none flex-shrink-0"
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
+        ) : (
+          <span
+            className="text-xs font-bold text-[#3d0000] truncate max-w-[60%]"
+            data-testid="decoration-card-label"
+          >
+            {decorationLabel(d)}
+          </span>
+        )}
       </div>
 
       {/* Fill */}
