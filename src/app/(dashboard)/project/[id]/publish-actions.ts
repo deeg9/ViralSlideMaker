@@ -119,26 +119,40 @@ export async function publishProjectToExplore(
     .maybeSingle()
   const brandKit = (brandKitRow as BrandKit) ?? null
 
-  // Render hero PNG (slide 1)
+  // Render hero PNG (slide 1). quick-260514-visibility-fixes: render failures
+  // (typically Satori CSS-subset edge cases) used to hard-fail publish and
+  // block the user. Now we fall back to the first slide's existing
+  // `background_url` so the row still gets a usable thumbnail and publish
+  // succeeds; the divergence is logged for separate investigation.
   const proto =
     process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  let heroBuffer: Buffer
+  let heroUrl: string | null = null
+  let heroFilename: string | null = null
   try {
-    heroBuffer = await renderHero(project, brandKit, proto)
+    const heroBuffer = await renderHero(project, brandKit, proto)
+    heroFilename = `${user.id}/${crypto.randomUUID()}.png`
+    const { error: uploadErr } = await supabase.storage
+      .from('hero-thumbnails')
+      .upload(heroFilename, heroBuffer, { contentType: 'image/png', upsert: false })
+    if (uploadErr) {
+      // Upload failed after a successful render — fall through to background_url fallback.
+      console.warn('[publish] hero upload failed, using background_url fallback:', uploadErr.message)
+      heroFilename = null
+    } else {
+      const { data: pub } = supabase.storage.from('hero-thumbnails').getPublicUrl(heroFilename)
+      heroUrl = pub.publicUrl
+    }
   } catch (err) {
-    return { success: false, error: `Hero render failed: ${(err as Error).message}` }
+    console.warn('[publish] hero render failed, using background_url fallback:', (err as Error).message)
   }
 
-  // Upload hero to public bucket BEFORE inserting the published row, so we have a URL
-  const heroFilename = `${user.id}/${crypto.randomUUID()}.png`
-  const { error: uploadErr } = await supabase.storage
-    .from('hero-thumbnails')
-    .upload(heroFilename, heroBuffer, { contentType: 'image/png', upsert: false })
-  if (uploadErr) {
-    return { success: false, error: `Hero upload failed: ${uploadErr.message}` }
+  if (!heroUrl) {
+    const fallback = project.slide_data[0]?.background_url
+    if (!fallback) {
+      return { success: false, error: 'Could not render or fall back to a thumbnail. Add a background image to the first slide and try again.' }
+    }
+    heroUrl = fallback
   }
-  const { data: pub } = supabase.storage.from('hero-thumbnails').getPublicUrl(heroFilename)
-  const heroUrl = pub.publicUrl
 
   // Call publish_carousel RPC
   const { data: published, error: rpcErr } = await supabase.rpc('publish_carousel', {
@@ -150,8 +164,11 @@ export async function publishProjectToExplore(
   })
 
   if (rpcErr) {
-    // Best-effort cleanup of orphaned hero
-    await supabase.storage.from('hero-thumbnails').remove([heroFilename])
+    // Best-effort cleanup of orphaned hero (only if we actually uploaded one;
+    // the background_url fallback path leaves heroFilename null).
+    if (heroFilename) {
+      await supabase.storage.from('hero-thumbnails').remove([heroFilename])
+    }
     return { success: false, error: rpcErr.message }
   }
 
