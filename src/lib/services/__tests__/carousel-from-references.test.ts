@@ -44,8 +44,13 @@ import type { StyleSpec } from '@/lib/types/style-spec'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
 function makeSpec(overrides?: Partial<StyleSpec>): StyleSpec {
+  // Cast: Partial<StyleSpec> over a discriminated union (StyleSpec is intersected
+  // with ArchetypeSlots in Phase 80) cannot be spread back into the union without
+  // collapsing the discriminator. Spec contract is concrete here:
+  // slideArchetype='full-bleed-text-overlay' (EmptySlots variant).
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: { mode: 'solid', primary: '#A8E0B0' },
     typography: {},
     layout: {},
@@ -53,7 +58,7 @@ function makeSpec(overrides?: Partial<StyleSpec>): StyleSpec {
     decorations: {},
     rhythm: {},
     ...overrides,
-  }
+  } as StyleSpec
 }
 
 function makeSupabase(updateError: { message: string } | null = null) {

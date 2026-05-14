@@ -66,7 +66,8 @@ import { StyleFromReferenceShell } from '../style-from-reference-shell'
 
 function makeSpec(): StyleSpec {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: { mode: 'solid', primary: '#A8E0B0' },
     typography: { hookFontCategory: 'sans-serif' },
     layout: { hookPosition: 'top', density: 'medium' },

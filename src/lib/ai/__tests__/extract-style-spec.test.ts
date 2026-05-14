@@ -148,8 +148,13 @@ function makeRefBytes(n: number): Buffer[] {
 }
 
 function makeValidStyleSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
+  // Cast: Partial<StyleSpec> over a discriminated union (StyleSpec is intersected
+  // with ArchetypeSlots in Phase 80) cannot be spread back into the union without
+  // collapsing the discriminator. Spec contract is concrete here:
+  // slideArchetype='full-bleed-text-overlay' (EmptySlots variant).
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: { mode: 'solid', primary: '#A8E0B0' },
     typography: { hookFontCategory: 'sans-serif' },
     layout: { hookPosition: 'top', density: 'medium' },
@@ -158,7 +163,7 @@ function makeValidStyleSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
     rhythm: { cadence: 'punchy' },
     voice_note: 'Bold magazine voice',
     ...overrides,
-  }
+  } as StyleSpec
 }
 
 function makeCounter(counts: Record<string, number> = {}) {

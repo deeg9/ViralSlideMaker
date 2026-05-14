@@ -45,7 +45,7 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
       // Discriminated narrowing on `ok` must compile.
       if (r.ok) {
         // Inside this branch we have ExtractSuccess fields available.
-        return r.spec.schema_version === 1 ? 'success' : 'unexpected-version'
+        return r.spec.schema_version === 2 ? 'success' : 'unexpected-version'
       }
       // Inside this branch we have ExtractError fields available.
       return r.error
@@ -57,7 +57,8 @@ describe('Phase 75 Plan 01: extract-style-spec.types — type contract', () => {
     const success: ExtractSuccess = {
       ok: true,
       spec: {
-        schema_version: 1,
+        schema_version: 2,
+        slideArchetype: 'full-bleed-text-overlay',
         palette: { mode: 'solid', primary: '#FFFFFF' },
         typography: {},
         layout: {},

@@ -161,7 +161,8 @@ describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier map
     const successResult = {
       ok: true as const,
       spec: {
-        schema_version: 1,
+        schema_version: 2,
+        slideArchetype: 'full-bleed-text-overlay',
         palette: { mode: 'solid', primary: '#A8E0B0' },
         typography: {},
         layout: {},
@@ -294,7 +295,8 @@ describe('Phase 76 Plan 01: extractStyleSpecAction — auth + storage + tier map
 describe('Phase 77 Plan 02 Task 4: regenerateAction (EMIT-02 + EDITOR-01)', () => {
   function makeSpec(): import('@/lib/types/style-spec').StyleSpec {
     return {
-      schema_version: 1,
+      schema_version: 2,
+      slideArchetype: 'full-bleed-text-overlay',
       palette: { mode: 'solid', primary: '#A8E0B0' },
       typography: {},
       layout: {},
