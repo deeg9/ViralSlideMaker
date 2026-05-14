@@ -23,6 +23,13 @@ export interface StickyReferenceStripProps {
   /** Optional slot Plan 76-03 uses to render inline refusal-warning chips
    *  alongside the matching thumbnail. */
   slotPerReference?: (row: ReferenceAssetRow, idx: number) => ReactNode
+  /** Optional storage-path → blob-URL map for session uploads. The slide-
+   *  references bucket is private, so `row.url` (a storage path) renders
+   *  404 when used directly as <img src>. The uploader passes blob URLs
+   *  via this map so in-session thumbnails render without a signed-URL
+   *  round-trip. Pre-existing references not in the map fall back to
+   *  `row.url` (which is what older callers and persisted rows expect). */
+  previewUrls?: Record<string, string>
 }
 
 export function StickyReferenceStrip(props: StickyReferenceStripProps) {
@@ -53,7 +60,7 @@ export function StickyReferenceStrip(props: StickyReferenceStripProps) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={row.url}
+            src={props.previewUrls?.[row.url] ?? row.url}
             alt={row.original_filename}
             className="w-full h-full object-cover"
           />
