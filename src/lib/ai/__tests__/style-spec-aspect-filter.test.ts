@@ -13,6 +13,7 @@ import {
   NEUTRAL_LAYOUT_DEFAULT,
   NEUTRAL_DECORATIONS_DEFAULT,
 } from '@/lib/ai/style-spec-aspect-filter'
+import { AI_LUCIDE_ALLOWLIST, AI_SHAPE_KINDS } from '@/lib/ai/schemas'
 import type { StyleSpec } from '@/lib/types/style-spec'
 import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
 
@@ -108,12 +109,18 @@ describe('applyAspectFilter', () => {
   })
 
   // Test 5
-  it('replaces decorations with NEUTRAL_DECORATIONS_DEFAULT when decorations:false', () => {
+  it('replaces decorations with NEUTRAL_DECORATIONS_DEFAULT (full-corpora "any" signal) when decorations:false', () => {
+    // Phase 80 CR-02: NEUTRAL_DECORATIONS_DEFAULT now expands to the FULL
+    // corpora (AI_LUCIDE_ALLOWLIST + AI_SHAPE_KINDS) so the user-facing
+    // contract "decorations toggle OFF = AI may pick anything" is preserved
+    // post-R7. Empty preferred* now exclusively means "extracted-empty: emit
+    // no icons" (R7); the neutralization path materializes the corpus to
+    // distinguish itself.
     const spec = buildSpec()
     const result = applyAspectFilter(spec, { ...ALL_TRUE, decorations: false })
     expect(result.decorations).toEqual(NEUTRAL_DECORATIONS_DEFAULT)
-    expect(result.decorations.preferredLucide).toEqual([])
-    expect(result.decorations.preferredShapes).toEqual([])
+    expect(result.decorations.preferredLucide).toEqual([...AI_LUCIDE_ALLOWLIST])
+    expect(result.decorations.preferredShapes).toEqual([...AI_SHAPE_KINDS])
     expect(result.decorations.density).toBeUndefined()
     expect(result.palette).toEqual(spec.palette)
     expect(result.typography).toEqual(spec.typography)
