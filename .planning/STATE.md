@@ -4,8 +4,8 @@ milestone: v2.13
 milestone_name: Style-from-Reference Generation
 status: completed
 stopped_at: Roadmap locked. Awaiting `/gsd-plan-phase 73` to begin execution.
-last_updated: "2026-05-14T21:30:00.000Z"
-last_activity: 2026-05-14 -- Completed quick task 260514-jn5: fix icon/element editor bugs — move DecorationCard to Elements tab w/ auto-tab-switch, add Delete button, wire Icons & Shapes picker tiles into ElementsPanel
+last_updated: "2026-05-14T21:40:00.000Z"
+last_activity: 2026-05-14 -- Completed quick task 260514-k3j: centralize auto-publish-on-generate across all three generation paths (api/v1/carousel, style-from-reference, main Create form) via new lib/services/auto-publish-on-generate.ts helper — kills the recurring "Private by default" regression at its root
 progress:
   total_phases: 7
   completed_phases: 7
@@ -187,6 +187,7 @@ Last activity: 2026-05-12 -- Completed quick task 260511-uk1: fix carousel palet
 | 260514-hide-styles | Hide 5 deprecated visual styles from picker (highlight-bar, news-drop, magazine-bold, documentary, brutalist-grid). Kept in registry so legacy projects render; added `HIDDEN_FROM_PICKER` set + `pickerTemplates` filtered export. | 2026-05-14 | 70e6528 | [20260514-hide-deprecated-styles-from-picker](./quick/20260514-hide-deprecated-styles-from-picker/) |
 | 260514-icon-pill | Figma-style icon-swap pill + "← Browse {icon\|element} library" link in the Elements inspector. Replaces the dead "AlertTriangle" label with a clickable pill (thumbnail + name + chevron) that opens LucidePicker in swap-mode. Adds `pickerMode` state in slide-editor so picker success dispatches UPDATE_DECORATION (preserves position/color/size) instead of ADD_DECORATION. | 2026-05-14 | 8e25d8f | [20260514-icon-swap-pill-back-to-library](./quick/20260514-icon-swap-pill-back-to-library/) |
 | 260514-jn5 | Fix icon/element editor bugs — move DecorationCard from Text tab to Elements tab w/ auto-tab-switch on decoration select, add Delete button, wire Icons + Shapes picker tiles into ElementsPanel library mode | 2026-05-14 | 4f2c55e | [260514-jn5-fix-icon-element-editor-bugs](./quick/260514-jn5-fix-icon-element-editor-bugs/) |
+| 260514-k3j | Centralize auto-publish-on-generate across all three carousel generation paths — new `lib/services/auto-publish-on-generate.ts` helper called from `generateCarousel`, `generateCarouselFromReferences`, and `actions.ts` `generateCarousel`. Kills the recurring "Private by default" regression at the source: any new generation path is one call away from honoring public-by-default. | 2026-05-14 | — | [260514-k3j-auto-publish-on-generate-everywhere](./quick/260514-k3j-auto-publish-on-generate-everywhere/) |
 
 **Follow-up note:** Hero PNG re-render for historical `published_carousels` rows is OUT OF SCOPE of quick-260511-uk1. Existing rows keep their (now-stale) `hero_image_url`; users can republish to get a fresh PNG. A future quick task could add an admin one-shot script that iterates rows and re-runs `renderHeroBuffer` against the snapshotted `(slide_data, template_id, style_spec)` triple.
 
