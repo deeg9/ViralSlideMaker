@@ -152,19 +152,23 @@ describe('Phase 74 (STYLESPEC-10, PARITY-03): createSilentDropCounter', () => {
     expect(counter.getCount()).toBe(1)
   })
 
-  it('Test 7b: SilentDropEvent.reason is restricted to 4 documented values (compile-time)', () => {
+  it('Test 7b: SilentDropEvent.reason is restricted to the closed union (compile-time gate; Phase 74 + Phase 80 reasons)', () => {
     const _bad: SilentDropEvent = {
       field: 'a',
       // @ts-expect-error 'random_string' is NOT assignable to SilentDropEvent.reason
       reason: 'random_string',
       schema_version: 1,
     }
-    // Valid values compile cleanly.
+    // Phase 74 valid values compile cleanly.
     const a: SilentDropEvent = { field: 'a', reason: 'unknown_field', schema_version: 1 }
     const b: SilentDropEvent = { field: 'a', reason: 'unknown_enum_value', schema_version: 1 }
     const c: SilentDropEvent = { field: 'a', reason: 'sanitization', schema_version: 1 }
     const d: SilentDropEvent = { field: 'a', reason: 'parse_error', schema_version: 1 }
-    expect([a, b, c, d, _bad].length).toBe(5)
+    // Phase 80 reasons compile cleanly (composition-aware extraction; Plan 02 firewall).
+    const e: SilentDropEvent = { field: 'a', reason: 'schema_version_rejected', schema_version: 2 }
+    const f: SilentDropEvent = { field: 'a', reason: 'archetype_fallback', schema_version: 2 }
+    const g: SilentDropEvent = { field: 'a', reason: 'archetype_slot_mismatch', schema_version: 2 }
+    expect([a, b, c, d, e, f, g, _bad].length).toBe(8)
   })
 
   it('Test 8: per-instance, not singleton — two counters track independently', () => {

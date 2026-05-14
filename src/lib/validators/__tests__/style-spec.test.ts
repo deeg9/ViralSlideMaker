@@ -8,6 +8,11 @@
 //   - voice_note is HTML-stripped, single-lined, and length-capped at 200.
 //   - schema_version mismatches drop the field (cross-version forensics).
 //
+// Phase 80 Plan 02 update (composition-aware schema):
+//   - VALID fixture now carries `slideArchetype: 'full-bleed-text-overlay'`
+//     (default-fallback archetype with no slot block).
+//   - schema_version is 2; v1 payloads are now REJECTED (Test V11 updated).
+//
 // All silent drops increment a per-call counter. The counter is per-instance
 // (NOT shared) — two parses produce two independent counters.
 
@@ -18,7 +23,8 @@ import { createSilentDropCounter } from '../silent-drop-counter'
 import type { StyleSpec } from '@/lib/types/style-spec'
 
 const VALID: StyleSpec = {
-  schema_version: 1,
+  schema_version: 2,
+  slideArchetype: 'full-bleed-text-overlay',
   palette: {
     mode: 'duotone',
     primary: '#1F2937',
@@ -64,7 +70,8 @@ describe('Phase 74 (STYLESPEC-10, PARITY-03): parseStyleSpecSafe + StyleSpecSche
     const result = parseStyleSpecSafe(VALID, { counter })
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.spec.schema_version).toBe(1)
+      expect(result.spec.schema_version).toBe(2)
+      expect(result.spec.slideArchetype).toBe('full-bleed-text-overlay')
       expect(result.spec.voice_note).toBe('Punchy, hopeful, short sentences.')
     }
     expect(counter.getCount()).toBe(0)
@@ -195,16 +202,24 @@ describe('Phase 74 (STYLESPEC-10, PARITY-03): parseStyleSpecSafe + StyleSpecSche
     expect(drop).toBeDefined()
   })
 
-  it('Test V11: schema_version mismatch (99) drops the field and falls back to 1; counter records the drop', () => {
+  it('Test V11 (Phase 80 R4): parseStyleSpecSafe rejects schema_version=1 with ok:false + schema_version_rejected counter event', () => {
+    const counter = createSilentDropCounter()
+    const input = { ...VALID, schema_version: 1 } as unknown
+    const result = parseStyleSpecSafe(input, { counter })
+    expect(result.ok).toBe(false)
+    const drop = counter.getEvents().find((e) => e.field === 'schema_version')
+    expect(drop).toBeDefined()
+    expect(drop?.reason).toBe('schema_version_rejected')
+    expect(drop?.raw_value).toBe(1)
+  })
+
+  it('Test V11b (Phase 80 R4): parseStyleSpecSafe rejects schema_version=99 with ok:false + schema_version_rejected', () => {
     const counter = createSilentDropCounter()
     const input = { ...VALID, schema_version: 99 } as unknown
     const result = parseStyleSpecSafe(input, { counter })
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.spec.schema_version).toBe(1)
-    }
+    expect(result.ok).toBe(false)
     const drop = counter.getEvents().find((e) => e.field === 'schema_version')
-    expect(drop).toBeDefined()
+    expect(drop?.reason).toBe('schema_version_rejected')
   })
 
   it('Test V12: caller-supplied counter is honored; default counter is NOT created when one is passed', () => {
@@ -222,5 +237,144 @@ describe('Phase 74 (STYLESPEC-10, PARITY-03): parseStyleSpecSafe + StyleSpecSche
   it('Test V13 (sanity): exported StyleSpecSchema parses VALID input via direct safeParse', () => {
     const result = StyleSpecSchema.safeParse(VALID)
     expect(result.success).toBe(true)
+  })
+})
+
+// =====================================================================
+// Phase 80 Plan 02 tests (composition-aware schema R1, R2, R4):
+//   - z.discriminatedUnion('slideArchetype', [...]) at the top level.
+//   - 8-archetype enforcement at the Zod boundary.
+//   - Archetype fallback when slideArchetype is missing/invalid.
+//   - Slot-mismatch firewall: caption only for caption-bar archetypes;
+//     split only for photo-collage-2up. Misplaced slot blocks are silent-
+//     dropped via the silent-drop counter with reason `archetype_slot_mismatch`.
+// =====================================================================
+
+describe('Phase 80 Plan 02 (R1, R2, R4): discriminated-union + slot firewall', () => {
+  it('Test P80-1: each of the 8 archetypes is accepted on a VALID-shaped payload', () => {
+    const counter = createSilentDropCounter()
+    const archetypes = [
+      'full-bleed-text-overlay',
+      'caption-bar-bottom',
+      'caption-bar-top',
+      'photo-collage-2up',
+      'photo-collage-grid',
+      'flat-color-background',
+      'editorial-serif',
+      'notes-sticker',
+    ] as const
+    for (const archetype of archetypes) {
+      const result = parseStyleSpecSafe(
+        { ...VALID, slideArchetype: archetype },
+        { counter: createSilentDropCounter() },
+      )
+      expect(result.ok, `archetype: ${archetype}`).toBe(true)
+      if (result.ok) {
+        expect(result.spec.slideArchetype).toBe(archetype)
+      }
+    }
+    // Sanity: counter from outer scope never got events (each iteration used its own).
+    expect(counter.getCount()).toBe(0)
+  })
+
+  it('Test P80-2: missing slideArchetype → defaulted to full-bleed-text-overlay + archetype_fallback counter event', () => {
+    const counter = createSilentDropCounter()
+    const { slideArchetype: _ignored, ...withoutArchetype } = VALID
+    const result = parseStyleSpecSafe(withoutArchetype, { counter })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.spec.slideArchetype).toBe('full-bleed-text-overlay')
+    }
+    const drop = counter.getEvents().find((e) => e.field === 'slideArchetype')
+    expect(drop).toBeDefined()
+    expect(drop?.reason).toBe('archetype_fallback')
+  })
+
+  it('Test P80-3: unknown slideArchetype value → defaulted to fallback + archetype_fallback counter event', () => {
+    const counter = createSilentDropCounter()
+    const input = { ...VALID, slideArchetype: 'not-a-real-archetype' } as unknown
+    const result = parseStyleSpecSafe(input, { counter })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.spec.slideArchetype).toBe('full-bleed-text-overlay')
+    }
+    const drop = counter.getEvents().find((e) => e.field === 'slideArchetype')
+    expect(drop?.reason).toBe('archetype_fallback')
+    expect(drop?.raw_value).toBe('not-a-real-archetype')
+  })
+
+  it('Test P80-4: caption block ACCEPTED on caption-bar-bottom (valid slot for archetype)', () => {
+    const counter = createSilentDropCounter()
+    const input = {
+      ...VALID,
+      slideArchetype: 'caption-bar-bottom',
+      caption: { heightFraction: 0.4, background: 'solid' },
+    } as unknown
+    const result = parseStyleSpecSafe(input, { counter })
+    expect(result.ok).toBe(true)
+    if (result.ok && result.spec.slideArchetype === 'caption-bar-bottom') {
+      expect(result.spec.caption?.heightFraction).toBe(0.4)
+      expect(result.spec.caption?.background).toBe('solid')
+    }
+    // No slot-mismatch event.
+    const mismatch = counter.getEvents().find((e) => e.reason === 'archetype_slot_mismatch')
+    expect(mismatch).toBeUndefined()
+  })
+
+  it('Test P80-5: caption block REJECTED (silent-dropped) on photo-collage-2up (slot mismatch)', () => {
+    const counter = createSilentDropCounter()
+    const input = {
+      ...VALID,
+      slideArchetype: 'photo-collage-2up',
+      caption: { heightFraction: 0.4, background: 'solid' },
+      split: { direction: 'horizontal', ratio: '50-50' },
+    } as unknown
+    const result = parseStyleSpecSafe(input, { counter })
+    expect(result.ok).toBe(true)
+    if (result.ok && result.spec.slideArchetype === 'photo-collage-2up') {
+      // caption is dropped from output (not in this archetype's slot shape).
+      expect((result.spec as unknown as Record<string, unknown>).caption).toBeUndefined()
+      // split survives — valid slot for photo-collage-2up.
+      expect(result.spec.split?.direction).toBe('horizontal')
+      expect(result.spec.split?.ratio).toBe('50-50')
+    }
+    const mismatch = counter.getEvents().find(
+      (e) => e.field === 'caption' && e.reason === 'archetype_slot_mismatch',
+    )
+    expect(mismatch).toBeDefined()
+  })
+
+  it('Test P80-6: split block REJECTED (silent-dropped) on caption-bar-bottom (slot mismatch)', () => {
+    const counter = createSilentDropCounter()
+    const input = {
+      ...VALID,
+      slideArchetype: 'caption-bar-bottom',
+      split: { direction: 'horizontal' },
+    } as unknown
+    const result = parseStyleSpecSafe(input, { counter })
+    expect(result.ok).toBe(true)
+    if (result.ok && result.spec.slideArchetype === 'caption-bar-bottom') {
+      expect((result.spec as unknown as Record<string, unknown>).split).toBeUndefined()
+    }
+    const mismatch = counter.getEvents().find(
+      (e) => e.field === 'split' && e.reason === 'archetype_slot_mismatch',
+    )
+    expect(mismatch).toBeDefined()
+  })
+
+  it('Test P80-7: discriminated union exposes only the 8 archetypes via direct safeParse (closed-enum gate)', () => {
+    const bad = { ...VALID, slideArchetype: 'invented-archetype' }
+    const result = StyleSpecSchema.safeParse(bad)
+    expect(result.success).toBe(false)
+  })
+
+  it('Test P80-8: caption.heightFraction outside the 3 allowed numeric literals is rejected by Zod', () => {
+    const bad = {
+      ...VALID,
+      slideArchetype: 'caption-bar-bottom',
+      caption: { heightFraction: 0.99 },
+    }
+    const result = StyleSpecSchema.safeParse(bad)
+    expect(result.success).toBe(false)
   })
 })
