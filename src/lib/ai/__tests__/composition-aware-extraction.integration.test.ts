@@ -132,7 +132,33 @@ const results: FixtureResult[] = []
  * it only runs when explicitly requested.
  */
 function makeStubAdmin(): SupabaseClient {
-  return {} as unknown as SupabaseClient
+  // Phase 80 cleanup: chainable proxy returning safe defaults so cache-miss /
+  // rate-cap-allow / charge-success all pass without a real DB.
+  //   - cache lookup (.from().select().eq().maybeSingle()) → null
+  //   - rate-cap (.from().select(count).eq().gte()) → count 0
+  //   - charge (.rpc('deduct_credits', ...)) → data: true
+  //   - refund (.from().insert(...)) → error: null
+  const handler: ProxyHandler<object> = {
+    get(_t, prop: string) {
+      if (prop === 'maybeSingle' || prop === 'single') {
+        return async () => ({ data: null, error: null })
+      }
+      if (prop === 'then') {
+        // Resolves `await chain` for chains that don't end in maybeSingle.
+        // rate-cap → count:0; refund.insert → error:null; rpc fallback → ok.
+        return (resolve: (v: unknown) => void) =>
+          resolve({ data: null, error: null, count: 0 })
+      }
+      if (prop === 'rpc') {
+        // deduct_credits returns boolean — must be true to satisfy charge.
+        return async () => ({ data: true, error: null })
+      }
+      // Every other Supabase builder method returns the same chainable proxy.
+      return () => proxy
+    },
+  }
+  const proxy: SupabaseClient = new Proxy({} as object, handler) as unknown as SupabaseClient
+  return proxy
 }
 
 /** Convenience — read fixture bytes, returning null if the file is absent. */
@@ -211,7 +237,7 @@ describe.skipIf(!RUN_LIVE)('Phase 80 composition-aware extraction — fixture in
           }
         }
       }
-    })
+    }, 30_000) // 30s timeout — covers Gemini 10s ceiling + preprocessing + palette extraction
   }
 
   it('pass threshold: 3 of 5 references classified correctly AND both MUST-PASS fixtures correct', () => {
