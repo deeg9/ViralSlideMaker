@@ -70,7 +70,7 @@ export function SlideSettings({
                   className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
                     active
                       ? 'bg-[#3d0000] text-white'
-                      : 'bg-white text-[#7d6161] hover:bg-[#fadbdb]'
+                      : 'bg-white text-[#7d6161] border border-[#dbc1bc]/30 hover:bg-[#fadbdb]'
                   }`}
                 >
                   {opt === 'cover' ? 'Cover (image top)' : 'Body (image bottom)'}

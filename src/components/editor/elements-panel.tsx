@@ -179,16 +179,15 @@ export function ElementsPanel({
   // Library mode — no decoration selected. Show the insert tiles.
   // ───────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 space-y-6 bg-[#fff0f0]">
-      {/* Icons + shapes — open the existing pickers wired in slide-editor. */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <Icon name="apps" size="sm" className="text-[#3d0000]" />
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#3d0000]">
-            Icons &amp; Shapes
-          </h3>
-        </div>
-        <p className="text-xs text-[#7d6161] mb-3 leading-snug">
+    <div className="p-4 space-y-4 bg-[#fff0f0]">
+      {/* quick-260514-portlet-cards: each library section is its own white
+          card with subtle brown border + top-left title, mirroring the
+          WatermarkControls / SlideSettings shell. */}
+      <section className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+          Icons &amp; Shapes
+        </h3>
+        <p className="text-xs text-[#7d6161] leading-snug">
           Click to browse — pick one to insert at slide center.
         </p>
 
@@ -198,7 +197,7 @@ export function ElementsPanel({
             onClick={() => onOpenIconPicker?.()}
             disabled={!onOpenIconPicker}
             data-testid="elements-panel-open-icons"
-            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#3d0000]/20 bg-white hover:bg-[#fff0f0] hover:border-[#3d0000]/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#dbc1bc]/30 bg-white hover:bg-[#fadbdb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Browse icons"
           >
             <Icon name="emoji_symbols" size="md" className="text-[#3d0000]" />
@@ -211,7 +210,7 @@ export function ElementsPanel({
             onClick={() => onOpenShapePicker?.()}
             disabled={!onOpenShapePicker}
             data-testid="elements-panel-open-shapes"
-            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#3d0000]/20 bg-white hover:bg-[#fff0f0] hover:border-[#3d0000]/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-md border border-[#dbc1bc]/30 bg-white hover:bg-[#fadbdb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Browse shapes"
           >
             <Icon name="category" size="md" className="text-[#3d0000]" />
@@ -222,14 +221,11 @@ export function ElementsPanel({
         </div>
       </section>
 
-      <section className="pt-4 border-t border-[#dbc1bc]/20">
-        <div className="flex items-center gap-2 mb-3">
-          <Icon name="horizontal_rule" size="sm" className="text-[#3d0000]" />
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#3d0000]">
-            Lines &amp; Dividers
-          </h3>
-        </div>
-        <p className="text-xs text-[#7d6161] mb-3 leading-snug">
+      <section className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+          Lines &amp; Dividers
+        </h3>
+        <p className="text-xs text-[#7d6161] leading-snug">
           Click to add. Drag to move, resize from the corners.
         </p>
 
@@ -241,7 +237,7 @@ export function ElementsPanel({
                 key={divider.id}
                 type="button"
                 onClick={() => onInsertDivider(divider.build(templateTextColor))}
-                className="group relative aspect-[3/1] rounded-md border border-[#3d0000]/20 bg-white hover:bg-[#fff0f0] hover:border-[#3d0000]/40 transition-colors flex items-center justify-center px-2 py-1"
+                className="group relative aspect-[3/1] rounded-md border border-[#dbc1bc]/30 bg-white hover:bg-[#fadbdb] transition-colors flex items-center justify-center px-2 py-1"
                 aria-label={`Add ${divider.label} divider`}
                 title={divider.label}
               >
