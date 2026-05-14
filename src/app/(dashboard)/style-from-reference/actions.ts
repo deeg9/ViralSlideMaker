@@ -165,6 +165,13 @@ export interface RegenerateActionInput {
   useBrandKitRemix: boolean
   brandKit: BrandKit | null
   content: ContentSource
+  /** quick-260514-images: forwarded into
+   *  generateCarouselFromReferences so the references emit honors the
+   *  BACKGROUND IMAGES selection from the prompt form. Default 'stock'
+   *  when omitted. 'ai' currently degrades to 'stock' in the
+   *  references orchestrator. */
+  imageSource?: 'stock' | 'ai' | 'none'
+  slideCount?: number
 }
 
 export type RegenerateActionResult =

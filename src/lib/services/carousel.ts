@@ -248,6 +248,14 @@ export interface CarouselFromReferencesInput {
   useBrandKitRemix: boolean
   content: ContentSource
   slideCount?: number
+  /** quick-260514-images: optional background-source for the references
+   *  path. Originally the emit was text-only (line 231 comment); the
+   *  user reported the result "didn't even pull any of the images" so
+   *  we now honor stock / none. 'ai' is accepted but currently degrades
+   *  to 'stock' to keep this scope tight — AI image generation requires
+   *  per-slide prompt fan-out that lives in the template path's
+   *  generateCarousel orchestrator. */
+  imageSource?: 'stock' | 'ai' | 'none'
 }
 
 export async function generateCarouselFromReferences(
@@ -267,13 +275,50 @@ export async function generateCarouselFromReferences(
   const carousel = await generateFromStyleSpec(merged, input.content, {
     slideCount: input.slideCount,
   })
+
+  // Step 3b (quick-260514-images): populate background_url per slide so
+  // the editor actually shows photo backgrounds. The original references
+  // emit was text-only by design (line 231 comment block) — user feedback
+  // is that the all-white output looks broken, so we add stock-photo
+  // fetch by default. 'none' keeps text-only; 'ai' falls back to stock
+  // for now (AI fan-out lives in generateCarousel — porting that here
+  // is a follow-up). Skipped entirely on color-only templates: those
+  // are pure-typography surfaces and a photo would clash.
+  const slides = (carousel.slides ?? []) as Slide[]
+  const imageSource = input.imageSource ?? 'stock'
+  let withBackgrounds: Slide[]
+  if (imageSource === 'none') {
+    withBackgrounds = slides.map((s) => ({
+      ...s,
+      background_url: null,
+      pexels_photo_id: null,
+    }))
+  } else {
+    // 'stock' (and 'ai' temporarily). Per-slide Pexels search using the
+    // emit-supplied image_query — same shape generateCarousel uses on
+    // line 141.
+    withBackgrounds = await Promise.all(
+      slides.map(async (slide) => {
+        const photos = await searchPhotos(slide.image_query, {
+          orientation: 'portrait',
+          per_page: 1,
+        })
+        return {
+          ...slide,
+          background_url: photos[0]?.src.portrait ?? null,
+          pexels_photo_id: photos[0]?.id ?? null,
+        }
+      }),
+    )
+  }
+
   // Step 4: persist via UPDATE on the existing project row. Belt-and-braces
   // ownership check via .eq('user_id', userId) on top of RLS — defense-in-depth
   // against T-77-06 (project_id tampering).
   const { error } = await supabase
     .from('projects')
     .update({
-      slide_data: carousel.slides,
+      slide_data: withBackgrounds,
       generation_status: 'complete',
       title: carousel.title,
     })
@@ -282,5 +327,5 @@ export async function generateCarouselFromReferences(
   if (error) {
     throw new Error(`carousel-from-refs persist failed: ${error.message}`)
   }
-  return { projectId: input.projectId, slideCount: carousel.slides.length }
+  return { projectId: input.projectId, slideCount: withBackgrounds.length }
 }

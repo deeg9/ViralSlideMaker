@@ -159,10 +159,11 @@ export function GenerationForm({
 
     startTransition(async () => {
       if (useReferenceSpec && inlineSpec?.spec) {
-        // No image-attachment upload in the references path — the spec
-        // already encodes palette/typography/layout/decorations. Slide
-        // photos for ai-copy mode come from stock/AI per the existing
-        // emit pipeline downstream.
+        // quick-260514-images: forward the form's BACKGROUND IMAGES
+        // selection + slide-count slider into the references emit so
+        // the generated carousel honors the user's choice instead of
+        // shipping text-only-on-white. Originally the references path
+        // was text-only by design; user feedback flipped that.
         const result = await regenerateAction({
           projectId,
           spec: inlineSpec.spec,
@@ -170,6 +171,8 @@ export function GenerationForm({
           useBrandKitRemix: inlineSpec.useBrandKitRemix,
           brandKit: brandKit ?? null,
           content: { mode: 'ai-copy', topic: topic.trim() },
+          imageSource,
+          slideCount: effectiveSlideCount,
         })
         if (!result.ok) {
           setError(`Generation failed (${result.error}): ${result.detail ?? 'no detail'}`)
