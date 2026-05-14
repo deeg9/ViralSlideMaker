@@ -28,6 +28,20 @@
 //   - text_position      ← spec.layout.hookPosition (closed-enum exact match)
 //   - treatment_applied  ← spec.imagery.treatmentPreset (descriptor string;
 //                          Phase 54 D-03 cache-key suffix slot)
+//   - template_id_override ← spec.slideArchetype (Phase 80 R6) via
+//                          ARCHETYPE_TO_TEMPLATE (flat-color-background
+//                          palette-driven via pickFlatColorTemplate).
+//                          The downstream consumer
+//                          (generate-from-style-spec.ts PROJECTOR FUSION)
+//                          LIFTS this value from style_overrides onto the
+//                          slide top-level (Slide.template_id_override) so
+//                          the renderer's getTemplate(template_id_override)
+//                          path picks it up. Declared on SlideStyleOverrides
+//                          (slide.ts) only so this Pick<> typechecks.
+//   - layout             ← derived from spec.slideArchetype === 'caption-bar-top'
+//                          (Phase 80) — emits 'cover' override that flips
+//                          image/text order against magazine-bold's
+//                          image-with-bottom-card mode.
 //
 // =====================================================================
 // DEVIATION (Rule 1 / Rule 2 — Plan 77-01 grounding mismatch):
@@ -51,6 +65,30 @@
 //   - fixed-palette templates ignore derived_palette unchanged.
 // =====================================================================
 //
+// =====================================================================
+// DEVIATION (Phase 80 Plan 04 — grounding mismatch on template_id_override):
+// =====================================================================
+// Plan 80-04 grounding asserted that SlideStyleOverrides already declared
+// `template_id_override?: string` at slide.ts:275. Verified: slide.ts:275
+// is on the `Slide` interface, NOT `SlideStyleOverrides`. We add the field
+// to `SlideStyleOverrides` so this Pick<> typechecks. The renderer still
+// reads from `Slide.template_id_override` (top-level); the consumer in
+// generate-from-style-spec.ts LIFTS the value from style_overrides onto
+// the slide top-level immediately after PROJECTOR FUSION. The
+// SlideStyleOverrides slot is a routing carrier, not a render surface.
+// =====================================================================
+//
+// Phase 80 R6: ProjectedSlideOverrides widened to include `template_id_override`
+// (now on SlideStyleOverrides per the deviation above). The projector emits
+// this field from spec.slideArchetype via ARCHETYPE_TO_TEMPLATE. No new
+// Slide TOP-LEVEL fields added (Slide.template_id_override was already
+// present at Phase 55 D-08).
+//
+// Phase 80: `layout` is included in the Pick<> because SlideStyleOverrides
+// already declares it (slide.ts:189) and the `caption-bar-top` archetype
+// emits `layout: 'cover'` to flip image/text order against magazine-bold's
+// image-with-bottom-card mode.
+//
 // NOT PICKED (intentional):
 //   - hook_text_color / body_text_color: spec.palette has no semantic text
 //     color — template's textColor wins (or downstream contrast-resolver runs).
@@ -72,6 +110,8 @@ export type ProjectedSlideOverrides = Pick<
   | 'body_font_family'
   | 'text_position'
   | 'treatment_applied'
+  | 'template_id_override' // Phase 80 R6 — emitted from spec.slideArchetype
+  | 'layout'               // Phase 80 — required for caption-bar-top ('cover' override)
 >
 
 /**
