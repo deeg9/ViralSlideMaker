@@ -137,6 +137,14 @@ export function SlideCanvas({
       className="bg-[#fff8f7] flex flex-col items-center justify-center p-3 lg:p-8 overflow-hidden"
       data-testid="slide-canvas"
     >
+      {/* quick-260514-ku2: slide counter moved above the canvas (was below
+          the navigation arrows). Same chip, same testid; just relocated. */}
+      <div className="mb-4 bg-white px-4 py-2 rounded-full flex items-center gap-3 shadow-sm border border-[#dbc1bc]/10">
+        <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-widest">
+          Slide {selectedIndex + 1} / {slides.length}
+        </span>
+      </div>
+
       <div className="w-full max-w-md relative">
         <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
           <SlidePreview
@@ -198,14 +206,6 @@ export function SlideCanvas({
         >
           <Icon name="chevron_right" size="sm" />
         </button>
-      </div>
-
-      {/* Slide counter -- below the canvas */}
-      <div className="mt-4 bg-white px-4 py-2 rounded-full flex items-center gap-3 shadow-sm border border-[#dbc1bc]/10">
-        <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-widest">
-          Slide {selectedIndex + 1} / {slides.length}
-        </span>
-        {/* quick-260514-ksh: IG Grid toggle removed. */}
       </div>
     </div>
   )
