@@ -127,7 +127,8 @@ function makeBlobFromBytes(bytes: Buffer) {
 
 function makeSpec(): StyleSpec {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: { mode: 'solid', primary: '#A8E0B0' },
     typography: {},
     layout: {},

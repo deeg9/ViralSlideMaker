@@ -24,7 +24,8 @@ import { getTemplate } from '@/lib/render/templates'
 
 function buildSpec(): StyleSpec {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: {
       mode: 'solid',
       primary: '#000000',
@@ -56,7 +57,8 @@ function buildSpec(): StyleSpec {
 
 function neutralSpec(): StyleSpec {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: { mode: 'solid', primary: '#FFFFFF' },
     typography: {},
     layout: {},

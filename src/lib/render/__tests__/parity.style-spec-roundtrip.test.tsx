@@ -89,8 +89,13 @@ const LOCKED_DERIVED_PALETTE = ['#11AABB', '#22CCDD'] as const
 function makeRoundtripSpec(
   overrides: Partial<StyleSpec> = {},
 ): StyleSpec {
+  // Cast: Partial<StyleSpec> over a discriminated union (StyleSpec is intersected
+  // with ArchetypeSlots in Phase 80) cannot be spread back into the union without
+  // collapsing the discriminator. Spec contract is concrete here:
+  // slideArchetype='full-bleed-text-overlay' (EmptySlots variant).
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: {
       mode: 'solid',
       primary: LOCKED_DERIVED_PALETTE[0],
@@ -108,7 +113,7 @@ function makeRoundtripSpec(
     },
     rhythm: { cadence: 'punchy' },
     ...overrides,
-  }
+  } as StyleSpec
 }
 
 /**
