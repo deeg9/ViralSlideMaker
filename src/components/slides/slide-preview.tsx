@@ -955,6 +955,15 @@ export function SlidePreview({
       const idx = snapIndexRef.current
       if (!idx) return { x, y }
 
+      // Scale-aware thresholds: target ~8 screen-px magnetism (Canva/Figma feel)
+      // converted to REF px via the current canvas scale. Floors at the legacy
+      // 5/7 REF-px so the screen-space feel never gets tighter than the
+      // original at huge scales. When scale is unknown (test/SSR), fall back to
+      // the defaults baked into snapWithHysteresis.
+      const snapThresholds = scale > 0
+        ? { enter: Math.max(5, 8 / scale), exit: Math.max(7, 12 / scale) }
+        : undefined
+
       // X-axis: pick the dragging-entity x-edge with the smallest snap delta.
       const dCenterX = x + width / 2
       const dRight = x + width
@@ -962,7 +971,7 @@ export function SlidePreview({
       let bestX: HysteresisResult = { snapped: false, snappedTo: null, delta: 0, nextWasSnapped: null }
       let bestXAbs = Infinity
       for (const cand of xCandidates) {
-        const r = snapWithHysteresis(cand, idx.xEdges, wasSnappedXRef.current)
+        const r = snapWithHysteresis(cand, idx.xEdges, wasSnappedXRef.current, snapThresholds)
         if (r.snapped) {
           const ad = Math.abs(r.delta)
           if (ad < bestXAbs) {
@@ -981,7 +990,7 @@ export function SlidePreview({
       let bestY: HysteresisResult = { snapped: false, snappedTo: null, delta: 0, nextWasSnapped: null }
       let bestYAbs = Infinity
       for (const cand of yCandidates) {
-        const r = snapWithHysteresis(cand, idx.yEdges, wasSnappedYRef.current)
+        const r = snapWithHysteresis(cand, idx.yEdges, wasSnappedYRef.current, snapThresholds)
         if (r.snapped) {
           const ad = Math.abs(r.delta)
           if (ad < bestYAbs) {
@@ -1042,7 +1051,7 @@ export function SlidePreview({
       })
       return { x: snappedX, y: snappedY }
     },
-    [modifiers, slide.text_boxes, slide.custom_images],
+    [modifiers, slide.text_boxes, slide.custom_images, scale],
   )
 
   // Phase 63 Plan 04 (SNAP-09): assemble excludeIds for the snap index based
@@ -1651,6 +1660,20 @@ export function SlidePreview({
             data.y = result.y + (data.y - queryY)
           }}
           onDragStop={(_e, data) => {
+            // Final snap pass: react-draggable doesn't honor data.x/y mutation
+            // from the onDrag callback in controlled mode (its newState is
+            // built from the cursor BEFORE the callback runs), so the live
+            // visual never snapped — only the guide line did. Re-running snap
+            // here with the current snap index lets the COMMITTED position
+            // land exactly on the snap target when the user releases within
+            // the hold zone, giving the Canva/Figma "release-to-snap" feel.
+            // Runs BEFORE we tear down snapIndexRef below.
+            const hookHeightForStop = hookRef.current?.getBoundingClientRect().height
+              ? hookRef.current.getBoundingClientRect().height / scale
+              : 200
+            const stopSnap = runSnapForDrag(data.x, data.y, hookWidthPx, hookHeightForStop)
+            data.x = stopSnap.x
+            data.y = stopSnap.y
             // Phase 63 Plan 04: clear snap index, overlay, and per-axis
             // hysteresis state at gesture end.
             snapIndexRef.current = null
@@ -1997,6 +2020,13 @@ export function SlidePreview({
               data.y = result.y + (data.y - queryY)
             }}
             onDragStop={(_e, data) => {
+              // Final snap pass — see hook onDragStop for rationale.
+              const bodyHeightForStop = bodyRef.current?.getBoundingClientRect().height
+                ? bodyRef.current.getBoundingClientRect().height / scale
+                : 200
+              const stopSnap = runSnapForDrag(data.x, data.y, bodyWidthPx, bodyHeightForStop)
+              data.x = stopSnap.x
+              data.y = stopSnap.y
               // Phase 63 Plan 04: clear snap state.
               snapIndexRef.current = null
               wasSnappedXRef.current = null
@@ -2316,6 +2346,13 @@ export function SlidePreview({
                 data.y = result.y + (data.y - queryY)
               }}
               onDragStop={(_e, data) => {
+                // Final snap pass — see hook onDragStop for rationale.
+                const ctHeightForStop = customTextRefs.current[ct.id]?.getBoundingClientRect().height
+                  ? customTextRefs.current[ct.id]!.getBoundingClientRect().height / scale
+                  : 100
+                const stopSnap = runSnapForDrag(data.x, data.y, ctWidthPx, ctHeightForStop)
+                data.x = stopSnap.x
+                data.y = stopSnap.y
                 // Phase 63 Plan 04: clear snap state.
                 snapIndexRef.current = null
                 wasSnappedXRef.current = null
@@ -2666,6 +2703,10 @@ export function SlidePreview({
                 data.y = result.y + (data.y - queryY)
               }}
               onDragStop={(_e, data) => {
+                // Final snap pass — see hook onDragStop for rationale.
+                const stopSnap = runSnapForDrag(data.x, data.y, ciWidthPx, ciHeightPx)
+                data.x = stopSnap.x
+                data.y = stopSnap.y
                 // Phase 63 Plan 04: clear snap state.
                 snapIndexRef.current = null
                 wasSnappedXRef.current = null
