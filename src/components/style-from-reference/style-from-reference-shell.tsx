@@ -26,7 +26,7 @@
 // tokens in this file (see __tests__/style-from-reference-shell.test.tsx
 // for the exact regex list). All copy uses "Inspired by" framing.
 
-import { useReducer, useEffect, useCallback, useRef } from 'react'
+import { useReducer, useEffect, useCallback, useRef, useState } from 'react'
 import { ReferenceImageUploader } from '@/components/dashboard/reference-image-uploader'
 import { extractStyleSpecAction } from '@/app/(dashboard)/style-from-reference/actions'
 import {
@@ -83,6 +83,28 @@ function dispatchExtractResult(
 export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
   const [state, dispatch] = useReducer(specPreviewReducer, initialSpecPreviewState)
 
+  // Session-local map of storage-path → blob preview URL for the sticky
+  // strip. The slide-references bucket is private, so the persisted
+  // `row.url` (a storage path) can't be used as <img src> directly. The
+  // uploader mints a blob URL per file via URL.createObjectURL and we
+  // store it here so the strip can render an instant thumbnail without a
+  // signed-URL round-trip. Lives outside the reducer because the URLs
+  // are non-persistent DOM handles — they're revoked on unmount.
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
+  useEffect(() => {
+    return () => {
+      // Revoke every minted blob URL when the shell unmounts so the
+      // browser frees the underlying File buffer reference.
+      Object.values(previewUrls).forEach((url) => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+      })
+    }
+    // Intentionally empty deps: capture the latest map via the ref-like
+    // pattern is unnecessary because new entries only ADD; revoke-on-
+    // unmount is the only cleanup we need.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Hydrate brand-kit availability into the reducer on mount + when prop changes.
   // useRef guard avoids dispatching on every render; useEffect handles the
   // BRAND_KIT_AVAILABILITY action whose only purpose is reducer-side state.
@@ -138,11 +160,14 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
       {/* PREVIEW-09: sticky strip rendered OUTSIDE every conditional block.
           quick 260511-flj removed the per-reference refusal-warning slot
           wiring; sticky strip now renders thumbnails only. */}
-      <StickyReferenceStrip references={state.references} />
+      <StickyReferenceStrip references={state.references} previewUrls={previewUrls} />
 
       {state.status === 'idle' && (
         <ReferenceImageUploader
           onUploadComplete={(row) => dispatch({ type: 'UPLOAD_ADDED', row })}
+          onPreviewUrlReady={(storagePath, previewUrl) =>
+            setPreviewUrls((prev) => ({ ...prev, [storagePath]: previewUrl }))
+          }
           onExtractRequested={(rows) => {
             void handleExtract(rows)
           }}

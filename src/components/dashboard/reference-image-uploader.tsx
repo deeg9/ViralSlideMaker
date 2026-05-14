@@ -44,6 +44,12 @@ export interface ReferenceImageUploaderProps {
    *  this callback to its style-extraction service. REF-06 separation rule:
    *  upload ≠ extraction trigger. */
   onExtractRequested?: (rows: ReferenceAssetRow[]) => void
+  /** Fired once per upload, just after the storage PUT succeeds and the
+   *  in-memory blob preview URL is minted. Lets the parent display a
+   *  thumbnail immediately without round-tripping the private slide-
+   *  references bucket (which would return 403/404 on a public <img src>).
+   *  The blob URL is session-only — revoke on unmount in the parent. */
+  onPreviewUrlReady?: (storagePath: string, previewUrl: string) => void
   /** Optional pre-seeded thumbnails (e.g., when re-opening a project that
    *  already has reference_assets in the DB). */
   initial?: ReferenceAssetRow[]
@@ -190,6 +196,11 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
         }
         setThumbs((prev) => [...prev, { ...row, _objectUrl: objectUrl }])
         props.onUploadComplete?.(row)
+        // Surface the blob preview URL alongside the persisted row so a
+        // sibling consumer (e.g. the sticky reference strip in the
+        // style-from-reference flow) can render a thumbnail without
+        // refetching the private storage path.
+        props.onPreviewUrlReady?.(data.path, objectUrl)
       }
     },
     [props],
