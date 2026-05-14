@@ -19,18 +19,25 @@
 --
 -- Idempotent: running the migration twice yields the same final state.
 -- The DELETE matches:
---   1. rows where style_spec is missing schema_version (NULL coerces via the
---      IS NULL branch and is also dropped)
---   2. rows where style_spec.schema_version is anything other than 2
--- Both classes are unusable at v2 and must go.
+--   1. rows where style_spec.schema_version is anything other than '2'
+--      (including missing/NULL — NULL IS DISTINCT FROM '2' evaluates TRUE
+--      in PostgreSQL)
+-- All non-v2 rows are unusable at v2 and must go.
+--
+-- Phase 80 WR-02: TEXT comparison (no ::int cast). The previous version
+-- cast `style_spec->>'schema_version'` to int — that throws
+-- "invalid input syntax for type integer" on any non-numeric value (data
+-- corruption, manual insert with wrong type, etc.) and aborts the migration,
+-- leaving every v1 row in place. Text comparison is type-safe AND handles
+-- NULL via IS DISTINCT FROM, so the redundant `OR ... IS NULL` clause is
+-- also removed.
 
 DELETE FROM public.style_spec_cache
-WHERE (style_spec->>'schema_version')::int IS DISTINCT FROM 2
-   OR style_spec->>'schema_version' IS NULL;
+WHERE (style_spec->>'schema_version') IS DISTINCT FROM '2';
 
 -- Sanity COMMENT for ops: confirm post-deploy that the table holds only v2 rows:
 --   SELECT COUNT(*) FROM public.style_spec_cache
---     WHERE (style_spec->>'schema_version')::int IS DISTINCT FROM 2;
+--     WHERE (style_spec->>'schema_version') IS DISTINCT FROM '2';
 -- Expected: 0.
 
 COMMENT ON TABLE public.style_spec_cache IS

@@ -32,11 +32,19 @@
 //     template defaults win (Test 6 in projector tests).
 //   - NEUTRAL_LAYOUT_DEFAULT: hookPosition + density undefined →
 //     projector skips emitting text_position → template default wins.
-//   - NEUTRAL_DECORATIONS_DEFAULT: empty preferredLucide / preferredShapes
-//     arrays. Plan 02's narrowDecorationAllowlist treats empty as
-//     "no spec preference" and falls back to the full allowlist, so
-//     neutralized decorations behave like "AI may pick anything in the
-//     v2.12 corpus" — same as a fresh project today.
+//   - NEUTRAL_DECORATIONS_DEFAULT: explicit FULL corpora — the entire
+//     AI_LUCIDE_ALLOWLIST and AI_SHAPE_KINDS are listed as preferred. After
+//     Phase 80 R7, narrowDecorationAllowlist returns [] for empty/undefined
+//     preferences (correct extracted-empty semantics — "reference had no
+//     icons → emit none"). To preserve the user-facing contract that
+//     unchecking the decorations aspect means "AI may pick anything in the
+//     v2.12 corpus" (free choice, same as a fresh project), the
+//     neutralization path must materialize the corpus EXPLICITLY here.
+//     Downstream narrowDecorationAllowlist sees non-empty preferences and
+//     correctly returns the full corpus subset → free-choice behavior is
+//     preserved. The distinction between "user neutralized decorations" and
+//     "reference had no icons" is now encoded structurally (full corpus vs.
+//     empty/absent), not via a side-channel flag (Phase 80 CR-02).
 //
 // Plan 02 (Wave 2) consumes this helper inside generate-from-style-spec.ts
 // and wires the projector's downstream contract. This module ships with
@@ -45,6 +53,9 @@
 
 import type { StyleSpec, StyleSpecPalette, StyleSpecTypography, StyleSpecLayout, StyleSpecDecorations } from '@/lib/types/style-spec'
 import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
+import { AI_LUCIDE_ALLOWLIST, AI_SHAPE_KINDS } from '@/lib/ai/schemas'
+import type { LucideDecorationName } from '@/lib/render/decorations/registry'
+import type { ShapeKind } from '@/lib/types/decoration'
 
 /**
  * Neutral palette default. White solid background — template-default-equivalent.
@@ -69,14 +80,23 @@ export const NEUTRAL_TYPOGRAPHY_DEFAULT: StyleSpecTypography = Object.freeze({})
 export const NEUTRAL_LAYOUT_DEFAULT: StyleSpecLayout = Object.freeze({}) as StyleSpecLayout
 
 /**
- * Neutral decorations default. Empty arrays — narrowDecorationAllowlist
- * (Task 3) treats empty as "no spec preference" and returns the full
- * AI_LUCIDE_ALLOWLIST / AI_SHAPE_KINDS, so neutralized decorations
- * behave like "no narrowing applied".
+ * Neutral decorations default. After Phase 80 R7, narrowDecorationAllowlist
+ * returns an EMPTY list for empty/undefined preferred* (correct semantics
+ * for extracted-empty: "reference had no icons → emit none"). To preserve
+ * the user-facing contract that unchecking the decorations aspect means
+ * "AI may pick anything in the v2.12 corpus" (free-choice — same as a
+ * fresh project), this constant materializes the FULL corpora explicitly.
+ * narrowDecorationAllowlist then sees a non-empty preferred list and
+ * returns the full corpus subset, distinguishing user-neutralization
+ * (free choice) from extractor-empty (zero icons) without a side-channel
+ * flag. Phase 80 CR-02.
+ *
+ * The arrays are frozen for immutability; downstream consumers (aspect-filter
+ * body, narrowDecorationAllowlist) MUST NOT mutate.
  */
 export const NEUTRAL_DECORATIONS_DEFAULT: StyleSpecDecorations = Object.freeze({
-  preferredLucide: [],
-  preferredShapes: [],
+  preferredLucide: Object.freeze([...AI_LUCIDE_ALLOWLIST]) as readonly LucideDecorationName[] as LucideDecorationName[],
+  preferredShapes: Object.freeze([...AI_SHAPE_KINDS]) as readonly ShapeKind[] as ShapeKind[],
 }) as StyleSpecDecorations
 
 /**
@@ -113,8 +133,15 @@ export function applyAspectFilter(
           preferredShapes: spec.decorations.preferredShapes ? [...spec.decorations.preferredShapes] : undefined,
         }
       : {
-          preferredLucide: [],
-          preferredShapes: [],
+          // Phase 80 CR-02: neutralization expands to the FULL corpora — this
+          // is the "user explicitly said 'any decoration'" signal. R7's
+          // narrowDecorationAllowlist returns [] only when preferred* is
+          // empty/undefined (extracted-empty path); a full-corpus preferred*
+          // produces a full-corpus narrowed list (free-choice). DO NOT
+          // collapse this back to []; that would re-introduce the bug where
+          // toggling decorations OFF silently suppresses ALL icons.
+          preferredLucide: [...AI_LUCIDE_ALLOWLIST] as LucideDecorationName[],
+          preferredShapes: [...AI_SHAPE_KINDS] as ShapeKind[],
         },
     rhythm: { ...spec.rhythm },
     voice_note: spec.voice_note,
