@@ -163,20 +163,44 @@ export default function LayersPanel({
     return out
   }, [rows, expanded])
 
+  // quick-260514-layers-collapsible: the panel is an accordion that defaults
+  // closed. The body (chips + group rows) stays MOUNTED but visually hidden
+  // when collapsed so existing `data-testid` queries in the integration
+  // tests keep finding chips without needing each test to click the header.
+  // Toggle is purely cosmetic state, never persisted.
+  const [bodyOpen, setBodyOpen] = useState(false)
+  const chipCount = rows.filter((r) => r.kind === 'chip').length
+
   return (
     <aside
       data-testid="layers-panel"
       className="flex flex-col gap-1 mt-2"
       aria-label="Layers panel"
     >
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#3d0000]">
-          Layers
+      <button
+        type="button"
+        onClick={() => setBodyOpen((v) => !v)}
+        aria-expanded={bodyOpen}
+        aria-controls="layers-panel-body"
+        data-testid="layers-panel-toggle"
+        className="flex items-center justify-between mb-1 px-1 py-1 -mx-1 rounded hover:bg-[#fadbdb] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000]/40"
+      >
+        <span className="flex items-center gap-1.5">
+          <span
+            className={`text-[10px] text-[#795e5e] inline-block transition-transform ${
+              bodyOpen ? 'rotate-90' : ''
+            }`}
+            aria-hidden="true"
+          >
+            ▶
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#3d0000]">
+            Layers
+          </span>
         </span>
-        <span className="text-[#795e5e] text-[10px]">
-          {rows.filter((r) => r.kind === 'chip').length}
-        </span>
-      </div>
+        <span className="text-[#795e5e] text-[10px]">{chipCount}</span>
+      </button>
+      <div id="layers-panel-body" className={bodyOpen ? '' : 'hidden'}>
       {visibleRows.length === 0 ? (
         <div className="text-[10px] text-[#795e5e] px-2 py-1">No elements</div>
       ) : (
@@ -221,6 +245,7 @@ export default function LayersPanel({
           })}
         </div>
       )}
+      </div>
     </aside>
   )
 }
