@@ -179,6 +179,22 @@ validateTemplateRegistry(templates)
 // from Gemini output (D-06, D-08).
 export const TEMPLATE_IDS: readonly string[] = templates.map((t) => t.id)
 
+// Templates kept in the registry (so legacy projects still render via
+// getTemplate()) but hidden from the user-facing visual-style picker.
+// Adding an ID here removes it from the picker without breaking existing
+// projects whose template_id was assigned before the style was retired.
+export const HIDDEN_FROM_PICKER: ReadonlySet<string> = new Set([
+  'highlight-bar',
+  'news-drop',
+  'magazine-bold',
+  'documentary',
+  'brutalist-grid',
+])
+
+export const pickerTemplates: SlideTemplate[] = templates.filter(
+  (t) => !HIDDEN_FROM_PICKER.has(t.id),
+)
+
 export function getTemplate(id: string): SlideTemplate {
   return templates.find((t) => t.id === id) ?? templates[0]
 }

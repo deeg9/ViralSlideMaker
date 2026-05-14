@@ -160,6 +160,10 @@ Last activity: 2026-05-12 -- Completed quick task 260511-uk1: fix carousel palet
 - v2.13 / Phase 79: research deeper — DMCA process + ToS legal language (may need outside review; reuse v2.9 Reface/Kyland Young precedent language as starting point).
 - v2.13 / Phase 74: research deeper — exact closed-enum values (4 vs 5 vs 6 font categories? which decoration densities? which palette modes?) is a domain question benefiting from focused research against current TikTok/IG carousel design corpora.
 
+### Roadmap Evolution
+
+- Phase 80 added: composition-aware style extraction — replace flat StyleSpec tagging with archetype classification + typed slot primitives so style-from-reference can faithfully reproduce captioned/collage/highlight-rhythm layouts that the renderer already supports
+
 ### Carry-over from v2.12
 
 - 6 manual QA smoke tests pending: Lucide picker scroll perf (1,703 icons, lazy-loaded); 5-slide Gemini generation with 0–2 decorations; fork carousel with locked decorations; open v2.11-saved project byte-identity check; drag rotation handle + Shift-snap to 15° + single Cmd+Z; export PNG of rotated decoration.
@@ -180,6 +184,7 @@ Last activity: 2026-05-12 -- Completed quick task 260511-uk1: fix carousel palet
 |---|-------------|------|--------|-----------|
 | 260511-flj | Narrow content blocks to nudity/CSAM only; shift IP/right-of-publicity liability to user via T&C (supersedes Phase 75 D-05 + Phase 76 PREVIEW-10) | 2026-05-11 | 740823c | [260511-flj-narrow-content-blocks-to-nudity-and-csam](./quick/260511-flj-narrow-content-blocks-to-nudity-and-csam/) |
 | 260511-uk1 | Fix carousel palette divergence — closes Phase 78 template_id snapshot gap + hardcoded explore-detail template + fork-RPC hardcode. Brand-kit decision locked at Option B (mergeWithBrandKit is no-op for built-in templates) | 2026-05-12 | 531ef9a | [260511-uk1-fix-carousel-palette-divergence-across-d](./quick/260511-uk1-fix-carousel-palette-divergence-across-d/) |
+| 260514-hide-styles | Hide 5 deprecated visual styles from picker (highlight-bar, news-drop, magazine-bold, documentary, brutalist-grid). Kept in registry so legacy projects render; added `HIDDEN_FROM_PICKER` set + `pickerTemplates` filtered export. | 2026-05-14 | (pending) | [20260514-hide-deprecated-styles-from-picker](./quick/20260514-hide-deprecated-styles-from-picker/) |
 
 **Follow-up note:** Hero PNG re-render for historical `published_carousels` rows is OUT OF SCOPE of quick-260511-uk1. Existing rows keep their (now-stale) `hero_image_url`; users can republish to get a fresh PNG. A future quick task could add an admin one-shot script that iterates rows and re-runs `renderHeroBuffer` against the snapshotted `(slide_data, template_id, style_spec)` triple.
 

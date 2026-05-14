@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TemplatePicker } from '@/components/slides/template-picker'
-import { templates } from '@/lib/render/templates/index'
+import { pickerTemplates } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
 /**
@@ -17,7 +17,7 @@ import type { BrandKit } from '@/lib/types/brand-kit'
  */
 
 describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
-  it('renders exactly 12 SlidePreview tiles for the templates list when brandKit is null', () => {
+  it('renders exactly pickerTemplates.length SlidePreview tiles when brandKit is null', () => {
     render(
       <TemplatePicker
         selectedId="bold-yellow"
@@ -26,14 +26,13 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
       />,
     )
     // brandKit=null -> empty-state link in slot 0 (NOT a SlidePreview).
-    // Templates iteration -> exactly 12 SlidePreview instances after paper-essay
-    // (8 existing + editorial-serif + notes-app-chic + brutalist-grid + paper-essay).
+    // Picker iterates the filtered list; templates hidden via HIDDEN_FROM_PICKER
+    // remain in the registry for legacy projects but do not render as tiles.
     const previews = screen.getAllByTestId('slide-preview')
-    expect(previews.length).toBe(templates.length)
-    expect(templates.length).toBe(12) // schema invariant — was 11 before paper-essay
+    expect(previews.length).toBe(pickerTemplates.length)
   })
 
-  it('renders exactly 13 SlidePreview tiles when brandKit is configured (12 templates + brand-kit tile)', () => {
+  it('renders exactly pickerTemplates.length + 1 SlidePreview tiles when brandKit is configured', () => {
     const configuredBrandKit: BrandKit = {
       // Minimum fields for isBrandKitConfigured() to return true:
       //   hasColors -> background_color + text_color, OR
@@ -56,8 +55,8 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
       />,
     )
     const previews = screen.getAllByTestId('slide-preview')
-    // templates.length + 1 brand-kit tile = total SlidePreview instances.
-    expect(previews.length).toBe(templates.length + 1)
+    // pickerTemplates.length + 1 brand-kit tile = total SlidePreview instances.
+    expect(previews.length).toBe(pickerTemplates.length + 1)
   })
 
   it('shows brand-kit empty-state link (not a SlidePreview) when brandKit is null', () => {
@@ -77,7 +76,7 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
   it('renders a "Selected" indicator on the active template tile', () => {
     render(
       <TemplatePicker
-        selectedId="magazine-bold"
+        selectedId="bold-yellow"
         onSelect={vi.fn()}
         brandKit={null}
       />,
@@ -86,7 +85,7 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     expect(screen.getAllByText(/Selected/i).length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders Phase 56 templates (editorial-serif, notes-app-chic, brutalist-grid) as SlidePreview tiles, not swatch fallback', () => {
+  it('renders visible Phase 56 templates (editorial-serif, notes-app-chic) as SlidePreview tiles, not swatch fallback', () => {
     render(
       <TemplatePicker
         selectedId="bold-yellow"
@@ -94,19 +93,17 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
         brandKit={null}
       />,
     )
-    // Confirm 12 tiles rendered (8 existing + 3 Phase 56 + paper-essay).
     const previews = screen.getAllByTestId('slide-preview')
-    expect(previews.length).toBe(12)
+    expect(previews.length).toBe(pickerTemplates.length)
 
-    // For each Phase 56 template, find its tile by display name. The picker
-    // tile renders the template's `name` field as visible text — confirms
-    // the tile rendered (NOT a swatch fallback that omits the name).
-    const phase56Templates = [
+    // For each visible Phase 56 template, find its tile by display name.
+    // brutalist-grid is intentionally omitted here — it's in the registry
+    // (for legacy projects) but hidden from the picker.
+    const visiblePhase56Templates = [
       { id: 'editorial-serif', name: 'Editorial Serif' },
       { id: 'notes-app-chic', name: 'Notes App Chic' },
-      { id: 'brutalist-grid', name: 'Brutalist Grid' },
     ]
-    for (const tpl of phase56Templates) {
+    for (const tpl of visiblePhase56Templates) {
       expect(screen.getByText(tpl.name)).toBeInTheDocument()
     }
   })
