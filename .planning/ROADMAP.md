@@ -194,4 +194,14 @@
 - ✅ **v2.1 Text Effects** — Phases 17–19 (shipped 2026-04-07). See [archive](milestones/v2.1-ROADMAP.md).
 - ✅ **v2.0 API & MCP Platform** — Phases 14–16 (shipped 2026-04-07). See [archive](milestones/v2.0-ROADMAP.md).
 
+### Phase 80: composition-aware style extraction — replace flat StyleSpec tagging with archetype classification + typed slot primitives so style-from-reference can faithfully reproduce captioned/collage/highlight-rhythm layouts that the renderer already supports
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 79
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 80 to break down)
+
 ---
