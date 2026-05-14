@@ -4,13 +4,13 @@ milestone: v2.13
 milestone_name: Style-from-Reference Generation
 status: completed
 stopped_at: Roadmap locked. Awaiting `/gsd-plan-phase 73` to begin execution.
-last_updated: "2026-05-14T23:20:00.000Z"
-last_activity: 2026-05-14 -- Completed quick task 260514-laa: highlight-words color picker (per-text-box accent_color override; right-rail row + both renderers)
+last_updated: "2026-05-14T23:31:22.949Z"
+last_activity: 2026-05-14 -- Phase 80 marked complete
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 20
-  completed_plans: 20
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 27
+  completed_plans: 28
   percent: 100
 ---
 
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-10 — v2.13 milestone started)
 
 ## Current Position
 
-Phase: 79 — COMPLETE
+Phase: 80 — COMPLETE
 Plan: —
-Status: Phase 79 complete
-Last activity: 2026-05-12 -- Completed quick task 260511-uk1: fix carousel palette divergence (template_id snapshot gap + explore-detail hardcode + fork-RPC hardcode); brand-kit decision locked at Option B
+Status: Phase 80 complete
+Last activity: 2026-05-14 -- Phase 80 marked complete
 
 ## v2.13 Phase Map
 
