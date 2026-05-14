@@ -116,14 +116,15 @@ export function ImagePickerPanel({
 
   return (
     <div className="flex flex-col gap-6 p-6 bg-[#fff0f0]" data-testid="image-picker-panel">
-      {/* Regenerate */}
-      <div className="space-y-3">
+      {/* Regenerate — quick-260514-portlet-bottom-and-regen: wrapped in
+          watermark-style white card with brown border. */}
+      <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] block">Regenerate</span>
         <div className="flex gap-2">
           <button
             onClick={handleRegenText}
             disabled={regeneratingText}
-            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#3d0000]/20 bg-white text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/30 bg-white text-[#7d6161] hover:bg-[#fadbdb] hover:text-[#3d0000] transition-colors disabled:opacity-50"
             title="Rewrite the text with AI — free"
           >
             <Icon name="refresh" size="sm" className={regeneratingText ? 'animate-spin' : ''} />
@@ -133,7 +134,7 @@ export function ImagePickerPanel({
           <button
             onClick={handleRegenImage}
             disabled={regeneratingImage}
-            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#3d0000]/20 bg-white text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] transition-colors disabled:opacity-50"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-[#dbc1bc]/30 bg-white text-[#7d6161] hover:bg-[#fadbdb] hover:text-[#3d0000] transition-colors disabled:opacity-50"
             title="Find a new stock photo — free"
           >
             <Icon name="refresh" size="sm" className={regeneratingImage ? 'animate-spin' : ''} />
@@ -143,8 +144,10 @@ export function ImagePickerPanel({
         </div>
       </div>
 
-      {/* Background Image section */}
-      <div className="space-y-3">
+      {/* Background Image section — quick-260514-portlet-bottom-and-regen:
+          wrapped in watermark-style white card with brown border. Tabs + all
+          tab content (search / upload / ai generate) sit inside the same card. */}
+      <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] block">Background Image</span>
 
         <div className="flex border-b border-[#dbc1bc]/10">
@@ -179,7 +182,6 @@ export function ImagePickerPanel({
             AI Generate
           </button>
         </div>
-      </div>
 
       {/* Search */}
       {activeTab === 'search' && (
@@ -301,6 +303,7 @@ export function ImagePickerPanel({
           onUpdate={onUpdate}
         />
       )}
+      </div>
     </div>
   )
 }
