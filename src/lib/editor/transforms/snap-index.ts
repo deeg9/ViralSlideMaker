@@ -300,17 +300,25 @@ export function findNearestSnap(
  * @param value - Query value (REF px on a single axis).
  * @param sortedEdges - Sorted edge array for that axis (xEdges OR yEdges).
  * @param prevWasSnapped - Last-frame snap target on this axis, or null.
+ * @param thresholds - Optional override for the enter/exit thresholds (REF px).
+ *   Defaults to SNAP_THRESHOLD_ENTER (5) and SNAP_THRESHOLD_EXIT (7). Callers
+ *   rendering at small canvas scales (e.g., a 200px-wide editor preview of a
+ *   1080-wide reference canvas) widen these so the snap feels magnetic in
+ *   SCREEN px rather than the over-tight default 5 ref px ≈ 1 screen px.
  */
 export function snapWithHysteresis(
   value: number,
   sortedEdges: EdgeEntry[],
   prevWasSnapped: number | null,
+  thresholds?: { enter?: number; exit?: number },
 ): HysteresisResult {
+  const enter = thresholds?.enter ?? SNAP_THRESHOLD_ENTER
+  const exit = thresholds?.exit ?? SNAP_THRESHOLD_EXIT
   // If we were snapped last frame, check the hold zone first.
   if (prevWasSnapped !== null) {
     const delta = prevWasSnapped - value
     const absDelta = delta < 0 ? -delta : delta
-    if (absDelta <= SNAP_THRESHOLD_EXIT) {
+    if (absDelta <= exit) {
       // Stay snapped — within the hold deadband.
       return {
         snapped: true,
@@ -323,7 +331,7 @@ export function snapWithHysteresis(
   }
 
   // Fresh search at the ENTER threshold.
-  const r = findNearestSnap(value, sortedEdges, SNAP_THRESHOLD_ENTER)
+  const r = findNearestSnap(value, sortedEdges, enter)
   if (r.snappedTo !== null) {
     return {
       snapped: true,
