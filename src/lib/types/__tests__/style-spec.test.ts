@@ -22,10 +22,15 @@ import type { TreatmentPreset } from '@/lib/photo-treatment/treat'
 const STYLE_SPEC_PATH = resolve(__dirname, '../style-spec.ts')
 const STYLE_SPEC_SOURCE = readFileSync(STYLE_SPEC_PATH, 'utf8')
 
-/** Build a fully-populated StyleSpec literal for runtime introspection. */
+/** Build a fully-populated StyleSpec literal for runtime introspection.
+    Phase 80: StyleSpec is intersected with ArchetypeSlots, so the fixture
+    MUST carry a valid `slideArchetype` discriminator. We pick
+    'full-bleed-text-overlay' (the DEFAULT_FALLBACK_ARCHETYPE — its
+    slot-param shape is EmptySlots, keeping the fixture minimal). */
 function makeFixture(): StyleSpec {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: {
       mode: 'duotone',
       primary: '#1F2937',
@@ -56,9 +61,9 @@ function makeFixture(): StyleSpec {
 }
 
 describe('Phase 74 (STYLESPEC-01..09): StyleSpec type contract', () => {
-  it('Test T1: StyleSpec exports include all 7 sections + schema_version: 1', () => {
+  it('Test T1: StyleSpec exports include all 7 sections + schema_version: 2', () => {
     const spec = makeFixture()
-    expect(spec.schema_version).toBe(1)
+    expect(spec.schema_version).toBe(2)
     expect(spec.palette).toBeDefined()
     expect(spec.typography).toBeDefined()
     expect(spec.layout).toBeDefined()
@@ -66,9 +71,9 @@ describe('Phase 74 (STYLESPEC-01..09): StyleSpec type contract', () => {
     expect(spec.decorations).toBeDefined()
     expect(spec.rhythm).toBeDefined()
     expect(typeof spec.voice_note).toBe('string')
-    // Compile-time: StyleSpecVersion is the literal 1.
-    const v: StyleSpecVersion = 1
-    expect(v).toBe(1)
+    // Compile-time: StyleSpecVersion is the literal 2 (Phase 80 bump).
+    const v: StyleSpecVersion = 2
+    expect(v).toBe(2)
   })
 
   it('Test T2: typography.hookFontCategory is assignable from FontEntry["category"] only', () => {
