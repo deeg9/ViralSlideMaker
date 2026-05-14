@@ -198,6 +198,16 @@ export function SlideEditor({
     isPickerOpenRef.current = next !== null
   }, [])
 
+  // quick-260514-icon-pill: picker mode. 'add' = default (insert a new
+  // decoration). 'swap-icon' = the inspector's icon-pill was clicked, so when
+  // the user picks an icon in the modal we UPDATE the currently selected
+  // decoration's lucideName instead of inserting a new one. The target id is
+  // captured here at click time so a stale activeDecoration during the picker
+  // session can't redirect the swap.
+  const [pickerMode, setPickerMode] = useState<
+    { kind: 'add' } | { kind: 'swap-icon'; targetId: string }
+  >({ kind: 'add' })
+
   // Phase 70 Plan 03 (PICKER-05 D-CLICK-INSERT carry-forward): the shared
   // onAddDecoration handler. Both pickers (LucidePicker + ShapePicker) call
   // this to dispatch ADD_DECORATION + auto-select the new id via
@@ -205,10 +215,27 @@ export function SlideEditor({
   // reducer invariant + KBD-09 carry-forward). The R/C/L direct-insert
   // bindings inline this same flow (they don't go through the picker so the
   // useCallback identity is irrelevant there).
+  //
+  // quick-260514-icon-pill: if pickerMode is 'swap-icon', dispatch
+  // UPDATE_DECORATION on the captured target id instead. Position/color/size
+  // are preserved by construction (only lucideName + name change).
   const onPickerAddDecoration = useCallback((d: Decoration) => {
+    if (pickerMode.kind === 'swap-icon' && d.kind === 'icon') {
+      dispatch({
+        type: 'UPDATE_DECORATION',
+        slideIndex: selectedIndex,
+        id: pickerMode.targetId,
+        // Clear any user-set `name` so the new lucideName becomes the visible
+        // label. Color/position/strokeWidth on the existing decoration are
+        // intentionally preserved.
+        updates: { lucideName: d.lucideName, name: undefined } as Partial<Decoration>,
+      })
+      setPickerMode({ kind: 'add' })
+      return
+    }
     dispatch({ type: 'ADD_DECORATION', slideIndex: selectedIndex, decoration: d })
     selection.replaceWith([d.id])
-  }, [dispatch, selectedIndex, selection])
+  }, [dispatch, selectedIndex, selection, pickerMode])
 
   // Phase 57 (D-08): photo-treatment override handling. useTransition keeps
   // the spinner state co-located with the editor; revalidatePath fires from
@@ -1775,6 +1802,12 @@ export function SlideEditor({
                 }}
                 onOpenIconPicker={() => setOpenPicker('lucide')}
                 onOpenShapePicker={() => setOpenPicker('shape')}
+                onSwapIcon={() => {
+                  if (!activeDecoration || activeDecoration.kind !== 'icon') return
+                  setPickerMode({ kind: 'swap-icon', targetId: activeDecoration.id })
+                  setOpenPicker('lucide')
+                }}
+                onBackToLibrary={() => selection.clear()}
                 brandKit={brandKit}
                 derivedPalette={currentSlide.style_overrides?.derived_palette}
               />
@@ -1874,7 +1907,13 @@ export function SlideEditor({
           preview path (the slide-editor's own surface is editable=true). */}
       <LucidePickerDynamic
         open={openPicker === 'lucide'}
-        onClose={() => setOpenPicker(null)}
+        onClose={() => {
+          setOpenPicker(null)
+          // Reset swap-icon mode so a subsequent picker open from the
+          // library tile doesn't accidentally swap. The successful-pick
+          // path resets too — this handles Escape / backdrop / X.
+          setPickerMode({ kind: 'add' })
+        }}
         onAddDecoration={onPickerAddDecoration}
       />
       <ShapePicker
