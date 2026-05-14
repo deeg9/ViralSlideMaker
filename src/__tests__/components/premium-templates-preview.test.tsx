@@ -87,7 +87,7 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
     expect(styleHasColor(chip, '#000000')).toBe(true)
   })
 
-  it('magazine-bold: renders top-right counter "1/5" with rgba(0,0,0,0.6) background', () => {
+  it('magazine-bold: top-right page-counter overlay suppressed (quick-260514-kv9)', () => {
     const template = getTemplate('magazine-bold')
     const slide = makeSlide({
       hook_text: template.sample!.hook_text,
@@ -103,9 +103,7 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
         topic="folk-music"
       />,
     )
-    const counter = screen.getByTestId('overlay-top-right')
-    expect(counter.textContent).toBe('1/5')
-    expect(styleHas(counter, 'rgba(0,0,0,0.6)') || styleHas(counter, 'rgba(0, 0, 0, 0.6)')).toBe(true)
+    expect(screen.queryByTestId('overlay-top-right')).toBeNull()
   })
 
   it('magazine-bold: renders bottom-card with rgba(0,0,0,0.85) backgroundMode=image-with-bottom-card', () => {
@@ -201,7 +199,7 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
     expect(styleHas(midPill, 'border-radius: 40px')).toBe(true)
   })
 
-  it('tr3nding-news: renders top-right counter (sibling cohesion with magazine-bold)', () => {
+  it('tr3nding-news: top-right page-counter overlay suppressed (quick-260514-kv9)', () => {
     const template = getTemplate('tr3nding-news')
     const slide = makeSlide({
       hook_text: template.sample!.hook_text,
@@ -216,8 +214,7 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
         totalSlides={5}
       />,
     )
-    const counter = screen.getByTestId('overlay-top-right')
-    expect(counter.textContent).toBe('3/5')
+    expect(screen.queryByTestId('overlay-top-right')).toBeNull()
   })
 
   it('tr3nding-news: NO top-left chip — locked exclusion (mid-pill is the visual identity)', () => {
@@ -296,7 +293,7 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
     expect(screen.queryByTestId('bottom-card')).toBeNull()
   })
 
-  it('documentary: renders ghosted top-right counter with transparent background', () => {
+  it('documentary: top-right page-counter overlay suppressed (quick-260514-kv9)', () => {
     const template = getTemplate('documentary')
     const slide = makeSlide({
       hook_text: template.sample!.hook_text,
@@ -311,9 +308,7 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
         totalSlides={5}
       />,
     )
-    const counter = screen.getByTestId('overlay-top-right')
-    expect(counter.textContent).toBe('1/5')
-    expect(styleHas(counter, 'background: transparent') || styleHas(counter, 'background-color: transparent')).toBe(true)
+    expect(screen.queryByTestId('overlay-top-right')).toBeNull()
   })
 
   it('documentary: renders free-slot gradient overlay with linear-gradient string', () => {

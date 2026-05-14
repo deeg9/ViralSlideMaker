@@ -211,8 +211,10 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     expect(bottomCard).toBeDefined()
   })
 
-  // Test 4 — Overlays in image-with-bottom-card mode.
-  it('renders overlays at SLOT_GEOMETRY anchors with literal + page-counter content', () => {
+  // Test 4 — Overlays in image-with-bottom-card mode. quick-260514-kv9:
+  // page-counter is now suppressed at the consumer; the test asserts the
+  // literal overlay still renders AND the page-counter slot does not.
+  it('renders literal overlay; suppresses page-counter overlay (TPLREND-05 parity)', () => {
     const tpl: SlideTemplate = {
       ...baseTemplate,
       backgroundMode: 'image-with-bottom-card',
@@ -233,7 +235,7 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
 
     const nodes = walk(element)
 
-    // top-left overlay: left:60, top:60, text 'TR3NDING'
+    // top-left overlay still renders.
     const topLeft = nodes.find((n) => {
       if (typeOf(n) !== 'div') return false
       const s = styleOf(n)
@@ -242,14 +244,14 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     })
     expect(topLeft).toBeDefined()
 
-    // top-right overlay: right:60, top:60, text '1/5'
+    // top-right page-counter overlay should NOT render — quick-260514-kv9.
     const topRight = nodes.find((n) => {
       if (typeOf(n) !== 'div') return false
       const s = styleOf(n)
       if (s == null || s.right !== 60 || s.top !== 60) return false
       return textOf(childrenOf(n)).includes('1/5')
     })
-    expect(topRight).toBeDefined()
+    expect(topRight).toBeUndefined()
   })
 
   // Test 5 — slide-field topic via shared resolver.
@@ -347,8 +349,11 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     expect(blockSpan).toBeDefined()
   })
 
-  // Test 8 — Missing ctx → counter renders '1/1' (graceful fallback).
-  it('falls back gracefully when ctx is omitted — counter renders 1/1', () => {
+  // Test 8 — Missing ctx → page-counter overlay is suppressed entirely
+  // (quick-260514-kv9). Previously this asserted the '1/1' fallback render;
+  // the overlay is now short-circuited at the consumer before that fallback
+  // is reached.
+  it('page-counter overlay is suppressed even when ctx is omitted', () => {
     const tpl: SlideTemplate = {
       ...baseTemplate,
       overlays: [{ position: 'top-right', content: { type: 'page-counter' } }],
@@ -361,8 +366,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
       'http://localhost',
       // ctx intentionally omitted
     )
-    expect(element).toMatchSnapshot('missing-ctx-counter-1-of-1')
-
     const nodes = walk(element)
     const counterOverlay = nodes.find((n) => {
       if (typeOf(n) !== 'div') return false
@@ -370,7 +373,7 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
       if (s == null || s.right !== 60 || s.top !== 60) return false
       return textOf(childrenOf(n)).trim() === '1/1'
     })
-    expect(counterOverlay).toBeDefined()
+    expect(counterOverlay).toBeUndefined()
   })
 
   // Test 9 — Missing ctx + slide-field topic → ''.

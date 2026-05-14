@@ -88,7 +88,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > bold-yellow:
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -209,7 +209,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > highlight-ba
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -290,7 +290,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-cyan: r
         "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
         "fontSize": 72,
-        "fontWeight": 900,
+        "fontWeight": 400,
         "left": 119,
         "lineHeight": 1.1,
         "position": "absolute",
@@ -330,7 +330,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-cyan: r
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -411,7 +411,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-drop: r
         "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
         "fontSize": 72,
-        "fontWeight": 900,
+        "fontWeight": 400,
         "left": 119,
         "lineHeight": 1.1,
         "position": "absolute",
@@ -451,7 +451,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-drop: r
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -572,7 +572,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > y2k-pop: ren
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >

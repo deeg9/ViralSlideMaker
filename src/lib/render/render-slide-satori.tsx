@@ -383,6 +383,11 @@ export function buildSlideElement(
           preview to guarantee TPLREND-05 parity. Explicit keys per RESEARCH.md
           Pitfall 6 (snapshot stability across React 19 minor versions). */}
       {template.overlays?.map((overlay, i) => {
+        // quick-260514-kv9: page-counter overlay suppressed everywhere
+        // (TPLREND-05 parity with the React preview short-circuit). The
+        // "Slide N / total" chip lives above the canvas now (quick-260514-ku2);
+        // the per-slide top-right number is redundant.
+        if (overlay.content.type === 'page-counter') return null
         // Phase 56 (TPL-04, D-14): decorative overlay branch. Renders a SVG/PNG
         // asset via the shared renderDecorativeOverlay helper — both renderers
         // consume the same module (TPLREND-05 parity invariant). Decorative
@@ -430,16 +435,10 @@ export function buildSlideElement(
                   : {}),
               }
         const text = resolveOverlayContent(overlay.content, resolveCtx)
-        // Phase 57 (D-14, D-16, PALETTE-03): editorial-serif page-counter chip
-        // gets Vibrant background + DarkMuted text when palette-dominant + palette set.
-        const augmentedStyle =
-          overlay.content.type === 'page-counter'
-            ? augmentEditorialSerifPageCounterStyle(
-                overlay.style as Record<string, unknown> | undefined,
-                resolveCtx.slide,
-                template,
-              )
-            : { ...(overlay.style ?? {}) }
+        // quick-260514-kv9: page-counter overlay short-circuited above, so the
+        // editorial-serif palette-augmentation branch is unreachable. Same
+        // simplification as the React preview path for TPLREND-05 parity.
+        const augmentedStyle = { ...(overlay.style ?? {}) }
         return (
           <div
             key={`overlay-${i}-${overlay.position}`}

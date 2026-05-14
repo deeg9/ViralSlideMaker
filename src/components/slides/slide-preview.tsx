@@ -204,6 +204,13 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
   return (
     <>
       {template.overlays.map((overlay: TemplateOverlay, i: number) => {
+        // quick-260514-kv9: page-counter overlay suppressed everywhere. The
+        // user surfaced "Slide N / total" via the new above-canvas chip
+        // (quick-260514-ku2), and the per-slide top-right counter is now
+        // redundant. We short-circuit at the consumer rather than editing
+        // each of the 7 template files so the change is reversible — and
+        // mirrored at the Satori render path for TPLREND-05 parity.
+        if (overlay.content.type === 'page-counter') return null
         // Phase 56 (TPL-04, D-14): decorative overlay branch. Renders SVG/PNG
         // asset via the shared renderDecorativeOverlay helper — both renderers
         // consume the same module (TPLREND-05 parity invariant).
@@ -249,16 +256,11 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
                   : {}),
               }
         const text = resolveOverlayContent(overlay.content, ctx)
-        // Phase 57 (D-14, D-16, PALETTE-03): editorial-serif page-counter chip
-        // gets Vibrant background + DarkMuted text when palette-dominant + palette set.
-        const augmentedStyle =
-          overlay.content.type === 'page-counter'
-            ? augmentEditorialSerifPageCounterStyle(
-                overlay.style as Record<string, unknown> | undefined,
-                ctx.slide,
-                template,
-              )
-            : { ...(overlay.style ?? {}) }
+        // quick-260514-kv9: page-counter overlay short-circuited above, so the
+        // editorial-serif palette-augmentation branch is unreachable. Kept the
+        // helper import-clean for now; safe to fully drop if no other consumer
+        // surfaces.
+        const augmentedStyle = { ...(overlay.style ?? {}) }
         return (
           <div
             key={`overlay-${i}-${overlay.position}`}

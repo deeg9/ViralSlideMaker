@@ -121,9 +121,9 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
     expect(mintChip).toBeDefined()
     expect(textOf(mintChip)).toBe('folk-music')
 
-    // Top-right counter overlay present — '1/5'
+    // quick-260514-kv9: page-counter overlay suppressed everywhere.
     const counter = nodes.find((n) => textOf(n) === '1/5' && styleOf(n)?.background === 'rgba(0,0,0,0.6)')
-    expect(counter).toBeDefined()
+    expect(counter).toBeUndefined()
 
     // Mint pill spans on hook segments — match parity-locked signature
     const pillSpans = nodes.filter((n) => {
@@ -162,9 +162,9 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
     expect((styleOf(midPill) as Record<string, unknown>).background).toBe('#000000')
     expect((styleOf(midPill) as Record<string, unknown>).borderRadius).toBe('40px')
 
-    // Top-right counter present — '1/5'
+    // quick-260514-kv9: page-counter overlay suppressed everywhere.
     const counter = nodes.find((n) => textOf(n) === '1/5' && styleOf(n)?.background === 'rgba(0,0,0,0.6)')
-    expect(counter).toBeDefined()
+    expect(counter).toBeUndefined()
 
     // Mint pill spans on hook segments
     const pillSpans = nodes.filter((n) => {
@@ -203,9 +203,9 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
     })
     expect(bottomCardNode).toBeUndefined()
 
-    // Ghosted counter — transparent background, white color, '1/5' text
+    // quick-260514-kv9: page-counter overlay suppressed everywhere.
     const ghostedCounter = nodes.find((n) => textOf(n) === '1/5' && styleOf(n)?.background === 'transparent')
-    expect(ghostedCounter).toBeDefined()
+    expect(ghostedCounter).toBeUndefined()
 
     // Free-slot gradient overlay — linear-gradient string in background, offset y=1340
     const gradientOverlay = nodes.find((n) => {

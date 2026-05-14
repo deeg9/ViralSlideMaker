@@ -1,142 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefully when ctx is omitted — counter renders 1/1 > missing-ctx-counter-1-of-1 1`] = `
-<div
-  style={
-    {
-      "color": "#FFFFFF",
-      "display": "flex",
-      "fontFamily": "'Inter', sans-serif",
-      "height": 1920,
-      "overflow": "hidden",
-      "position": "relative",
-      "width": 1080,
-    }
-  }
->
-  <img
-    src="https://example.com/folk.jpg"
-    style={
-      {
-        "height": 1920,
-        "left": 0,
-        "objectFit": "cover",
-        "objectPosition": "center",
-        "position": "absolute",
-        "top": 0,
-        "width": 1080,
-      }
-    }
-  />
-  <div
-    style={
-      {
-        "backgroundColor": "#000000",
-        "bottom": 0,
-        "left": 0,
-        "opacity": 0.4,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-  />
-  <div
-    style={
-      {
-        "alignItems": "center",
-        "display": "flex",
-        "fontSize": 28,
-        "fontWeight": 700,
-        "lineHeight": 1,
-        "position": "absolute",
-        "right": 60,
-        "top": 60,
-      }
-    }
-  >
-    1/1
-  </div>
-  <div
-    style={
-      {
-        "display": "flex",
-        "flexWrap": "wrap",
-        "fontFamily": "'Inter', sans-serif",
-        "fontSize": 110,
-        "fontWeight": 900,
-        "left": 119,
-        "lineHeight": 1.1,
-        "position": "absolute",
-        "textAlign": "left",
-        "textTransform": "uppercase",
-        "top": 922,
-        "width": 842,
-      }
-    }
-  >
-    FOLK SINGER FIGHTS BACK
-  </div>
-  <div
-    style={
-      {
-        "display": "flex",
-        "flexWrap": "wrap",
-        "fontSize": 32,
-        "fontWeight": 400,
-        "left": 119,
-        "lineHeight": 1.5,
-        "opacity": 0.9,
-        "position": "absolute",
-        "textAlign": "left",
-        "top": 1190,
-        "width": 842,
-      }
-    }
-  >
-    Murphy Campbell is a folk singer.
-  </div>
-  <div
-    style={
-      {
-        "alignItems": "center",
-        "display": "flex",
-        "left": 43.2,
-        "opacity": 0.55,
-        "position": "absolute",
-        "top": 1827.8,
-      }
-    }
-  >
-    <img
-      src="http://localhost/logo.png"
-      style={
-        {
-          "height": 49,
-          "marginRight": 13,
-          "objectFit": "contain",
-          "width": 49,
-        }
-      }
-    />
-    <div
-      style={
-        {
-          "color": "#ffffff",
-          "fontSize": 24,
-          "fontWeight": 700,
-          "letterSpacing": -0.2,
-          "lineHeight": 1,
-          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
-        }
-      }
-    >
-      ViralSlideMaker.com
-    </div>
-  </div>
-</div>
-`;
-
 exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefully when ctx is omitted — slide-field topic resolves to empty > missing-ctx-slide-field-empty 1`] = `
 <div
   style={
@@ -239,7 +102,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -375,7 +238,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -496,7 +359,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
           "maxWidth": "100%",
           "overflowWrap": "break-word",
           "padding": "4px 8px",
-          "wordBreak": "break-word",
         }
       }
     >
@@ -511,7 +373,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -632,7 +494,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-blee
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -768,7 +630,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-with
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -889,7 +751,159 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders legacy tem
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
+      }
+    }
+  >
+    <img
+      src="http://localhost/logo.png"
+      style={
+        {
+          "height": 49,
+          "marginRight": 13,
+          "objectFit": "contain",
+          "width": 49,
+        }
+      }
+    />
+    <div
+      style={
+        {
+          "color": "#ffffff",
+          "fontSize": 24,
+          "fontWeight": 700,
+          "letterSpacing": -0.2,
+          "lineHeight": 1,
+          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
+        }
+      }
+    >
+      ViralSlideMaker.com
+    </div>
+  </div>
+</div>
+`;
+
+exports[`buildSlideElement — Phase 45 overlay composition > renders literal overlay; suppresses page-counter overlay (TPLREND-05 parity) > image-with-bottom-card-with-overlays 1`] = `
+<div
+  style={
+    {
+      "color": "#FFFFFF",
+      "display": "flex",
+      "fontFamily": "'Inter', sans-serif",
+      "height": 1920,
+      "overflow": "hidden",
+      "position": "relative",
+      "width": 1080,
+    }
+  }
+>
+  <img
+    src="https://example.com/folk.jpg"
+    style={
+      {
+        "height": 1920,
+        "left": 0,
+        "objectFit": "cover",
+        "objectPosition": "center",
+        "position": "absolute",
+        "top": 0,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "#000000",
+        "bottom": 0,
+        "left": 0,
+        "opacity": 0.4,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "display": "flex",
+        "flexDirection": "column",
+        "height": 730,
+        "left": 0,
+        "padding": 80,
+        "position": "absolute",
+        "top": 1190,
+        "width": 1080,
+      }
+    }
+  />
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "fontSize": 28,
+        "fontWeight": 700,
+        "left": 60,
+        "lineHeight": 1,
+        "position": "absolute",
+        "top": 60,
+      }
+    }
+  >
+    TR3NDING
+  </div>
+  <div
+    style={
+      {
+        "display": "flex",
+        "flexWrap": "wrap",
+        "fontFamily": "'Inter', sans-serif",
+        "fontSize": 110,
+        "fontWeight": 900,
+        "left": 119,
+        "lineHeight": 1.1,
+        "position": "absolute",
+        "textAlign": "left",
+        "textTransform": "uppercase",
+        "top": 922,
+        "width": 842,
+      }
+    }
+  >
+    FOLK SINGER FIGHTS BACK
+  </div>
+  <div
+    style={
+      {
+        "display": "flex",
+        "flexWrap": "wrap",
+        "fontSize": 32,
+        "fontWeight": 400,
+        "left": 119,
+        "lineHeight": 1.5,
+        "opacity": 0.9,
+        "position": "absolute",
+        "textAlign": "left",
+        "top": 1190,
+        "width": 842,
+      }
+    }
+  >
+    Murphy Campbell is a folk singer.
+  </div>
+  <div
+    style={
+      {
+        "alignItems": "center",
+        "display": "flex",
+        "left": 43.2,
+        "opacity": 0.55,
+        "position": "absolute",
+        "top": 43.2,
       }
     }
   >
@@ -987,7 +1001,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
           "color": "#FFFFFF",
           "maxWidth": "100%",
           "overflowWrap": "break-word",
-          "wordBreak": "break-word",
         }
       }
     >
@@ -1003,7 +1016,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
           "maxWidth": "100%",
           "overflowWrap": "break-word",
           "padding": "4px 12px",
-          "wordBreak": "break-word",
         }
       }
     >
@@ -1015,7 +1027,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
           "color": "#FFFFFF",
           "maxWidth": "100%",
           "overflowWrap": "break-word",
-          "wordBreak": "break-word",
         }
       }
     >
@@ -1049,175 +1060,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
-      }
-    }
-  >
-    <img
-      src="http://localhost/logo.png"
-      style={
-        {
-          "height": 49,
-          "marginRight": 13,
-          "objectFit": "contain",
-          "width": 49,
-        }
-      }
-    />
-    <div
-      style={
-        {
-          "color": "#ffffff",
-          "fontSize": 24,
-          "fontWeight": 700,
-          "letterSpacing": -0.2,
-          "lineHeight": 1,
-          "textShadow": "0px 2px 6px rgba(0,0,0,0.6)",
-        }
-      }
-    >
-      ViralSlideMaker.com
-    </div>
-  </div>
-</div>
-`;
-
-exports[`buildSlideElement — Phase 45 overlay composition > renders overlays at SLOT_GEOMETRY anchors with literal + page-counter content > image-with-bottom-card-with-overlays 1`] = `
-<div
-  style={
-    {
-      "color": "#FFFFFF",
-      "display": "flex",
-      "fontFamily": "'Inter', sans-serif",
-      "height": 1920,
-      "overflow": "hidden",
-      "position": "relative",
-      "width": 1080,
-    }
-  }
->
-  <img
-    src="https://example.com/folk.jpg"
-    style={
-      {
-        "height": 1920,
-        "left": 0,
-        "objectFit": "cover",
-        "objectPosition": "center",
-        "position": "absolute",
-        "top": 0,
-        "width": 1080,
-      }
-    }
-  />
-  <div
-    style={
-      {
-        "backgroundColor": "#000000",
-        "bottom": 0,
-        "left": 0,
-        "opacity": 0.4,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-  />
-  <div
-    style={
-      {
-        "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "display": "flex",
-        "flexDirection": "column",
-        "height": 730,
-        "left": 0,
-        "padding": 80,
-        "position": "absolute",
-        "top": 1190,
-        "width": 1080,
-      }
-    }
-  />
-  <div
-    style={
-      {
-        "alignItems": "center",
-        "display": "flex",
-        "fontSize": 28,
-        "fontWeight": 700,
-        "left": 60,
-        "lineHeight": 1,
-        "position": "absolute",
-        "top": 60,
-      }
-    }
-  >
-    TR3NDING
-  </div>
-  <div
-    style={
-      {
-        "alignItems": "center",
-        "display": "flex",
-        "fontSize": 28,
-        "fontWeight": 700,
-        "lineHeight": 1,
-        "position": "absolute",
-        "right": 60,
-        "top": 60,
-      }
-    }
-  >
-    1/5
-  </div>
-  <div
-    style={
-      {
-        "display": "flex",
-        "flexWrap": "wrap",
-        "fontFamily": "'Inter', sans-serif",
-        "fontSize": 110,
-        "fontWeight": 900,
-        "left": 119,
-        "lineHeight": 1.1,
-        "position": "absolute",
-        "textAlign": "left",
-        "textTransform": "uppercase",
-        "top": 922,
-        "width": 842,
-      }
-    }
-  >
-    FOLK SINGER FIGHTS BACK
-  </div>
-  <div
-    style={
-      {
-        "display": "flex",
-        "flexWrap": "wrap",
-        "fontSize": 32,
-        "fontWeight": 400,
-        "left": 119,
-        "lineHeight": 1.5,
-        "opacity": 0.9,
-        "position": "absolute",
-        "textAlign": "left",
-        "top": 1190,
-        "width": 842,
-      }
-    }
-  >
-    Murphy Campbell is a folk singer.
-  </div>
-  <div
-    style={
-      {
-        "alignItems": "center",
-        "display": "flex",
-        "left": 43.2,
-        "opacity": 0.55,
-        "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
@@ -1369,7 +1212,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders slide-fiel
         "left": 43.2,
         "opacity": 0.55,
         "position": "absolute",
-        "top": 1827.8,
+        "top": 43.2,
       }
     }
   >
