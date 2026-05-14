@@ -37,6 +37,10 @@ export type SilentDropReason =
   | 'unknown_field'
   | 'sanitization'
   | 'parse_error'
+  // Phase 80 reasons (composition-aware extraction — Plan 02 firewall):
+  | 'schema_version_rejected'   // parseStyleSpecSafe early-reject on schema_version != STYLE_SPEC_VERSION
+  | 'archetype_fallback'         // slideArchetype absent/unrecognized; defaulted to DEFAULT_FALLBACK_ARCHETYPE
+  | 'archetype_slot_mismatch'    // slot param (caption, split, …) supplied for an archetype that does not declare it
 
 export interface SilentDropEvent {
   /** Dotted path, e.g. "typography.hookFontCategory" or
