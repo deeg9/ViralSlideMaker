@@ -346,6 +346,33 @@ export function bottomCardBackground(hex: string): string {
  * Implementation note: returns React.createElement directly so this module
  * stays at .ts (no TSX transform required by importers).
  */
+/**
+ * quick-260514-l9q: map a CSS `text-align` value to the equivalent flexbox
+ * `justify-content` value, used by hook/body wrappers that need `display: flex`
+ * (Satori's CSS subset forces flex for any element with multiple children +
+ * a flex-wrap behavior). Browsers do NOT honor `text-align` on flex
+ * containers — flex items are positioned by `justify-content`, not by the
+ * inline-text-alignment rule. Without this helper, picking "center" align on
+ * a hook text box renders left-aligned in the editor preview (the bug the
+ * user reported: workaround was bumping list-indent to 1 to dodge the
+ * fast-path renderer and produce a different DOM shape).
+ *
+ * Returned values map cleanly:
+ *   left   → flex-start
+ *   center → center
+ *   right  → flex-end
+ *
+ * `undefined` and unrecognized values fall through to `flex-start` so legacy
+ * slides without an explicit alignment keep their existing visual.
+ */
+export function alignToJustifyContent(
+  align: string | undefined,
+): 'flex-start' | 'center' | 'flex-end' {
+  if (align === 'center') return 'center'
+  if (align === 'right') return 'flex-end'
+  return 'flex-start'
+}
+
 const GRAIN_OPACITY_MAP = {
   subtle: 0.04,
   medium: 0.08,

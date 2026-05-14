@@ -77,6 +77,7 @@ import {
   renderDecorativeOverlay,
   augmentEditorialSerifPageCounterStyle,
   getNotesAppChicAccentColor,
+  alignToJustifyContent,
   type OverlayResolveCtx,
 } from '@/lib/render/resolve-overlay'
 import type { TemplateOverlay } from '@/lib/render/templates/index'
@@ -811,6 +812,13 @@ export function SlidePreview({
     display: 'flex',
     flexWrap: 'wrap',
     width: '100%',
+    // quick-260514-l9q: `text-align` on a `display: flex` element does NOT
+    // align flex items in the browser — `justify-content` does. Without this
+    // mapping, picking "Center" / "Right" on a hook text box renders left-
+    // aligned in the editor (Satori's CSS subset coincidentally interprets
+    // text-align correctly so the bug was browser-only). User workaround was
+    // bumping list-indent to 1 to dodge the fast-path renderer.
+    justifyContent: alignToJustifyContent(hookTextAlign),
   }
   const bodyTextStyle: React.CSSProperties = {
     fontSize: `${bodyFontSize}px`,
