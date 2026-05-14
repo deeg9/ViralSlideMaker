@@ -75,7 +75,11 @@ export function VisibilityDropdown({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 min-w-[200px] bg-white rounded-xl shadow-lg ring-1 ring-black/5 py-1 z-30"
+          // quick-260514-visibility-fixes: anchor the menu's LEFT edge to the
+          // trigger so it opens rightward into the rail's available space.
+          // Previously `right-0` made the menu extend leftward and get
+          // clipped by the rail's overflow-hidden boundary.
+          className="absolute left-0 top-full mt-1 min-w-[200px] max-w-[260px] bg-white rounded-xl shadow-lg ring-1 ring-black/5 py-1 z-30"
         >
           <button
             role="menuitem"
@@ -88,9 +92,6 @@ export function VisibilityDropdown({
             <span className="flex-1">
               <span className="flex items-center gap-1.5">
                 <span className="text-[#3d0000] font-medium">Public</span>
-                <span className="text-[10px] text-[#7d6161] font-semibold uppercase tracking-wider">
-                  Default
-                </span>
                 {isPublic && (
                   <Icon name="check" size="sm" className="text-[#3d0000] ml-auto" />
                 )}
@@ -124,7 +125,7 @@ export function VisibilityDropdown({
       )}
 
       {error && (
-        <p className="absolute right-0 top-full mt-1 max-w-xs text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1 z-30">
+        <p className="absolute left-0 top-full mt-1 max-w-[240px] text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1 z-30 break-words">
           {error}
         </p>
       )}
