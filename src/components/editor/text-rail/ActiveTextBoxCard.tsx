@@ -4,7 +4,6 @@ import { Icon } from '@/components/ui/icon'
 import { FontPicker } from '@/components/editor/font-picker'
 import { EffectRow } from './EffectRow'
 import { AccentWordsDisclosure } from './AccentWordsDisclosure'
-import { BoldWordsDisclosure } from './BoldWordsDisclosure'
 import { COLOR_SWATCHES } from './color-swatches'
 import { splitToSegments } from '@/lib/editor/text-segments'
 
@@ -58,18 +57,6 @@ function roleLabel(role: TextBox['role']): string {
     case 'custom':
     default:
       return 'TEXT BOX'
-  }
-}
-
-function sizeLabel(role: TextBox['role']): string {
-  switch (role) {
-    case 'hook':
-      return 'Hook size'
-    case 'body':
-      return 'Body size'
-    case 'custom':
-    default:
-      return 'Size'
   }
 }
 
@@ -154,14 +141,6 @@ export function ActiveTextBoxCard({
     onUpdate({ segments: next })
   }
 
-  // quick-260502-pw8: per-segment bold toggle (mirror of toggleAccent).
-  function toggleBold(index: number) {
-    const next = segments.map((s, i) =>
-      i === index ? { ...s, bold: !s.bold } : s,
-    )
-    onUpdate({ segments: next })
-  }
-
   // quick-260502-pw8: list type + indent helpers. list_type undefined = plain
   // text; setting clears any indent at level 0 (no-op for the user). Indent
   // clamps to 0..2 inclusive — enforced both here and at render time.
@@ -214,6 +193,32 @@ export function ActiveTextBoxCard({
         templateFont={template.fontFamily}
       />
 
+      {/* Font size — quick-260514-text-rail-cleanup: replaces the old "Hook size"
+          slider. Sits directly under the FontPicker so it visually pairs with
+          Font (Word / Canva pattern). Min/max mirror the old slider ranges so
+          existing fixtures stay in-range; commit on every change still pushes
+          one history entry per dispatch (KBD-09 unchanged). */}
+      <div className="space-y-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+          Font size
+        </span>
+        <input
+          type="number"
+          data-testid="active-text-box-size"
+          aria-label="Font size"
+          min={textBox.role === 'body' ? 14 : 16}
+          max={textBox.role === 'body' ? 120 : 240}
+          step={1}
+          value={textBox.font_size ?? defaultSizeForRole(textBox.role, template)}
+          onChange={(e) => {
+            const n = Number(e.target.value)
+            if (!Number.isFinite(n)) return
+            onUpdate({ font_size: n })
+          }}
+          className={`w-24 bg-white border border-[#dbc1bc]/30 focus:border-[#3d0000] rounded-lg px-3 py-2 text-sm text-[#3d0000] tabular-nums focus:outline-none ${FOCUS_RING}`}
+        />
+      </div>
+
       {/* Style row: Bold + Italic */}
       <div className="flex gap-2 items-center">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mr-1">
@@ -253,11 +258,10 @@ export function ActiveTextBoxCard({
         </button>
       </div>
 
-      {/* List + Indent row (quick-260502-pw8). Three-way segmented control
-          for list_type + indent decrease/increase buttons. Behaves like Word
-          / Figma / Canva: each line of `text` (\n-separated) becomes a list
-          item with a literal-text marker prefix in both renderers. */}
-      <div className="flex gap-2 items-center flex-wrap">
+      {/* List row (quick-260502-pw8). Three-way segmented control for list_type.
+          Behaves like Word / Figma / Canva: each line of `text` (\n-separated)
+          becomes a list item with a literal-text marker prefix in both renderers. */}
+      <div className="flex gap-2 items-center">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mr-1">
           List
         </span>
@@ -309,7 +313,13 @@ export function ActiveTextBoxCard({
         >
           <Icon name="format_list_bulleted" size="sm" />
         </button>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mx-1">
+      </div>
+
+      {/* Indent row — moved below List per quick-260514-text-rail-cleanup so
+          the two controls stack vertically instead of wrapping onto one
+          ambiguous flex row. */}
+      <div className="flex gap-2 items-center">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mr-1">
           Indent
         </span>
         <button
@@ -349,36 +359,13 @@ export function ActiveTextBoxCard({
         />
       )}
 
-      {/* Bold words (quick-260502-pw8) — same chip-toggle UX as accent. */}
-      {segments.length > 0 && (
-        <BoldWordsDisclosure
-          segments={segments}
-          onToggle={toggleBold}
-        />
-      )}
-
-      {/* Size slider */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
-            {sizeLabel(textBox.role)}
-          </span>
-          <span className="text-[10px] font-bold text-[#3d0000]">
-            {textBox.font_size ?? defaultSizeForRole(textBox.role, template)}
-          </span>
-        </div>
-        <input
-          type="range"
-          data-testid="active-text-box-size"
-          min={textBox.role === 'body' ? 14 : 16}
-          max={textBox.role === 'body' ? 120 : 240}
-          step={2}
-          value={textBox.font_size ?? defaultSizeForRole(textBox.role, template)}
-          onChange={(e) => onUpdate({ font_size: Number(e.target.value) })}
-          aria-label={sizeLabel(textBox.role)}
-          className={`w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] ${FOCUS_RING}`}
-        />
-      </div>
+      {/* quick-260514-text-rail-cleanup: BoldWordsDisclosure removed per user
+          request — the per-segment bold-toggle chip surface was adding noise
+          without clear user value. Per-segment styling is still reachable via
+          the AccentWordsDisclosure highlight path, and the global Bold toggle
+          (Style row) still flips font_weight 400 ↔ 700 for the whole box.
+          The old "Hook size" slider that sat here moved up to a numeric
+          "Font size" input under the FontPicker. */}
 
       {/* Color swatches */}
       <div className="space-y-2">
