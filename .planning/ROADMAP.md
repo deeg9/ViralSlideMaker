@@ -199,15 +199,17 @@
 **Goal:** Replace the flat-tag v2.13 StyleSpec schema with a composition-aware schema that classifies each reference into one of 8 named slide archetypes plus per-archetype typed slot params, so the projector emits `template_id_override` and the AI generator can faithfully reproduce captioned, collage, and highlight-rhythm layouts the renderer already supports. Schema_version bumps 1→2; cache purges v1; PARITY-05 + two-phase firewall preserved; 3 of 5 curated references must classify correctly (Meta-workers + chip-sales MUST-PASS).
 **Requirements**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12
 **Depends on:** Phase 79
-**Plans:** 7 plans
+**Plans:** 7 plans (✅ all complete) + cleanup + review-fix
 
 Plans:
-- [ ] 80-01-PLAN.md — Canonical archetypes module + StyleSpec slideArchetype + STYLE_SPEC_VERSION 1→2 (Wave 1)
-- [ ] 80-02-PLAN.md — Zod validator: discriminated union + reject v1 payloads + slot-mismatch silent-drop (Wave 1)
-- [ ] 80-03-PLAN.md — Gemini extractor: responseSchema + system prompt archetype classification (Wave 2)
-- [ ] 80-04-PLAN.md — Projector: emit template_id_override per archetype + decoration default fix (Wave 2)
-- [ ] 80-05-PLAN.md — Generation prompt: archetype-conditional guidance for text_position + custom_images + highlight rhythm (Wave 2)
-- [ ] 80-06-PLAN.md — Supabase migration purging schema_version != 2 cache rows + defensive lookup filter (Wave 3)
-- [ ] 80-07-PLAN.md — 80-DOCS.md mapping + fixtures catalog + 80-VERIFICATION.md scaffold + projector unit test + live-Gemini integration test (Wave 3)
+- [x] 80-01-PLAN.md — Canonical archetypes module + StyleSpec slideArchetype + STYLE_SPEC_VERSION 1→2 (Wave 1)
+- [x] 80-02-PLAN.md — Zod validator: discriminated union + reject v1 payloads + slot-mismatch silent-drop (Wave 1)
+- [x] 80-03-PLAN.md — Gemini extractor: responseSchema + system prompt archetype classification (Wave 2)
+- [x] 80-04-PLAN.md — Projector: emit template_id_override per archetype + decoration default fix (Wave 2)
+- [x] 80-05-PLAN.md — Generation prompt: archetype-conditional guidance for text_position + custom_images + highlight rhythm (Wave 2)
+- [x] 80-06-PLAN.md — Supabase migration purging schema_version != 2 cache rows + defensive lookup filter (Wave 3)
+- [x] 80-07-PLAN.md — 80-DOCS.md mapping + fixtures catalog + 80-VERIFICATION.md scaffold + projector unit test + live-Gemini integration test (Wave 3)
+
+**Status:** ✅ Code complete. Verification: 11/13 auto-PASS; 2/13 (Meta-workers + chip-sales archetype classification) require live-Gemini smoke test with fixtures placed in `fixtures/` and `GEMINI_API_KEY` + `PHASE80_LIVE_FIXTURES=1` set.
 
 ---
