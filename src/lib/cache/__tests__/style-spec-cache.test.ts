@@ -86,7 +86,12 @@ describe('style-spec-cache', () => {
     })
 
     it('returns the spec object directly on cache hit (NOT wrapped in { style_spec })', async () => {
-      const spec = { palette: ['#fff', '#000'], typography: { primary: 'Inter' } }
+      // Phase 80 R5: spec must carry schema_version=2 to pass the defensive filter.
+      const spec = {
+        schema_version: 2,
+        palette: ['#fff', '#000'],
+        typography: { primary: 'Inter' },
+      }
       const m = buildAdmin({
         selectResult: { data: { style_spec: spec }, error: null },
       })
@@ -95,7 +100,7 @@ describe('style-spec-cache', () => {
     })
 
     it('triggers fire-and-forget last_hit_at update on cache hit', async () => {
-      const spec = { palette: ['#abc'] }
+      const spec = { schema_version: 2, palette: ['#abc'] }
       const sha = 'c'.repeat(64)
       const m = buildAdmin({
         selectResult: { data: { style_spec: spec }, error: null },
@@ -111,7 +116,7 @@ describe('style-spec-cache', () => {
     })
 
     it('does NOT throw if last_hit_at update fails (best-effort warn)', async () => {
-      const spec = { palette: ['#abc'] }
+      const spec = { schema_version: 2, palette: ['#abc'] }
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const m = buildAdmin({
         selectResult: { data: { style_spec: spec }, error: null },
@@ -123,6 +128,57 @@ describe('style-spec-cache', () => {
       // Allow the fire-and-forget microtask to settle so the warn fires
       await new Promise((r) => setImmediate(r))
       expect(warnSpy).toHaveBeenCalled()
+    })
+
+    // Phase 80 R5: defensive schema_version filter — schema-mismatched rows
+    // must be treated as a cache miss; they must NOT be returned to the
+    // caller (parseStyleSpecSafe in Plan 80-02 rejects v1), and they must
+    // NOT trigger a phantom last_hit_at bump (a wrong-version row is dead
+    // weight; bumping it would extend its life under any future LRU policy).
+    describe('defensive schema_version=2 filter (Phase 80 R5)', () => {
+      it('returns null when cached row has schema_version=1 (stale v1 entry)', async () => {
+        const v1Spec = { schema_version: 1, palette: ['#ccc'] }
+        const m = buildAdmin({
+          selectResult: { data: { style_spec: v1Spec }, error: null },
+        })
+        const result = await lookupStyleSpec(m.admin, 'k'.repeat(64))
+        expect(result).toBeNull()
+        // Allow any stray microtask to settle before asserting no bump.
+        await new Promise((r) => setImmediate(r))
+        expect(m.updateMock).not.toHaveBeenCalled()
+      })
+
+      it('returns null when cached row is missing schema_version entirely', async () => {
+        const malformedSpec = { palette: ['#ddd'] } // no schema_version
+        const m = buildAdmin({
+          selectResult: { data: { style_spec: malformedSpec }, error: null },
+        })
+        const result = await lookupStyleSpec(m.admin, 'l'.repeat(64))
+        expect(result).toBeNull()
+        await new Promise((r) => setImmediate(r))
+        expect(m.updateMock).not.toHaveBeenCalled()
+      })
+
+      it('returns null when cached row holds a non-object style_spec (e.g. null or array)', async () => {
+        const m = buildAdmin({
+          selectResult: { data: { style_spec: null }, error: null },
+        })
+        const result = await lookupStyleSpec(m.admin, 'm'.repeat(64))
+        expect(result).toBeNull()
+        await new Promise((r) => setImmediate(r))
+        expect(m.updateMock).not.toHaveBeenCalled()
+      })
+
+      it('returns null when schema_version is a string "2" (strict ===, no coercion)', async () => {
+        const stringVerSpec = { schema_version: '2', palette: ['#eee'] }
+        const m = buildAdmin({
+          selectResult: { data: { style_spec: stringVerSpec }, error: null },
+        })
+        const result = await lookupStyleSpec(m.admin, 'n'.repeat(64))
+        expect(result).toBeNull()
+        await new Promise((r) => setImmediate(r))
+        expect(m.updateMock).not.toHaveBeenCalled()
+      })
     })
 
     it('returns null and warns when select rejects (throw-resilience)', async () => {
