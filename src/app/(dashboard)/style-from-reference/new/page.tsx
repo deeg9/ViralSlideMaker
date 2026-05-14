@@ -12,6 +12,7 @@
 // the duration of one extract -> generate session (the rate-cap key is
 // per-user, not per-project).
 
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -44,6 +45,12 @@ export default async function StyleFromReferenceNewPage() {
 
   return (
     <div className="mx-auto max-w-4xl py-8">
+      <Link
+        href="/dashboard"
+        className="inline-flex items-center text-sm text-[#7d6161] hover:text-[#3d0000] mb-4"
+      >
+        ← Back to dashboard
+      </Link>
       <h1 className="text-2xl font-bold text-[#3d0000] mb-2">
         Generate from a reference
       </h1>
