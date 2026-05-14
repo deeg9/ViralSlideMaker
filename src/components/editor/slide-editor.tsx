@@ -1583,8 +1583,11 @@ export function SlideEditor({
           }}
         />
 
-        {/* Right panel: Editor controls */}
-        <aside className="bg-white lg:rounded-xl flex flex-col overflow-hidden">
+        {/* Right panel: Editor controls. quick-260514-tan-rail-white-tiles:
+            background is the tan page color so the rail blends with the
+            canvas behind it; interior tiles + cards are white with brown
+            borders (mirrors SlideSettings/Watermark/HookText style). */}
+        <aside className="bg-[#fff8f7] lg:rounded-xl flex flex-col overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-[#dbc1bc]/10">
             <button
