@@ -1665,11 +1665,6 @@ export function SlideEditor({
                   onCustomTextUpdate={handleCustomTextUpdate}
                   onCustomTextRemove={handleRemoveCustomText}
                   brandKit={brandKit}
-                  userTier={userTier}
-                  onSlideWatermarkChange={handleSlideWatermarkChange}
-                  onWatermarkLogoUpload={handleWatermarkLogoUpload}
-                  onWatermarkLogoRemove={handleWatermarkLogoRemove}
-                  isWatermarkPending={isWatermarkPending}
                   selection={{
                     ids: selection.ids,
                     primary: selection.primary,
@@ -1776,6 +1771,17 @@ export function SlideEditor({
                 onBackToLibrary={() => selection.clear()}
                 brandKit={brandKit}
                 derivedPalette={currentSlide.style_overrides?.derived_palette}
+                // quick-260514-move-slide-cards-to-elements: SlideSettings +
+                // WatermarkControls moved from TextEditorPanel to here. They
+                // mount inside ElementsPanel at the bottom in both selection
+                // and library modes (slide-scoped controls, not selection-scoped).
+                template={template}
+                onSlideUpdate={handleUpdate}
+                userTier={userTier}
+                onSlideWatermarkChange={handleSlideWatermarkChange}
+                onWatermarkLogoUpload={handleWatermarkLogoUpload}
+                onWatermarkLogoRemove={handleWatermarkLogoRemove}
+                isWatermarkPending={isWatermarkPending}
               />
             )}
             {currentSlide && activeTab === 'images' && (
