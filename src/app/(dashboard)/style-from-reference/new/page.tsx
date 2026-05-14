@@ -12,9 +12,10 @@
 // the duration of one extract -> generate session (the rate-cap key is
 // per-user, not per-project).
 
-import Link from 'next/link'
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { BackButton } from './back-button'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
 import { StyleFromReferenceShell } from '@/components/style-from-reference/style-from-reference-shell'
@@ -45,12 +46,11 @@ export default async function StyleFromReferenceNewPage() {
 
   return (
     <div className="mx-auto max-w-4xl py-8">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center text-sm text-[#7d6161] hover:text-[#3d0000] mb-4"
-      >
-        ← Back to dashboard
-      </Link>
+      {/* Suspense boundary required by Next.js when a client component
+          inside this server-rendered page reads useSearchParams. */}
+      <Suspense fallback={<div className="mb-4 h-5" aria-hidden />}>
+        <BackButton />
+      </Suspense>
       <h1 className="text-2xl font-bold text-[#3d0000] mb-2">
         Generate from a reference
       </h1>
