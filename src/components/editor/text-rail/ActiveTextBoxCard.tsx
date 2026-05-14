@@ -355,7 +355,11 @@ export function ActiveTextBoxCard({
         <AccentWordsDisclosure
           segments={segments}
           onToggle={toggleAccent}
-          accentColor={accentColor}
+          // quick-260514-laa: prefer the box-level override; fall back to the
+          // template default. The disclosure's chip wall + new color row both
+          // read from this single resolved value.
+          accentColor={textBox.accent_color ?? accentColor}
+          onChangeAccentColor={(hex) => onUpdate({ accent_color: hex })}
         />
       )}
 

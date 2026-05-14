@@ -138,6 +138,11 @@ export interface TextBox {
   font_weight?: number
   font_style?: 'normal' | 'italic'
   color?: string
+  /** quick-260514-laa: per-text-box override for the highlight ("accent")
+      color used by the AccentWordsDisclosure chip wall. Falls back to the
+      template's accentColor when unset (current behavior preserved). Hex
+      string with leading '#'. */
+  accent_color?: string
   text_align?: 'left' | 'center' | 'right'
   effects?: TextEffects
   /** Phase 60 (WMARK-01 / future GROUP/LOCK/HIDE): additive multi-select fields.

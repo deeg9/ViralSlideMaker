@@ -9,9 +9,31 @@ import { readableTextColor } from '@/lib/color/readable-text-color'
 interface AccentWordsDisclosureProps {
   segments: TextSegment[]
   onToggle: (index: number) => void
-  /** Color of accented words (typically template.accentColor). */
+  /** Effective color of accented words — `textBox.accent_color` falling back
+   *  to `template.accentColor`. Drives the chip-wall fill AND the active
+   *  swatch ring in the new color row below the chips. */
   accentColor: string
+  /** quick-260514-laa: per-text-box accent-color override. When provided,
+   *  the color row renders below the chip wall: brand swatches + a native
+   *  `<input type="color">` palette opener (same shape as the active-text-box
+   *  Color row). Calls `onChangeAccentColor(hex)` on every pick — parent
+   *  dispatches UPDATE_TEXT_BOX with `{ accent_color: hex }`. Optional so
+   *  callers that don't care about per-box override (legacy / read-only) can
+   *  omit it and the color row stays hidden. */
+  onChangeAccentColor?: (color: string) => void
 }
+
+// Brand-curated swatches for the highlight color row (mirrors the
+// COLOR_SWATCHES set used by ActiveTextBoxCard's text-color row so the two
+// pickers feel visually consistent).
+const HIGHLIGHT_SWATCHES = [
+  '#ffffff',
+  '#3d0000',
+  '#7d6161',
+  '#fadbdb',
+  '#A8E0B0',
+  '#FFD166',
+] as const
 
 /**
  * Phase 50 (D-06): collapsible "Highlight words" section. Hidden by default
@@ -26,6 +48,7 @@ export function AccentWordsDisclosure({
   segments,
   onToggle,
   accentColor,
+  onChangeAccentColor,
 }: AccentWordsDisclosureProps) {
   // Local controlled state so we can flip data-state attributes for tests
   // without depending on the headless library's internal animation timing.
@@ -66,29 +89,88 @@ export function AccentWordsDisclosure({
         // chip rendering so the chips never appear when collapsed.
       >
         {open && (
-          <div className="flex flex-wrap gap-1.5" data-testid="accent-words-chips">
-            {segments.map((seg, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onToggle(i)}
-                data-testid={`accent-word-chip-${i}`}
-                data-active={seg.accent ? 'true' : 'false'}
-                aria-label={seg.accent ? `Remove accent from "${seg.text}"` : `Add accent to "${seg.text}"`}
-                aria-pressed={!!seg.accent}
-                className="px-2 py-1 rounded text-xs font-bold uppercase border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
-                style={{
-                  backgroundColor: seg.accent ? accentColor : '#fff0f0',
-                  // Phase 50 (UI-REVIEW WARNING): hardcoded #000 fails contrast
-                  // on dark accent fills (e.g. #3d0000). Compute readable text
-                  // color from the accent's relative luminance instead.
-                  color: seg.accent ? readableTextColor(accentColor) : '#7d6161',
-                  borderColor: seg.accent ? accentColor : '#dbc1bc',
-                }}
-              >
-                {seg.text}
-              </button>
-            ))}
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5" data-testid="accent-words-chips">
+              {segments.map((seg, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onToggle(i)}
+                  data-testid={`accent-word-chip-${i}`}
+                  data-active={seg.accent ? 'true' : 'false'}
+                  aria-label={seg.accent ? `Remove accent from "${seg.text}"` : `Add accent to "${seg.text}"`}
+                  aria-pressed={!!seg.accent}
+                  className="px-2 py-1 rounded text-xs font-bold uppercase border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
+                  style={{
+                    backgroundColor: seg.accent ? accentColor : '#fff0f0',
+                    // Phase 50 (UI-REVIEW WARNING): hardcoded #000 fails contrast
+                    // on dark accent fills (e.g. #3d0000). Compute readable text
+                    // color from the accent's relative luminance instead.
+                    color: seg.accent ? readableTextColor(accentColor) : '#7d6161',
+                    borderColor: seg.accent ? accentColor : '#dbc1bc',
+                  }}
+                >
+                  {seg.text}
+                </button>
+              ))}
+            </div>
+
+            {/* quick-260514-laa: highlight-color row. Brand swatches + native
+                <input type="color"> palette opener. Click a swatch (or pick
+                via palette) → onChangeAccentColor fires once → parent
+                dispatches UPDATE_TEXT_BOX { accent_color }. The currently-
+                applied color (effective accentColor) is ring-marked when it
+                matches a swatch; the palette tile is always reachable for
+                arbitrary hex. */}
+            {onChangeAccentColor && (
+              <div className="space-y-1" data-testid="accent-color-row">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+                  Highlight color
+                </span>
+                <div className="flex gap-3">
+                  {HIGHLIGHT_SWATCHES.map((color) => {
+                    const active = accentColor.toLowerCase() === color.toLowerCase()
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        data-testid={`accent-color-swatch-${color}`}
+                        onClick={() => onChangeAccentColor(color)}
+                        className={`w-6 h-6 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1 ${
+                          active ? 'ring-2 ring-[#3d0000] ring-offset-1' : ''
+                        }`}
+                        style={{
+                          backgroundColor: color,
+                          border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
+                        }}
+                        aria-label={`Set highlight color to ${color}`}
+                        aria-pressed={active}
+                        title={color}
+                      />
+                    )
+                  })}
+                  <label
+                    className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1"
+                    data-testid="accent-color-palette"
+                  >
+                    <span
+                      className="material-symbols-outlined text-[#7d6161]"
+                      style={{ fontSize: 14 }}
+                      aria-hidden
+                    >
+                      palette
+                    </span>
+                    <input
+                      type="color"
+                      value={accentColor}
+                      onChange={(e) => onChangeAccentColor(e.target.value)}
+                      aria-label="Set custom highlight color"
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Collapsible.Panel>
