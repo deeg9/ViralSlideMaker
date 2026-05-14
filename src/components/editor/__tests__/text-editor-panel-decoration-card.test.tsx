@@ -1,13 +1,14 @@
 /**
- * Phase 70 Plan 04 (CARD-01): TextEditorPanel composition switch.
+ * quick-260514-jn5: decoration editing moved from the Text tab to the
+ * Elements tab. TextEditorPanel no longer renders <DecorationCard> — the
+ * Text tab is consistently about text boxes (single or multi-select).
  *
- * When the active selection's primary id resolves to a decoration on the
- * slide, the panel renders <DecorationCard> instead of <ActiveTextBoxCard>.
- *
- * Branch precedence (3-way ternary):
+ * Branch precedence in TextEditorPanel is now 2-way:
  *   1. selection.ids.length >= 2 && onBulkDelete → MultiSelectTypeBar
- *   2. activeDecoration !== null → DecorationCard
- *   3. otherwise → ActiveTextBoxCard (legacy single-box flow)
+ *   2. otherwise → ActiveTextBoxCard
+ *
+ * Decoration editing lives in ElementsPanel — covered by
+ * elements-panel-decoration-card.test.tsx.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -53,7 +54,7 @@ function makeSelection(ids: string[]): Selection {
   return { ids, primary: ids.length > 0 ? ids[ids.length - 1] : null }
 }
 
-describe('Phase 70 Plan 04 — TextEditorPanel decoration composition (CARD-01)', () => {
+describe('TextEditorPanel composition (post quick-260514-jn5)', () => {
   it('selection.primary maps to text_box → ActiveTextBoxCard renders', () => {
     const { container } = render(
       <TextEditorPanel
@@ -70,7 +71,10 @@ describe('Phase 70 Plan 04 — TextEditorPanel decoration composition (CARD-01)'
     expect(container.querySelector('[data-testid="decoration-card"]')).toBeNull()
   })
 
-  it('selection.primary maps to a decoration → DecorationCard renders', () => {
+  it('selection.primary maps to a decoration → DecorationCard does NOT render in Text tab', () => {
+    // Post-jn5: decoration editing lives in the Elements tab, not here.
+    // Even when selection.primary is a decoration, the Text tab keeps
+    // rendering ActiveTextBoxCard (text-only focus).
     const { container } = render(
       <TextEditorPanel
         slide={makeSlide({ withDecoration: true })}
@@ -82,8 +86,11 @@ describe('Phase 70 Plan 04 — TextEditorPanel decoration composition (CARD-01)'
         selection={makeSelection([DECO_SHAPE.id])}
       />,
     )
-    expect(container.querySelector('[data-testid="decoration-card"]')).toBeTruthy()
-    expect(container.querySelector('[data-testid="active-text-box-card"]')).toBeNull()
+    expect(container.querySelector('[data-testid="decoration-card"]')).toBeNull()
+    // ActiveTextBoxCard (or its empty variant) renders in place.
+    const hasActive = container.querySelector('[data-testid="active-text-box-card"]')
+    const hasEmpty = container.querySelector('[data-testid="active-text-box-card-empty"]')
+    expect(hasActive || hasEmpty).toBeTruthy()
   })
 
   it('selection.primary is null → ActiveTextBoxCard (or empty) renders', () => {
@@ -98,14 +105,13 @@ describe('Phase 70 Plan 04 — TextEditorPanel decoration composition (CARD-01)'
         selection={makeSelection([])}
       />,
     )
-    // Either active-text-box-card or its empty variant.
     const hasActive = container.querySelector('[data-testid="active-text-box-card"]')
     const hasEmpty = container.querySelector('[data-testid="active-text-box-card-empty"]')
     expect(hasActive || hasEmpty).toBeTruthy()
     expect(container.querySelector('[data-testid="decoration-card"]')).toBeNull()
   })
 
-  it('selection.ids.length >= 2 → MultiSelectTypeBar takes precedence over DecorationCard', () => {
+  it('selection.ids.length >= 2 → MultiSelectTypeBar takes precedence', () => {
     const { container } = render(
       <TextEditorPanel
         slide={makeSlide({ withDecoration: true })}
@@ -119,85 +125,6 @@ describe('Phase 70 Plan 04 — TextEditorPanel decoration composition (CARD-01)'
       />,
     )
     expect(container.querySelector('[data-testid="multi-select-type-bar"]')).toBeTruthy()
-    expect(container.querySelector('[data-testid="decoration-card"]')).toBeNull()
-  })
-
-  it('stale decoration id → DecorationCard does NOT render; falls back to ActiveTextBoxCard', () => {
-    // selection.primary points to a decoration that doesn't exist on slide.
-    const { container } = render(
-      <TextEditorPanel
-        slide={makeSlide({ withDecoration: false })}
-        template={TMPL}
-        selectedTextBoxId={null}
-        onSelectTextBox={vi.fn()}
-        onTextBoxAction={vi.fn()}
-        onUpdate={vi.fn()}
-        selection={makeSelection(['ghost-decoration-id'])}
-      />,
-    )
-    expect(container.querySelector('[data-testid="decoration-card"]')).toBeNull()
-  })
-
-  it('decoration update routes through onDecorationAction with UPDATE_DECORATION', () => {
-    const onDecorationAction = vi.fn()
-    const { container } = render(
-      <TextEditorPanel
-        slide={makeSlide({ withDecoration: true })}
-        template={TMPL}
-        selectedTextBoxId={null}
-        onSelectTextBox={vi.fn()}
-        onTextBoxAction={vi.fn()}
-        onUpdate={vi.fn()}
-        selection={makeSelection([DECO_SHAPE.id])}
-        onDecorationAction={onDecorationAction}
-      />,
-    )
-    // Click a swatch isn't directly available without brand-kit. Instead
-    // exercise the wire by clicking a known commit-immediately control:
-    // the stroke style "dashed" button.
-    const dashed = container.querySelector(
-      '[data-testid="decoration-stroke-style-dashed"]',
-    ) as HTMLElement | null
-    expect(dashed).toBeTruthy()
-    dashed!.click()
-    expect(onDecorationAction).toHaveBeenCalledTimes(1)
-    const arg = onDecorationAction.mock.calls[0][0]
-    expect(arg.type).toBe('UPDATE_DECORATION')
-    expect(arg.id).toBe(DECO_SHAPE.id)
-    expect(arg.updates).toBeDefined()
-  })
-
-  it('switching slides re-resolves activeDecoration (re-mount)', () => {
-    const slideA = makeSlide({ withDecoration: true })
-    const slideB: Slide = {
-      ...makeSlide({ withDecoration: false }),
-      hook_text: 'Other',
-    }
-    const { container, rerender } = render(
-      <TextEditorPanel
-        slide={slideA}
-        template={TMPL}
-        selectedTextBoxId={null}
-        onSelectTextBox={vi.fn()}
-        onTextBoxAction={vi.fn()}
-        onUpdate={vi.fn()}
-        selection={makeSelection([DECO_SHAPE.id])}
-      />,
-    )
-    expect(container.querySelector('[data-testid="decoration-card"]')).toBeTruthy()
-    // Switch slide; selection state would be cleared by the SEL-10 effect
-    // upstream, but in isolation we model that by sending an empty selection.
-    rerender(
-      <TextEditorPanel
-        slide={slideB}
-        template={TMPL}
-        selectedTextBoxId={null}
-        onSelectTextBox={vi.fn()}
-        onTextBoxAction={vi.fn()}
-        onUpdate={vi.fn()}
-        selection={makeSelection([])}
-      />,
-    )
     expect(container.querySelector('[data-testid="decoration-card"]')).toBeNull()
   })
 })

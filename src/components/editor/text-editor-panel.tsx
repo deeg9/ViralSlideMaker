@@ -1,19 +1,16 @@
 'use client'
 
-import { useMemo } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { FontPicker } from './font-picker'
 import { TextEffectsControls } from './text-effects-controls'
 import { LayerStrip } from './text-rail/LayerStrip'
 import { ActiveTextBoxCard } from './text-rail/ActiveTextBoxCard'
-import { DecorationCard } from './text-rail/decoration-card'
 import { SlideSettings } from './text-rail/SlideSettings'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
 import { PhotoTreatmentControls, type TreatmentSpec } from './photo-treatment-controls'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import { MultiSelectTypeBar } from './multi-select-type-bar'
 import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
-import type { Decoration } from '@/lib/types/decoration'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { Selection } from '@/lib/editor/use-selection-model'
@@ -36,15 +33,6 @@ export type TextBoxAction =
   | { type: 'ADD_TEXT_BOX'; role: TextBox['role'] }
   | { type: 'UPDATE_TEXT_BOX'; textBoxId: string; updates: Partial<TextBox> }
   | { type: 'REMOVE_TEXT_BOX'; textBoxId: string }
-
-/**
- * Phase 70 Plan 04 (CARD-01): discriminated union for decoration actions
- * dispatched from the right-rail DecorationCard. Parent (slide-editor) maps
- * each variant to the matching reducer dispatch (Phase 68 reducer cases).
- */
-export type DecorationAction =
-  | { type: 'UPDATE_DECORATION'; id: string; updates: Partial<Decoration> }
-  | { type: 'REMOVE_DECORATION'; id: string }
 
 export interface TextEditorPanelProps {
   slide: Slide
@@ -86,14 +74,6 @@ export interface TextEditorPanelProps {
       Plan 60-05 minimal: routes through existing per-id remove helpers
       (custom-only — Phase 64 ships a bulk-delete reducer action). */
   onBulkDelete?: (ids: string[]) => void
-  /** Phase 70 Plan 04 (CARD-01): decoration action dispatcher. When the
-      active selection's primary id resolves to a decoration on the slide,
-      the panel renders <DecorationCard> in place of <ActiveTextBoxCard>;
-      every edit dispatches through this prop. Parent (slide-editor) maps
-      to dispatch({ type: 'UPDATE_DECORATION' | 'REMOVE_DECORATION', ... }).
-      When omitted, DecorationCard still renders but its onUpdate is a no-op
-      (read-only; matches the Phase 57 PhotoTreatmentControls D-29 pattern). */
-  onDecorationAction?: (action: DecorationAction) => void
 }
 
 export function TextEditorPanel({
@@ -117,7 +97,6 @@ export function TextEditorPanel({
   isWatermarkPending,
   selection,
   onBulkDelete,
-  onDecorationAction,
 }: TextEditorPanelProps) {
   const textBoxes = slide.text_boxes ?? []
 
@@ -125,16 +104,6 @@ export function TextEditorPanel({
   // back to the first box if selection is stale, else null (empty state).
   const activeTextBox =
     textBoxes.find((tb) => tb.id === selectedTextBoxId) ?? textBoxes[0] ?? null
-
-  // Phase 70 Plan 04 (CARD-01): resolve the active decoration. When the
-  // selection's primary id matches a decoration on the slide, we render
-  // <DecorationCard> in place of <ActiveTextBoxCard>. A stale primary id
-  // (decoration removed or wrong slide) returns null → falls through to
-  // the legacy ActiveTextBoxCard (graceful fallback per CARD-01 contract).
-  const activeDecoration = useMemo<Decoration | null>(() => {
-    if (!selection?.primary) return null
-    return (slide.decorations ?? []).find((d) => d.id === selection.primary) ?? null
-  }, [selection?.primary, slide.decorations])
 
   function updateActiveTextBox(updates: Partial<TextBox>) {
     if (!activeTextBox) return
@@ -160,31 +129,19 @@ export function TextEditorPanel({
         onAdd={() => onTextBoxAction({ type: 'ADD_TEXT_BOX', role: 'custom' })}
       />
 
-      {/* Phase 60 (SEL-12) + Phase 70 Plan 04 (CARD-01): 3-way composition.
+      {/* Phase 60 (SEL-12): 2-way composition.
           Branch precedence:
-            1. N>=2 multi-select → MultiSelectTypeBar (collapses both
-               single-element variants)
-            2. activeDecoration !== null → DecorationCard (decoration takes
-               precedence over text-box when selection.primary is a decoration)
-            3. otherwise → ActiveTextBoxCard (legacy single-box flow) */}
+            1. N>=2 multi-select → MultiSelectTypeBar
+            2. otherwise → ActiveTextBoxCard (single-box flow)
+          quick-260514-jn5: decoration editing was moved to the Elements
+          tab — see ElementsPanel + slide-editor's activeDecoration effect.
+          Selecting a decoration auto-switches activeTab to 'elements', so
+          this branch never needs to render <DecorationCard> anymore. */}
       {selection && selection.ids.length >= 2 && onBulkDelete ? (
         <MultiSelectTypeBar
           slide={slide}
           selection={selection}
           onBulkDelete={onBulkDelete}
-        />
-      ) : activeDecoration !== null ? (
-        <DecorationCard
-          decoration={activeDecoration}
-          onUpdate={(updates) =>
-            onDecorationAction?.({
-              type: 'UPDATE_DECORATION',
-              id: activeDecoration.id,
-              updates,
-            })
-          }
-          brandKit={brandKit}
-          derivedPalette={slide.style_overrides?.derived_palette}
         />
       ) : (
         <ActiveTextBoxCard

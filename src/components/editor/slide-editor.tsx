@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useTransition } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, useTransition } from 'react'
 import Link from 'next/link'
 import { useSlideEditor } from '@/lib/editor/use-slide-editor'
 import { getTemplate } from '@/lib/render/templates/index'
@@ -139,6 +139,35 @@ export function SlideEditor({
   // handlers below write to BOTH so the new model and the legacy slot stay
   // in sync until Phase 66 retires the shim.
   const selection = useSelectionModel({ slideIndex: selectedIndex, presentSlides: slides })
+
+  // quick-260514-jn5: resolve the active decoration at the editor level so:
+  //   1. activeTab auto-switches to 'elements' when selection.primary is a
+  //      decoration (clicking an icon/shape on the canvas routes the user to
+  //      the Elements tab where editing controls live).
+  //   2. ElementsPanel renders <DecorationCard> in selection mode — the
+  //      Elements tab is now the single home for decoration editing.
+  //      TextEditorPanel no longer renders the card (Text tab stays focused
+  //      on text-box editing).
+  // Mirrors the resolution previously in text-editor-panel.tsx (CARD-01).
+  // Stale primary id (decoration removed or wrong slide) → null, which lets
+  // the panel fall back to library mode and the effect leave activeTab alone.
+  const activeDecoration = useMemo<Decoration | null>(() => {
+    if (!selection?.primary || !currentSlide) return null
+    return (
+      (currentSlide.decorations ?? []).find((d) => d.id === selection.primary) ?? null
+    )
+  }, [selection?.primary, currentSlide])
+
+  // Auto-switch to the Elements tab when a decoration becomes selected.
+  // Only fires on selection transitions (we depend on the id, not the
+  // object) so the user can still manually click Text/Images while a
+  // decoration is selected without us yanking the tab back.
+  useEffect(() => {
+    if (activeDecoration && activeTab !== 'elements') {
+      setActiveTab('elements')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDecoration?.id])
 
   // Phase 66 Plan 01 (DIFF-02): tracks the most recent BULK_TRANSLATE delta
   // (drag-stop OR arrow-nudge) in % of canvas. Read by the $mod+d (Cmd+D
@@ -1695,27 +1724,10 @@ export function SlideEditor({
                     // collapse on the next render.
                     selection.clear()
                   }}
-                  onDecorationAction={(action) => {
-                    // Phase 70 Plan 04 (CARD-01): route DecorationCard
-                    // edits through Phase 68's UPDATE_DECORATION /
-                    // REMOVE_DECORATION reducer cases. Single dispatch per
-                    // gesture (KBD-09 — the card debounces colors and
-                    // commits sliders/numerics on gesture-end).
-                    if (action.type === 'UPDATE_DECORATION') {
-                      dispatch({
-                        type: 'UPDATE_DECORATION',
-                        slideIndex: selectedIndex,
-                        id: action.id,
-                        updates: action.updates,
-                      })
-                    } else if (action.type === 'REMOVE_DECORATION') {
-                      dispatch({
-                        type: 'REMOVE_DECORATION',
-                        slideIndex: selectedIndex,
-                        id: action.id,
-                      })
-                    }
-                  }}
+                  // quick-260514-jn5: decoration editing moved to the Elements
+                  // tab (see ElementsPanel above). UPDATE_DECORATION /
+                  // REMOVE_DECORATION dispatches now live on the ElementsPanel
+                  // props — TextEditorPanel no longer carries that surface.
                 />
               ) : (
                 <LegacyTextEditorPanel
@@ -1732,8 +1744,39 @@ export function SlideEditor({
             )}
             {currentSlide && activeTab === 'elements' && (
               <ElementsPanel
+                slide={currentSlide}
                 templateTextColor={template.textColor}
                 onInsertDivider={handleInsertDivider}
+                // quick-260514-jn5: decoration inspector + library mode.
+                // When a decoration is selected on the canvas, ElementsPanel
+                // renders DecorationCard (edit + delete). Otherwise it shows
+                // the insert library: icons (LucidePicker), shapes (ShapePicker),
+                // dividers (existing tiles).
+                activeDecoration={activeDecoration}
+                onDecorationUpdate={(updates) => {
+                  if (!activeDecoration) return
+                  dispatch({
+                    type: 'UPDATE_DECORATION',
+                    slideIndex: selectedIndex,
+                    id: activeDecoration.id,
+                    updates,
+                  })
+                }}
+                onDecorationRemove={() => {
+                  if (!activeDecoration) return
+                  dispatch({
+                    type: 'REMOVE_DECORATION',
+                    slideIndex: selectedIndex,
+                    id: activeDecoration.id,
+                  })
+                  // Clear the selection ring so the editor doesn't keep
+                  // chasing a stale id after the decoration is gone.
+                  selection.clear()
+                }}
+                onOpenIconPicker={() => setOpenPicker('lucide')}
+                onOpenShapePicker={() => setOpenPicker('shape')}
+                brandKit={brandKit}
+                derivedPalette={currentSlide.style_overrides?.derived_palette}
               />
             )}
             {currentSlide && activeTab === 'images' && (

@@ -48,6 +48,10 @@ import { DecorationEffects } from './decoration-card-effects'
 export interface DecorationCardProps {
   decoration: Decoration
   onUpdate: (updates: Partial<Decoration>) => void
+  /** Optional removal handler. Parent dispatches REMOVE_DECORATION + clears
+   *  selection.primary so the ring doesn't linger on a stale id. When omitted
+   *  the Delete button does not render. */
+  onRemove?: () => void
   brandKit?: BrandKit | null
   derivedPalette?: string[]
 }
@@ -92,6 +96,7 @@ function roleLabel(d: Decoration): string {
 export function DecorationCard({
   decoration: d,
   onUpdate,
+  onRemove,
   brandKit,
   derivedPalette,
 }: DecorationCardProps) {
@@ -326,6 +331,20 @@ export function DecorationCard({
 
       {/* Effects (shadow + opacity) */}
       <DecorationEffects decoration={d} onUpdate={onUpdate} />
+
+      {/* Delete — single dispatch via parent's REMOVE_DECORATION channel
+          (KBD-09 — one history entry per gesture). Matches the visual
+          grammar of CustomTextEditor's delete button. */}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          data-testid="decoration-card-delete"
+          className="w-full py-2 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+        >
+          Delete {roleLabel(d) === 'ICON' ? 'icon' : 'shape'}
+        </button>
+      )}
     </div>
   )
 }
