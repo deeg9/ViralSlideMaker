@@ -97,9 +97,10 @@ describe('Phase 80 Plan 07 — projector archetype routing (comprehensive)', () 
     })
 
     it('flat-color-background (palette.primary=#000000) → bold-yellow (default branch)', () => {
-      // Black hex parses → hue 0 (delta = 0) — falls through to default
-      // branch in pickFlatColorTemplate (yellow 45-65 / pink 310-350 / else
-      // → bold-yellow).
+      // Black hex parses → null hue (delta = 0, achromatic — Phase 80 WR-03
+      // returns null for grey/white/black instead of the misleading hue 0).
+      // pickFlatColorTemplate's `if (h === null) return 'bold-yellow'` branch
+      // catches this; the chromatic 45-65 / 310-350 buckets aren't consulted.
       const r = projectStyleSpecToSlideOverrides(makeSpec('flat-color-background'), tmpl)
       expect(r.style_overrides.template_id_override).toBe('bold-yellow')
     })
