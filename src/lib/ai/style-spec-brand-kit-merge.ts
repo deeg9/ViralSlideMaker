@@ -76,7 +76,13 @@ export function applyBrandKitRemix(
     ...(bodyCategory ? { bodyFontCategory: bodyCategory } : {}),
   }
 
+  // Phase 80 cascade: spread `...spec` FIRST so the StyleSpec & ArchetypeSlots
+  // intersection (slideArchetype discriminator + per-archetype slot params)
+  // flows through automatically. Brand-kit merge only overrides palette +
+  // typography; archetype is orthogonal to brand-kit values and MUST pass
+  // through unchanged. Subsequent overrides shadow only palette/typography.
   return {
+    ...spec,
     schema_version: spec.schema_version,
     palette: mergedPalette,
     typography: mergedTypography,

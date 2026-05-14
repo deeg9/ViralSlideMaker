@@ -93,7 +93,14 @@ export function applyAspectFilter(
   spec: StyleSpec,
   aspects: SpecPreviewAspects,
 ): StyleSpec {
+  // Phase 80 cascade: spread `...spec` FIRST so the StyleSpec & ArchetypeSlots
+  // intersection (slideArchetype discriminator + per-archetype slot params
+  // — `caption`, `split`) flows through automatically. Aspect-filter's intent
+  // is to neutralize the 4 aspect categories below; archetype is structural
+  // composition and MUST be preserved (NOT neutralized). Subsequent field
+  // overrides below shadow only the 4 aspects + imagery/rhythm/voice_note.
   return {
+    ...spec,
     schema_version: spec.schema_version,
     palette: aspects.palette ? { ...spec.palette } : { ...NEUTRAL_PALETTE_DEFAULT },
     typography: aspects.typography ? { ...spec.typography } : { ...NEUTRAL_TYPOGRAPHY_DEFAULT },
