@@ -21,7 +21,8 @@ import type { SpecPreviewAspects } from '@/components/style-from-reference/state
 // mint accent, Anton hook, photo-bleed, sparse decorations.
 function buildSpec(): StyleSpec {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: {
       mode: 'solid',
       primary: '#000000',
@@ -176,7 +177,7 @@ describe('applyAspectFilter', () => {
       { palette: false, typography: false, layout: false, decorations: false },
     ]
     for (const aspects of cases) {
-      expect(applyAspectFilter(spec, aspects).schema_version).toBe(1)
+      expect(applyAspectFilter(spec, aspects).schema_version).toBe(2)
     }
   })
 

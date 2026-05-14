@@ -12,7 +12,8 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 
 function buildSpec(): StyleSpec {
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: {
       mode: 'solid',
       primary: '#000000',
@@ -186,7 +187,7 @@ describe('applyBrandKitRemix', () => {
     expect(result.decorations).toEqual(spec.decorations)
     expect(result.rhythm).toEqual(spec.rhythm)
     expect(result.voice_note).toBe(spec.voice_note)
-    expect(result.schema_version).toBe(1)
+    expect(result.schema_version).toBe(2)
   })
 
   // Test 11 — PURITY

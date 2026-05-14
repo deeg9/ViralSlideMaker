@@ -17,8 +17,13 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 import type { StyleSpec } from '@/lib/types/style-spec'
 
 function makeSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
+  // Cast: Partial<StyleSpec> over a discriminated union (StyleSpec is intersected
+  // with ArchetypeSlots in Phase 80) cannot be spread back into the union without
+  // collapsing the discriminator. Spec contract is concrete here:
+  // slideArchetype='full-bleed-text-overlay' (EmptySlots variant).
   return {
-    schema_version: 1,
+    schema_version: 2,
+    slideArchetype: 'full-bleed-text-overlay',
     palette: { mode: 'gradient', primary: '#FF3366', secondary: '#3366FF', accent: '#33FF66' },
     typography: { hookFontCategory: 'display', bodyFontCategory: 'sans-serif' },
     layout: { hookPosition: 'top', density: 'medium' },
@@ -27,7 +32,7 @@ function makeSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
     rhythm: { cadence: 'punchy' },
     voice_note: 'Bold magazine voice',
     ...overrides,
-  }
+  } as StyleSpec
 }
 
 function makeBrandKit(): BrandKit {
