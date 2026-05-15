@@ -1,7 +1,7 @@
 ---
 quick_id: 260515-lcl
 slug: replace-loading-screen-letter-circle
-status: in-progress
+status: complete
 created: 2026-05-15
 ---
 
