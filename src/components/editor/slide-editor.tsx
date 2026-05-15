@@ -1598,6 +1598,27 @@ export function SlideEditor({
               },
             })
           }}
+          // quick-260515-k54: resize commit. Mirrors onDecorationPositionChange
+          // — preserves x/y, writes new width/height. One UPDATE_DECORATION
+          // dispatch per gesture (SlidePreview fires onResizeStop only).
+          onDecorationSizeChange={(id, size) => {
+            const target = (currentSlide?.decorations ?? []).find(
+              (d) => d.id === id,
+            )
+            if (!target) return
+            dispatch({
+              type: 'UPDATE_DECORATION',
+              slideIndex: selectedIndex,
+              id,
+              updates: {
+                position: {
+                  ...target.position,
+                  width: size.width,
+                  height: size.height,
+                },
+              },
+            })
+          }}
         />
 
         {/* Right panel: Editor controls. quick-260514-tan-rail-white-tiles:
