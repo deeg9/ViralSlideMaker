@@ -7,6 +7,7 @@ import type {
   CustomImage,
   Watermark,
 } from '@/lib/types/slide'
+import type { Decoration } from '@/lib/types/decoration'
 import {
   buildSnapIndex,
   findNearestSnap,
@@ -66,10 +67,48 @@ function makeWatermark(
   return { id, enabled: true, position, ...extras }
 }
 
+function makeIconDecoration(
+  id: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  extras: Partial<Decoration> = {},
+): Decoration {
+  return {
+    id,
+    kind: 'icon',
+    lucideName: 'Star',
+    color: '#1F2937',
+    strokeWidth: 2,
+    position: { x, y, width, height },
+    ...extras,
+  } as Decoration
+}
+
+function makeShapeDecoration(
+  id: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  extras: Partial<Decoration> = {},
+): Decoration {
+  return {
+    id,
+    kind: 'shape',
+    shapeKind: 'rect',
+    fill: '#A8E0B0',
+    position: { x, y, width, height },
+    ...extras,
+  } as Decoration
+}
+
 function makeSlide(
   opts: {
     text_boxes?: TextBox[]
     custom_images?: CustomImage[]
+    decorations?: Decoration[]
     watermark?: Watermark
   } = {},
 ): Slide {
@@ -82,6 +121,7 @@ function makeSlide(
     pexels_photo_id: null,
     text_boxes: opts.text_boxes,
     custom_images: opts.custom_images,
+    decorations: opts.decorations,
     watermark: opts.watermark,
   }
 }
@@ -269,6 +309,75 @@ describe('buildSnapIndex — locked elements included (SI-7)', () => {
     // Same expected positions as SI-2 — locked included
     expect(positions(idx.xEdges)).toEqual([0, 108, 270, 432, 540, 1080])
     expect(positions(idx.yEdges)).toEqual([0, 384, 480, 576, 960, 1920])
+  })
+})
+
+describe('buildSnapIndex — decorations are snap targets (SI-27, quick-260515-k54)', () => {
+  test('SI-27a: icon decoration x=10%, y=20%, w=30%, h=40% emits 3 X + 3 Y element edges', () => {
+    // 10% of 1080 = 108; 20% of 1920 = 384; 30% of 1080 = 324; 40% of 1920 = 768
+    // X edges: 108 (left), 270 (center: 108+162), 432 (right: 108+324)
+    // Y edges: 384 (top), 768 (center-v: 384+384), 1152 (bottom: 384+768)
+    const slide = makeSlide({
+      decorations: [makeIconDecoration('dec1', 10, 20, 30, 40)],
+    })
+    const idx = buildSnapIndex(slide, new Set())
+    const xByDec = idx.xEdges
+      .filter((e) => e.sourceId === 'dec1')
+      .map((e) => e.pos)
+    const yByDec = idx.yEdges
+      .filter((e) => e.sourceId === 'dec1')
+      .map((e) => e.pos)
+    expect(xByDec).toEqual([108, 270, 432])
+    expect(yByDec).toEqual([384, 768, 1152])
+  })
+
+  test('SI-27b: shape decoration contributes edges keyed to its id', () => {
+    const slide = makeSlide({
+      decorations: [makeShapeDecoration('shape1', 50, 50, 20, 20)],
+    })
+    const idx = buildSnapIndex(slide, new Set())
+    expect(idx.xEdges.some((e) => e.sourceId === 'shape1')).toBe(true)
+    expect(idx.yEdges.some((e) => e.sourceId === 'shape1')).toBe(true)
+    expect(idx.xEdges.filter((e) => e.sourceId === 'shape1').length).toBe(3)
+    expect(idx.yEdges.filter((e) => e.sourceId === 'shape1').length).toBe(3)
+  })
+
+  test('SI-27c: decoration in excludeIds contributes ZERO edge entries', () => {
+    const slide = makeSlide({
+      decorations: [makeIconDecoration('dec1', 10, 20, 30, 40)],
+    })
+    const idx = buildSnapIndex(slide, new Set(['dec1']))
+    expect(idx.xEdges.every((e) => e.sourceId !== 'dec1')).toBe(true)
+    expect(idx.yEdges.every((e) => e.sourceId !== 'dec1')).toBe(true)
+    // Only canvas edges remain
+    expect(positions(idx.xEdges)).toEqual([0, 540, 1080])
+    expect(positions(idx.yEdges)).toEqual([0, 960, 1920])
+  })
+
+  test('SI-27d: hidden decoration is still indexable (no hidden filter — parity with other element loops)', () => {
+    const slide = makeSlide({
+      decorations: [
+        makeIconDecoration('dec1', 10, 20, 30, 40, { hidden: true }),
+      ],
+    })
+    const idx = buildSnapIndex(slide, new Set())
+    expect(idx.xEdges.some((e) => e.sourceId === 'dec1')).toBe(true)
+    expect(idx.yEdges.some((e) => e.sourceId === 'dec1')).toBe(true)
+  })
+
+  test('SI-27e: decorations coexist with text boxes / custom images / watermark — existing edges unchanged', () => {
+    const slide = makeSlide({
+      custom_images: [makeCustomImage('img1', 10, 20, 30, 10)],
+      decorations: [makeShapeDecoration('shape1', 50, 50, 20, 20)],
+    })
+    const idx = buildSnapIndex(slide, new Set())
+    // Custom-image edges unchanged from SI-2 expectation
+    const imgX = idx.xEdges
+      .filter((e) => e.sourceId === 'img1')
+      .map((e) => e.pos)
+    expect(imgX).toEqual([108, 270, 432])
+    // Decoration edges also present
+    expect(idx.xEdges.some((e) => e.sourceId === 'shape1')).toBe(true)
   })
 })
 
