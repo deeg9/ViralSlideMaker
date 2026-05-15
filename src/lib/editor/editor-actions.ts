@@ -11,7 +11,17 @@ export type EditorAction =
   | { type: 'REMOVE_SLIDE'; index: number }
   | { type: 'DUPLICATE_SLIDE'; index: number }
   | { type: 'REORDER_SLIDES'; from: number; to: number }
-  | { type: 'UPDATE_SLIDE'; index: number; updates: Partial<Slide> }
+  | {
+      type: 'UPDATE_SLIDE'
+      index: number
+      updates: Partial<Slide>
+      /** quick-260515-k12: when true, the reducer mutates `present` WITHOUT
+       *  calling pushHistory. Used for transient live-preview dispatches (e.g.
+       *  dragging a caption-bar slider) so the gesture records exactly one
+       *  undo entry on the committing dispatch (KBD-09). Mirrors the
+       *  UPDATE_DECORATION noHistory channel. */
+      noHistory?: boolean
+    }
   | { type: 'SET_SLIDES'; slides: Slide[] }
   | { type: 'ADD_CUSTOM_TEXT'; slideIndex: number }
   | { type: 'UPDATE_CUSTOM_TEXT'; slideIndex: number; textId: string; updates: Partial<CustomText> }

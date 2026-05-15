@@ -23,6 +23,8 @@ import { Icon } from '@/components/ui/icon'
 import { DIVIDERS } from '@/lib/elements/dividers'
 import { DecorationCard } from './text-rail/decoration-card'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
+import { CaptionBarControls } from './caption-bar-controls'
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Decoration } from '@/lib/types/decoration'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
@@ -57,6 +59,11 @@ interface ElementsPanelProps {
    *  callback. Retained in the slide-level-cards guard. Optional in
    *  isolated tests. */
   onSlideUpdate?: (updates: Partial<Slide>) => void
+  /** quick-260515-k12: transient slide-level dispatch — wired by slide-editor
+   *  to fire UPDATE_SLIDE with noHistory:true so caption-bar slider drags land
+   *  on the canvas without polluting the undo stack. The committing dispatch
+   *  still flows through `onSlideUpdate`. */
+  onSlidePreview?: (updates: Partial<Slide>) => void
   /** User tier for the Watermark card's "show/hide" affordance. */
   userTier?: 'free' | 'plus' | 'pro'
   /** Wired by slide-editor to dispatch + persist project-wide watermark
@@ -109,6 +116,7 @@ export function ElementsPanel({
   onOpenIconPicker,
   onOpenShapePicker,
   onSlideUpdate,
+  onSlidePreview,
   userTier,
   onSlideWatermarkChange,
   onWatermarkLogoUpload,
@@ -124,6 +132,16 @@ export function ElementsPanel({
   const slideLevelCards =
     slide && template && onSlideUpdate ? (
       <>
+        {/* quick-260515-k12: Caption Bar card. Needs the per-slide-RESOLVED
+            template (the slide may carry a template_id_override) for both its
+            visibility gate and the color-picker default. CaptionBarControls
+            self-gates on backgroundMode, so it is mounted unconditionally. */}
+        <CaptionBarControls
+          slide={slide}
+          template={resolvePerSlideTemplate(slide, template)}
+          onSlideUpdate={onSlideUpdate}
+          onSlidePreview={onSlidePreview ?? onSlideUpdate}
+        />
         <WatermarkControls
           slide={slide}
           userTier={userTier ?? 'free'}
