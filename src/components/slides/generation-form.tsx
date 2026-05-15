@@ -255,6 +255,7 @@ export function GenerationForm({
         </label>
         <div className="relative">
           <textarea
+            data-onboarding-id="topic-input"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="e.g. 5 tips for growing your Instagram following, benefits of morning routines, how to start investing..."
@@ -678,6 +679,7 @@ export function GenerationForm({
       <div className="flex flex-col items-center gap-6">
         <button
           type="submit"
+          data-onboarding-id="generate-button"
           disabled={busy || !topic.trim()}
           className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-semibold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.1)] hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
