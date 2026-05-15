@@ -217,7 +217,7 @@ describe('style-spec-cache', () => {
       expect(options).toEqual({ onConflict: 'sha256' })
     })
 
-    it('defaults model to "gemini-3-flash-preview" when omitted', async () => {
+    it('defaults model to "gemini-3.1-flash-lite" when omitted', async () => {
       const m = buildAdmin()
       const spec = { palette: ['#bbb'] }
       const sha = 'h'.repeat(64)
@@ -226,7 +226,7 @@ describe('style-spec-cache', () => {
       expect(payload).toEqual({
         sha256: sha,
         style_spec: spec,
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite',
       })
     })
 
