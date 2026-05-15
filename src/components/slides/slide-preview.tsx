@@ -130,6 +130,7 @@ interface BackgroundLayersProps {
   slide: Slide
   useBottomCard: boolean
   overlayOpacity: number
+  overlayColor: string
 }
 
 function BackgroundLayers({
@@ -137,6 +138,7 @@ function BackgroundLayers({
   slide,
   useBottomCard,
   overlayOpacity,
+  overlayColor,
 }: BackgroundLayersProps) {
   // No useBgMode guard needed — caller already gates on useBgMode via ternary
   return (
@@ -167,7 +169,7 @@ function BackgroundLayers({
         style={{
           position: 'absolute',
           inset: 0,
-          backgroundColor: template.overlayColor,
+          backgroundColor: overlayColor,
           opacity: overlayOpacity,
           zIndex: 1,
         }}
@@ -710,6 +712,11 @@ export function SlidePreview({
     : overrides.overlay_opacity != null
       ? overrides.overlay_opacity / 100
       : template.overlayOpacity
+  // quick-260515-overlay-color-picker: user-controlled overlay tint color.
+  // Falls back to template default. Mirrored in render-slide-satori.tsx +
+  // render-slide.ts so the editor preview, Satori snapshot, and HTML render
+  // path all agree (TPLREND-05 invariant).
+  const overlayColor = overrides.overlay_color ?? template.overlayColor
 
   const hookPos = overrides.hook_position
   const bodyPos = overrides.body_position
@@ -1112,6 +1119,7 @@ export function SlidePreview({
               slide={slide}
               useBottomCard={useBottomCard}
               overlayOpacity={overlayOpacity}
+              overlayColor={overlayColor}
             />
           ) : (
             <>
@@ -1119,7 +1127,7 @@ export function SlidePreview({
               <div style={{
                 position: 'absolute',
                 inset: 0,
-                backgroundColor: template.overlayColor,
+                backgroundColor: overlayColor,
                 opacity: overlayOpacity,
               }} />
             </>
@@ -1546,6 +1554,7 @@ export function SlidePreview({
             slide={slide}
             useBottomCard={useBottomCard}
             overlayOpacity={overlayOpacity}
+            overlayColor={overlayColor}
           />
         ) : (
           <>
@@ -1554,7 +1563,7 @@ export function SlidePreview({
             <div style={{
               position: 'absolute',
               inset: 0,
-              backgroundColor: template.overlayColor,
+              backgroundColor: overlayColor,
               opacity: overlayOpacity,
             }} />
           </>

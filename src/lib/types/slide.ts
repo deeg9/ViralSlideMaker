@@ -176,6 +176,12 @@ export interface SlideStyleOverrides {
   hook_position?: TextPosition
   body_position?: TextPosition
   overlay_opacity?: number  // 0-100, overrides template overlayOpacity
+  /** quick-260515-overlay-color-picker: user-controlled overlay tint color.
+      Falls back to template.overlayColor when unset. Hex string with leading
+      `#` (matches Slide.style_overrides text_color / hook_text_color shape).
+      Honored by slide-preview.tsx + render-slide-satori.tsx + render-slide.ts
+      via `overrides.overlay_color ?? template.overlayColor`. */
+  overlay_color?: string
   // Phase 11: Bold/italic
   hook_font_weight?: number
   body_font_weight?: number
