@@ -6,6 +6,13 @@ import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
+// quick-260515-epn: each thumbnail resolves its own template via
+// resolvePerSlideTemplate so a slide carrying `template_id_override`
+// (typically projector-emitted from Copy Style → archetype) renders in the
+// thumbnail with the right archetype-matched template, matching the canvas
+// preview. Otherwise users would see a stale thumbnail of a slide that
+// renders differently on the canvas.
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 
 interface SortableSlideProps {
   id: string
@@ -50,6 +57,12 @@ export function SortableSlide({
     opacity: isDragging ? 0.5 : 1,
   }
 
+  // quick-260515-epn: resolve per-slide template_id_override at the thumbnail
+  // boundary so the left-rail tile and the center canvas show the same
+  // template for the same slide. No override → returns `template` by reference
+  // (TPLREND-05 byte-identity).
+  const perSlideTemplate = resolvePerSlideTemplate(slide, template)
+
   return (
     <button
       ref={setNodeRef}
@@ -67,7 +80,7 @@ export function SortableSlide({
       <div className="aspect-[9/16] rounded-lg overflow-hidden bg-white">
         <SlidePreview
           slide={slide}
-          template={template}
+          template={perSlideTemplate}
           index={index}
           slideIndex={index}
           totalSlides={totalSlides}

@@ -3,6 +3,10 @@
 import { useState } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { SlidePreview } from '@/components/slides/slide-preview'
+// quick-260515-epn: explore detail viewer mirrors the editor — slide.template_id_override
+// drives which template paints the slide so a published carousel renders
+// identically to the original project.
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
@@ -18,6 +22,9 @@ export function CarouselSlideshow({ slides, template, ownerTier }: CarouselSlide
   const currentSlide = slides[selectedIndex]
   const isFirst = selectedIndex === 0
   const isLast = selectedIndex === slides.length - 1
+  // quick-260515-epn: per-slide override resolution. No override → returns
+  // `template` by reference (TPLREND-05 byte-identity gate).
+  const perSlideTemplate = resolvePerSlideTemplate(currentSlide, template)
 
   return (
     <div className="flex flex-col items-center">
@@ -25,7 +32,7 @@ export function CarouselSlideshow({ slides, template, ownerTier }: CarouselSlide
         <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
           <SlidePreview
             slide={currentSlide}
-            template={template}
+            template={perSlideTemplate}
             index={selectedIndex}
             slideIndex={selectedIndex}
             totalSlides={slides.length}

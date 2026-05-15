@@ -6,6 +6,13 @@ import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-sty
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
 import { getHookFontSize, hasHookFit, clampManualHookSize } from './hook-fit'
+// quick-260515-epn: re-resolve slide.template_id_override INTERNALLY so all
+// server callers (single-slide /api/render + ZIP download loop) benefit
+// without each having to call the helper at the call site. TPLREND-05 byte-
+// identity: when no override is set, the helper returns the EXACT
+// templateParam reference, so legacy slides traverse the identical render
+// path with the identical template object.
+import { resolvePerSlideTemplate } from './resolve-per-slide-template'
 // Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
 // decoration → DOM markup. BOTH renderers (this satori path + slide-preview.tsx
 // React preview) import renderDecoration from this exact module path.
@@ -109,13 +116,20 @@ function satoriHighlightStyle(effects: ResolvedTextEffectStyles): React.CSSPrope
  */
 export function buildSlideElement(
   slide: Slide,
-  template: SlideTemplate,
+  templateParam: SlideTemplate,
   brandKit?: BrandKit | null,
   tier?: ForcedWatermarkTier | null,
   origin?: string,
   ctx?: { slideIndex: number; totalSlides: number; topic?: string },
 ): React.ReactElement {
   const overrides = slide.style_overrides ?? {}
+  // quick-260515-epn: per-slide template_id_override re-resolution. When the
+  // slide carries a top-level `template_id_override` (or the pre-fusion
+  // `style_overrides.template_id_override`), the helper returns the registry
+  // template for that id; otherwise it returns `templateParam` BY REFERENCE,
+  // preserving TPLREND-05 byte-identity for every legacy slide. All downstream
+  // `template.*` reads use this rebound `template` variable unchanged.
+  const template = resolvePerSlideTemplate(slide, templateParam)
   const resolved = resolveSlideStyles(slide, template)
 
   // Phase 45: graceful-fallback render context for the shared overlay resolver.
