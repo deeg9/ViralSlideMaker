@@ -78,11 +78,15 @@ export function FirstRunWelcomeDialog() {
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (!open) {
-        // Closing via X or backdrop/Esc = Skip (writes onboarding_completed_at).
-        handleSkip()
+        // Backdrop / Esc / X-button = ephemeral dismiss (welcomeSeen=true, no DB
+        // write). The persistent "I'm done with onboarding" write is reserved for
+        // the explicit text Skip button (handleSkip → skipTour) and the
+        // "Get Started" completion on slide 4 (handleGetStarted → markWelcomeSeen
+        // → checklist takes over).
+        markWelcomeSeen()
       }
     },
-    [handleSkip],
+    [markWelcomeSeen],
   )
 
   const isLastSlide = currentSlide === SLIDES.length - 1

@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'motion/react'
+import { FocusScope } from '@radix-ui/react-focus-scope'
 import {
   CheckCircle2,
   ChevronLeft,
@@ -498,19 +499,22 @@ function SpotlightCoachmark({
         }}
         className="w-[300px] rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-[#dbc1bc]/40"
         role="dialog"
-        aria-label={step.title}
+        aria-labelledby={`coachmark-title-${step.id}`}
+        tabIndex={-1}
       >
-        <CoachmarkBody
-          step={step}
-          stepIndex={stepIndex}
-          totalSteps={totalSteps}
-          isFirst={isFirst}
-          isLast={isLast}
-          onNext={onNext}
-          onPrev={onPrev}
-          onSkip={onSkip}
-          onDismiss={onDismiss}
-        />
+        <FocusScope trapped loop>
+          <CoachmarkBody
+            step={step}
+            stepIndex={stepIndex}
+            totalSteps={totalSteps}
+            isFirst={isFirst}
+            isLast={isLast}
+            onNext={onNext}
+            onPrev={onPrev}
+            onSkip={onSkip}
+            onDismiss={onDismiss}
+          />
+        </FocusScope>
       </motion.div>
     </>
   )
@@ -549,30 +553,33 @@ function CenteredFallbackCoachmark({
       transition={{ duration: 0.2 }}
       className="fixed inset-0 z-50 flex items-center justify-center px-6"
       role="dialog"
-      aria-label={step.title}
+      aria-labelledby={`coachmark-title-${step.id}`}
+      tabIndex={-1}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-[#dbc1bc]/40">
-        <CoachmarkBody
-          step={step}
-          stepIndex={stepIndex}
-          totalSteps={totalSteps}
-          isFirst={isFirst}
-          isLast={isLast}
-          onNext={onNext}
-          onPrev={onPrev}
-          onSkip={onSkip}
-          onDismiss={onDismiss}
-          extraActions={
-            <button
-              type="button"
-              onClick={onTakeMeThere}
-              className="text-xs text-[#3d0000] hover:underline font-medium"
-            >
-              Take me there
-            </button>
-          }
-        />
-      </div>
+      <FocusScope trapped loop>
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-[#dbc1bc]/40">
+          <CoachmarkBody
+            step={step}
+            stepIndex={stepIndex}
+            totalSteps={totalSteps}
+            isFirst={isFirst}
+            isLast={isLast}
+            onNext={onNext}
+            onPrev={onPrev}
+            onSkip={onSkip}
+            onDismiss={onDismiss}
+            extraActions={
+              <button
+                type="button"
+                onClick={onTakeMeThere}
+                className="text-xs text-[#3d0000] hover:underline font-medium"
+              >
+                Take me there
+              </button>
+            }
+          />
+        </div>
+      </FocusScope>
     </motion.div>
   )
 }
@@ -609,7 +616,12 @@ function CoachmarkBody({
           <p className="text-[10px] uppercase tracking-widest font-bold text-[#7d6161]">
             Step {stepIndex + 1} of {totalSteps}
           </p>
-          <h3 className="text-base font-semibold text-[#3d0000] mt-1">{step.title}</h3>
+          <h3
+            id={`coachmark-title-${step.id}`}
+            className="text-base font-semibold text-[#3d0000] mt-1"
+          >
+            {step.title}
+          </h3>
         </div>
         <button
           type="button"
