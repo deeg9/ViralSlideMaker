@@ -130,6 +130,62 @@ describe('CaptionBarControls', () => {
       style_overrides: expect.objectContaining({ caption_bar_opacity: 0.6 }),
     })
   })
+
+  // --- quick-260515-nfb: swatch-row Color picker ---
+
+  it('clicking a preset swatch commits caption_bar_color', () => {
+    const onSlideUpdate = vi.fn()
+    render(
+      <CaptionBarControls
+        slide={makeSlide()}
+        template={BOTTOM_CARD_TMPL}
+        onSlideUpdate={onSlideUpdate}
+        onSlidePreview={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByTestId('caption-bar-color-swatch-#3d0000'))
+    expect(onSlideUpdate).toHaveBeenCalledWith({
+      style_overrides: expect.objectContaining({ caption_bar_color: '#3d0000' }),
+    })
+  })
+
+  it('the palette-icon button is present', () => {
+    render(
+      <CaptionBarControls
+        slide={makeSlide()}
+        template={BOTTOM_CARD_TMPL}
+        onSlideUpdate={vi.fn()}
+        onSlidePreview={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('caption-bar-color-palette')).toBeTruthy()
+  })
+
+  it('the swatch matching the resolved color is marked active', () => {
+    render(
+      <CaptionBarControls
+        slide={makeSlide({ style_overrides: { caption_bar_color: '#3d0000' } })}
+        template={BOTTOM_CARD_TMPL}
+        onSlideUpdate={vi.fn()}
+        onSlidePreview={vi.fn()}
+      />,
+    )
+    expect(
+      screen
+        .getByTestId('caption-bar-color-swatch-#3d0000')
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      screen
+        .getByTestId('caption-bar-color-swatch-#ffffff')
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+    expect(
+      screen
+        .getByTestId('caption-bar-color-swatch-#7d6161')
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+  })
 })
 
 describe('UPDATE_SLIDE noHistory channel', () => {
