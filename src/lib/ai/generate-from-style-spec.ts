@@ -52,6 +52,7 @@ import {
 } from './schemas'
 import { buildFromSpecPrompt } from './prompts'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
 import { getTemplate } from '@/lib/render/templates'
 import { templates } from '@/lib/render/templates'
@@ -400,7 +401,9 @@ export async function generateFromStyleSpec(
   // Phase 7: text_boxes population — server-side adapter (mirror generate-slides.ts:323-328).
   const slidesWithTextBoxes: SlideContentWithTextBoxes[] = slidesProcessed.map((slide) => ({
     ...slide,
-    text_boxes: legacyToTextBoxes(slide as unknown as Slide),
+    text_boxes: separateOverlappingTextBoxes(
+      legacyToTextBoxes(slide as unknown as Slide),
+    ),
   })) as SlideContentWithTextBoxes[]
 
   // Telemetry: log silent-drop count if non-zero. Code review checklist
