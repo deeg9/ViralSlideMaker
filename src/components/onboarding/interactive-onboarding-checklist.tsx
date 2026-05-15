@@ -260,6 +260,19 @@ function CoachmarkOverlay({
 
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null)
 
+  // WR-04: Esc dismisses the active spotlight (clears activeStepId). The
+  // overlay is not a Radix Dialog, so Radix's built-in Esc handler does
+  // not apply. Skip-tour stays a separate, explicit action via the X /
+  // "Skip tour" buttons; Esc is purely "close this spotlight."
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDismiss()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onDismiss])
+
   const measure = useCallback(() => {
     if (!step) return
     if (typeof document === 'undefined') return
