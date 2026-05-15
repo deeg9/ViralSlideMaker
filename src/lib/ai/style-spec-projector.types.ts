@@ -112,6 +112,16 @@ export type ProjectedSlideOverrides = Pick<
   | 'treatment_applied'
   | 'template_id_override' // Phase 80 R6 — emitted from spec.slideArchetype
   | 'layout'               // Phase 80 — required for caption-bar-top ('cover' override)
+  // quick-260515-i56: emitted ONLY for spec.slideArchetype === 'caption-bar-bottom'
+  // to center hook + body inside the lower caption bar. Skipped for every other
+  // archetype — TPLREND-05 byte-identity preserved by skip-emit for legacy
+  // slides (no slideArchetype) and for non-caption-bar branches. These four
+  // fields already exist on SlideStyleOverrides (src/lib/types/slide.ts:176-177,
+  // 194-195), so STYLESPEC-12 "no new Slide fields" is preserved by construction.
+  | 'hook_position'
+  | 'body_position'
+  | 'hook_width'
+  | 'body_width'
 >
 
 /**
