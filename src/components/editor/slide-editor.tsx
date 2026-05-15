@@ -667,19 +667,22 @@ export function SlideEditor({
         if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         if (!selectedTextBoxId) return
         const targetBox = textBoxes.find((tb) => tb.id === selectedTextBoxId)
-        if (targetBox?.role !== 'custom') return
+        if (!targetBox) return
+        // quick-260515-ihk: deletion now works for any role (hook / body /
+        // custom). applyDualWrite handles empty legacy hook_text / body_text
+        // fields gracefully — the renderer treats missing role boxes as
+        // "no text". Locked boxes are still skipped (reducer enforces the
+        // lock too; we guard here to keep event handling consistent).
+        if (targetBox.locked === true) return
         e.preventDefault()
-        // Route through removeTextBox so selectedTextBoxId is cleared if it
-        // matched. Hook/body deletion is intentionally not supported — they
-        // are structural to legacy compat (hook_text/body_text fields).
-        // Phase 60 keeps single-select-delete UX; bulk-delete is Phase 64.
         removeTextBox(selectedIndex, selectedTextBoxId)
       },
       'Backspace': (e) => {
         if (isEditingTarget(e.target) || isPickerOpenRef.current) return
         if (!selectedTextBoxId) return
         const targetBox = textBoxes.find((tb) => tb.id === selectedTextBoxId)
-        if (targetBox?.role !== 'custom') return
+        if (!targetBox) return
+        if (targetBox.locked === true) return
         e.preventDefault()
         removeTextBox(selectedIndex, selectedTextBoxId)
       },

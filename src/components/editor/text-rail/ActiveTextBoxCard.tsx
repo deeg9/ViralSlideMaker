@@ -34,6 +34,11 @@ interface ActiveTextBoxCardProps {
    *  in the role-label slot instead of the legacy "HOOK TEXT" / "BODY TEXT"
    *  per-role copy. Parent (TextEditorPanel) computes the index. */
   textBoxNumber?: number | null
+  /** quick-260515-ihk: when provided, renders a small red trash icon in the
+   *  card header that dispatches REMOVE_TEXT_BOX for this box. Hidden when
+   *  the box is locked (reducer would ignore the action anyway). Mirrors the
+   *  decoration-card.tsx delete pattern (data-testid="decoration-card-delete"). */
+  onRemove?: () => void
 }
 
 const DEFAULT_SHADOW: TextShadowEffect = {
@@ -80,6 +85,7 @@ export function ActiveTextBoxCard({
   template,
   brandKit: _brandKit,
   textBoxNumber,
+  onRemove,
 }: ActiveTextBoxCardProps) {
   if (!textBox) {
     return (
@@ -216,7 +222,10 @@ export function ActiveTextBoxCard({
       data-testid="active-text-box-card"
       data-role={textBox.role}
     >
-      {/* Role label */}
+      {/* Role label + delete trash (quick-260515-ihk).
+          Trash hidden when box is locked (reducer enforces lock at REMOVE_TEXT_BOX
+          anyway — hide the affordance so users don't see a no-op click).
+          Mirrors decoration-card.tsx pattern (p-2 red icon button, right-aligned). */}
       <div className="flex items-center justify-between">
         <span
           className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]"
@@ -224,6 +233,18 @@ export function ActiveTextBoxCard({
         >
           {textBoxLabel(textBoxNumber)}
         </span>
+        {onRemove && textBox.locked !== true && (
+          <button
+            type="button"
+            onClick={onRemove}
+            data-testid="active-text-box-card-delete"
+            aria-label="Delete text box"
+            title="Delete text box"
+            className={`p-2 text-red-600 rounded-lg hover:bg-red-50 transition-colors ${FOCUS_RING}`}
+          >
+            <Icon name="delete" size="sm" />
+          </button>
+        )}
       </div>
 
       {/* Textarea — segments cleared on text edit (mirrors current panel
