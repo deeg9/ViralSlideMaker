@@ -224,4 +224,177 @@ describe('<ActiveTextBoxCard>', () => {
     )
     expect(screen.getByTestId('accent-words-disclosure')).toBeInTheDocument()
   })
+
+  // quick-260515-999: "Highlight words" must paint a marker-style pill behind
+  // the word, not flip its text color. The right-panel toggle is the entry
+  // point; toggling ON writes highlightColor + highlightStyle so the
+  // renderer's pill branch fires, toggling OFF strips them so the segment
+  // renders as a plain run again. The "Highlight color" picker must repaint
+  // every already-accented segment so the picker controls the actual visible
+  // marker color, not just the default for the next toggle.
+  describe('Highlight words (pill marker behavior)', () => {
+    function openDisclosure() {
+      fireEvent.click(screen.getByTestId('accent-words-trigger'))
+    }
+
+    it('toggles a segment ON with pill fields written alongside accent:true', () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({
+            text: 'controversial move',
+            accent_color: '#FFD166',
+            segments: [
+              { text: 'controversial' },
+              { text: 'move' },
+            ],
+          })}
+          onUpdate={onUpdate}
+          template={TEMPLATE}
+        />,
+      )
+      openDisclosure()
+      fireEvent.click(screen.getByTestId('accent-word-chip-0'))
+      expect(onUpdate).toHaveBeenCalledTimes(1)
+      const payload = onUpdate.mock.calls[0][0]
+      expect(payload.segments).toEqual([
+        {
+          text: 'controversial',
+          accent: true,
+          highlightColor: '#FFD166',
+          highlightStyle: 'pill',
+        },
+        { text: 'move' },
+      ])
+    })
+
+    it('toggling a segment OFF strips highlightColor and highlightStyle', () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({
+            text: 'controversial move',
+            accent_color: '#FFD166',
+            segments: [
+              {
+                text: 'controversial',
+                accent: true,
+                highlightColor: '#FFD166',
+                highlightStyle: 'pill',
+              },
+              { text: 'move' },
+            ],
+          })}
+          onUpdate={onUpdate}
+          template={TEMPLATE}
+        />,
+      )
+      openDisclosure()
+      fireEvent.click(screen.getByTestId('accent-word-chip-0'))
+      const payload = onUpdate.mock.calls[0][0]
+      expect(payload.segments[0]).toEqual({
+        text: 'controversial',
+        accent: false,
+      })
+      expect(payload.segments[0]).not.toHaveProperty('highlightColor')
+      expect(payload.segments[0]).not.toHaveProperty('highlightStyle')
+    })
+
+    it('toggling ON falls back to template.accentColor when accent_color is unset', () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({
+            text: 'word',
+            segments: [{ text: 'word' }],
+          })}
+          onUpdate={onUpdate}
+          template={TEMPLATE}
+        />,
+      )
+      openDisclosure()
+      fireEvent.click(screen.getByTestId('accent-word-chip-0'))
+      const payload = onUpdate.mock.calls[0][0]
+      // Template default accent color drives the highlight when the box has
+      // no per-box override.
+      expect(payload.segments[0].highlightColor).toBe(
+        TEMPLATE.accentColor ?? '#3d0000',
+      )
+      expect(payload.segments[0].highlightStyle).toBe('pill')
+    })
+
+    it('picking a new highlight color repaints every accented segment AND updates accent_color', () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({
+            text: 'one two three',
+            accent_color: '#FFD166',
+            segments: [
+              {
+                text: 'one',
+                accent: true,
+                highlightColor: '#FFD166',
+                highlightStyle: 'pill',
+              },
+              { text: 'two' },
+              {
+                text: 'three',
+                accent: true,
+                highlightColor: '#FFD166',
+                highlightStyle: 'pill',
+              },
+            ],
+          })}
+          onUpdate={onUpdate}
+          template={TEMPLATE}
+        />,
+      )
+      openDisclosure()
+      // Pick the mint swatch from the brand row.
+      fireEvent.click(screen.getByTestId('accent-color-swatch-#A8E0B0'))
+      expect(onUpdate).toHaveBeenCalledTimes(1)
+      const payload = onUpdate.mock.calls[0][0]
+      expect(payload.accent_color).toBe('#A8E0B0')
+      expect(payload.segments).toEqual([
+        {
+          text: 'one',
+          accent: true,
+          highlightColor: '#A8E0B0',
+          highlightStyle: 'pill',
+        },
+        { text: 'two' },
+        {
+          text: 'three',
+          accent: true,
+          highlightColor: '#A8E0B0',
+          highlightStyle: 'pill',
+        },
+      ])
+    })
+
+    it('picking a new highlight color with no accented segments only updates accent_color', () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({
+            text: 'plain words here',
+            segments: [
+              { text: 'plain' },
+              { text: 'words' },
+              { text: 'here' },
+            ],
+          })}
+          onUpdate={onUpdate}
+          template={TEMPLATE}
+        />,
+      )
+      openDisclosure()
+      fireEvent.click(screen.getByTestId('accent-color-swatch-#A8E0B0'))
+      const payload = onUpdate.mock.calls[0][0]
+      expect(payload).toEqual({ accent_color: '#A8E0B0' })
+      // No segments override — we don't want to repaint plain words.
+      expect(payload).not.toHaveProperty('segments')
+    })
+  })
 })
