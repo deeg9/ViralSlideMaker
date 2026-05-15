@@ -1334,25 +1334,6 @@ export function SlidePreview({
               </div>
             )
           })}
-
-          {/* Slide number badge */}
-          <div style={{
-            position: 'absolute',
-            top: 20,
-            right: 20,
-            zIndex: 20,
-            background: 'rgba(0,0,0,0.6)',
-            color: '#fff',
-            fontSize: 28,
-            fontWeight: 700,
-            borderRadius: '50%',
-            width: 56,
-            height: 56,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'system-ui, sans-serif',
-          }}>{index + 1}</div>
         </div>
       </div>
     )
@@ -3163,25 +3144,6 @@ export function SlidePreview({
             alignment-guides hook (Phase 63 D-09 retains the file for Phase
             66 cleanup; the import is gone — see Plan 63-04 SUMMARY). */}
         <SmartGuideOverlay ref={guideOverlayRef} />
-
-        {/* Slide number badge */}
-        <div style={{
-          position: 'absolute',
-          top: 20,
-          right: 20,
-          zIndex: 20,
-          background: 'rgba(0,0,0,0.6)',
-          color: '#fff',
-          fontSize: 28,
-          fontWeight: 700,
-          borderRadius: '50%',
-          width: 56,
-          height: 56,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'system-ui, sans-serif',
-        }}>{index + 1}</div>
 
         {/* Phase 60 (SEL-13, PARITY-01): union-AABB multi-select ring.
             STRICTLY editable-only — this block lives inside the editable={true}
