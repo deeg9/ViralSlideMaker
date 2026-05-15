@@ -93,6 +93,7 @@ import type {
   NarrowedDecorationAllowlist,
   ProjectedSpec,
 } from '@/lib/ai/style-spec-projector.types'
+import { computeCaptionBarBottomPositions } from './style-spec-projector-constants'
 
 // Build a deterministic category → family lookup table at module load.
 // "Deterministic" = first registered family per category wins. Mirrors
@@ -319,6 +320,36 @@ export function projectStyleSpecToSlideOverrides(
   // the top of the frame (the reference composition for top-caption slides).
   if (archetype === 'caption-bar-top') {
     style_overrides.layout = 'cover'
+  }
+
+  // quick-260515-i56: caption-bar-bottom y-override — center hook + body
+  // inside the caption bar.
+  //
+  // The renderer's bottom-card occupies the lower (heightFraction * 100)% of
+  // the canvas; without this override the AI emits y values flush with the
+  // top edge of the bar (DB-confirmed on project
+  // ae0ca070-058f-4fe9-85f5-5190b425c6bf: hook y=66.83, body y=78.57). The
+  // computed `hook_position` / `body_position` flow through
+  // legacyToTextBoxes (text-box-adapter.ts:31-46 / 48-64) which produces
+  // `anchor: 'custom'` — exactly what separateOverlappingTextBoxes (the
+  // just-shipped 260515-8xx helper) needs to see for the boxes to
+  // participate in the collision/layout pass.
+  //
+  // Archetype-gated — every other archetype branch unchanged; TPLREND-05
+  // byte-identity preserved for legacy slides (no `slideArchetype` set —
+  // DEFAULT_FALLBACK_ARCHETYPE is 'full-bleed-text-overlay', not
+  // 'caption-bar-bottom').
+  //
+  // All numeric constants (x, width, y-band math, default heightFraction)
+  // live in style-spec-projector-constants.ts — single source of truth
+  // with the AI prompt's ARCHETYPE GUIDANCE block.
+  if (archetype === 'caption-bar-bottom') {
+    const captionSlot = (spec as { caption?: { heightFraction?: number } }).caption
+    const { hook, body } = computeCaptionBarBottomPositions(captionSlot?.heightFraction)
+    style_overrides.hook_position = { x: hook.x, y: hook.y }
+    style_overrides.body_position = { x: body.x, y: body.y }
+    style_overrides.hook_width = hook.width
+    style_overrides.body_width = body.width
   }
 
   return {
