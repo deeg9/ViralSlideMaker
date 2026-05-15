@@ -9,7 +9,9 @@ const navItems = [
   { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
   { href: '/dashboard', icon: 'auto_awesome_motion', label: 'My Carousels' },
   { href: '/dashboard', icon: 'style', label: 'Templates' },
-  { href: '/settings/brand-kit', icon: 'settings', label: 'Settings' },
+  // Settings nav previously deep-linked to Brand Kit; re-routed to /settings (redirects to /profile)
+  // while Brand Kit is hidden from production (260515-eey).
+  { href: '/settings', icon: 'settings', label: 'Settings' },
 ]
 
 export function SidebarNav() {
