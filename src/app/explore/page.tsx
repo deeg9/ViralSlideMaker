@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
-import { Icon } from '@/components/ui/icon'
 import { ExploreSearchBox } from './search-box'
 import { FilterButton } from './filter-button'
+import { ExploreCard } from './explore-card'
+import type { Slide } from '@/lib/types/slide'
 
 type Tab = 'trending' | 'new' | 'featured'
 
@@ -12,6 +12,8 @@ interface PublishedRow {
   slug: string
   title: string
   hero_image_url: string | null
+  slide_data: Slide[] | null
+  template_id: string | null
   tags: string[]
   bookmark_count: number
   remix_count: number
@@ -43,7 +45,7 @@ export default async function ExplorePage({
   let query = supabase
     .from('published_carousels')
     .select(
-      'id, slug, title, hero_image_url, tags, bookmark_count, remix_count, view_count, published_at, owner_id',
+      'id, slug, title, hero_image_url, slide_data, template_id, tags, bookmark_count, remix_count, view_count, published_at, owner_id',
     )
     .is('unpublished_at', null)
     .eq('is_hidden', false)
@@ -142,47 +144,17 @@ export default async function ExplorePage({
             {carousels.map((c) => {
               const creator = creators.get(c.owner_id)
               return (
-                <Link
+                <ExploreCard
                   key={c.id}
-                  href={`/explore/${c.slug}`}
-                  className="block bg-white rounded-2xl border border-[#dbc1bc]/30 overflow-hidden hover:shadow-lg hover:border-[#3d0000]/30 transition-all"
-                >
-                  {/* Hero */}
-                  <div className="relative aspect-[9/16] bg-[#fadbdb]">
-                    {c.hero_image_url ? (
-                      <Image
-                        src={c.hero_image_url}
-                        alt={c.title}
-                        fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-[#7d6161]">
-                        <Icon name="image" size="lg" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-semibold text-sm text-[#3d0000] line-clamp-2">{c.title}</h3>
-                    {creator?.username && (
-                      <p className="text-xs text-[#7d6161] mt-1">
-                        @{creator.username}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 text-xs text-[#7d6161] mt-2">
-                      <span className="flex items-center gap-1">
-                        <Icon name="bookmark" size="sm" />
-                        {c.bookmark_count}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Icon name="content_copy" size="sm" />
-                        {c.remix_count}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+                  slug={c.slug}
+                  title={c.title}
+                  heroImageUrl={c.hero_image_url}
+                  slides={c.slide_data ?? []}
+                  templateId={c.template_id}
+                  creatorUsername={creator?.username ?? null}
+                  bookmarkCount={c.bookmark_count}
+                  remixCount={c.remix_count}
+                />
               )
             })}
           </div>
