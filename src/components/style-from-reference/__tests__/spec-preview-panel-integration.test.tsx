@@ -196,4 +196,24 @@ describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
       expect(hits, `forbidden token ${re} in spec-preview-panel.tsx`).toBe(0)
     }
   })
+
+  it('Test 8 (quick-260515-dwu): hideGenerateCta helper text points to the prompt above, not a phantom button below', () => {
+    // The inline-collapsible mode in GenerationForm hides the panel's own
+    // Generate button — the outer prompt-arrow IS the entry point. The
+    // pre-fix copy ("Use Generate Carousel below to render.") told users
+    // to look for a button that doesn't exist in that layout. Replaced
+    // with copy that points at the actual entry point above.
+    render(
+      <SpecPreviewPanel
+        state={fullState()}
+        dispatch={vi.fn()}
+        brandKit={makeBrandKit()}
+        onGenerate={vi.fn()}
+        onReExtract={vi.fn()}
+        hideGenerateCta
+      />,
+    )
+    expect(screen.queryByText(/Generate Carousel below/i)).toBeNull()
+    expect(screen.getByText(/Send your prompt above to apply it/i)).toBeInTheDocument()
+  })
 })
