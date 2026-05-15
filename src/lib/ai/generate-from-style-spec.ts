@@ -51,6 +51,7 @@ import {
   type DecorationContent,
 } from './schemas'
 import { buildFromSpecPrompt } from './prompts'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
 import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
@@ -319,7 +320,7 @@ export async function generateFromStyleSpec(
 
   async function callGemini(contents: string): Promise<unknown> {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_TEXT_MODEL,
       contents,
       config: {
         systemInstruction,

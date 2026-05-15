@@ -26,7 +26,7 @@ const DAILY_COST_CEILING_USD = parseFloat(
   process.env.STYLE_EXTRACTION_DAILY_COST_CEILING_USD ?? '5',
 )
 // Worst-case from STACK.md per-extraction estimate (3 reference images
-// at 1024×1024 + ~600-token JSON output on gemini-2.5-flash). Tune as
+// at 1024×1024 + ~600-token JSON output on gemini-3-flash-preview). Tune as
 // launch telemetry refines real-world averages.
 const PER_CALL_COST_USD = parseFloat(
   process.env.STYLE_EXTRACTION_PER_CALL_COST_USD ?? '0.003',

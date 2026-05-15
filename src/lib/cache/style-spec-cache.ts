@@ -38,9 +38,10 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { STYLE_SPEC_VERSION } from '@/lib/types/style-spec'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 
 const TABLE = 'style_spec_cache'
-const DEFAULT_MODEL = 'gemini-2.5-flash'
+const DEFAULT_MODEL = GEMINI_TEXT_MODEL
 
 export interface StyleSpecCacheRow {
   sha256: string
@@ -136,7 +137,7 @@ export async function lookupStyleSpec(
  * @param admin - Supabase service-role client (server-only).
  * @param sha256 - 64-char hex SHA-256 of preprocessed image bytes.
  * @param styleSpec - Validated StyleSpec from Phase 75 (opaque here).
- * @param model - Extraction model name; defaults to 'gemini-2.5-flash'.
+ * @param model - Extraction model name; defaults to the current GEMINI_TEXT_MODEL.
  */
 export async function persistStyleSpec(
   admin: SupabaseClient,

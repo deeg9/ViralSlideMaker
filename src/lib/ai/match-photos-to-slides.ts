@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { GoogleGenAI, Type, type Schema } from '@google/genai'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import type { Slide } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -186,7 +187,7 @@ export async function matchPhotosToSlides(
     // Phase 58 (MATCH-04): Promise.race against 10s timeout. Timeout/error
     // → fall through to index-order (never blocks generation).
     const geminiPromise = ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: 'application/json',

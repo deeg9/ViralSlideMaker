@@ -26,6 +26,7 @@ import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-
 import { resolveAIDecoration } from './resolve-ai-decoration'
 import { decorationDiversityCheck } from './decoration-diversity-check'
 import { getTemplate } from '@/lib/render/templates'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import type { Slide, TextBox } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -189,7 +190,7 @@ export async function generateSlideContent(
 
   async function callGemini(contents: string): Promise<unknown> {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_TEXT_MODEL,
       contents,
       config: {
         systemInstruction,
