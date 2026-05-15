@@ -14,7 +14,7 @@ export const LetterCircleLoader: React.FC<LetterCircleLoaderProps> = ({
   const letters = text.split('')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-[#1a3379] via-[#0f172a] to-black dark:from-gray-100 dark:via-gray-200 dark:to-gray-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-[#fff8f7] via-[#fff0f0] to-[#fadbdb]">
       <div
         className="relative flex items-center justify-center font-inter select-none"
         style={{ width: size, height: size }}
@@ -22,7 +22,7 @@ export const LetterCircleLoader: React.FC<LetterCircleLoaderProps> = ({
         {letters.map((letter, index) => (
           <span
             key={index}
-            className="inline-block text-white dark:text-gray-800 opacity-40 animate-loaderLetter"
+            className="inline-block text-[#3d0000] opacity-40 animate-loaderLetter"
             style={{ animationDelay: `${index * 0.1}s` }}
           >
             {letter}
