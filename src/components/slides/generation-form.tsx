@@ -7,7 +7,7 @@ import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
 import { Icon } from '@/components/ui/icon'
-import TetrisLoading from '@/components/ui/tetris-loading'
+import { LetterCircleLoader } from '@/components/ui/letter-circle-loader'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
@@ -217,23 +217,17 @@ export function GenerationForm({
     })
   }
 
-  const loadingMessage = uploading
-    ? `Uploading ${selectedFiles.length} photo${selectedFiles.length === 1 ? '' : 's'}...`
+  const loaderText = uploading
+    ? 'Uploading'
     : imageSource === 'ai'
-      ? 'Generating with AI images (~30s)...'
-      : 'Building your slides...'
+      ? 'Generating'
+      : 'Building'
 
   return (
     <>
       {busy && (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#fff8f7]/95 backdrop-blur-sm p-4"
-        >
-          <TetrisLoading size="lg" speed="normal" loadingText={loadingMessage} />
-          <p className="mt-3 text-xs text-[#7d6161] tracking-wide">Hang tight — this usually takes 10–30 seconds.</p>
+        <div role="status" aria-live="polite" aria-busy="true">
+          <LetterCircleLoader text={loaderText} />
         </div>
       )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
