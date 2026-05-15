@@ -172,6 +172,13 @@ export interface RegenerateActionInput {
    *  references orchestrator. */
   imageSource?: 'stock' | 'ai' | 'none'
   slideCount?: number
+  /** quick-260515-dwu: forwarded into generateCarouselFromReferences so
+   *  the project row's reference_assets column gets populated alongside
+   *  style_spec. Inline-collapsible callers (the prompt-arrow handler)
+   *  read these from the embedded shell's reducer state. Without this
+   *  the row carries style_spec but no reference_assets, and the
+   *  remix/fork flow downstream of REMIX-04 has nothing to inherit. */
+  references?: ReferenceAssetRow[]
 }
 
 export type RegenerateActionResult =
