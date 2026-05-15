@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import type { Slide } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -24,7 +25,7 @@ export async function generateCaptions(
       .join('\n')
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: `Generate social media captions for a carousel about "${topic}".
 The carousel has ${slides.length} slides with this content:
 ${slidesSummary}

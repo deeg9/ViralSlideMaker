@@ -8,6 +8,7 @@ import { generateCarouselStyle } from '@/lib/imagen/generate-prompt'
 import { stylizeBackgroundFromPhoto, type StylizeResult } from '@/lib/imagen/stylize-image'
 import { rateLimit } from '@/lib/rate-limit'
 import { getUserTier } from '@/lib/credits/check-credits'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -67,7 +68,7 @@ export async function regenerateSlideText(
 ): Promise<{ hook_text: string; body_text: string }> {
   const userInstruction = customPrompt ? `\nUser instruction: "${customPrompt}"` : ''
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: GEMINI_TEXT_MODEL,
     contents: `Generate a fresh alternative hook_text and body_text for slide ${slideIndex + 1} of a TikTok carousel about "${topic}".
 Current hook: "${currentSlide.hook_text}"
 Current body: "${currentSlide.body_text}"
@@ -98,7 +99,7 @@ export async function regenerateSlideImageQuery(
 ): Promise<{ image_query: string; background_url: string | null; pexels_photo_id: number | null }> {
   const userInstruction = customPrompt ? `\nUser instruction for the image: "${customPrompt}"` : ''
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: GEMINI_TEXT_MODEL,
     contents: `Generate a new Pexels image search query for a TikTok carousel slide about "${topic}".
 Current image query: "${currentSlide.image_query}"
 Current hook: "${currentSlide.hook_text}"

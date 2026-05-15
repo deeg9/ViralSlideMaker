@@ -56,6 +56,7 @@ import { createSilentDropCounter, type SilentDropCounter } from '@/lib/validator
 // right-of-publicity / trademark exposure shifted to the user via the
 // strengthened Phase 79 LEGAL-05 T&C clickwrap.
 import { extractPaletteFromBytes, mergePalettes, type ExtractedPalette } from './palette-extraction'
+import { GEMINI_TEXT_MODEL } from './gemini-model'
 
 // Phase 74 closed-enum constants — sourced from the SAME modules
 // parseStyleSpecSafe consumes. CRITICAL: do NOT redefine enum lists locally;
@@ -91,8 +92,17 @@ import type {
 /** 10-second budget per CONTEXT.md D-06 + EXTRACT-06 — identical to match-photos-to-slides. */
 export const EXTRACTION_TIMEOUT_MS = 10_000
 
-/** Locked model per CONTEXT.md D-03 + research/STACK.md. */
-export const GEMINI_VISION_MODEL = 'gemini-2.5-flash'
+/**
+ * Vision/text model for the Phase A extraction call.
+ *
+ * quick-260515-io9: now a thin re-export alias of the centralized
+ * `GEMINI_TEXT_MODEL` constant (src/lib/ai/gemini-model.ts) — vision and text
+ * run on the same Gemini model. The single source of truth is env-backed
+ * (`GEMINI_TEXT_MODEL` env var) so rollback off a preview-status model is a
+ * zero-deploy change. Kept as a named export for backward-compat with any
+ * importer; consumed below at the Phase A `model:` call site.
+ */
+export const GEMINI_VISION_MODEL = GEMINI_TEXT_MODEL
 
 /**
  * Gemini safety thresholds for the Phase A vision call.
