@@ -314,7 +314,7 @@ describe('generateSlideContent — baseline', () => {
 
     expect(mockGenerateContent).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite',
         contents: expect.stringContaining('test topic'),
         config: expect.objectContaining({
           systemInstruction: expect.any(String),

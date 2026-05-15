@@ -35,7 +35,7 @@ describe('generateImagePrompt', () => {
     expect(result).toBe('Warm sunset over mountains with golden light')
     expect(mockGenerateContent).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite',
       })
     )
   })

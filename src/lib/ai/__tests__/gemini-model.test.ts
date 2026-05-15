@@ -1,7 +1,7 @@
 // quick-260515-io9: tests for the centralized Gemini TEXT-model constant.
 //
 // Two contracts:
-//   1. GEMINI_TEXT_MODEL resolves to 'gemini-3-flash-preview' when no
+//   1. GEMINI_TEXT_MODEL resolves to 'gemini-3.1-flash-lite' when no
 //      GEMINI_TEXT_MODEL env override is present (default-fallback).
 //   2. Grep-gate: no production .ts file under src/ contains a hardcoded
 //      `gemini-2.5-flash'` TEXT-model literal. Allowlist:
@@ -22,9 +22,9 @@ import { resolve, join } from 'node:path'
 import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 
 describe('quick-260515-io9: GEMINI_TEXT_MODEL constant', () => {
-  it('resolves to gemini-3-flash-preview by default (no env override)', () => {
+  it('resolves to gemini-3.1-flash-lite by default (no env override)', () => {
     // The vitest env does not set GEMINI_TEXT_MODEL, so the fallback applies.
-    expect(GEMINI_TEXT_MODEL).toBe('gemini-3-flash-preview')
+    expect(GEMINI_TEXT_MODEL).toBe('gemini-3.1-flash-lite')
   })
 })
 
