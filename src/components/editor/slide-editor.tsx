@@ -1806,6 +1806,18 @@ export function SlideEditor({
                 // and library modes (slide-scoped controls, not selection-scoped).
                 template={template}
                 onSlideUpdate={handleUpdate}
+                // quick-260515-k12: transient live-preview channel for the
+                // Caption Bar card — caption-bar slider drags dispatch with
+                // noHistory:true so the gesture records exactly one undo entry
+                // on the committing handleUpdate dispatch (KBD-09).
+                onSlidePreview={(updates) =>
+                  dispatch({
+                    type: 'UPDATE_SLIDE',
+                    index: selectedIndex,
+                    updates,
+                    noHistory: true,
+                  })
+                }
                 userTier={userTier}
                 onSlideWatermarkChange={handleSlideWatermarkChange}
                 onWatermarkLogoUpload={handleWatermarkLogoUpload}
