@@ -203,6 +203,12 @@ export function buildSnapIndex(
     pushElementEdges(ci.id, ci.x, ci.y, ci.width, ci.height)
   }
 
+  // Decorations (quick-260515-k54) — icons/shapes are snap targets too.
+  for (const d of slide.decorations ?? []) {
+    if (excludeIds.has(d.id)) continue
+    pushElementEdges(d.id, d.position.x, d.position.y, d.position.width, d.position.height)
+  }
+
   // Watermark (SNAP-02 + Plan 63-01 selection-bounds extension)
   if (slide.watermark && !excludeIds.has(slide.watermark.id)) {
     const enumPos = slide.watermark.position ?? 'bottom-right'
