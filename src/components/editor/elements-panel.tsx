@@ -22,7 +22,6 @@
 import { Icon } from '@/components/ui/icon'
 import { DIVIDERS } from '@/lib/elements/dividers'
 import { DecorationCard } from './text-rail/decoration-card'
-import { SlideSettings } from './text-rail/SlideSettings'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import type { Decoration } from '@/lib/types/decoration'
 import type { Slide } from '@/lib/types/slide'
@@ -45,19 +44,18 @@ interface ElementsPanelProps {
    *  per-slide library behavior. Optional so unit tests can render the
    *  panel in isolation. */
   slide?: Slide
-  /** Full active template — quick-260514-move-slide-cards-to-elements:
-   *  SlideSettings (mounted at the bottom of this panel) needs the template
-   *  to know whether NewsLayout controls apply. Optional so existing unit
-   *  tests that render the panel in isolation don't need to construct a
-   *  template fixture. */
+  /** Full active template — kept in the slide-level-cards guard expression.
+   *  Always passed by slide-editor; optional so existing unit tests that
+   *  render the panel in isolation don't need to construct a template
+   *  fixture. */
   template?: SlideTemplate
   /** Active template's text color — baked into every inserted divider. */
   templateTextColor: string
   /** Caller dispatches ADD_CUSTOM_IMAGE with the data URI + centered defaults. */
   onInsertDivider: (dataUri: string) => void
   /** Slide-level dispatch — wired by slide-editor to its `handleUpdate`
-   *  callback. Used by the mounted SlideSettings card (News Layout +
-   *  Overlay). Optional in isolated tests. */
+   *  callback. Retained in the slide-level-cards guard. Optional in
+   *  isolated tests. */
   onSlideUpdate?: (updates: Partial<Slide>) => void
   /** User tier for the Watermark card's "show/hide" affordance. */
   userTier?: 'free' | 'plus' | 'pro'
@@ -126,12 +124,6 @@ export function ElementsPanel({
   const slideLevelCards =
     slide && template && onSlideUpdate ? (
       <>
-        <SlideSettings
-          slide={slide}
-          template={template}
-          onUpdate={onSlideUpdate}
-          brandKit={brandKit}
-        />
         <WatermarkControls
           slide={slide}
           userTier={userTier ?? 'free'}
@@ -182,7 +174,7 @@ export function ElementsPanel({
     <div className="p-4 space-y-4 bg-[#fff0f0]">
       {/* quick-260514-portlet-cards: each library section is its own white
           card with subtle brown border + top-left title, mirroring the
-          WatermarkControls / SlideSettings shell. */}
+          WatermarkControls shell. */}
       <section className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3">
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
           Icons &amp; Shapes
