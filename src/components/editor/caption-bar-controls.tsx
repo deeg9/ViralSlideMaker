@@ -16,7 +16,10 @@
  * renderers read those overrides through `resolveCaptionBar`. Slider drags
  * route through `onSlidePreview` (noHistory:true) on every tick and commit
  * once via `onSlideUpdate` on release so the gesture records exactly one undo
- * entry (KBD-09). The color picker emits explicit hex strings (PCL12).
+ * entry (KBD-09). The Color control is a swatch-row picker (quick-260515-nfb):
+ * round `COLOR_SWATCHES` preset circles + a circular palette-icon button that
+ * opens a hidden native `<input type="color">` for arbitrary hex — every path
+ * emits explicit hex strings (PCL12).
  *
  * Visual shell mirrors WatermarkControls (the portlet pattern): white card,
  * brown border, top-left uppercase title.
@@ -25,6 +28,7 @@
 import { useEffect, useState } from 'react'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import { COLOR_SWATCHES } from './text-rail/color-swatches'
 
 export interface CaptionBarControlsProps {
   slide: Slide
@@ -146,17 +150,56 @@ export function CaptionBarControls({
         />
       </div>
 
-      {/* Color — native picker emits an explicit hex string (PCL12). */}
-      <div className="flex items-center justify-between">
+      {/* Color — swatch-row picker (quick-260515-nfb): round COLOR_SWATCHES
+          preset circles + a circular palette-icon button wrapping a hidden
+          native <input type="color"> for arbitrary hex. Both paths emit
+          explicit hex strings (PCL12). Mirrors the AccentWordsDisclosure
+          "Highlight color" row. */}
+      <div className="space-y-1">
         <span className="text-[11px] font-semibold text-[#3d0000]">Color</span>
-        <input
-          type="color"
-          value={toColorInputValue(color)}
-          data-testid="caption-bar-color"
-          aria-label="Caption bar color"
-          className="h-8 w-12 rounded border border-[#dbc1bc]/30 bg-white cursor-pointer"
-          onChange={(e) => patch({ caption_bar_color: e.target.value }, true)}
-        />
+        <div className="flex gap-3">
+          {COLOR_SWATCHES.map((swatch) => {
+            const active = color.toLowerCase() === swatch.toLowerCase()
+            return (
+              <button
+                key={swatch}
+                type="button"
+                data-testid={`caption-bar-color-swatch-${swatch}`}
+                onClick={() => patch({ caption_bar_color: swatch }, true)}
+                className={`w-6 h-6 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1 ${
+                  active ? 'ring-2 ring-[#3d0000] ring-offset-1' : ''
+                }`}
+                style={{
+                  backgroundColor: swatch,
+                  border: swatch === '#ffffff' ? '1px solid #dbc1bc' : undefined,
+                }}
+                aria-label={`Set caption bar color to ${swatch}`}
+                aria-pressed={active}
+                title={swatch}
+              />
+            )
+          })}
+          <label
+            className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1"
+            data-testid="caption-bar-color-palette"
+          >
+            <span
+              className="material-symbols-outlined text-[#7d6161]"
+              style={{ fontSize: 14 }}
+              aria-hidden
+            >
+              palette
+            </span>
+            <input
+              type="color"
+              value={toColorInputValue(color)}
+              data-testid="caption-bar-color"
+              aria-label="Set custom caption bar color"
+              className="sr-only"
+              onChange={(e) => patch({ caption_bar_color: e.target.value }, true)}
+            />
+          </label>
+        </div>
       </div>
 
       {/* Opacity — 0..100 UI scale, emitted as 0..1. Same preview/commit split. */}
