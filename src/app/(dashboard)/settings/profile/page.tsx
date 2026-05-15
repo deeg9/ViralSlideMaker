@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { getProfile, saveProfile, uploadAvatar } from './actions'
 import { restartOnboarding } from '@/lib/onboarding/actions'
+import { useOnboarding } from '@/components/onboarding/onboarding-provider'
 
 type SocialLinks = {
   tiktok: string
@@ -36,16 +37,35 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const { resetTourState } = useOnboarding()
+
+  // Track mount state so async fetches/transitions can't setState on an
+  // unmounted component after navigation (WR-05).
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   function handleRestartTour() {
     setMessage(null)
     startRestartTour(async () => {
       const result = await restartOnboarding()
-      if (result.success) {
-        router.push('/dashboard')
-      } else {
-        setMessage({ type: 'error', text: result.error })
+      if (!result.success) {
+        if (mountedRef.current) {
+          setMessage({ type: 'error', text: result.error })
+        }
+        return
       }
+      // CR-02: clear the in-flight tour state (including the
+      // user-namespaced welcomeSeen localStorage key) so the welcome modal
+      // re-fires on /dashboard. Without this, OnboardingProvider stays
+      // mounted across the (dashboard) layout boundary and `welcomeSeen`
+      // remains true from the prior completed tour, suppressing the modal
+      // and silently breaking SPEC R7 acceptance.
+      resetTourState()
+      router.push('/dashboard')
     })
   }
 
