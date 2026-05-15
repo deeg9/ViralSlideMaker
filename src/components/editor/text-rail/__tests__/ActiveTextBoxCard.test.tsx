@@ -45,6 +45,43 @@ describe('<ActiveTextBoxCard>', () => {
     expect(screen.getByTestId('effect-row-highlight')).toBeInTheDocument()
   })
 
+  // quick-260515-ihk: trash button in the card header.
+  it('renders trash button when onRemove is provided and box is not locked', () => {
+    const onRemove = vi.fn()
+    render(
+      <ActiveTextBoxCard
+        textBox={makeBox()}
+        onUpdate={vi.fn()}
+        template={TEMPLATE}
+        onRemove={onRemove}
+      />,
+    )
+    const trash = screen.getByTestId('active-text-box-card-delete')
+    expect(trash).toBeInTheDocument()
+    expect(trash).toHaveAttribute('aria-label', 'Delete text box')
+    fireEvent.click(trash)
+    expect(onRemove).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides trash button when onRemove is not provided', () => {
+    render(
+      <ActiveTextBoxCard textBox={makeBox()} onUpdate={vi.fn()} template={TEMPLATE} />,
+    )
+    expect(screen.queryByTestId('active-text-box-card-delete')).toBeNull()
+  })
+
+  it('hides trash button when text box is locked', () => {
+    render(
+      <ActiveTextBoxCard
+        textBox={makeBox({ locked: true })}
+        onUpdate={vi.fn()}
+        template={TEMPLATE}
+        onRemove={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('active-text-box-card-delete')).toBeNull()
+  })
+
   it('typing in the textarea calls onUpdate({ text, segments: undefined })', () => {
     const onUpdate = vi.fn()
     render(

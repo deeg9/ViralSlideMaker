@@ -132,6 +132,15 @@ export function TextEditorPanel({
               ? textBoxes.findIndex((tb) => tb.id === activeTextBox.id) + 1
               : null
           }
+          onRemove={
+            activeTextBox
+              ? () =>
+                  onTextBoxAction({
+                    type: 'REMOVE_TEXT_BOX',
+                    textBoxId: activeTextBox.id,
+                  })
+              : undefined
+          }
         />
       )}
 

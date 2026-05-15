@@ -277,7 +277,7 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     expect(afterId).not.toBe(beforeId)
   })
 
-  it('Delete removes a custom text box (preserves hook/body)', () => {
+  it('Delete removes a custom text box, AND hook/body too (quick-260515-ihk)', () => {
     renderEditor()
     // Programmatically select the seeded custom box (id 'ct-fixed-1') by
     // dispatching Cmd+3 (hook=1, body=2, custom=3)
@@ -294,15 +294,17 @@ describe('SlideEditor — Phase 52 keyboard shortcuts', () => {
     // Selection cleared (custom was removed)
     expect(afterDel.getAttribute('data-active-id')).toBe('')
 
-    // Now select hook (Cmd+1) and try to Delete it — must be a no-op
+    // quick-260515-ihk: Delete on hook NOW removes the hook text_box (was
+    // previously a no-op). applyDualWrite handles the empty legacy hook_text
+    // gracefully. Locked boxes are still undeletable (covered elsewhere).
     fireEvent.keyDown(window, { key: '1', ctrlKey: true })
     const hookSelected = screen.getByTestId('text-editor-panel').getAttribute('data-active-id')
     expect(hookSelected).toBeTruthy()
     fireEvent.keyDown(window, { key: 'Delete' })
     const afterHookDel = screen.getByTestId('text-editor-panel')
-    // Count unchanged (hook NOT removed) and selection still on hook
-    expect(afterHookDel.getAttribute('data-textbox-count')).toBe('2')
-    expect(afterHookDel.getAttribute('data-active-id')).toBe(hookSelected)
+    // Count decremented (hook IS removed) and selection cleared.
+    expect(afterHookDel.getAttribute('data-textbox-count')).toBe('1')
+    expect(afterHookDel.getAttribute('data-active-id')).toBe('')
   })
 
   // ──────────────────────────────────────────────────────────────────────
