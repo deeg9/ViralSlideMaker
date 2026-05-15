@@ -29,6 +29,7 @@
 import { useReducer, useEffect, useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReferenceImageUploader } from '@/components/dashboard/reference-image-uploader'
+import { OrbitalLoader } from '@/components/ui/orbital-loader'
 import {
   extractStyleSpecAction,
   regenerateAction,
@@ -394,9 +395,12 @@ function ExtractingState() {
       aria-live="polite"
       className="rounded-2xl border border-[#e2cfcf] bg-[#fff0f0] p-6 text-center"
     >
-      <p className="text-sm font-semibold text-[#3d0000]">
-        Analyzing your references...
-      </p>
+      <div className="flex items-center justify-center gap-3">
+        <p className="text-sm font-semibold text-[#3d0000]">
+          Analyzing your references...
+        </p>
+        <OrbitalLoader className="w-6 h-6" />
+      </div>
       <p className="mt-1 text-[12px] text-[#7d6161]">
         Extracting palette, typography, layout, and voice — usually under 10 seconds.
       </p>
