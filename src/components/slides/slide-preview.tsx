@@ -499,6 +499,15 @@ interface SlidePreviewProps {
     id: string,
     position: { x: number; y: number },
   ) => void
+  /**
+   * Size-commit callback for an editable decoration (quick-260515-k54).
+   * Optional — legacy callers / Storybook stories that omit it keep the
+   * resize-disabled behavior. Mirrors `onCustomImageSizeChange`.
+   */
+  onDecorationSizeChange?: (
+    id: string,
+    size: { width: number; height: number },
+  ) => void
 }
 
 export function SlidePreview({
@@ -523,6 +532,7 @@ export function SlidePreview({
   onAlign,
   onDecorationRotate,
   onDecorationPositionChange,
+  onDecorationSizeChange,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)

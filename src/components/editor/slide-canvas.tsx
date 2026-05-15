@@ -97,6 +97,12 @@ interface SlideCanvasProps {
     id: string,
     position: { x: number; y: number },
   ) => void
+  // quick-260515-k54: decoration resize commit pass-through. slide-editor wires
+  // this to dispatch({ type: 'UPDATE_DECORATION', ... }) with width/height.
+  onDecorationSizeChange?: (
+    id: string,
+    size: { width: number; height: number },
+  ) => void
 }
 
 export function SlideCanvas({
@@ -134,6 +140,7 @@ export function SlideCanvas({
   onAltDuplicate,
   onAlign,
   onDecorationPositionChange,
+  onDecorationSizeChange,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   if (!currentSlide) return null
@@ -201,6 +208,7 @@ export function SlideCanvas({
             onAltDuplicate={onAltDuplicate}
             onAlign={onAlign}
             onDecorationPositionChange={onDecorationPositionChange}
+            onDecorationSizeChange={onDecorationSizeChange}
           />
           {/* quick-260514-ksh: IG feed safe-zone overlay + IG Grid toggle
               chip removed per user request. */}
