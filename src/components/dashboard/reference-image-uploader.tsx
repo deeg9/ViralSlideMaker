@@ -34,6 +34,8 @@ import {
 } from '@/lib/storage/upload-reference-validation'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
 import { TosClickwrapModal } from '@/components/style-from-reference/tos-clickwrap-modal'
+import { Button } from '@/components/ui/button'
+import { Icon } from '@/components/ui/icon'
 
 export interface ReferenceImageUploaderProps {
   /** Fired after a successful upload — every successful upload writes one row.
@@ -289,20 +291,47 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={
-          'border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-colors ' +
+          'group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-8 text-center cursor-pointer transition-all shadow-sm shadow-black/[0.03] ' +
           (isDragOver
-            ? 'active border-[#3d0000] bg-[#fff0f0]'
-            : 'border-[#e2cfcf] bg-white hover:bg-[#fafafa]')
+            ? 'active border-[#3d0000] bg-[#fff0f0] ring-2 ring-[#3d0000]/10'
+            : 'border-[#e2cfcf] bg-white hover:border-[#3d0000]/40 hover:bg-[#fafafa]')
         }
         role="button"
         aria-label="Drop reference images or click to choose"
       >
-        <p className="text-sm font-semibold text-[#3d0000]">
-          Drop reference images here, or click to choose
-        </p>
-        <p className="mt-1 text-[11px] text-[#7d6161]">
-          PNG, JPEG, WEBP, HEIC — up to {MAX_REFERENCE_COUNT} images, 20 MB each
-        </p>
+        <span
+          aria-hidden="true"
+          className={
+            'flex h-11 w-11 items-center justify-center rounded-full transition-colors ' +
+            (isDragOver
+              ? 'bg-[#3d0000] text-white'
+              : 'bg-[#fff0f0] text-[#3d0000] group-hover:bg-[#ffe0e0]')
+          }
+        >
+          <Icon name="add_photo_alternate" size="lg" />
+        </span>
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold text-[#3d0000]">
+            Drop reference images here, or click to choose
+          </p>
+          <p className="text-[11px] text-[#7d6161]">
+            PNG, JPEG, WEBP, HEIC — up to {MAX_REFERENCE_COUNT} images, 20 MB each
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={(e) => {
+            e.stopPropagation()
+            fileInputRef.current?.click()
+          }}
+          className="border-[#e2cfcf] bg-white text-[#3d0000] hover:bg-[#fff0f0] hover:text-[#3d0000]"
+        >
+          Choose images
+        </Button>
       </div>
 
       <input
