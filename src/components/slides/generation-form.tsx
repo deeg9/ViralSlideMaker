@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition, useMemo, useRef, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
 import { regenerateAction } from '@/app/(dashboard)/style-from-reference/actions'
 import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
@@ -18,7 +17,6 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 
 export type ImageSource = 'stock' | 'ai' | 'none'
 
-const FREE_TIER_MAX_SLIDES = 3
 const MAX_UPLOADS = 20
 
 interface GenerationFormProps {
@@ -52,8 +50,8 @@ export function GenerationForm({
   const [templateId, setTemplateId] = useState(currentTemplateId ?? 'highlight-bar')
   const [imageSource, setImageSource] = useState<ImageSource>('stock')
   const isPaidUser = userTier !== 'free'
-  const sliderMax = isPaidUser ? 10 : FREE_TIER_MAX_SLIDES
-  const [slideCount, setSlideCount] = useState(isPaidUser ? 7 : FREE_TIER_MAX_SLIDES)
+  const sliderMax = 10
+  const [slideCount, setSlideCount] = useState(7)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
@@ -147,7 +145,7 @@ export function GenerationForm({
 
     setError(null)
     setShowUpgradePrompt(false)
-    const effectiveSlideCount = isPaidUser ? slideCount : Math.min(slideCount, FREE_TIER_MAX_SLIDES)
+    const effectiveSlideCount = slideCount
 
     // quick-260514-g7y: branch on the inlined style-from-reference state.
     // When the user has uploaded references and extraction reached the
@@ -449,7 +447,7 @@ export function GenerationForm({
           <div className="mt-2">
             <input
               type="range"
-              min={isPaidUser ? 3 : 1}
+              min={3}
               max={sliderMax}
               step={1}
               value={slideCount}
@@ -458,20 +456,9 @@ export function GenerationForm({
               className="w-full h-1.5 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] disabled:opacity-50"
             />
             <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-[#7d6161]">{isPaidUser ? 3 : 1}</span>
+              <span className="text-[10px] text-[#7d6161]">3</span>
               <span className="text-[10px] text-[#7d6161]">{sliderMax}</span>
             </div>
-            {!isPaidUser && (
-              <div className="flex items-center gap-1.5 mt-2 ml-1">
-                <Icon name="lock" size="sm" className="text-[#7d6161]" />
-                <Link
-                  href="/settings/subscription"
-                  className="text-[11px] font-semibold text-[#3d0000] hover:underline"
-                >
-                  Upgrade for more slides
-                </Link>
-              </div>
-            )}
           </div>
         )}
       </div>

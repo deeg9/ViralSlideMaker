@@ -460,7 +460,7 @@ export const openApiSpec = {
             },
           },
           '400': {
-            description: 'Validation error (invalid topic, slideCount out of range, free-tier slide cap, free-tier project cap)',
+            description: 'Validation error (invalid topic, slideCount out of range, free-tier project cap)',
             content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
           },
           ...creditErrorResponses,
