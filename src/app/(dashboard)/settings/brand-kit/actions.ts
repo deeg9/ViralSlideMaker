@@ -7,6 +7,7 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 import { rateLimit } from '@/lib/rate-limit'
 import { getUserTier } from '@/lib/credits/check-credits'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 
 export async function getBrandKit(): Promise<BrandKit | null> {
   const supabase = await createClient()
@@ -277,7 +278,7 @@ export async function extractStyleFromImage(
 
     const ai = new GoogleGenAI({ apiKey })
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: [
         {
           role: 'user',
