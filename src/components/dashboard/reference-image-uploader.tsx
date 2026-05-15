@@ -286,6 +286,7 @@ export function ReferenceImageUploader(props: ReferenceImageUploaderProps) {
     <div className="space-y-3">
       <div
         data-testid="reference-uploader-dropzone"
+        data-onboarding-id="reference-upload"
         onClick={() => fileInputRef.current?.click()}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}

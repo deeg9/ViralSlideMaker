@@ -60,6 +60,7 @@ export function VisibilityDropdown({
     <div ref={wrapperRef} className="relative">
       <button
         type="button"
+        data-onboarding-id="publish-toggle"
         onClick={() => setOpen((v) => !v)}
         disabled={pending}
         aria-haspopup="menu"
