@@ -213,3 +213,12 @@ Plans:
 **Status:** ✅ Code complete. Verification: 11/13 auto-PASS; 2/13 (Meta-workers + chip-sales archetype classification) require live-Gemini smoke test with fixtures placed in `fixtures/` and `GEMINI_API_KEY` + `PHASE80_LIVE_FIXTURES=1` set.
 
 ---
+
+### Phase 81: First-Run Onboarding Tour — welcome modal + cross-route coachmark checklist for activation polish
+
+**Goal:** A first-time signed-in user lands on `/dashboard`, sees a 4-slide product-themed welcome modal, then advances through a persistent cross-route coachmark checklist that spotlights the 4 key product surfaces (reference uploader, topic input, generate button, publish toggle). Skipping OR completing all steps marks `profiles.onboarding_completed_at` so the flow never auto-fires again. Migration backfills all existing ~50 users as completed so only new signups see the tour. Off-theme polish phase added post-v2.13 ship.
+**Requirements**: see `81-SPEC.md` (7 locked requirements)
+**Depends on:** Phase 78 (publish toggle exists), v2.13 reference uploader (Phase 74)
+**Status:** 🚧 SPEC.md locked 2026-05-15 (ambiguity 0.15) — discuss → plan → execute pending.
+
+---
