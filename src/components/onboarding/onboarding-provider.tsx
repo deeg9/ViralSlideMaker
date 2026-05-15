@@ -22,7 +22,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 
@@ -132,10 +131,12 @@ export function OnboardingProvider({
     return ONBOARDING_STEPS.every((step) => completedStepIds.includes(step.id))
   }, [completedStepIds])
 
-  // Keep a ref so callbacks scheduled via setTimeout / .then() see the
-  // latest completedStepIds without stale-closure bugs.
-  const completedRef = useRef(completedStepIds)
-  completedRef.current = completedStepIds
+  // WR-03: the previous implementation kept a ref of completedStepIds and
+  // checked "all done" inside setTimeout(...), relying on React having
+  // committed the state update before the macrotask fires. That ordering
+  // is implementation-dependent in concurrent mode. The fix below uses the
+  // functional setState updater to compute `next` synchronously and
+  // schedules finishTour against `next` itself — no ref needed.
 
   const markWelcomeSeen = useCallback(() => {
     setWelcomeSeen(true)
@@ -173,18 +174,20 @@ export function OnboardingProvider({
 
   const completeStep = useCallback(
     (id: OnboardingStepId) => {
-      setCompletedStepIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+      setCompletedStepIds((prev) => {
+        const next = prev.includes(id) ? prev : [...prev, id]
+        // WR-03: decide "all done" against the synchronously-computed
+        // next array — no setTimeout/ref dependency on React commit
+        // ordering. queueMicrotask schedules finishTour AFTER this
+        // updater returns and React commits the new state, but
+        // BEFORE the next paint, so the checklist re-renders with
+        // isComplete=true once before the tour unmounts.
+        if (ONBOARDING_STEPS.every((step) => next.includes(step.id))) {
+          queueMicrotask(() => finishTour())
+        }
+        return next
+      })
       setActiveStepId(null)
-
-      // If this completion finishes the whole tour, schedule finishTour on
-      // the next tick so consumers re-render with isComplete=true once
-      // before the tour unmounts.
-      setTimeout(() => {
-        const all = ONBOARDING_STEPS.every((step) =>
-          completedRef.current.includes(step.id),
-        )
-        if (all) finishTour()
-      }, 0)
     },
     [finishTour],
   )
