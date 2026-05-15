@@ -111,8 +111,14 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
 
       <div className="flex items-center justify-between gap-3 pt-2">
         {props.hideGenerateCta ? (
+          // quick-260515-dwu: pre-fix copy said "Use Generate Carousel
+          // below to render" — but in inline-collapsible mode there is
+          // no button below; the prompt-arrow above IS the entry point.
+          // Pointing users at a phantom button was the second half of
+          // the bug-report's broken UX (alongside the missing
+          // style_spec/reference_assets persistence).
           <span className="text-[12px] text-[#7d6161]">
-            Style ready. Use Generate Carousel below to render.
+            Style ready. Send your prompt above to apply it.
           </span>
         ) : (
           <div data-testid="credit-cost-slot" data-slot="credit-cost" className="text-[12px] text-[#7d6161]">

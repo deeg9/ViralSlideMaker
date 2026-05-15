@@ -16,6 +16,7 @@ import type { StyleSpec } from '@/lib/types/style-spec'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
+import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
 
 // Templates that share the news-carousel skip-default-effects behavior.
 // Keep this list in sync with src/lib/ai/prompts.ts and the actions.ts copy.
@@ -262,6 +263,16 @@ export interface CarouselFromReferencesInput {
    *  per-slide prompt fan-out that lives in the template path's
    *  generateCarousel orchestrator. */
   imageSource?: 'stock' | 'ai' | 'none'
+  /** quick-260515-dwu: reference rows from the spec-preview reducer.
+   *  When present, persisted to projects.reference_assets so legacy /
+   *  topic-flow regenerations can't silently overwrite the Copy Style
+   *  state (the bug-report root cause: projects landed with both
+   *  style_spec=NULL AND reference_assets=NULL after a successful Copy
+   *  Style generation). Optional to preserve existing callers
+   *  (regenerateFromReferencesAction composes its own references and
+   *  doesn't forward them through this input shape — it inherits via
+   *  the fork RPC populating the column directly). */
+  references?: ReferenceAssetRow[]
 }
 
 export async function generateCarouselFromReferences(
@@ -321,13 +332,27 @@ export async function generateCarouselFromReferences(
   // Step 4: persist via UPDATE on the existing project row. Belt-and-braces
   // ownership check via .eq('user_id', userId) on top of RLS — defense-in-depth
   // against T-77-06 (project_id tampering).
+  //
+  // quick-260515-dwu: persist the spec used for this generation so the
+  // project row stops looking like a topic-flow result (style_spec=NULL +
+  // reference_assets=NULL). style_spec writes unconditionally — this
+  // function is only reachable through the Copy Style routing branch, so
+  // we always have a spec. reference_assets writes only when callers
+  // forward the array; legacy callers that don't (none in-tree today, but
+  // the type is optional) leave the column untouched rather than
+  // overwriting with `undefined`.
+  const updatePayload: Record<string, unknown> = {
+    slide_data: withBackgrounds,
+    generation_status: 'complete',
+    title: carousel.title,
+    style_spec: input.spec,
+  }
+  if (input.references && input.references.length > 0) {
+    updatePayload.reference_assets = input.references
+  }
   const { error } = await supabase
     .from('projects')
-    .update({
-      slide_data: withBackgrounds,
-      generation_status: 'complete',
-      title: carousel.title,
-    })
+    .update(updatePayload)
     .eq('id', input.projectId)
     .eq('user_id', userId)
   if (error) {

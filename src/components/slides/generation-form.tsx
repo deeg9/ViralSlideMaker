@@ -152,8 +152,19 @@ export function GenerationForm({
     // 'preview' status, the extracted spec drives generation (locked
     // decision: "extracted spec wins" — template_id is ignored in this
     // branch). Otherwise fall through to the template-based path.
+    //
+    // quick-260515-dwu: harden the predicate to ALSO require at least
+    // one reference row. The reducer shouldn't emit status='preview'
+    // with an empty references[] (UPLOAD_RESET → references=[] sets
+    // status back to idle), but the bug-report DB evidence shows the
+    // arrow routed wrong somewhere — belt-and-braces. A Copy Style
+    // generation without references can't populate reference_assets
+    // anyway, and the user clearly didn't complete the Copy Style flow,
+    // so falling back to the topic flow is the correct behavior.
     const useReferenceSpec =
-      inlineSpec?.spec != null && inlineSpec.status === 'preview'
+      inlineSpec?.spec != null &&
+      inlineSpec.status === 'preview' &&
+      inlineSpec.references.length > 0
 
     startTransition(async () => {
       if (useReferenceSpec && inlineSpec?.spec) {
@@ -171,6 +182,12 @@ export function GenerationForm({
           content: { mode: 'ai-copy', topic: topic.trim() },
           imageSource,
           slideCount: effectiveSlideCount,
+          // quick-260515-dwu: forward the extracted reference rows end-
+          // to-end so the project row's reference_assets column gets
+          // populated alongside style_spec. Without this the row carries
+          // style_spec but null reference_assets and downstream
+          // remix/fork (REMIX-04) has nothing to inherit.
+          references: inlineSpec.references,
         })
         if (!result.ok) {
           setError(`Generation failed (${result.error}): ${result.detail ?? 'no detail'}`)
