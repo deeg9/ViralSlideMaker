@@ -34,7 +34,12 @@ export async function markOnboardingComplete(): Promise<ActionResult> {
     .eq('id', user.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    // WR-02: surface a generic message to the client; log the underlying
+    // Supabase / PostgREST error server-side so we keep diagnostics without
+    // leaking constraint names, column hints, or RLS policy names across
+    // the trust boundary.
+    console.error('[onboarding/markOnboardingComplete] supabase update failed:', error)
+    return { success: false, error: 'Failed to update onboarding state' }
   }
 
   revalidatePath('/dashboard')
@@ -58,7 +63,10 @@ export async function restartOnboarding(): Promise<ActionResult> {
     .eq('id', user.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    // WR-02: see markOnboardingComplete — generic message out, full error
+    // logged server-side.
+    console.error('[onboarding/restartOnboarding] supabase update failed:', error)
+    return { success: false, error: 'Failed to restart onboarding tour' }
   }
 
   revalidatePath('/dashboard')
