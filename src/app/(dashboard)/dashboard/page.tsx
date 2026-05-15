@@ -7,6 +7,7 @@ import { getCreditBalance, getUserTier, checkProjectLimit } from '@/lib/credits/
 import { TIER_CREDITS } from '@/lib/credits/types'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
+import { FirstRunWelcomeDialog } from '@/components/onboarding/first-run-welcome-dialog'
 import type { Project } from '@/lib/types/project'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
@@ -129,6 +130,12 @@ export default async function DashboardPage() {
         publishedByProjectId={publishedByProjectId}
         brandKit={brandKit}
       />
+
+      {/* Phase 81: first-run tour welcome modal. Self-gating — renders nothing
+          when the user has already completed/skipped the tour or has dismissed
+          the welcome to start the checklist. Provider is mounted by the
+          (dashboard)/layout.tsx wrapper. */}
+      <FirstRunWelcomeDialog />
     </div>
   )
 }
