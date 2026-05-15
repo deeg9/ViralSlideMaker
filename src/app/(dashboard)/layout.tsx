@@ -48,6 +48,7 @@ export default async function DashboardLayout({
   return (
     <OnboardingProvider
       needsOnboarding={needsOnboarding}
+      userId={user.id}
       onComplete={markOnboardingComplete}
     >
       <DashboardShell

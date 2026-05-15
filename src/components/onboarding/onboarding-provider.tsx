@@ -32,7 +32,18 @@ import {
   type OnboardingStepId,
 } from './onboarding-steps'
 
-const WELCOME_SEEN_STORAGE_KEY = 'onboarding_welcome_seen_at'
+// User-namespaced localStorage key (CR-01 fix). The previous un-namespaced
+// key 'onboarding_welcome_seen_at' would have made User B inherit User A's
+// "welcome seen" state on a shared device, silently suppressing User B's
+// welcome modal even though the server-derived needsOnboarding=true.
+const WELCOME_SEEN_STORAGE_KEY_PREFIX = 'onboarding_welcome_seen_at:'
+// Legacy un-namespaced key — cleared on first run after upgrade to avoid
+// stale state from existing browsers.
+const LEGACY_WELCOME_SEEN_STORAGE_KEY = 'onboarding_welcome_seen_at'
+
+function welcomeSeenStorageKey(userId: string): string {
+  return `${WELCOME_SEEN_STORAGE_KEY_PREFIX}${userId}`
+}
 
 export interface OnboardingContextValue {
   // Server-seeded
@@ -61,18 +72,29 @@ export interface OnboardingProviderProps {
   /** Derived in the dashboard layout from profile.onboarding_completed_at IS NULL. */
   needsOnboarding: boolean
   /**
+   * Authenticated user ID used to namespace the localStorage `welcomeSeen`
+   * flag (CR-01). Required: a shared device with multiple Supabase accounts
+   * MUST NOT share the un-namespaced flag, otherwise User B inherits
+   * User A's "welcome seen" and silently skips their welcome modal.
+   */
+  userId: string
+  /**
    * Server-action wrapper that writes profile.onboarding_completed_at = now().
    * Wired by src/app/(dashboard)/layout.tsx → @/lib/onboarding/actions.markOnboardingComplete.
+   * Any return value (server actions typically return a result tuple) is
+   * ignored — the provider only cares that the action settles.
    */
-  onComplete?: () => void | Promise<void>
+  onComplete?: () => void | Promise<unknown>
   children: React.ReactNode
 }
 
 export function OnboardingProvider({
   needsOnboarding: needsOnboardingProp,
+  userId,
   onComplete,
   children,
 }: OnboardingProviderProps) {
+  const storageKey = welcomeSeenStorageKey(userId)
   // Optimistically allow flipping needsOnboarding to false after skip/finish
   // so the welcome modal hides immediately while the server action settles.
   const [needsOnboarding, setNeedsOnboarding] = useState(needsOnboardingProp)
@@ -89,12 +111,16 @@ export function OnboardingProvider({
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
-      const value = window.localStorage.getItem(WELCOME_SEEN_STORAGE_KEY)
+      // CR-01: forget the legacy un-namespaced key once, so a user upgrading
+      // from a build that wrote it does not inherit a stale "welcomeSeen"
+      // value tied to a different account on the same device.
+      window.localStorage.removeItem(LEGACY_WELCOME_SEEN_STORAGE_KEY)
+      const value = window.localStorage.getItem(storageKey)
       setWelcomeSeen(Boolean(value))
     } catch {
       // localStorage unavailable (private mode / blocked) — keep welcomeSeen=false.
     }
-  }, [])
+  }, [storageKey])
 
   // In-memory tour progression. Resets on hard reload — acceptable v1 behavior
   // per D-17 (welcomeSeen survives so the modal doesn't re-fire).
@@ -115,12 +141,12 @@ export function OnboardingProvider({
     setWelcomeSeen(true)
     if (typeof window === 'undefined') return
     try {
-      window.localStorage.setItem(WELCOME_SEEN_STORAGE_KEY, new Date().toISOString())
+      window.localStorage.setItem(storageKey, new Date().toISOString())
     } catch {
       // Storage unavailable — in-memory flag still flips so the welcome
       // closes for the rest of this session.
     }
-  }, [])
+  }, [storageKey])
 
   const startStep = useCallback((id: OnboardingStepId) => {
     setActiveStepId(id)
@@ -166,7 +192,10 @@ export function OnboardingProvider({
   const resetTourState = useCallback(() => {
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage.removeItem(WELCOME_SEEN_STORAGE_KEY)
+        window.localStorage.removeItem(storageKey)
+        // Defensive: legacy key should already be gone, but a tab that
+        // never ran the mount-time cleanup could still hold it.
+        window.localStorage.removeItem(LEGACY_WELCOME_SEEN_STORAGE_KEY)
       } catch {
         // ignore
       }
@@ -175,7 +204,7 @@ export function OnboardingProvider({
     setActiveStepId(null)
     setCompletedStepIds([])
     setNeedsOnboarding(true)
-  }, [])
+  }, [storageKey])
 
   const value = useMemo<OnboardingContextValue>(
     () => ({
