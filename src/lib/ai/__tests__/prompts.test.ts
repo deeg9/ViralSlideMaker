@@ -15,6 +15,10 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { buildFromSpecPrompt, buildSystemPrompt } from '../prompts'
 import { templates, getTemplate } from '@/lib/render/templates'
+import {
+  CAPTION_BAR_BOTTOM_HOOK_Y_RANGE,
+  CAPTION_BAR_BOTTOM_BODY_Y_RANGE,
+} from '@/lib/ai/style-spec-projector-constants'
 import type { StyleSpec } from '@/lib/types/style-spec'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
@@ -139,5 +143,96 @@ describe('Phase 77 Plan 02: buildFromSpecPrompt — EMIT-05 spec-replaces-templa
     expect(prompt).toContain('PER-ROLE COPY GUIDANCE')
     // documentary has aiVoiceNote — template voice note flows through legacy path
     expect(prompt).toContain('TEMPLATE VOICE NOTE')
+  })
+})
+
+describe('quick-260515-i56: caption-bar-bottom archetype guidance contains explicit y-ranges', () => {
+  // Helper: build a caption-bar-bottom spec. Optional `caption` slot satisfies
+  // the discriminated-union narrowing for CaptionBarSlots but the prompt-test
+  // doesn't depend on it being populated.
+  function makeCaptionBarSpec(overrides?: Partial<StyleSpec>): StyleSpec {
+    return {
+      schema_version: 2,
+      slideArchetype: 'caption-bar-bottom',
+      palette: { mode: 'solid', primary: '#0f0f0f', accent: '#ff00aa' },
+      typography: { hookFontCategory: 'display', bodyFontCategory: 'sans-serif' },
+      layout: { hookPosition: 'bottom', density: 'tight' },
+      imagery: { treatmentPreset: 'bw' },
+      decorations: { preferredLucide: [], preferredShapes: [], density: 'sparse' },
+      rhythm: { cadence: 'punchy' },
+      voice_note: 'magazine bold',
+      ...overrides,
+    } as StyleSpec
+  }
+
+  it('Test 7: caption-bar-bottom prompt contains explicit hook + body y-range strings (interpolated from constants)', () => {
+    const spec = makeCaptionBarSpec()
+    const template = getTemplate('magazine-bold')
+    const content: ContentSource = { mode: 'ai-copy', topic: 'test' }
+    const prompt = buildFromSpecPrompt(spec, template, content)
+
+    // Construct expected substrings from the SAME constants the runtime
+    // reads. Drift between this test and the prompt is impossible — both
+    // pull from style-spec-projector-constants.ts.
+    const expectedHookRange = `[${CAPTION_BAR_BOTTOM_HOOK_Y_RANGE[0]}, ${CAPTION_BAR_BOTTOM_HOOK_Y_RANGE[1]}]`
+    const expectedBodyRange = `[${CAPTION_BAR_BOTTOM_BODY_Y_RANGE[0]}, ${CAPTION_BAR_BOTTOM_BODY_Y_RANGE[1]}]`
+
+    expect(prompt).toContain(`hook position.y MUST be in range ${expectedHookRange}`)
+    expect(prompt).toContain(`body position.y MUST be in range ${expectedBodyRange}`)
+    // Belt-and-suspenders steering for Gemini (even though the projector
+    // enforces anchor='custom' deterministically downstream).
+    expect(prompt).toContain("anchor: 'custom'")
+  })
+
+  it('Test 8: non-caption-bar archetypes do NOT contain the caption-bar-bottom y-range text', () => {
+    const template = getTemplate('magazine-bold')
+    const content: ContentSource = { mode: 'ai-copy', topic: 'test' }
+
+    const fullBleedPrompt = buildFromSpecPrompt(
+      makeCaptionBarSpec({ slideArchetype: 'full-bleed-text-overlay' }),
+      template,
+      content,
+    )
+    expect(fullBleedPrompt).not.toContain('hook position.y MUST be in range')
+    expect(fullBleedPrompt).not.toContain('body position.y MUST be in range')
+
+    const captionTopPrompt = buildFromSpecPrompt(
+      makeCaptionBarSpec({ slideArchetype: 'caption-bar-top' }),
+      template,
+      content,
+    )
+    expect(captionTopPrompt).not.toContain('hook position.y MUST be in range')
+    expect(captionTopPrompt).not.toContain('body position.y MUST be in range')
+  })
+
+  it('Test 9: assembled caption-bar-bottom prompt remains under the 12K-token budget (~48K char proxy)', () => {
+    // Char-length proxy at ~4 chars/token, conservative. Token-budget gate
+    // (scripts/grep-gates/prompt-token-budget.cjs) is the production check;
+    // this smoke test catches the rough order-of-magnitude regression in unit
+    // tests. The new ARCHETYPE GUIDANCE block adds ~250 chars at most.
+    const spec = makeCaptionBarSpec()
+    const template = getTemplate('magazine-bold')
+    const content: ContentSource = { mode: 'ai-copy', topic: 'test' }
+    const prompt = buildFromSpecPrompt(spec, template, content)
+    expect(prompt.length).toBeLessThan(48000)
+  })
+
+  it('Test 10: caption-bar-bottom case body has zero literal y-band numbers (single source of truth)', () => {
+    // Grep gate: 70/76/82/88 must NEVER appear as raw integer literals inside
+    // the caption-bar-bottom case body of prompts.ts. They MUST only flow via
+    // CAPTION_BAR_BOTTOM_HOOK_Y_RANGE / BODY_Y_RANGE interpolation.
+    //
+    // We scope to JUST the caption-bar-bottom switch case (between the `case`
+    // line and the next `case` / `}`) so that unrelated occurrences elsewhere
+    // in the file (e.g. the "middle 60-70%" safe-zone comment) don't trip the
+    // gate. The drift the test is guarding against is: "did someone hard-code
+    // the y-bands inside this specific branch?"
+    const filePath = path.resolve(__dirname, '../prompts.ts')
+    const src = fs.readFileSync(filePath, 'utf-8')
+    const caseMatch = src.match(/case 'caption-bar-bottom':[\s\S]*?break/)
+    expect(caseMatch).not.toBeNull()
+    const caseBody = caseMatch![0]
+    const matches = caseBody.match(/\b(70|76|82|88)\b/g) ?? []
+    expect(matches.length).toBe(0)
   })
 })
