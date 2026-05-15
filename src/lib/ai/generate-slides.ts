@@ -22,6 +22,7 @@ export type { DecorationContent }
 import { buildSystemPrompt } from './prompts'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
 import { decorationDiversityCheck } from './decoration-diversity-check'
 import { getTemplate } from '@/lib/render/templates'
@@ -323,7 +324,9 @@ export async function generateSlideContent(
   const slidesWithTextBoxes: SlideContentWithTextBoxes[] = slidesWithDecorations.map(
     (slide) => ({
       ...slide,
-      text_boxes: legacyToTextBoxes(slide as unknown as Slide),
+      text_boxes: separateOverlappingTextBoxes(
+        legacyToTextBoxes(slide as unknown as Slide),
+      ),
     }),
   )
 
