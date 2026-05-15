@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -10,7 +11,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 export async function generateCarouselStyle(topic: string): Promise<string> {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: `You are designing a cohesive visual style for a TikTok carousel about: "${topic}"
 
 Generate a SHORT visual style guide (2-3 sentences max) that will be prepended to every slide's image prompt to ensure visual consistency across all slides.
@@ -60,7 +61,7 @@ export async function generateImagePrompt(
       : ''
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: `Generate a concise image prompt for a TikTok carousel slide background.
 Topic: "${topic}"
 Hook text: "${hookText}"

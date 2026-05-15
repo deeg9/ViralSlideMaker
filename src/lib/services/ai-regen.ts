@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import { CREDIT_COSTS } from '@/lib/credits/types'
 import type { Slide } from '@/lib/types/slide'
 import { IMAGEN_ADDENDUM } from '@/lib/ai/slop-guardrails'
@@ -14,7 +15,7 @@ export async function regenerateSlideText(
 ): Promise<{ hook_text: string; body_text: string }> {
   const userInstruction = customPrompt ? `\nUser instruction: "${customPrompt}"` : ''
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: GEMINI_TEXT_MODEL,
     contents: `Generate a fresh alternative hook_text and body_text for slide ${slideIndex + 1} of a TikTok carousel about "${topic}".
 Current hook: "${slide.hook_text}"
 Current body: "${slide.body_text}"
