@@ -1638,6 +1638,15 @@ export function SlideEditor({
 
           {/* Panel content + footer all scrollable together */}
           <div className="flex-1 overflow-auto">
+            {/* quick-260515-epn: the right-rail panels (TextEditorPanel,
+                LegacyTextEditorPanel, ElementsPanel) intentionally receive the
+                PROJECT-level `template` — NOT the per-slide-override result.
+                They use template.textColor / template.fontFamily / etc. as
+                CONTROL DEFAULTS (color pickers, font selectors). Anchoring
+                those defaults to the user-picked project template keeps
+                toggling the per-slide override on/off REVERSIBLE from the
+                control panel. The per-slide override drives only the visual
+                CANVAS (slide-canvas.tsx) + THUMBNAILS (sortable-slide.tsx). */}
             {currentSlide && activeTab === 'text' && (
               useNewRail ? (
                 <TextEditorPanel

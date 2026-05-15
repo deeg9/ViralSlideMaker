@@ -76,6 +76,11 @@ export const GET = withApiAuth(async (req, ctx) => {
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
     const renderCtx = { slideIndex: i, totalSlides, topic: project.topic }
+    // quick-260515-epn: buildSlideElement re-resolves slide.template_id_override
+    // internally via resolvePerSlideTemplate; `effectiveTemplate` is the
+    // project-level fallback (no change to the ZIP-loop's own template
+    // resolution — the helper short-circuits to the same reference when no
+    // per-slide override is set, preserving TPLREND-05 byte-identity).
     const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin, renderCtx)
     const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
     const imgRes = new ImageResponse(element, {

@@ -5,6 +5,11 @@ import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
+// quick-260515-epn: canvas resolves per-slide template_id_override for the
+// SELECTED slide so the right archetype-matched template paints behind the
+// editor controls. Shared helper guarantees the precedence chain matches
+// every other render surface (TPLREND-05 single-source-of-truth).
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Selection } from '@/lib/editor/use-selection-model'
 import type { AlignAxis, DistributeAxis } from '@/lib/editor/transforms/align'
 
@@ -136,6 +141,14 @@ export function SlideCanvas({
   const isFirst = selectedIndex === 0
   const isLast = selectedIndex === slides.length - 1
 
+  // quick-260515-epn: resolve per-slide template_id_override for the selected
+  // slide. No override → returns `template` by reference (TPLREND-05 byte-
+  // identity gate). The right-rail control panels keep receiving the project-
+  // level `template` (their color-picker / font-picker defaults stay anchored
+  // to the user-selected template so toggling the override on/off is reversible
+  // from the control panel — see slide-editor.tsx comment at TextEditorPanel).
+  const perSlideTemplate = resolvePerSlideTemplate(currentSlide, template)
+
   return (
     <div
       className="bg-[#fff8f7] flex flex-col items-center justify-center p-3 lg:p-8 overflow-hidden"
@@ -153,7 +166,7 @@ export function SlideCanvas({
         <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
           <SlidePreview
             slide={currentSlide}
-            template={template}
+            template={perSlideTemplate}
             index={selectedIndex}
             slideIndex={selectedIndex}
             totalSlides={slides.length}

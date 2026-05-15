@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import { getTemplate } from '@/lib/render/templates'
+// quick-260515-epn: published-carousel snapshot honors per-slide
+// template_id_override the same way the editor does — so a remixable explore
+// card whose slide_data carries the override visually matches the original.
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Slide } from '@/lib/types/slide'
 
 interface ExploreCardProps {
@@ -71,7 +75,7 @@ export function ExploreCard({
         ) : currentSlide ? (
           <SlidePreview
             slide={currentSlide}
-            template={template}
+            template={resolvePerSlideTemplate(currentSlide, template)}
             index={safeIndex}
             slideIndex={safeIndex}
             totalSlides={totalSlides}

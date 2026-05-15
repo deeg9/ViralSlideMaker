@@ -2,6 +2,10 @@
 
 import type { Slide } from '@/lib/types/slide'
 import { getTemplate } from '@/lib/render/templates/index'
+// quick-260515-epn: slide-grid resolves per-slide override inside the map so
+// each tile renders with the right archetype-matched template when the slide
+// carries `template_id_override` (typically projector-emitted from Copy Style).
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import { SlidePreview } from './slide-preview'
 
 interface SlideGridProps {
@@ -24,16 +28,19 @@ export function SlideGrid({ slides, templateId }: SlideGridProps) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {slides.map((slide, index) => (
-        <SlidePreview
-          key={index}
-          slide={slide}
-          template={template}
-          index={index}
-          slideIndex={index}
-          totalSlides={slides.length}
-        />
-      ))}
+      {slides.map((slide, index) => {
+        const perSlideTemplate = resolvePerSlideTemplate(slide, template)
+        return (
+          <SlidePreview
+            key={index}
+            slide={slide}
+            template={perSlideTemplate}
+            index={index}
+            slideIndex={index}
+            totalSlides={slides.length}
+          />
+        )
+      })}
     </div>
   )
 }

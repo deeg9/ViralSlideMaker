@@ -5,6 +5,11 @@ import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-sty
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
 import { getHookFontSize, hasHookFit } from './hook-fit'
+// quick-260515-epn: per-slide template_id_override resolved INTERNALLY so
+// callers can keep passing the project-level template unchanged. TPLREND-05
+// byte-identity preserved when no override is set (helper returns the EXACT
+// templateParam reference).
+import { resolvePerSlideTemplate } from './resolve-per-slide-template'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -115,11 +120,16 @@ function highlightCSS(effects: ResolvedTextEffectStyles, mode: 'full' | 'native'
 
 export function buildSlideHtml(
   slide: Slide,
-  template: SlideTemplate,
+  templateParam: SlideTemplate,
   brandKit?: BrandKit | null,
   tier?: ForcedWatermarkTier | null,
 ): string {
   const overrides = slide.style_overrides ?? {}
+  // quick-260515-epn: per-slide template_id_override re-resolution. Mirrors
+  // the buildSlideElement (Satori) re-bind pattern so both renderers honor
+  // the per-slide override identically. TPLREND-05 byte-identity preserved
+  // — every legacy slide gets the exact templateParam reference back.
+  const template = resolvePerSlideTemplate(slide, templateParam)
   const resolved = resolveSlideStyles(slide, template)
 
   // Color-only kill-switch (mirrors resolve-styles.ts and slide-preview.tsx):

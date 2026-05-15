@@ -99,6 +99,10 @@ export async function GET(request: Request) {
   // resolve through the shared resolveOverlayContent — same source as React preview.
   const totalSlides = (p.slide_data ?? []).length
   const ctx = { slideIndex: index, totalSlides, topic: p.topic }
+  // quick-260515-epn: buildSlideElement re-resolves slide.template_id_override
+  // internally via resolvePerSlideTemplate; `effectiveTemplate` is the
+  // project-level fallback the helper returns when no per-slide override is
+  // set (TPLREND-05 byte-identity reference).
   const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
