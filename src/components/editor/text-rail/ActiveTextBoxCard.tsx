@@ -96,6 +96,10 @@ export function ActiveTextBoxCard({
   const effects: TextEffects = textBox.effects ?? {}
   const segments: TextSegment[] = textBox.segments ?? splitToSegments(textBox.text)
   const accentColor = template.accentColor ?? '#3d0000'
+  // quick-260515-999: capture the effective accent color at render time so the
+  // nested function declarations below don't lose the `textBox` non-null
+  // narrowing established by the early `if (!textBox) return` guard.
+  const effectiveAccentColor = textBox.accent_color ?? accentColor
   const currentColor =
     textBox.color ?? template.textColor
 
@@ -136,11 +140,60 @@ export function ActiveTextBoxCard({
     })
   }
 
+  // quick-260515-999: toggling "Highlight words" in the right panel must
+  // produce a marker-style pill (Word/Figma/Canva semantics) — background
+  // color behind the existing text color — not a text-color change. We do
+  // that by writing `highlightColor` + `highlightStyle: 'pill'` alongside
+  // the `accent` flag; the renderer's pill branch in resolve-overlay.ts
+  // picks those up and emits a `<span>` with `backgroundColor` and
+  // contrast-picked text color. On toggle-off we strip both fields so the
+  // segment renders as a plain run again. Legacy templates that hard-code
+  // `accent: true` without `highlightColor` (news-drop, news-cyan) are
+  // untouched — the renderer's color-only branch still fires for them.
   function toggleAccent(index: number) {
-    const next = segments.map((s, i) =>
-      i === index ? { ...s, accent: !s.accent } : s,
-    )
+    const next = segments.map((s, i) => {
+      if (i !== index) return s
+      if (s.accent) {
+        // Toggling OFF — drop the pill fields so the segment falls back
+        // to a plain inline span on next render.
+        const { highlightColor: _hc, highlightStyle: _hs, ...rest } = s
+        return { ...rest, accent: false }
+      }
+      // Toggling ON — opt the segment into the renderer's pill branch
+      // using the box's effective highlight color.
+      const turnedOn: TextSegment = {
+        ...s,
+        accent: true,
+        highlightColor: effectiveAccentColor,
+        highlightStyle: 'pill',
+      }
+      return turnedOn
+    })
     onUpdate({ segments: next })
+  }
+
+  // quick-260515-999: picking a new "Highlight color" in the right panel
+  // must repaint every already-highlighted word in the current text box,
+  // not just become the default for future toggles. Rewrites
+  // `highlightColor` on every segment with `accent: true` and dispatches
+  // the new `accent_color` in a single update. Segments without `accent`
+  // are left alone so user-painted plain words don't get a surprise pill.
+  function handleAccentColorChange(hex: string) {
+    const hasAccentedSegments = segments.some((s) => s.accent)
+    if (!hasAccentedSegments) {
+      onUpdate({ accent_color: hex })
+      return
+    }
+    const nextSegments: TextSegment[] = segments.map((s) =>
+      s.accent
+        ? {
+            ...s,
+            highlightColor: hex,
+            highlightStyle: s.highlightStyle ?? 'pill',
+          }
+        : s,
+    )
+    onUpdate({ accent_color: hex, segments: nextSegments })
   }
 
   // quick-260502-pw8: list type + indent helpers. list_type undefined = plain
@@ -361,7 +414,7 @@ export function ActiveTextBoxCard({
           // template default. The disclosure's chip wall + new color row both
           // read from this single resolved value.
           accentColor={textBox.accent_color ?? accentColor}
-          onChangeAccentColor={(hex) => onUpdate({ accent_color: hex })}
+          onChangeAccentColor={handleAccentColorChange}
         />
       )}
 
