@@ -2924,6 +2924,17 @@ export function SlidePreview({
             const dyPx = (d.position.y / 100) * REF_HEIGHT
             const dwPx = (d.position.width / 100) * REF_WIDTH
             const dhPx = (d.position.height / 100) * REF_HEIGHT
+            // quick-260515-k54: 8-handle resize chrome. Identical to the
+            // custom-image `imageResizeHandleStyle`. Editable-only chrome —
+            // never reaches Satori / non-editable render paths (TPLREND-05).
+            const decorationResizeHandleStyle: React.CSSProperties = {
+              width: 8,
+              height: 8,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              border: '1px solid rgba(0, 0, 0, 0.3)',
+              borderRadius: 1,
+              position: 'absolute',
+            }
             return (
               <React.Fragment key={d.id}>
                 <Rnd
@@ -2934,13 +2945,90 @@ export function SlidePreview({
                   scale={scale}
                   bounds="parent"
                   disableDragging={d.locked === true}
-                  enableResizing={false}
+                  // quick-260515-k54: icons aspect-lock (a stretched icon
+                  // looks broken); shapes resize free (a rect/line legitimately
+                  // stretches). Locked decoration UX decision — NOT Shift-gated.
+                  lockAspectRatio={d.kind === 'icon'}
+                  // quick-260515-k54: 8-handle resize for non-locked
+                  // decorations; locked decorations keep no handles (LOCK-04).
+                  enableResizing={d.locked === true ? false : {
+                    top: true,
+                    bottom: true,
+                    left: true,
+                    right: true,
+                    topLeft: true,
+                    topRight: true,
+                    bottomLeft: true,
+                    bottomRight: true,
+                  }}
+                  resizeHandleStyles={{
+                    topLeft: { ...decorationResizeHandleStyle, top: -4, left: -4 },
+                    topRight: { ...decorationResizeHandleStyle, top: -4, right: -4 },
+                    bottomLeft: { ...decorationResizeHandleStyle, bottom: -4, left: -4 },
+                    bottomRight: { ...decorationResizeHandleStyle, bottom: -4, right: -4 },
+                    top: { ...decorationResizeHandleStyle, top: -4, left: '50%', transform: 'translateX(-50%)' },
+                    bottom: { ...decorationResizeHandleStyle, bottom: -4, left: '50%', transform: 'translateX(-50%)' },
+                    left: { ...decorationResizeHandleStyle, left: -4, top: '50%', transform: 'translateY(-50%)' },
+                    right: { ...decorationResizeHandleStyle, right: -4, top: '50%', transform: 'translateY(-50%)' },
+                  }}
                   onDragStart={(_e, data) => {
                     setDraggingElementId(d.id)
                     decorationDragStartRefs.current[d.id] = { x: data.x, y: data.y }
+                    // quick-260515-k54: build the snap index for this gesture
+                    // (mirrors the custom-image onDragStart).
+                    snapIndexRef.current = buildSnapIndex(slide, buildExcludeIds(d.id))
+                    wasSnappedXRef.current = null
+                    wasSnappedYRef.current = null
+                  }}
+                  onDrag={(_e, data) => {
+                    // quick-260515-k54: Shift-locked axis BEFORE snap (mirrors
+                    // the custom-image onDrag). decorationDragStartRefs is the
+                    // drag-start snapshot — reuse it for axis-constrain.
+                    const dragStart = decorationDragStartRefs.current[d.id]
+                    if (dragStart) {
+                      const constrained = applyAxisConstrain(
+                        { x: data.x, y: data.y },
+                        dragStart,
+                        (_e as MouseEvent).shiftKey === true,
+                      )
+                      data.x = constrained.x
+                      data.y = constrained.y
+                    }
+                    // Multi-element-aware snap query (mirrors custom-image).
+                    let queryX = data.x
+                    let queryY = data.y
+                    let queryW = dwPx
+                    let queryH = dhPx
+                    if (
+                      selection &&
+                      selection.ids.length >= 2 &&
+                      selection.ids.includes(d.id)
+                    ) {
+                      const bounds = computeSelectionBounds(slide, selection.ids)
+                      if (bounds && dragStart) {
+                        const dx = data.x - dragStart.x
+                        const dy = data.y - dragStart.y
+                        queryX = (bounds.x / 100) * REF_WIDTH + dx
+                        queryY = (bounds.y / 100) * REF_HEIGHT + dy
+                        queryW = (bounds.width / 100) * REF_WIDTH
+                        queryH = (bounds.height / 100) * REF_HEIGHT
+                      }
+                    }
+                    const result = runSnapForDrag(queryX, queryY, queryW, queryH)
+                    data.x = result.x + (data.x - queryX)
+                    data.y = result.y + (data.y - queryY)
                   }}
                   onDragStop={(_e, data) => {
                     setDraggingElementId(null)
+                    // quick-260515-k54: final snap pass before the commit.
+                    const stopSnap = runSnapForDrag(data.x, data.y, dwPx, dhPx)
+                    data.x = stopSnap.x
+                    data.y = stopSnap.y
+                    // quick-260515-k54: clear snap state + guide overlay.
+                    snapIndexRef.current = null
+                    wasSnappedXRef.current = null
+                    wasSnappedYRef.current = null
+                    guideOverlayRef.current?.clear()
                     const startRef = decorationDragStartRefs.current[d.id]
                     delete decorationDragStartRefs.current[d.id]
                     // Group drag fan-out — BULK_TRANSLATE handles decorations
@@ -2973,6 +3061,17 @@ export function SlidePreview({
                     const x = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
                     const y = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
                     onDecorationPositionChange?.(d.id, { x, y })
+                  }}
+                  onResizeStop={(_e, _dir, ref, _delta, position) => {
+                    // quick-260515-k54: commit new size + position ONCE per
+                    // gesture (no per-tick onResize — one undo step, PERF-01).
+                    // Mirrors the custom-image onResizeStop.
+                    const newWidthPct = Math.max(5, Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100))
+                    const newHeightPct = Math.max(5, Math.min(100, (parseInt(ref.style.height) / REF_HEIGHT) * 100))
+                    onDecorationSizeChange?.(d.id, { width: Math.round(newWidthPct), height: Math.round(newHeightPct) })
+                    const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+                    const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+                    onDecorationPositionChange?.(d.id, { x: percentX, y: percentY })
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation()
