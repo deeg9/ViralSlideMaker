@@ -8,7 +8,7 @@ import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { autoPublishOnGenerate } from '@/lib/services/auto-publish-on-generate'
-import { checkCredits, deductCredit, getCreditBalance, getUserTier } from '@/lib/credits/check-credits'
+import { checkCredits, deductCredit, getCreditBalance } from '@/lib/credits/check-credits'
 import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
@@ -53,17 +53,6 @@ export async function generateCarousel(
         success: false,
         error: `No credits remaining on the ${credits.tier} plan. Upgrade for more.`,
         upgradeEligible: credits.tier === 'free',
-      }
-    }
-
-    // Free-tier slide-count cap (matches client-side gate in generation-form.tsx)
-    const tier = await getUserTier(user.id)
-    const FREE_TIER_MAX_SLIDES = 3
-    if (tier === 'free' && slideCount > FREE_TIER_MAX_SLIDES) {
-      return {
-        success: false,
-        error: `Free plan is limited to ${FREE_TIER_MAX_SLIDES} slides. Upgrade for up to 10.`,
-        upgradeEligible: true,
       }
     }
 
@@ -181,7 +170,7 @@ export async function generateCarousel(
     const uploaded = advancedOptions?.uploadedImageUrls?.filter((u): u is string => typeof u === 'string' && u.length > 0) ?? []
     const usable = uploaded.slice(0, clampedCount)
     if (usable.length > 0) {
-      const isPremium = tier !== 'free'
+      const isPremium = credits.tier !== 'free'
       let assignments: (string | null)[]
       if (isPremium) {
         const admin = createAdminClient()

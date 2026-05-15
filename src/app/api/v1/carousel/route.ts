@@ -50,17 +50,8 @@ export const POST = withApiAuth(async (req, ctx) => {
     return apiError('VALIDATION_ERROR', 'advancedOptions must be an object', 400)
   }
 
-  // Free-tier slide-count cap
-  const tier = await getUserTier(ctx.userId)
-  if (tier === 'free' && validSlideCount > 3) {
-    return apiError(
-      'VALIDATION_ERROR',
-      'Free plan is limited to 3 slides per carousel. Upgrade to hobbyist or creator for up to 10.',
-      400
-    )
-  }
-
   // Free-tier project-count cap
+  const tier = await getUserTier(ctx.userId)
   const projectAllowed = await checkProjectLimit(ctx.userId, tier)
   if (!projectAllowed) {
     return apiError(
