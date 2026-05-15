@@ -1,7 +1,7 @@
 import React from 'react'
 import type { OverlayContent, SlideTemplate } from './templates'
 import type { DecorativeAsset } from './templates/decorative'
-import type { Slide, TextSegment } from '@/lib/types/slide'
+import type { Slide, SlideStyleOverrides, TextSegment } from '@/lib/types/slide'
 
 /**
  * Phase 45 — shared resolver foundation.
@@ -326,6 +326,74 @@ export function bottomCardBackground(hex: string): string {
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, 0.85)`
+}
+
+/**
+ * quick-260515-k12: clamp a number into [lo, hi]. Local helper — no shared
+ * clamp is exported from this module. Used by resolveCaptionBar to bound the
+ * user-supplied caption-bar height (threat T-k12-01 — a hand-edited project
+ * payload cannot push an out-of-range height into the layout).
+ */
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n))
+}
+
+/**
+ * quick-260515-k12: compose an rgba() string from a hex color + 0..1 alpha.
+ * Accepts #RGB / #RRGGBB. Invalid input falls back to rgba(0,0,0,alpha) so the
+ * render never throws (threat T-k12-02 — malformed caption_bar_color hex).
+ */
+export function hexToRgba(hex: string, alpha: number): string {
+  let h = hex.replace('#', '')
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
+    return `rgba(0, 0, 0, ${alpha})`
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+export interface ResolvedCaptionBar {
+  heightPct: number          // 10..90
+  backgroundColor: string    // rgba() string
+  position: 'bottom' | 'top'
+}
+
+/**
+ * quick-260515-k12: SINGLE source of truth for caption-bar geometry/color on
+ * `backgroundMode === 'image-with-bottom-card'` templates (magazine-bold,
+ * tr3nding-news). Both slide-preview.tsx and render-slide-satori.tsx import
+ * this so the browser preview and the Satori PNG export cannot drift
+ * (PARITY-01).
+ *
+ * Byte-identity (TPLREND-05): with NO caption-bar overrides the result is
+ * { heightPct: 38, backgroundColor: bottomCardBackground(template.backgroundColor),
+ *   position: 'bottom' } — exactly what the old hardcoded path produced.
+ *
+ * The no-override branch reuses `bottomCardBackground` verbatim rather than
+ * `hexToRgba` because magazine-bold's `template.backgroundColor` is '#000000'
+ * (6-digit) and `bottomCardBackground` also handles the 8-digit-hex
+ * passthrough case — keeping the legacy path byte-identical.
+ */
+export function resolveCaptionBar(
+  overrides: SlideStyleOverrides | undefined,
+  template: SlideTemplate,
+): ResolvedCaptionBar {
+  const o = overrides ?? {}
+  const heightPct = clamp(o.caption_bar_height_pct ?? 38, 10, 90)
+  const hasColor = o.caption_bar_color != null
+  const hasOpacity = o.caption_bar_opacity != null
+  const backgroundColor =
+    !hasColor && !hasOpacity
+      ? bottomCardBackground(template.backgroundColor)
+      : hexToRgba(
+          o.caption_bar_color ?? template.backgroundColor,
+          o.caption_bar_opacity ?? 0.85,
+        )
+  const position = o.caption_bar_position ?? 'bottom'
+  return { heightPct, backgroundColor, position }
 }
 
 /**

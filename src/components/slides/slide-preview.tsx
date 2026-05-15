@@ -71,7 +71,7 @@ import {
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
   renderTextBlock,
-  bottomCardBackground,
+  resolveCaptionBar,
   renderGrain,
   renderVignette,
   renderDecorativeOverlay,
@@ -178,21 +178,34 @@ function BackgroundLayers({
           Imported from @/lib/render/resolve-overlay (TPLREND-05 — same module as the
           Satori renderer). Sits ABOVE tint, BELOW hook/body text + overlays. */}
       {template.vignette ? renderVignette(template.vignette.strength) : null}
-      {useBottomCard && (
-        <div
-          data-testid="bottom-card"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: '38%',
-            padding: 80,
-            backgroundColor: bottomCardBackground(template.backgroundColor),
-            zIndex: 2,
-          }}
-        />
-      )}
+      {useBottomCard &&
+        (() => {
+          // quick-260515-k12: caption-bar geometry/color resolved through the
+          // shared resolveCaptionBar helper so the browser preview cannot drift
+          // from the Satori PNG export (PARITY-01). With zero overrides this
+          // yields the legacy 38% / rgba(0,0,0,0.85) / bottom values byte-
+          // identically (TPLREND-05).
+          const captionBar = resolveCaptionBar(slide.style_overrides, template)
+          return (
+            <div
+              data-testid="bottom-card"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                // Exactly one of top/bottom is set so the bar anchors to a
+                // single edge.
+                ...(captionBar.position === 'top'
+                  ? { top: 0 }
+                  : { bottom: 0 }),
+                height: `${captionBar.heightPct}%`,
+                padding: 80,
+                backgroundColor: captionBar.backgroundColor,
+                zIndex: 2,
+              }}
+            />
+          )
+        })()}
     </>
   )
 }

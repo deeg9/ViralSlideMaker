@@ -182,6 +182,16 @@ export interface SlideStyleOverrides {
       Honored by slide-preview.tsx + render-slide-satori.tsx + render-slide.ts
       via `overrides.overlay_color ?? template.overlayColor`. */
   overlay_color?: string
+  /** quick-260515-k12: per-slide caption-bar overrides for templates with
+      backgroundMode === 'image-with-bottom-card' (magazine-bold, tr3nding-news).
+      All optional — when unset, resolveCaptionBar falls back to the legacy
+      hardcoded defaults (38% / template.backgroundColor / 0.85 / bottom) so
+      legacy slides render byte-identical (TPLREND-05). Mirrors the
+      overlay_color precedent above (additive, hex-string, renderer-resolved). */
+  caption_bar_height_pct?: number       // 10..90; default 38
+  caption_bar_color?: string            // hex with leading '#'; default template.backgroundColor
+  caption_bar_opacity?: number          // 0..1; default 0.85
+  caption_bar_position?: 'bottom' | 'top'  // default 'bottom'
   // Phase 11: Bold/italic
   hook_font_weight?: number
   body_font_weight?: number
