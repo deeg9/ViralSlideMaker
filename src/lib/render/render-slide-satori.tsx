@@ -22,7 +22,7 @@ import {
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
   renderTextBlock,
-  bottomCardBackground,
+  resolveCaptionBar,
   renderGrain,
   renderVignette,
   renderDecorativeOverlay,
@@ -388,25 +388,34 @@ export function buildSlideElement(
           Card height locked at 38% of canvas (≈730px on 1920); padding 80px matches
           the Murphy reference. Hook+body still flow through their existing position
           resolution and naturally sit on top of this card surface. */}
-      {useBottomCard && (
-        <div
-          key="bottom-card"
-          style={{
-            position: 'absolute',
-            // Satori does not honor `bottom: 0` + `height: '38%'` together —
-            // it anchors to the top instead. Use explicit numeric pixel values:
-            // card spans y=1190 (62% of 1920) to y=1920 (bottom of canvas).
-            left: 0,
-            top: Math.round(H * 0.62),
-            width: W,
-            height: Math.round(H * 0.38),
-            padding: 80,
-            backgroundColor: bottomCardBackground(template.backgroundColor),
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        />
-      )}
+      {useBottomCard &&
+        (() => {
+          // quick-260515-k12: caption-bar geometry/color resolved through the
+          // shared resolveCaptionBar helper so the Satori PNG export cannot
+          // drift from the browser preview (PARITY-01). Satori does not honor
+          // `bottom: 0` + percentage height together — it anchors to the top —
+          // so we convert to explicit numeric px. With zero overrides
+          // `H - round(H*38/100)` = 1920 - 730 = 1190, identical to the old
+          // hardcoded `round(H*0.62)` = 1190 (TPLREND-05 byte-identity).
+          const captionBar = resolveCaptionBar(overrides, template)
+          const barHeightPx = Math.round((H * captionBar.heightPct) / 100)
+          return (
+            <div
+              key="bottom-card"
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: captionBar.position === 'top' ? 0 : H - barHeightPx,
+                width: W,
+                height: barHeightPx,
+                padding: 80,
+                backgroundColor: captionBar.backgroundColor,
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            />
+          )
+        })()}
       {/* Phase 45: overlay zones (chip / counter / mid pill / bottom card surface).
           Inserted AFTER bottom-card and BEFORE the hook so headline pills stay
           top-most (CONTEXT.md Area 1 layer 4 vs layer 5). Each overlay's text is
