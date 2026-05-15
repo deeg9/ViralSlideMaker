@@ -169,6 +169,10 @@ export function buildSlideHtml(
     : overrides.overlay_opacity != null
       ? overrides.overlay_opacity / 100
       : template.overlayOpacity
+  // quick-260515-overlay-color-picker: user-controlled overlay tint color.
+  // Falls back to template default. TPLREND-05 mirror of slide-preview.tsx
+  // + render-slide-satori.tsx.
+  const overlayColor = overrides.overlay_color ?? template.overlayColor
   const newsZone =
     !isColorOnlyTemplate && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
 
@@ -255,7 +259,7 @@ export function buildSlideHtml(
     .overlay {
       position: absolute;
       inset: 0;
-      background-color: ${template.overlayColor};
+      background-color: ${overlayColor};
       opacity: ${overlayOpacity};
     }
     .hook {

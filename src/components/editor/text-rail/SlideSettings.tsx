@@ -12,6 +12,18 @@ interface SlideSettingsProps {
   brandKit?: BrandKit | null
 }
 
+// quick-260515-overlay-color-picker: fixed-set swatches for the overlay tint
+// color row. Mirrors AccentWordsDisclosure.HIGHLIGHT_SWATCHES shape so the
+// two pickers feel visually consistent. Black is first (most common overlay).
+const OVERLAY_SWATCHES = [
+  '#000000',
+  '#ffffff',
+  '#3d0000',
+  '#FFD166',
+  '#7d6161',
+  '#00BFFF',
+] as const
+
 /**
  * Phase 50 (D-07): slide-level controls separated from per-text-box card.
  * News Layout, Overlay opacity, and Watermark hide toggle are NOT
@@ -111,6 +123,72 @@ export function SlideSettings({
         <p className="text-[9px] text-[#7d6161]">
           Lower for vivid backgrounds, higher for readable text
         </p>
+
+        {/* quick-260515-overlay-color-picker: overlay tint color. Mirrors the
+            AccentWordsDisclosure "Highlight color" row — fixed swatches +
+            native palette opener for arbitrary hex. */}
+        <div className="space-y-1 pt-1" data-testid="slide-settings-overlay-color">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+            Color
+          </span>
+          <div className="flex gap-3">
+            {OVERLAY_SWATCHES.map((color) => {
+              const effective = (overrides.overlay_color ?? template.overlayColor).toLowerCase()
+              const active = effective === color.toLowerCase()
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  data-testid={`slide-settings-overlay-color-swatch-${color}`}
+                  onClick={() =>
+                    onUpdate({
+                      style_overrides: {
+                        ...overrides,
+                        overlay_color: color,
+                      },
+                    })
+                  }
+                  className={`w-6 h-6 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1 ${
+                    active ? 'ring-2 ring-[#3d0000] ring-offset-1' : ''
+                  }`}
+                  style={{
+                    backgroundColor: color,
+                    border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
+                  }}
+                  aria-label={`Set overlay color to ${color}`}
+                  aria-pressed={active}
+                  title={color}
+                />
+              )
+            })}
+            <label
+              className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1"
+              data-testid="slide-settings-overlay-color-palette"
+            >
+              <span
+                className="material-symbols-outlined text-[#7d6161]"
+                style={{ fontSize: 14 }}
+                aria-hidden
+              >
+                palette
+              </span>
+              <input
+                type="color"
+                value={overrides.overlay_color ?? template.overlayColor}
+                onChange={(e) =>
+                  onUpdate({
+                    style_overrides: {
+                      ...overrides,
+                      overlay_color: e.target.value,
+                    },
+                  })
+                }
+                aria-label="Set custom overlay color"
+                className="sr-only"
+              />
+            </label>
+          </div>
+        </div>
       </div>
 
       {/* Watermark hide toggle — only when brand kit has an active watermark */}
