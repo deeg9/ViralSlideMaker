@@ -3,8 +3,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { getProfile, saveProfile, uploadAvatar } from './actions'
+import { restartOnboarding } from '@/lib/onboarding/actions'
 
 type SocialLinks = {
   tiktok: string
@@ -30,8 +32,22 @@ export default function ProfilePage() {
 
   const [isPending, startTransition] = useTransition()
   const [isUploading, startUpload] = useTransition()
+  const [isRestartingTour, startRestartTour] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+
+  function handleRestartTour() {
+    setMessage(null)
+    startRestartTour(async () => {
+      const result = await restartOnboarding()
+      if (result.success) {
+        router.push('/dashboard')
+      } else {
+        setMessage({ type: 'error', text: result.error })
+      }
+    })
+  }
 
   useEffect(() => {
     getProfile().then((profile) => {
@@ -292,6 +308,26 @@ export default function ProfilePage() {
             {message.text}
           </div>
         )}
+
+        {/* Phase 81 (R7): manual restart entry point. Clicking nulls
+            profiles.onboarding_completed_at via server action and
+            redirects to /dashboard where the welcome modal re-fires. */}
+        <section className="mt-10 pt-6 border-t border-[#dbc1bc]/30">
+          <h2 className="text-[0.75rem] font-bold uppercase tracking-widest text-[#7d6161] mb-2">
+            Onboarding
+          </h2>
+          <p className="text-sm text-[#7d6161] mb-4">
+            Replay the first-run tour to see the welcome dialog and step-by-step coachmarks again.
+          </p>
+          <button
+            type="button"
+            onClick={handleRestartTour}
+            disabled={isRestartingTour}
+            className="px-4 py-2 bg-white border border-[#3d0000] text-[#3d0000] rounded-xl font-medium text-sm hover:bg-[#fff0f0] transition-colors disabled:opacity-50 active:scale-95"
+          >
+            {isRestartingTour ? 'Restarting…' : 'Restart onboarding tour'}
+          </button>
+        </section>
 
         {/* Save */}
         <div className="mt-8 flex justify-end">
