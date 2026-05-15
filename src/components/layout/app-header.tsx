@@ -9,12 +9,14 @@ export function AppHeader() {
           Slideshow Creator
         </Link>
         <nav className="flex items-center gap-4 text-sm">
+          {/* Brand Kit hidden from production — feature not ready (260515-eey). Re-enable when complete.
           <Link
             href="/settings/brand-kit"
             className="text-gray-600 hover:text-gray-900"
           >
             Brand Kit
           </Link>
+          */}
         </nav>
       </div>
       <LogoutButton />
