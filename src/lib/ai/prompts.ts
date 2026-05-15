@@ -5,6 +5,10 @@ import type { SlideTemplate } from '@/lib/render/templates'
 import type { StyleSpec } from '@/lib/types/style-spec'
 import type { SlideArchetype } from '@/lib/types/style-spec-archetypes'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
+import {
+  CAPTION_BAR_BOTTOM_HOOK_Y_RANGE,
+  CAPTION_BAR_BOTTOM_BODY_Y_RANGE,
+} from './style-spec-projector-constants'
 
 // Templates that share the news-carousel prompt branch + skip-default-effects
 // behavior. News Cyan reuses the entire News Drop generation flow — only the
@@ -254,10 +258,25 @@ export function buildFromSpecPrompt(
   let archetypeGuidance = ''
   switch (archetype) {
     case 'caption-bar-bottom':
+      // quick-260515-i56: tighten guidance from the vague "set text_position
+      // to bottom" to explicit y-ranges interpolated from
+      // CAPTION_BAR_BOTTOM_HOOK_Y_RANGE / BODY_Y_RANGE (single source of
+      // truth with the projector's caption-bar-bottom y-override branch in
+      // src/lib/ai/style-spec-projector.ts). Belt-and-suspenders: even
+      // though the projector deterministically overrides Gemini's emitted
+      // y values, steering the AI toward in-band positions reduces drift
+      // and produces cleaner regenerate-text output where the projector
+      // doesn't re-run.
       archetypeGuidance =
-        '\nARCHETYPE GUIDANCE: caption-bar-bottom — set text_position to "bottom" for each slide. ' +
-        'If palette.accent is present, emit ≥3 segments with highlightColor=palette.accent ' +
-        'and highlightStyle="pill" on the hook to recreate the highlight rhythm pattern.\n'
+        `\nARCHETYPE GUIDANCE: caption-bar-bottom — set text_position to "bottom" for each slide. ` +
+        `For every slide's hook + body text_boxes: hook position.y MUST be in range ` +
+        `[${CAPTION_BAR_BOTTOM_HOOK_Y_RANGE[0]}, ${CAPTION_BAR_BOTTOM_HOOK_Y_RANGE[1]}]; ` +
+        `body position.y MUST be in range ` +
+        `[${CAPTION_BAR_BOTTOM_BODY_Y_RANGE[0]}, ${CAPTION_BAR_BOTTOM_BODY_Y_RANGE[1]}]. ` +
+        `anchor: 'custom'. The hook and body MUST visually sit centered inside the lower ` +
+        `caption bar — not at the top edge of the bar. ` +
+        `If palette.accent is present, emit ≥3 segments with highlightColor=palette.accent ` +
+        `and highlightStyle="pill" on the hook to recreate the highlight rhythm pattern.\n`
       break
     case 'caption-bar-top':
       archetypeGuidance =
