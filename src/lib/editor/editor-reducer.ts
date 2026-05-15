@@ -294,6 +294,13 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
         }
         return updated
       })
+      // quick-260515-k12: transient live-preview channel — caption-bar slider
+      // drags dispatch per-tick with noHistory:true so the gesture records
+      // exactly ONE undo entry on the committing dispatch (KBD-09). Mirrors
+      // the UPDATE_DECORATION noHistory branch.
+      if (action.noHistory === true) {
+        return { ...state, present: slides }
+      }
       return pushHistory(state, slides)
     }
 
