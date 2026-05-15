@@ -9,6 +9,9 @@ import { EditVisibilityModal } from './edit-visibility-modal'
 import { FromReferencesBadge } from './from-references-badge'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import { getTemplate } from '@/lib/render/templates'
+// quick-260515-epn: dashboard preview honors per-slide template_id_override
+// so the user sees the same template on the card as on the canvas.
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
 import type { BrandKit } from '@/lib/types/brand-kit'
@@ -61,6 +64,13 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
   const template = getTemplate(project.template_id ?? 'highlight-bar')
   const safeIndex = Math.min(currentSlideIndex, Math.max(0, slides.length - 1))
   const currentSlide = slides[safeIndex]
+  // quick-260515-epn: resolve per-slide override for the visible card slide.
+  // No override → returns `template` by reference (TPLREND-05). When no slide
+  // exists at all (empty project), keep the project-level template for the
+  // placeholder lazy-load paint below.
+  const perSlideTemplate = currentSlide
+    ? resolvePerSlideTemplate(currentSlide, template)
+    : template
   const hasMultipleSlides = slides.length > 1
   const isFirstSlide = safeIndex === 0
   const isLastSlide = safeIndex === slides.length - 1
@@ -151,7 +161,7 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
           hasBeenVisible ? (
             <SlidePreview
               slide={currentSlide}
-              template={template}
+              template={perSlideTemplate}
               index={safeIndex}
               slideIndex={safeIndex}
               totalSlides={slides.length}
