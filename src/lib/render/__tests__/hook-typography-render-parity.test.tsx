@@ -21,8 +21,16 @@
 //      that font family on the hook div (the export-parity bug fix).
 //   2. A hook box with `hook_text_transform: 'none'` on an uppercase
 //      template → neither export force-caps the hook.
-//   3. A no-override slide → both exports are byte-identical to the
-//      pre-helper output for that template (TPLREND-05 byte-identity).
+//   3. A no-override slide → both exports emit a STABLE hook font-family
+//      (TPLREND-05 byte-identity for fonts).
+//
+// quick-260515-o75 — hook casing is now WYSIWYG; a template's
+// `hookStyle: 'uppercase'` no longer force-caps stored hook text. The
+// no-override casing assertions below were inverted FROM "force-caps" TO
+// "renders as stored" — this is the intended fix, not a regression. Casing
+// byte-identity to the pre-o75 (force-capped) output is intentionally NOT
+// preserved (user-accepted). Font-family / font-size assertions are
+// unchanged and stay load-bearing.
 
 import { describe, it, expect } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -66,16 +74,17 @@ describe('quick-260515-nhf: hook typography render-path parity', () => {
     expect(html).not.toContain('Bebas Neue')
   })
 
-  it('Satori export honors hook_text_transform: none on an uppercase template', () => {
-    const capped = renderToStaticMarkup(buildSlideElement(makeSlide(), highlightBar))
-    const uncapped = renderToStaticMarkup(
-      buildSlideElement(makeSlide({ hook_text_transform: 'none' }), highlightBar),
+  it('Satori export: hook is WYSIWYG by default; hook_text_transform:uppercase opts into caps', () => {
+    // quick-260515-o75: a no-override slide on an uppercase-hookStyle template
+    // NO LONGER force-caps — the hook renders exactly as stored.
+    const wysiwyg = renderToStaticMarkup(buildSlideElement(makeSlide(), highlightBar))
+    // Opt-in: a hook TextBox with text_transform:'uppercase' DOES force-cap.
+    const optIn = renderToStaticMarkup(
+      buildSlideElement(makeSlide({ hook_text_transform: 'uppercase' }), highlightBar),
     )
-    // No-override slide force-caps the hook (template hookStyle uppercase).
-    expect(capped).toContain('text-transform:uppercase')
-    // hook_text_transform:'none' removes the force-cap from the hook style.
-    // (body never had text-transform, so any remaining occurrence would be hook.)
-    expect(uncapped).not.toContain('text-transform:uppercase')
+    // (body never had text-transform, so any occurrence below is the hook.)
+    expect(wysiwyg).not.toContain('text-transform:uppercase')
+    expect(optIn).toContain('text-transform:uppercase')
   })
 
   it('byte-identity (TPLREND-05): no-override Satori export is stable', () => {
@@ -100,10 +109,67 @@ describe('quick-260515-nhf: hook typography render-path parity', () => {
     expect(hookRule).not.toContain('font-family')
   })
 
-  it('HTML export honors hook_text_transform: none on an uppercase template', () => {
-    const capped = buildSlideHtml(makeSlide(), highlightBar)
-    const uncapped = buildSlideHtml(makeSlide({ hook_text_transform: 'none' }), highlightBar)
-    expect(capped).toContain('text-transform: uppercase')
-    expect(uncapped).not.toContain('text-transform: uppercase')
+  it('HTML export: hook is WYSIWYG by default; hook_text_transform:uppercase opts into caps', () => {
+    // quick-260515-o75: no-override slide on an uppercase template no longer
+    // emits `text-transform: uppercase` on the .hook rule.
+    const wysiwyg = buildSlideHtml(makeSlide(), highlightBar)
+    const optIn = buildSlideHtml(makeSlide({ hook_text_transform: 'uppercase' }), highlightBar)
+    expect(wysiwyg).not.toContain('text-transform: uppercase')
+    expect(optIn).toContain('text-transform: uppercase')
+  })
+})
+
+// =====================================================================
+// quick-260515-o75 — the bug: a hook with a stored lowercase word renders
+// uppercase on canvas / PNG / HTML. nhf shipped the override mechanism but
+// left the DEFAULT as template-forced uppercase, so no-override slides (the
+// common case) never changed. This group pins the no-override WYSIWYG fix.
+// =====================================================================
+
+// Mirrors the user's reported slide: a hook on the highlight-bar template
+// (hookStyle:'uppercase') whose stored text ends in a deliberately lowercase
+// word, with NO text_transform and NO hook_text_transform override.
+function makeLowercaseWordSlide(over?: Partial<Slide['style_overrides']>): Slide {
+  const hook = "THE CHIP WAR JUST GOT REAL: TRUMP'S NEW movie"
+  return {
+    hook_text: hook,
+    body_text: 'body copy',
+    image_query: 'o75-fixture',
+    is_cta: false,
+    background_url: 'https://example.com/o75-bg.jpg',
+    pexels_photo_id: 1,
+    style_overrides: over ? { ...over } : undefined,
+    text_boxes: [
+      { id: 'tb-h', role: 'hook', text: hook, position: { anchor: 'top' } },
+      { id: 'tb-b', role: 'body', text: 'body copy', position: { anchor: 'bottom' } },
+    ],
+  }
+}
+
+describe('quick-260515-o75: stored lowercase hook word renders WYSIWYG', () => {
+  it('Satori PNG export does NOT force-cap a no-override hook on an uppercase template', () => {
+    const html = renderToStaticMarkup(
+      buildSlideElement(makeLowercaseWordSlide(), highlightBar),
+    )
+    // The deliberately-lowercase word "movie" must survive: no forced caps.
+    expect(html).not.toContain('text-transform:uppercase')
+  })
+
+  it('HTML export .hook rule carries NO text-transform:uppercase for a no-override hook', () => {
+    const html = buildSlideHtml(makeLowercaseWordSlide(), highlightBar)
+    const hookRuleStart = html.indexOf('.hook {')
+    const hookRule = html.slice(hookRuleStart, html.indexOf('}', hookRuleStart))
+    expect(hookRule).not.toContain('text-transform: uppercase')
+  })
+
+  it('opt-in: the SAME slide with hook_text_transform:uppercase DOES force-cap in both exports', () => {
+    const optIn = makeLowercaseWordSlide({ hook_text_transform: 'uppercase' })
+    const satori = renderToStaticMarkup(buildSlideElement(optIn, highlightBar))
+    expect(satori).toContain('text-transform:uppercase')
+
+    const html = buildSlideHtml(optIn, highlightBar)
+    const hookRuleStart = html.indexOf('.hook {')
+    const hookRule = html.slice(hookRuleStart, html.indexOf('}', hookRuleStart))
+    expect(hookRule).toContain('text-transform: uppercase')
   })
 })
