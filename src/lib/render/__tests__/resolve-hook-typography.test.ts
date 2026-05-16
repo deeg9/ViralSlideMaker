@@ -14,9 +14,14 @@ import type { SlideStyleOverrides, TextBox } from '@/lib/types/slide'
  * preview, Satori PNG export) plus the HTML render import it so they cannot
  * drift (TPLREND-05).
  *
- * The byte-identity case (no overrides → template values verbatim) is the
- * load-bearing assertion. If it breaks, the resolver precedence is wrong —
- * never relax the test; fix the helper.
+ * quick-260515-o75 — the textTransform default was FLIPPED from the template's
+ * `hookStyle` to `'none'` (render the hook EXACTLY as stored — WYSIWYG). A
+ * template's `hookStyle: 'uppercase'` no longer force-caps stored hook text;
+ * auto-uppercase is opt-IN via the per-TextBox `text_transform` field (the
+ * ActiveTextBoxCard "Uppercase" toggle) or the `hook_text_transform` override.
+ * Casing byte-identity to the pre-o75 (force-capped) behavior is intentionally
+ * NOT preserved — user-accepted. fontFamily / fontStyle precedence is UNCHANGED
+ * and its byte-identity assertions remain load-bearing.
  */
 
 // editorial-serif has hookStyle:'normal' + headingFontFamily — we synthesize
@@ -27,10 +32,15 @@ const italicTemplate: SlideTemplate = {
 }
 
 describe('resolveHookTypography — hook casing/font/style precedence', () => {
-  it('byte-identity (TPLREND-05): no overrides, no TextBox → template values verbatim (uppercase template)', () => {
+  it('quick-260515-o75 WYSIWYG default: no overrides, no TextBox, uppercase-hookStyle template → textTransform "none"', () => {
+    // THE bug fix. highlight-bar declares hookStyle:'uppercase'. With no
+    // per-TextBox text_transform and no hook_text_transform override the
+    // resolver must NOT force-cap — it renders the stored casing verbatim so
+    // the canvas matches the inspector. This is the no-override slide on an
+    // uppercase template the nhf attempt missed.
     const result = resolveHookTypography(undefined, undefined, highlightBar)
     expect(result).toEqual({
-      textTransform: 'uppercase',
+      textTransform: 'none',
       fontFamily: highlightBar.headingFontFamily ?? highlightBar.fontFamily,
       fontStyle: 'normal',
     })
@@ -81,7 +91,7 @@ describe('resolveHookTypography — hook casing/font/style precedence', () => {
     expect(result.textTransform).toBe('none')
   })
 
-  it('precedence: explicit override wins over TextBox field wins over template default', () => {
+  it('precedence: explicit override wins over TextBox field wins over the WYSIWYG default', () => {
     const hookBox: TextBox = {
       id: 'h1',
       role: 'hook',
@@ -89,27 +99,30 @@ describe('resolveHookTypography — hook casing/font/style precedence', () => {
       text_transform: 'uppercase',
       position: { anchor: 'top' },
     }
-    // override 'none' beats TextBox 'uppercase' beats template uppercase.
+    // override 'none' beats TextBox 'uppercase'.
     const overrides: SlideStyleOverrides = { hook_text_transform: 'none' }
     expect(
       resolveHookTypography(overrides, hookBox, highlightBar).textTransform,
     ).toBe('none')
-    // With no override, the TextBox field wins over the template default.
+    // With no override, the TextBox field (opt-in Uppercase toggle) wins over
+    // the WYSIWYG default.
     expect(
       resolveHookTypography(undefined, hookBox, highlightBar).textTransform,
     ).toBe('uppercase')
-    // With neither, the template default ('uppercase' for highlight-bar) wins.
+    // quick-260515-o75: with neither, the default is now 'none' (WYSIWYG) —
+    // a template's hookStyle:'uppercase' no longer force-caps stored text.
     expect(
       resolveHookTypography(undefined, undefined, highlightBar).textTransform,
-    ).toBe('uppercase')
+    ).toBe('none')
   })
 
-  it('threat T-nhf-01: a malformed text_transform value degrades to the template default', () => {
+  it('threat T-o75-01: a malformed text_transform value degrades to the WYSIWYG default', () => {
     const overrides = { hook_text_transform: 'evil(); drop table' } as unknown as SlideStyleOverrides
-    // Falls through to the template default — no arbitrary CSS injected.
+    // Falls through to the new 'none' default — degrades to WYSIWYG, never
+    // injects arbitrary CSS. Holds regardless of the template's hookStyle.
     expect(
       resolveHookTypography(overrides, undefined, highlightBar).textTransform,
-    ).toBe('uppercase')
+    ).toBe('none')
     expect(
       resolveHookTypography(overrides, undefined, editorialSerif).textTransform,
     ).toBe('none')

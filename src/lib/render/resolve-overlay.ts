@@ -720,9 +720,17 @@ export function resolveGrainIntensity(
 // `hookStyle: 'uppercase'` force-capped the hook with nothing the inspector
 // could write to undo it.
 //
-// Precedence (per axis): explicit style_overrides field > per-TextBox field
-// > template default. The no-override branch returns EXACTLY the values the
-// old hardcoded paths produced, so legacy slides stay byte-identical.
+// Precedence (textTransform): explicit style_overrides field > per-TextBox
+// field > 'none' (render the hook EXACTLY as stored — WYSIWYG).
+// quick-260515-o75: the default was flipped FROM the template's hookStyle TO
+// 'none' so the canvas matches the inspector. A template's
+// hookStyle: 'uppercase' no longer force-caps the stored text; users opt INTO
+// auto-uppercase via the per-TextBox text_transform field (ActiveTextBoxCard
+// 'Uppercase' toggle). This intentionally changes legacy hook CASING to
+// WYSIWYG — accepted by the user; TPLREND-05 byte-identity is NOT claimed for
+// hook casing. Precedence (fontFamily / fontStyle): explicit style_overrides
+// field > per-TextBox field > template default — UNCHANGED; the no-override
+// branch returns EXACTLY the legacy font values so font byte-identity holds.
 // =====================================================================
 
 export interface ResolvedHookTypography {
@@ -738,11 +746,11 @@ export interface ResolvedHookTypography {
  * Resolve hook casing, font family, and italic style with explicit
  * precedence. Pure function — no DOM/Node deps; safe on server and client.
  *
- * Threat T-nhf-01 (tampering): `text_transform` is the closed union
+ * Threat T-o75-01 (tampering): `text_transform` is the closed union
  * `'uppercase' | 'none'`. Any other value (a hand-edited / AI-emitted
  * payload) fails the strict equality checks below and falls through to the
- * template default — a malformed payload degrades to legacy behavior, it
- * never injects arbitrary CSS.
+ * `'none'` WYSIWYG default — a malformed payload degrades to render-as-stored,
+ * it never injects arbitrary CSS.
  *
  * NOTE: this helper deliberately does NOT resolve hook font SIZE. Size
  * already resolves correctly via `overrides.hook_font_size ?? ...` in all
@@ -755,10 +763,12 @@ export function resolveHookTypography(
   hookTextBox: TextBox | undefined,
   template: SlideTemplate,
 ): ResolvedHookTypography {
-  // --- textTransform: explicit override > TextBox field > template default.
-  const templateTransform: 'uppercase' | 'none' =
-    template.hookStyle === 'uppercase' ? 'uppercase' : 'none'
-  let textTransform: 'uppercase' | 'none' = templateTransform
+  // --- textTransform: explicit override > TextBox field > 'none' (WYSIWYG).
+  // quick-260515-o75: the default is 'none' — the hook renders EXACTLY as
+  // stored so the canvas matches the inspector. The template's `hookStyle`
+  // no longer feeds this axis; auto-uppercase is opt-in via the two `if`
+  // blocks below (per-TextBox field, then explicit override).
+  let textTransform: 'uppercase' | 'none' = 'none'
   if (hookTextBox?.text_transform === 'uppercase' || hookTextBox?.text_transform === 'none') {
     textTransform = hookTextBox.text_transform
   }
