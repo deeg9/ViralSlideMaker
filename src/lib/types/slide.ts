@@ -137,6 +137,11 @@ export interface TextBox {
   font_size?: number            // px in 1080x1920 reference
   font_weight?: number
   font_style?: 'normal' | 'italic'
+  /** quick-260515-nhf: user override for hook casing. Wins over
+      template.hookStyle. Falls back to the template's hookStyle when
+      undefined (legacy byte-identity). Only meaningful on role='hook' boxes;
+      resolved through resolveHookTypography in resolve-overlay.ts. */
+  text_transform?: 'uppercase' | 'none'
   color?: string
   /** quick-260514-laa: per-text-box override for the highlight ("accent")
       color used by the AccentWordsDisclosure chip wall. Falls back to the
@@ -200,6 +205,12 @@ export interface SlideStyleOverrides {
   // Phase 12: Font family
   hook_font_family?: string
   body_font_family?: string
+  /** quick-260515-nhf: per-slide hook casing override (dual-write target —
+      mirrors hook_font_family precedent). When set, wins over the template's
+      `hookStyle: 'uppercase'`. Absent → template hookStyle applies as the
+      fallback so legacy slides render byte-identically. Resolved via
+      resolveHookTypography in resolve-overlay.ts. */
+  hook_text_transform?: 'uppercase' | 'none'
   // Phase 13: Text box width
   hook_width?: number   // percentage 0-100, overrides symmetric width calc
   body_width?: number   // percentage 0-100, overrides symmetric width calc

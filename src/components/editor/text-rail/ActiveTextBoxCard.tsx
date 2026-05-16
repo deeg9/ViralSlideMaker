@@ -111,6 +111,14 @@ export function ActiveTextBoxCard({
 
   const isBold = (textBox.font_weight ?? 400) >= 700
   const isItalic = textBox.font_style === 'italic'
+  // quick-260515-nhf: hook casing toggle. The pressed state reflects the
+  // RESOLVED value — the per-box `text_transform` override when set, else the
+  // template's `hookStyle` default. So a template-uppercase hook reads as
+  // pressed until the user explicitly un-caps it.
+  const isHookRole = textBox.role === 'hook'
+  const resolvedUppercase =
+    (textBox.text_transform ?? (template.hookStyle === 'uppercase' ? 'uppercase' : 'none')) ===
+    'uppercase'
 
   function setEffects(next: TextEffects) {
     onUpdate({ effects: next })
@@ -332,6 +340,31 @@ export function ActiveTextBoxCard({
         >
           <Icon name="format_italic" size="sm" />
         </button>
+        {/* quick-260515-nhf: hook casing toggle. Lets the user escape a
+            template's hardcoded `hookStyle: 'uppercase'` (e.g. highlight-bar).
+            OFF writes text_transform 'none', ON writes 'uppercase'. Shown
+            only for the hook role — body/custom boxes have no template
+            casing to override. */}
+        {isHookRole && (
+          <button
+            type="button"
+            data-testid="active-text-box-uppercase"
+            data-active={resolvedUppercase ? 'true' : 'false'}
+            onClick={() =>
+              onUpdate({ text_transform: resolvedUppercase ? 'none' : 'uppercase' })
+            }
+            className={`p-2 rounded-lg transition-all ${FOCUS_RING} ${
+              resolvedUppercase
+                ? 'bg-[#3d0000] text-white'
+                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
+            }`}
+            aria-label="Uppercase"
+            aria-pressed={resolvedUppercase}
+            title="Uppercase"
+          >
+            <Icon name="match_case" size="sm" />
+          </button>
+        )}
       </div>
 
       {/* List row (quick-260502-pw8). Three-way segmented control for list_type.

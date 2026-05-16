@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ActiveTextBoxCard } from '../ActiveTextBoxCard'
 import { templates } from '@/lib/render/templates/index'
+import { highlightBar } from '@/lib/render/templates/highlight-bar'
+import { editorialSerif } from '@/lib/render/templates/editorial-serif'
 import type { TextBox } from '@/lib/types/slide'
 
 const TEMPLATE = templates[0]
@@ -432,6 +434,102 @@ describe('<ActiveTextBoxCard>', () => {
       expect(payload).toEqual({ accent_color: '#A8E0B0' })
       // No segments override — we don't want to repaint plain words.
       expect(payload).not.toHaveProperty('segments')
+    })
+  })
+
+  // quick-260515-nhf: hook casing toggle. Lets the user escape a template's
+  // hardcoded `hookStyle: 'uppercase'` (e.g. highlight-bar — the reported bug).
+  describe('Uppercase toggle (quick-260515-nhf)', () => {
+    it('renders the uppercase toggle for a hook box', () => {
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({ role: 'hook' })}
+          onUpdate={vi.fn()}
+          template={highlightBar}
+        />,
+      )
+      expect(screen.getByTestId('active-text-box-uppercase')).toBeInTheDocument()
+    })
+
+    it('does NOT render the uppercase toggle for a body box', () => {
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({ role: 'body' })}
+          onUpdate={vi.fn()}
+          template={highlightBar}
+        />,
+      )
+      expect(screen.queryByTestId('active-text-box-uppercase')).toBeNull()
+    })
+
+    it('reflects pressed state from an uppercase template default', () => {
+      // highlight-bar.hookStyle === 'uppercase' → toggle reads as pressed.
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({ role: 'hook' })}
+          onUpdate={vi.fn()}
+          template={highlightBar}
+        />,
+      )
+      const btn = screen.getByTestId('active-text-box-uppercase')
+      expect(btn).toHaveAttribute('aria-pressed', 'true')
+      expect(btn).toHaveAttribute('data-active', 'true')
+    })
+
+    it('reflects un-pressed state from a normal-hookStyle template default', () => {
+      // editorial-serif.hookStyle === 'normal' → toggle reads as un-pressed.
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({ role: 'hook' })}
+          onUpdate={vi.fn()}
+          template={editorialSerif}
+        />,
+      )
+      expect(screen.getByTestId('active-text-box-uppercase')).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      )
+    })
+
+    it('the per-box text_transform override wins over the template default', () => {
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({ role: 'hook', text_transform: 'none' })}
+          onUpdate={vi.fn()}
+          template={highlightBar}
+        />,
+      )
+      // template is uppercase, but the box explicitly opted out.
+      expect(screen.getByTestId('active-text-box-uppercase')).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      )
+    })
+
+    it('clicking a pressed (uppercase) toggle writes text_transform: none', () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({ role: 'hook' })}
+          onUpdate={onUpdate}
+          template={highlightBar}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('active-text-box-uppercase'))
+      expect(onUpdate).toHaveBeenCalledWith({ text_transform: 'none' })
+    })
+
+    it('clicking an un-pressed toggle writes text_transform: uppercase', () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActiveTextBoxCard
+          textBox={makeBox({ role: 'hook' })}
+          onUpdate={onUpdate}
+          template={editorialSerif}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('active-text-box-uppercase'))
+      expect(onUpdate).toHaveBeenCalledWith({ text_transform: 'uppercase' })
     })
   })
 })

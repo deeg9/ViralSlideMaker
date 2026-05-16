@@ -29,6 +29,7 @@ import {
   augmentEditorialSerifPageCounterStyle,
   getNotesAppChicAccentColor,
   alignToJustifyContent,
+  resolveHookTypography,
   type OverlayResolveCtx,
 } from './resolve-overlay'
 
@@ -262,6 +263,14 @@ export function buildSlideElement(
     rootStyle.backgroundColor = template.backgroundColor
   }
 
+  // quick-260515-nhf: hook casing/font/italic resolved via the shared
+  // resolveHookTypography helper so the Satori PNG export agrees with the
+  // editor canvas (TPLREND-05). THIS closes the export-parity bug: the old
+  // hardcoded `template.headingFontFamily ?? template.fontFamily` ignored
+  // `overrides.hook_font_family`, so a user's hook-font pick silently
+  // reverted in the exported PNG.
+  const hookTypography = resolveHookTypography(overrides, hookBox, template)
+
   // Hook text style — heading font falls back to body font
   // Satori (next/og) requires display:flex on divs with multiple children;
   // multi-segment hooks emit several <span> siblings so flex+wrap is mandatory.
@@ -287,13 +296,18 @@ export function buildSlideElement(
     // exported-PNG-vs-preview bug on news-* + cover layout.
     fontWeight: overrides.hook_font_weight ?? template.hookFontWeight ?? 900,
     lineHeight: 1.1,
-    fontFamily: template.headingFontFamily ?? template.fontFamily,
+    // quick-260515-nhf: honors overrides.hook_font_family — was the
+    // hardcoded `template.headingFontFamily ?? template.fontFamily` here.
+    fontFamily: hookTypography.fontFamily,
   }
 
-  if (template.hookStyle === 'uppercase') {
+  // quick-260515-nhf: only SET textTransform when 'uppercase' — emitting
+  // `textTransform: 'none'` where today nothing is emitted would change the
+  // serialized SVG for legacy slides (TPLREND-05 byte-identity).
+  if (hookTypography.textTransform === 'uppercase') {
     hookStyle.textTransform = 'uppercase'
   }
-  if (template.hookStyle === 'italic') {
+  if (hookTypography.fontStyle === 'italic') {
     hookStyle.fontStyle = 'italic'
   }
 
