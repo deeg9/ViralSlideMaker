@@ -10,6 +10,9 @@ import { getHookFontSize, hasHookFit } from './hook-fit'
 // byte-identity preserved when no override is set (helper returns the EXACT
 // templateParam reference).
 import { resolvePerSlideTemplate } from './resolve-per-slide-template'
+// quick-260515-nhf: shared hook-typography resolver — single source of truth
+// for hook casing/font-family/italic precedence across all three render paths.
+import { resolveHookTypography } from './resolve-overlay'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -141,7 +144,8 @@ export function buildSlideHtml(
   // slide-preview.tsx. The legacy adapter in text-box-adapter.ts only writes
   // slide-level overrides.text_align when hook and body share the same value,
   // so the per-box read here is the source of truth on diverged decks.
-  const hookBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')?.text_align
+  const hookBox = (slide.text_boxes ?? []).find((tb) => tb.role === 'hook')
+  const hookBoxAlign = hookBox?.text_align
   const bodyBoxAlign = (slide.text_boxes ?? []).find((tb) => tb.role === 'body')?.text_align
   const slideAlign = overrides.text_align ?? template.textAlign
   const hookTextAlign = hookBoxAlign ?? slideAlign
@@ -161,6 +165,22 @@ export function buildSlideHtml(
       ? `${autoFitHookPx}px`
       : template.hookFontSize
   const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
+
+  // quick-260515-nhf: hook casing/font/italic resolved via the shared
+  // resolveHookTypography helper so the exported HTML agrees with the editor
+  // canvas + Satori PNG (TPLREND-05). Byte-identity guard: legacy slides emit
+  // NO explicit hook font-family / text-transform — they keep inheriting the
+  // root `template.fontFamily` (the historical HTML behavior) and stay
+  // identical. An explicit font-family is emitted ONLY when the user actually
+  // overrode the hook font.
+  const hookTypography = resolveHookTypography(overrides, hookBox, template)
+  const hookFontFamilyCss =
+    overrides.hook_font_family != null
+      ? `font-family: ${hookTypography.fontFamily};`
+      : ''
+  const hookTextTransformCss =
+    hookTypography.textTransform === 'uppercase' ? 'text-transform: uppercase;' : ''
+  const hookFontStyleCss = hookTypography.fontStyle === 'italic' ? 'font-style: italic;' : ''
 
   const accentColor = template.accentColor ?? template.textColor
 
@@ -282,8 +302,9 @@ export function buildSlideHtml(
       font-size: ${hookFontSize};
       font-weight: 900;
       line-height: 1.1;
-      ${template.hookStyle === 'uppercase' ? 'text-transform: uppercase;' : ''}
-      ${template.hookStyle === 'italic' ? 'font-style: italic;' : ''}
+      ${hookFontFamilyCss}
+      ${hookTextTransformCss}
+      ${hookFontStyleCss}
       ${effectsToCSS(resolved.hookEffects)}
       ${highlightCSS(resolved.hookEffects, 'native').containerCSS}
     }
