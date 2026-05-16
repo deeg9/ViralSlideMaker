@@ -1,7 +1,7 @@
 import React from 'react'
 import type { OverlayContent, SlideTemplate } from './templates'
 import type { DecorativeAsset } from './templates/decorative'
-import type { Slide, SlideStyleOverrides, TextSegment } from '@/lib/types/slide'
+import type { Slide, SlideStyleOverrides, TextBox, TextSegment } from '@/lib/types/slide'
 
 /**
  * Phase 45 — shared resolver foundation.
@@ -705,4 +705,78 @@ export function resolveGrainIntensity(
     return template.grainMode
   }
   return undefined
+}
+
+// =====================================================================
+// quick-260515-nhf — shared hook-typography resolver.
+//
+// SINGLE source of truth for hook casing / font family / italic-style
+// precedence. Before this helper the three render paths each derived hook
+// typography divergently — most importantly the Satori PNG export hardcoded
+// `template.headingFontFamily ?? template.fontFamily` and never read
+// `overrides.hook_font_family`, so a user's hook-font pick survived on the
+// editor canvas but silently reverted in the exported PNG (TPLREND-05
+// violation). Casing had no override path at all: a template's
+// `hookStyle: 'uppercase'` force-capped the hook with nothing the inspector
+// could write to undo it.
+//
+// Precedence (per axis): explicit style_overrides field > per-TextBox field
+// > template default. The no-override branch returns EXACTLY the values the
+// old hardcoded paths produced, so legacy slides stay byte-identical.
+// =====================================================================
+
+export interface ResolvedHookTypography {
+  /** 'uppercase' force-caps the hook; 'none' leaves the stored casing as-is. */
+  textTransform: 'uppercase' | 'none'
+  /** CSS font-family string for the hook text. */
+  fontFamily: string
+  /** 'italic' only when the template (or a future override) calls for it. */
+  fontStyle: 'normal' | 'italic'
+}
+
+/**
+ * Resolve hook casing, font family, and italic style with explicit
+ * precedence. Pure function — no DOM/Node deps; safe on server and client.
+ *
+ * Threat T-nhf-01 (tampering): `text_transform` is the closed union
+ * `'uppercase' | 'none'`. Any other value (a hand-edited / AI-emitted
+ * payload) fails the strict equality checks below and falls through to the
+ * template default — a malformed payload degrades to legacy behavior, it
+ * never injects arbitrary CSS.
+ *
+ * NOTE: this helper deliberately does NOT resolve hook font SIZE. Size
+ * already resolves correctly via `overrides.hook_font_size ?? ...` in all
+ * three render paths and is entangled with the hook-fit auto-shrink clamp;
+ * folding it in here would risk that interaction. Casing + family + style
+ * only.
+ */
+export function resolveHookTypography(
+  overrides: SlideStyleOverrides | undefined,
+  hookTextBox: TextBox | undefined,
+  template: SlideTemplate,
+): ResolvedHookTypography {
+  // --- textTransform: explicit override > TextBox field > template default.
+  const templateTransform: 'uppercase' | 'none' =
+    template.hookStyle === 'uppercase' ? 'uppercase' : 'none'
+  let textTransform: 'uppercase' | 'none' = templateTransform
+  if (hookTextBox?.text_transform === 'uppercase' || hookTextBox?.text_transform === 'none') {
+    textTransform = hookTextBox.text_transform
+  }
+  if (overrides?.hook_text_transform === 'uppercase' || overrides?.hook_text_transform === 'none') {
+    textTransform = overrides.hook_text_transform
+  }
+
+  // --- fontFamily: explicit override wins; otherwise template heading font
+  //     (falling back to the template body font) — the legacy editor chain.
+  const fontFamily =
+    overrides?.hook_font_family ?? template.headingFontFamily ?? template.fontFamily
+
+  // --- fontStyle: template-driven only (the per-box / per-override
+  //     `hook_font_style` italic toggle is applied separately at the call
+  //     site, exactly as today). This mirrors the old
+  //     `template.hookStyle === 'italic'` branch.
+  const fontStyle: 'normal' | 'italic' =
+    template.hookStyle === 'italic' ? 'italic' : 'normal'
+
+  return { textTransform, fontFamily, fontStyle }
 }
