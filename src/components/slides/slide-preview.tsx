@@ -78,6 +78,7 @@ import {
   augmentEditorialSerifPageCounterStyle,
   getNotesAppChicAccentColor,
   alignToJustifyContent,
+  resolveHookTypography,
   type OverlayResolveCtx,
 } from '@/lib/render/resolve-overlay'
 import type { TemplateOverlay } from '@/lib/render/templates/index'
@@ -716,7 +717,13 @@ export function SlidePreview({
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
   // Font family overrides (Phase 12)
-  const hookFontFamily = overrides.hook_font_family ?? template.headingFontFamily ?? template.fontFamily
+  // quick-260515-nhf: hook casing/font/style now resolved via the shared
+  // resolveHookTypography helper so editor + Satori + HTML agree (TPLREND-05)
+  // and user TextBox overrides win over the template's hookStyle. The helper
+  // owns casing + family + italic-from-template only — hook font SIZE keeps
+  // its existing `overrides.hook_font_size` resolution (hook-fit interaction).
+  const hookTypography = resolveHookTypography(overrides, hookTextBox, template)
+  const hookFontFamily = hookTypography.fontFamily
   const bodyFontFamily = overrides.body_font_family ?? template.fontFamily
 
   // Bold/italic overrides (Phase 11)
@@ -884,8 +891,13 @@ export function SlidePreview({
     fontSize: `${hookFontSize}px`,
     fontFamily: hookFontFamily,
     fontWeight: hookFontWeight,
-    fontStyle: hookFontStyle === 'italic' ? 'italic' : (template.hookStyle === 'italic' ? 'italic' : undefined),
-    textTransform: template.hookStyle === 'uppercase' ? 'uppercase' : undefined,
+    // quick-260515-nhf: italic still honors the per-override hook_font_style
+    // toggle first; the template-driven italic fallback now comes from the
+    // shared helper. textTransform comes from the helper too — emit
+    // 'uppercase' or undefined (NOT 'none') so a no-override slide stays
+    // byte-identical to today's output (TPLREND-05).
+    fontStyle: hookFontStyle === 'italic' ? 'italic' : (hookTypography.fontStyle === 'italic' ? 'italic' : undefined),
+    textTransform: hookTypography.textTransform === 'uppercase' ? 'uppercase' : undefined,
     color: hookTextColor,
     // 260503: flex-wrap mirrors render-slide-satori.tsx hookStyle (TPLREND-05
     // parity contract — slide-preview.tsx:97-101). Satori only breaks between
