@@ -99,6 +99,9 @@ export function legacyToTextBoxes(slide: Slide): TextBox[] {
     ...(slide.hook_segments !== undefined ? { segments: slide.hook_segments } : {}),
     ...(overrides?.hook_font_family !== undefined ? { font_family: overrides.hook_font_family } : {}),
     ...(overrides?.hook_font_size !== undefined ? { font_size: overrides.hook_font_size } : {}),
+    // quick-260515-nhf: hydrate the per-box casing override from the
+    // persisted slide-level override so a saved slide round-trips.
+    ...(overrides?.hook_text_transform !== undefined ? { text_transform: overrides.hook_text_transform } : {}),
     ...(overrides?.hook_font_weight !== undefined ? { font_weight: overrides.hook_font_weight } : {}),
     ...(overrides?.hook_font_style !== undefined ? { font_style: overrides.hook_font_style } : {}),
     ...(overrides?.hook_text_color !== undefined ? { color: overrides.hook_text_color } : {}),
@@ -224,6 +227,9 @@ export function textBoxesToLegacy(boxes: TextBox[]): LegacySlice {
   if (hookBox) {
     if (hookBox.font_family !== undefined) patch.hook_font_family = hookBox.font_family
     if (hookBox.font_size !== undefined) patch.hook_font_size = hookBox.font_size
+    // quick-260515-nhf: dual-write the per-box casing override back to the
+    // slide-level override (mirrors hook_font_family / hook_font_size above).
+    if (hookBox.text_transform !== undefined) patch.hook_text_transform = hookBox.text_transform
     if (hookBox.font_weight !== undefined) patch.hook_font_weight = hookBox.font_weight
     if (hookBox.font_style !== undefined) patch.hook_font_style = hookBox.font_style
     if (hookBox.color !== undefined) patch.hook_text_color = hookBox.color
