@@ -45,14 +45,18 @@ describe('SlideBackgroundControls', () => {
   })
 
   it('shows the uppercase "Caption Card" title', () => {
-    render(
+    const { container } = render(
       <SlideBackgroundControls
         slide={makeSlide()}
         template={TMPL}
         onSlideUpdate={vi.fn()}
       />,
     )
-    expect(screen.getByText(/^caption card$/i)).toBeTruthy()
+    // The card title is the uppercase-styled span directly inside the shell.
+    const title = container
+      .querySelector('[data-testid="slide-background-controls"]')!
+      .querySelector('span.uppercase')
+    expect(title?.textContent).toMatch(/^caption card$/i)
   })
 
   describe('on/off toggle', () => {
