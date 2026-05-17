@@ -5,6 +5,7 @@ import { FontPicker } from '@/components/editor/font-picker'
 import { EffectRow } from './EffectRow'
 import { AccentWordsDisclosure } from './AccentWordsDisclosure'
 import { COLOR_SWATCHES } from './color-swatches'
+import { TextBackgroundControls } from './text-background-controls'
 import { splitToSegments } from '@/lib/editor/text-segments'
 
 // Phase 50 (UI-REVIEW BLOCKER + WARNINGs): keyboard focus ring + general a11y
@@ -592,7 +593,11 @@ export function ActiveTextBoxCard({
         enabled={!!effects.highlight?.enabled}
         onToggle={(on) => setHighlight({ enabled: on })}
       >
-        <HighlightControls
+        {/* quick-260517-fu9: HighlightControls was extracted into the shared
+            TextBackgroundControls component so the Elements tab can mount the
+            same control. Behavior here is unchanged — same `highlight` field,
+            same setHighlight merge, same testids. */}
+        <TextBackgroundControls
           highlight={effects.highlight ?? DEFAULT_HIGHLIGHT}
           onChange={setHighlight}
         />
@@ -738,84 +743,7 @@ function OutlineControls({
   )
 }
 
-function HighlightControls({
-  highlight,
-  onChange,
-}: {
-  highlight: TextHighlightEffect
-  onChange: (partial: Partial<TextHighlightEffect>) => void
-}) {
-  return (
-    <>
-      <div className="flex gap-3" data-testid="highlight-color-row">
-        {COLOR_SWATCHES.map((color) => (
-          <button
-            key={color}
-            type="button"
-            onClick={() => onChange({ color: color + '88' })}
-            className={`w-6 h-6 rounded-full ${FOCUS_RING} ${
-              highlight.color === color + '88'
-                ? 'ring-2 ring-[#3d0000] ring-offset-1'
-                : ''
-            }`}
-            style={{
-              backgroundColor: color,
-              border: color === '#ffffff' ? '1px solid #dbc1bc' : undefined,
-            }}
-            aria-label={`Set highlight color to ${color}`}
-            aria-pressed={highlight.color === color + '88'}
-            title={color}
-          />
-        ))}
-        <label className="w-6 h-6 rounded-full border border-[#dbc1bc]/30 flex items-center justify-center cursor-pointer focus-within:ring-2 focus-within:ring-[#3d0000] focus-within:ring-offset-1">
-          <Icon name="palette" size="sm" className="text-[#7d6161]" aria-hidden />
-          <input
-            type="color"
-            value={highlight.color.slice(0, 7)}
-            onChange={(e) => onChange({ color: e.target.value + '88' })}
-            aria-label="Set custom highlight color"
-            className="sr-only"
-          />
-        </label>
-      </div>
-      <div className="flex gap-2">
-        {(['tight', 'full'] as const).map((style) => (
-          <button
-            key={style}
-            type="button"
-            data-testid={`highlight-style-${style}`}
-            onClick={() => onChange({ style })}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${FOCUS_RING} ${
-              highlight.style === style
-                ? 'bg-[#3d0000] text-white'
-                : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
-            }`}
-            aria-label={`Highlight style ${style}`}
-            aria-pressed={highlight.style === style}
-          >
-            {style === 'tight' ? 'Tight' : 'Full'}
-          </button>
-        ))}
-      </div>
-      <div className="space-y-1">
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
-            Padding
-          </span>
-          <span className="text-[10px] font-bold text-[#3d0000]">{highlight.padding}px</span>
-        </div>
-        <input
-          type="range"
-          data-testid="highlight-padding"
-          min={4}
-          max={24}
-          step={2}
-          value={highlight.padding}
-          onChange={(e) => onChange({ padding: Number(e.target.value) })}
-          aria-label="Highlight padding"
-          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
-        />
-      </div>
-    </>
-  )
-}
+// quick-260517-fu9: the inner HighlightControls function was extracted into
+// './text-background-controls' as the shared `TextBackgroundControls`
+// component so the Elements tab can mount the same control. Its JSX, testids,
+// and the `+ '88'` alpha-suffix convention are preserved verbatim there.
