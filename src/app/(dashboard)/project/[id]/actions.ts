@@ -113,10 +113,14 @@ export async function generateCarousel(
     let slides: Slide[]
 
     // Lift AI-emitted `layout` from the slide root into style_overrides.layout to match the Slide model.
+    // Phase 82 Gap C: MERGE into any existing style_overrides — promoteNewsHeadline
+    // writes style_overrides.hook_font_size before this map runs, and a bare
+    // `{ layout }` replacement would silently discard it (the headline would
+    // fall back to the small template default).
     const aiSlides = carousel.slides.map((s) => {
       const { layout, ...rest } = s
       return layout
-        ? { ...rest, style_overrides: { layout } }
+        ? { ...rest, style_overrides: { ...(rest.style_overrides ?? {}), layout } }
         : rest
     })
 
