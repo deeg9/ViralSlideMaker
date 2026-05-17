@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { Rnd } from 'react-rnd'
-import type { Slide, TextPosition, CustomText, TextSegment } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText, TextSegment, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 // Phase 63 Plan 04 (SNAP-02..06, SNAP-09, DIFF-03, PERF-03): snap-index +
@@ -533,6 +533,15 @@ interface SlidePreviewProps {
     id: string,
     size: { width: number; height: number },
   ) => void
+  /**
+   * quick-260517-k2n: slide-level caption-card geometry commit. Editor-only —
+   * the editable branch's caption-card <Rnd> calls this from onDragStop /
+   * onResizeStop. Carries a Partial<SlideStyleOverrides> patch (the caller
+   * merges it into slide.style_overrides and dispatches UPDATE_SLIDE). When
+   * omitted (non-editor / Satori callers), the caption-card <Rnd> renders but
+   * its drag/resize no-ops — acceptable, those callers are not interactive.
+   */
+  onCaptionBarUpdate?: (updates: Partial<SlideStyleOverrides>) => void
 }
 
 export function SlidePreview({
@@ -558,6 +567,7 @@ export function SlidePreview({
   onDecorationRotate,
   onDecorationPositionChange,
   onDecorationSizeChange,
+  onCaptionBarUpdate,
 }: SlidePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
