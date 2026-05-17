@@ -113,3 +113,40 @@ caption-card geometry.**
 
 **Verdict:** ⛔ PENDING — R10 visual sign-off not approved; headline auto-fit fix
 deferred until `260517-k2n` lands.
+
+## R10 round 2 — gap-closure resolution (2026-05-17, post-260517-k2n)
+
+`260517-k2n` (caption-card rework into a draggable/resizable overlay) merged to
+main. The R10 headline auto-fit fix is unblocked and now complete via
+gap-closure Plans 08 + 09 (commits `d0763ed`, `28c4d5e`; merged `949af81`).
+
+- **Defect D — FIXED (`82-08`).** The flat `NEWS_HEADLINE_FONT_SIZE = 200` is
+  removed. `fitHeadlineToBox` (pure, in `hook-fit.ts`) sizes the headline as
+  large as fits its box — ceiling 240 / floor 64 — such that the longest word
+  fits the box width and the whole-word-wrapped lines fit the box height. No
+  candidate size lets a word exceed the box width, so the auto-fit also removes
+  the mid-word break at the sizing layer. `promoteNewsHeadline` fits each
+  headline to the default news hook box at generation time; `resolveNewsHeadlineFit`
+  re-fits to a draggable caption card box (`captionCardBox`) at render time when
+  a card is enabled — sizing the headline "relative to where the caption card /
+  black box is," per the user's explicit ask.
+- **Defect E — FIXED (`82-09`).** `renderSegments` flipped the per-segment span
+  rule `overflow-wrap: break-word` → `overflow-wrap: normal` (both the pill and
+  plain branches). Words wrap only at spaces; a word never splits mid-word. The
+  hook container's `flex-wrap: wrap` handles inter-word wrapping. Applied
+  identically across canvas preview, Satori PNG, and HTML export.
+- **Smaller follow-up (NOT addressed here):** the Pexels image-query quality
+  ("isn't the most appealing") remains tracked separately — not in R10 scope.
+
+Render-parity: segmented-hook snapshots regenerated INTENTIONALLY — the only
+change is the `overflow-wrap` flip; no unrelated template changed (verified via
+`git diff`). The full test suite holds at its 43-failure pre-existing
+`quick-260515-o75` baseline — zero new failures. Code review CLEAN.
+
+**Verdict:** ⛔ STILL PENDING USER VISUAL APPROVAL. Gaps D + E are fixed in code
+with passing tests, but the R10 **visual** sign-off remains a human judgment.
+The user must re-generate a sample News carousel ("Major tech company announces
+19,000 layoffs") via the News category and confirm the headline is now cleanly
+contained — whole words, no overflow — matching `~/Desktop/Screenshot 2026-05-17
+at 3.06.22 PM.png`. This autonomous run does NOT mark the visual sign-off
+approved.

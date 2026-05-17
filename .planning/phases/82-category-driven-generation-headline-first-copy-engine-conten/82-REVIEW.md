@@ -114,3 +114,48 @@ passes; zero worktree files collected.
   culled-renderer resolution, registry integrity, and category coverage.
 - **Render-parity** — the `news-cyan` snapshot regen is scoped to `news-cyan`
   only; every other template byte-identical (verified via `git diff`).
+
+---
+
+## R10 round 2 re-review (2026-05-17) — Plans 08 + 09 (Gaps D + E)
+
+**Appended below.** The earlier reviews are unchanged. This re-review adds the
+6 Plan 08+09 source files; overall status stays **CLEAN** (0 critical, 0 warning).
+
+**Scope:** commits `d0763ed` (Plan 08), `28c4d5e` (Plan 09).
+**Files reviewed:** `hook-fit.ts`, `promote-news-headline.ts`, `resolve-overlay.ts`,
+`render-slide-satori.tsx`, `render-slide.ts`, `slide-preview.tsx`.
+
+### Critical / Warning
+None.
+
+### Info
+
+1. **News-layout gate expressed three ways (consistency, not a bug).**
+   `render-slide-satori.tsx` passes `newsZone != null`; `slide-preview.tsx` +
+   `render-slide.ts` pass `isNewsLayoutSlide` (`template.backgroundMode == null
+   && overrides.layout != null`). Verified equivalent — in Satori `newsZone` is
+   non-null exactly when `backgroundMode == null && overrides.layout` (truthy
+   ⟺ `!= null` for the `'cover' | 'body'` union). The full render-parity sweep
+   confirms it (43 pre-existing failures HEAD = 43 after, zero new). Cosmetic.
+
+2. **`render-slide.ts` numeric fallback `parseInt(template.hookFontSize) || 64`.**
+   Pre-change the HTML path used `template.hookFontSize` verbatim; every real
+   template uses the `'Npx'` format so `parseInt` is byte-identical. Confirmed
+   by the full render-parity sweep showing zero new failures.
+
+### Verdict — CLEAN
+
+- `fitHeadlineToBox` / `captionCardBox` are pure, bounded (ceiling 240 / floor
+  64), never throw on string input.
+- The `hook-fit.ts` ↔ `resolve-overlay.ts` cycle is correctly broken via
+  `import type` for `ResolvedCaptionBar`.
+- `resolveNewsHeadlineFit` is a strict no-op for non-news / no-caption-card
+  slides — byte-identity preserved.
+- The k2n caption-card rework is untouched (caption-card markup unchanged in all
+  three paths; `resolveCaptionBar` read-only consumed; no circular import).
+- Snapshot regeneration is narrow + intentional (only the `overflow-wrap:
+  break-word → normal` flip; no unrelated template changed — verified via
+  `git diff`).
+
+No fix pass required.
