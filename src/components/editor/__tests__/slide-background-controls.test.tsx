@@ -12,6 +12,11 @@ import type { Slide } from '@/lib/types/slide'
  * NOT gated on backgroundMode — every selected slide has a background color, so
  * the card is ALWAYS visible. It emits merged `style_overrides` patches with a
  * single `background_color` hex string; a discrete pick = one undo entry.
+ *
+ * quick-260517-jfg — added an on/off "Caption panel" Switch + a Bottom/Top
+ * position radiogroup. Both map onto `style_overrides.layout`:
+ *   ON + Bottom → layout: 'cover'; ON + Top → layout: 'body'; OFF → key deleted.
+ * The Color row and Photo-height slider are only rendered while the panel is ON.
  */
 
 const TMPL = getTemplate('highlight-bar') // backgroundColor: '#ffffff'
@@ -76,7 +81,7 @@ describe('SlideBackgroundControls', () => {
     const onSlideUpdate = vi.fn()
     render(
       <SlideBackgroundControls
-        slide={makeSlide()}
+        slide={makeSlide({ style_overrides: { layout: 'cover' } })}
         template={TMPL}
         onSlideUpdate={onSlideUpdate}
       />,
@@ -92,7 +97,7 @@ describe('SlideBackgroundControls', () => {
   it('the palette-icon button is present', () => {
     render(
       <SlideBackgroundControls
-        slide={makeSlide()}
+        slide={makeSlide({ style_overrides: { layout: 'cover' } })}
         template={TMPL}
         onSlideUpdate={vi.fn()}
       />,
@@ -104,7 +109,7 @@ describe('SlideBackgroundControls', () => {
     // highlight-bar.backgroundColor is '#ffffff' → that swatch is active.
     render(
       <SlideBackgroundControls
-        slide={makeSlide()}
+        slide={makeSlide({ style_overrides: { layout: 'cover' } })}
         template={TMPL}
         onSlideUpdate={vi.fn()}
       />,
@@ -124,7 +129,9 @@ describe('SlideBackgroundControls', () => {
   it('marks the swatch matching the resolved background_color override as active', () => {
     render(
       <SlideBackgroundControls
-        slide={makeSlide({ style_overrides: { background_color: '#3d0000' } })}
+        slide={makeSlide({
+          style_overrides: { background_color: '#3d0000', layout: 'cover' },
+        })}
         template={TMPL}
         onSlideUpdate={vi.fn()}
       />,
@@ -226,6 +233,167 @@ describe('SlideBackgroundControls', () => {
           news_image_height: 48,
         }),
       })
+    })
+  })
+
+  // quick-260517-jfg — the on/off "Caption panel" Switch + Bottom/Top position
+  // radiogroup. Both write `style_overrides.layout`: ON+Bottom → 'cover',
+  // ON+Top → 'body', OFF → the `layout` key is DELETED (slide reverts to a
+  // full-bleed photo). Color + Photo-height controls are hidden while OFF.
+  describe('Caption panel toggle + position (quick-260517-jfg)', () => {
+    it('renders the on/off Switch UNCHECKED when no layout override exists', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      const toggle = screen.getByTestId('caption-card-toggle')
+      expect(toggle).toBeTruthy()
+      expect(toggle.getAttribute('aria-checked')).toBe('false')
+    })
+
+    it('hides the Color row and Photo-height slider while the panel is OFF', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(screen.queryByTestId('caption-card-height')).toBeNull()
+      expect(screen.queryByTestId('slide-background-color')).toBeNull()
+      expect(
+        screen.queryByTestId('slide-background-color-palette'),
+      ).toBeNull()
+    })
+
+    it('hides the position radiogroup while the panel is OFF', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(screen.queryByTestId('caption-card-position-cover')).toBeNull()
+      expect(screen.queryByTestId('caption-card-position-body')).toBeNull()
+    })
+
+    it('shows the Switch CHECKED with Bottom selected for layout: cover', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+      ).toBe('true')
+      expect(
+        screen
+          .getByTestId('caption-card-position-cover')
+          .getAttribute('aria-checked'),
+      ).toBe('true')
+      expect(
+        screen
+          .getByTestId('caption-card-position-body')
+          .getAttribute('aria-checked'),
+      ).toBe('false')
+      // Color + Photo-height controls are visible while ON.
+      expect(screen.getByTestId('caption-card-height')).toBeTruthy()
+      expect(screen.getByTestId('slide-background-color')).toBeTruthy()
+    })
+
+    it('shows the Switch CHECKED with Top selected for layout: body', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'body' } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+      ).toBe('true')
+      expect(
+        screen
+          .getByTestId('caption-card-position-body')
+          .getAttribute('aria-checked'),
+      ).toBe('true')
+      expect(
+        screen
+          .getByTestId('caption-card-position-cover')
+          .getAttribute('aria-checked'),
+      ).toBe('false')
+    })
+
+    it('clicking the Switch while OFF turns the panel ON (layout: cover)', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('caption-card-toggle'))
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      expect(onSlideUpdate).toHaveBeenCalledWith({
+        style_overrides: expect.objectContaining({ layout: 'cover' }),
+      })
+    })
+
+    it('clicking the Switch while ON deletes the layout key (full-bleed)', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({
+            style_overrides: { layout: 'cover', background_color: '#3d0000' },
+          })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('caption-card-toggle'))
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      const patch = onSlideUpdate.mock.calls[0][0]
+      // The key is DELETED, not set to undefined.
+      expect('layout' in patch.style_overrides).toBe(false)
+      // Sibling overrides are preserved in the emitted patch.
+      expect(patch.style_overrides.background_color).toBe('#3d0000')
+    })
+
+    it('clicking "Top" while layout: cover switches to body', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('caption-card-position-body'))
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      expect(onSlideUpdate.mock.calls[0][0].style_overrides.layout).toBe('body')
+    })
+
+    it('clicking "Bottom" while layout: body switches to cover', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'body' } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('caption-card-position-cover'))
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      expect(onSlideUpdate.mock.calls[0][0].style_overrides.layout).toBe(
+        'cover',
+      )
     })
   })
 })
