@@ -25,6 +25,7 @@ import { DecorationCard } from './text-rail/decoration-card'
 import { TextBackgroundControls } from './text-rail/text-background-controls'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import { CaptionBarControls } from './caption-bar-controls'
+import { SlideBackgroundControls } from './slide-background-controls'
 import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Decoration } from '@/lib/types/decoration'
 import type { Slide, TextBox, TextHighlightEffect } from '@/lib/types/slide'
@@ -186,6 +187,17 @@ export function ElementsPanel({
   const slideLevelCards =
     slide && template && onSlideUpdate ? (
       <>
+        {/* quick-260517-h8z: Slide Background card. Recolors the slide
+            background panel visible behind a constrained news-carousel photo
+            (the user's "yellow panel"). UNLIKE CaptionBarControls it is NOT
+            gated on backgroundMode — every selected slide has a background
+            color, so the card is ALWAYS visible (like WatermarkControls). It
+            still takes the PER-SLIDE-RESOLVED template for the swatch default. */}
+        <SlideBackgroundControls
+          slide={slide}
+          template={resolvePerSlideTemplate(slide, template)}
+          onSlideUpdate={onSlideUpdate}
+        />
         {/* quick-260515-k12: Caption Bar card. Needs the per-slide-RESOLVED
             template (the slide may carry a template_id_override) for both its
             visibility gate and the color-picker default. CaptionBarControls
