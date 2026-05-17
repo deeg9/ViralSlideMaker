@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CaptionBarControls } from '../caption-bar-controls'
 import { editorReducer, type EditorHistory } from '@/lib/editor/editor-reducer'
-import { getTemplate } from '@/lib/render/templates/index'
+import { getTemplate, type SlideTemplate } from '@/lib/render/templates/index'
+import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Slide } from '@/lib/types/slide'
 
 /**
@@ -48,6 +49,69 @@ describe('CaptionBarControls', () => {
       <CaptionBarControls
         slide={makeSlide()}
         template={NON_BOTTOM_CARD_TMPL}
+        onSlideUpdate={vi.fn()}
+        onSlidePreview={vi.fn()}
+      />,
+    )
+    expect(container.firstChild).toBeNull()
+    expect(screen.queryByTestId('caption-bar-controls')).toBeNull()
+  })
+
+  // --- quick-260517-h8z: gate tracks the per-slide-RESOLVED template ---
+  // The card's visibility must mirror the renderer's `useBottomCard` gate
+  // (`backgroundMode === 'image-with-bottom-card'`) on the PER-SLIDE-RESOLVED
+  // template. Style-from-Reference `caption-bar-bottom` archetype slides carry
+  // `style_overrides.template_id_override = 'magazine-bold'` while the
+  // project-level template is something else — so if ElementsPanel resolves the
+  // per-slide template before mounting (it does), the card MUST appear.
+
+  it('renders the card when the per-slide-resolved template is a bottom-card template even though the project template is NOT (Style-from-Reference caption-bar-bottom slide)', () => {
+    // Screenshot repro: slide carries a magazine-bold (image-with-bottom-card)
+    // override; project template is the non-bottom-card highlight-bar.
+    const slide = makeSlide({
+      style_overrides: { template_id_override: 'magazine-bold' },
+    })
+    const resolved = resolvePerSlideTemplate(slide, NON_BOTTOM_CARD_TMPL)
+    // Sanity: the resolver actually flipped the template to a bottom-card one.
+    expect(resolved.backgroundMode).toBe('image-with-bottom-card')
+
+    render(
+      <CaptionBarControls
+        slide={slide}
+        template={resolved}
+        onSlideUpdate={vi.fn()}
+        onSlidePreview={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('caption-bar-controls')).toBeTruthy()
+  })
+
+  it('returns null for a resolved template whose backgroundMode is "color" (no false-positive)', () => {
+    const colorTmpl: SlideTemplate = {
+      ...NON_BOTTOM_CARD_TMPL,
+      backgroundMode: 'color',
+    }
+    const { container } = render(
+      <CaptionBarControls
+        slide={makeSlide()}
+        template={colorTmpl}
+        onSlideUpdate={vi.fn()}
+        onSlidePreview={vi.fn()}
+      />,
+    )
+    expect(container.firstChild).toBeNull()
+    expect(screen.queryByTestId('caption-bar-controls')).toBeNull()
+  })
+
+  it('returns null for a resolved template whose backgroundMode is undefined (no false-positive)', () => {
+    const undefinedModeTmpl: SlideTemplate = {
+      ...NON_BOTTOM_CARD_TMPL,
+      backgroundMode: undefined,
+    }
+    const { container } = render(
+      <CaptionBarControls
+        slide={makeSlide()}
+        template={undefinedModeTmpl}
         onSlideUpdate={vi.fn()}
         onSlidePreview={vi.fn()}
       />,
