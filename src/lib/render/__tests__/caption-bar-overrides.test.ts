@@ -2,77 +2,179 @@ import { describe, it, expect } from 'vitest'
 import {
   resolveCaptionBar,
   hexToRgba,
-  bottomCardBackground,
 } from '../resolve-overlay'
 import { magazineBold } from '../templates/magazine-bold'
 import type { SlideStyleOverrides } from '@/lib/types/slide'
 
 /**
- * quick-260515-k12 — regression suite for the shared caption-bar resolver.
+ * quick-260517-k2n — regression suite for the reworked caption-card resolver.
  *
- * `resolveCaptionBar` is the SINGLE source of truth for the height/color/
- * opacity/position of the `image-with-bottom-card` caption bar. Both
- * slide-preview.tsx (browser preview) and render-slide-satori.tsx (PNG
- * export) import it so the two render paths cannot drift (PARITY-01).
+ * `resolveCaptionBar` is the SINGLE source of truth for the enabled state +
+ * geometry (x/y/width/heightPct) + color of the caption card. All THREE render
+ * paths import it — slide-preview.tsx (browser preview / canvas), the Satori
+ * PNG export, and the HTML export — so the three paths cannot drift
+ * (PARITY-01 / TPLREND-05).
  *
- * The byte-identity case (TPLREND-05) is the load-bearing assertion: a
- * magazine-bold slide with ZERO caption-bar overrides MUST resolve to the
- * EXACT values the old hardcoded path produced (38% / rgba(0,0,0,0.85) /
- * bottom). If this breaks, the resolver is wrong — never relax the test.
+ * The byte-identity case (TPLREND-05) is the load-bearing assertion: a slide
+ * with ZERO caption_bar_* overrides MUST resolve to `enabled: false` — i.e. no
+ * card renders at all, identical to a pre-change slide. If this breaks, the
+ * resolver is wrong — never relax the test.
  */
-describe('resolveCaptionBar — caption-bar override resolution', () => {
-  it('returns the legacy defaults for magazine-bold with no overrides', () => {
-    const result = resolveCaptionBar(undefined, magazineBold)
+describe('resolveCaptionBar — caption-card override resolution', () => {
+  it('byte-identity (TPLREND-05): no overrides resolves to enabled:false', () => {
+    expect(resolveCaptionBar(undefined, magazineBold).enabled).toBe(false)
+    expect(resolveCaptionBar({}, magazineBold).enabled).toBe(false)
+  })
+
+  it('a legacy slide carrying only caption_bar_height_pct still resolves enabled:false', () => {
+    // k12 height-only slide — never had a real caption card; must stay off.
+    expect(
+      resolveCaptionBar({ caption_bar_height_pct: 50 }, magazineBold).enabled,
+    ).toBe(false)
+  })
+
+  it('caption_bar_enabled:true yields default geometry', () => {
+    const result = resolveCaptionBar(
+      { caption_bar_enabled: true },
+      magazineBold,
+    )
     expect(result).toEqual({
+      enabled: true,
       heightPct: 38,
+      x: 0,
+      y: 62, // bottom snap = 100 - 38
+      width: 100,
       backgroundColor: 'rgba(0, 0, 0, 0.85)',
       position: 'bottom',
     })
   })
 
-  it('honors caption_bar_height_pct', () => {
-    const overrides: SlideStyleOverrides = { caption_bar_height_pct: 50 }
-    expect(resolveCaptionBar(overrides, magazineBold).heightPct).toBe(50)
-  })
-
   it('composes rgba() from caption_bar_color + caption_bar_opacity', () => {
     const overrides: SlideStyleOverrides = {
+      caption_bar_enabled: true,
       caption_bar_color: '#3d0000',
-      caption_bar_opacity: 0.6,
+      caption_bar_opacity: 0.5,
     }
     expect(resolveCaptionBar(overrides, magazineBold).backgroundColor).toBe(
-      'rgba(61, 0, 0, 0.6)',
+      'rgba(61, 0, 0, 0.5)',
     )
   })
 
-  it('honors caption_bar_position: top', () => {
-    const overrides: SlideStyleOverrides = { caption_bar_position: 'top' }
-    expect(resolveCaptionBar(overrides, magazineBold).position).toBe('top')
+  it('passes through explicit geometry verbatim', () => {
+    const overrides: SlideStyleOverrides = {
+      caption_bar_enabled: true,
+      caption_bar_x: 10,
+      caption_bar_y: 20,
+      caption_bar_width: 80,
+      caption_bar_height_pct: 50,
+    }
+    const result = resolveCaptionBar(overrides, magazineBold)
+    expect(result.x).toBe(10)
+    expect(result.y).toBe(20)
+    expect(result.width).toBe(80)
+    expect(result.heightPct).toBe(50)
   })
 
-  it('clamps caption_bar_height_pct to 10..90', () => {
+  it('clamps out-of-range geometry from a hand-edited payload', () => {
+    // x/y/width clamp to [0,100]; height clamps to [10,90].
     expect(
-      resolveCaptionBar({ caption_bar_height_pct: 200 }, magazineBold).heightPct,
-    ).toBe(90)
+      resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_x: 200 },
+        magazineBold,
+      ).x,
+    ).toBe(100)
     expect(
-      resolveCaptionBar({ caption_bar_height_pct: 5 }, magazineBold).heightPct,
+      resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_x: -50 },
+        magazineBold,
+      ).x,
+    ).toBe(0)
+    expect(
+      resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_width: 999 },
+        magazineBold,
+      ).width,
+    ).toBe(100)
+    expect(
+      resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_height_pct: 5 },
+        magazineBold,
+      ).heightPct,
     ).toBe(10)
+    expect(
+      resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_height_pct: 200 },
+        magazineBold,
+      ).heightPct,
+    ).toBe(90)
   })
 
-  it('byte-identity (TPLREND-05): no-override result equals the old hardcoded path', () => {
-    const result = resolveCaptionBar({}, magazineBold)
-    // The old preview/Satori bottom-card used these exact three values.
-    expect(result.backgroundColor).toBe(
-      bottomCardBackground(magazineBold.backgroundColor),
-    )
-    expect(result.heightPct).toBe(38)
-    expect(result.position).toBe('bottom')
+  it('derives y from caption_bar_position when y is not explicit', () => {
+    expect(
+      resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_position: 'top' },
+        magazineBold,
+      ).y,
+    ).toBe(0)
+    // bottom => 100 - heightPct (default height 38 => 62)
+    expect(
+      resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_position: 'bottom' },
+        magazineBold,
+      ).y,
+    ).toBe(62)
+    // bottom with a custom height
+    expect(
+      resolveCaptionBar(
+        {
+          caption_bar_enabled: true,
+          caption_bar_position: 'bottom',
+          caption_bar_height_pct: 50,
+        },
+        magazineBold,
+      ).y,
+    ).toBe(50)
   })
 
-  it('Satori px math: bottom-position 38% bar matches the old round(H*0.62) anchor', () => {
+  it('an explicit caption_bar_y always wins over the position-derived default', () => {
+    expect(
+      resolveCaptionBar(
+        {
+          caption_bar_enabled: true,
+          caption_bar_position: 'top',
+          caption_bar_y: 33,
+        },
+        magazineBold,
+      ).y,
+    ).toBe(33)
+  })
+
+  it('3-path parity: Satori px math agrees with HTML percent values', () => {
+    // quick-260517-k2n Task 4 — pin that the Satori px conversion of the
+    // resolved percents lands on the expected integer pixels, and that the
+    // HTML path emits those same resolved percents verbatim.
+    const W = 1080
     const H = 1920
-    // New path: top = H - round(H * heightPct/100); old hardcoded: round(H*0.62).
-    expect(H - Math.round((H * 38) / 100)).toBe(Math.round(H * 0.62))
+    const result = resolveCaptionBar(
+      {
+        caption_bar_enabled: true,
+        caption_bar_x: 10,
+        caption_bar_y: 20,
+        caption_bar_width: 80,
+        caption_bar_height_pct: 50,
+      },
+      magazineBold,
+    )
+    // Satori path: explicit numeric px against W/H.
+    expect(Math.round((result.x / 100) * W)).toBe(108)
+    expect(Math.round((result.y / 100) * H)).toBe(384)
+    expect(Math.round((result.width / 100) * W)).toBe(864)
+    expect(Math.round((result.heightPct / 100) * H)).toBe(960)
+    // HTML path: the resolved percents are emitted verbatim.
+    expect(result.x).toBe(10)
+    expect(result.y).toBe(20)
+    expect(result.width).toBe(80)
+    expect(result.heightPct).toBe(50)
   })
 })
 
