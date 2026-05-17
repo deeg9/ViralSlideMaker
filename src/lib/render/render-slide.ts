@@ -206,13 +206,19 @@ export function buildSlideHtml(
   const newsZone =
     !isColorOnlyTemplate && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
 
+  // quick-260517-h8z: user-controlled slide background color. Falls back to
+  // template default. TPLREND-05 mirror of slide-preview.tsx +
+  // render-slide-satori.tsx via `overrides.background_color ?? template.backgroundColor`.
+  // The `background-image` branch (a full-bleed photo, no newsZone) is left
+  // untouched — there is no visible background color there.
+  const bgColor = overrides.background_color ?? template.backgroundColor
   const backgroundCss = isColorOnlyTemplate
-    ? `background-color: ${template.backgroundColor};`
+    ? `background-color: ${bgColor};`
     : newsZone
-      ? `background-color: ${template.backgroundColor};`
+      ? `background-color: ${bgColor};`
       : slide.background_url
         ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
-        : `background-color: ${template.backgroundColor};`
+        : `background-color: ${bgColor};`
 
   // Resolve text positions: news layouts override Y defaults; user-supplied positions still win.
   const posPreset = overrides.text_position ?? template.textPosition
