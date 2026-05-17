@@ -12,7 +12,7 @@ import { getHookFontSize, hasHookFit } from './hook-fit'
 import { resolvePerSlideTemplate } from './resolve-per-slide-template'
 // quick-260515-nhf: shared hook-typography resolver — single source of truth
 // for hook casing/font-family/italic precedence across all three render paths.
-import { resolveHookTypography, resolveCaptionBar } from './resolve-overlay'
+import { resolveHookTypography, resolveCaptionBar, resolveNewsHeadlineFit } from './resolve-overlay'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -212,11 +212,14 @@ export function buildSlideHtml(
     overrides.hook_font_size == null && hasHookFit(template.id)
       ? getHookFontSize(template.id, slide.hook_text, baseHookSizePx)
       : null
-  const hookFontSize = overrides.hook_font_size
-    ? `${overrides.hook_font_size}px`
+  // Numeric hook size (px) — the value before the `px` suffix. Used by the
+  // Phase 82 Gap D caption-card re-fit below; the emitted CSS string is derived
+  // from the re-fit result.
+  const hookFontSizePx = overrides.hook_font_size
+    ? overrides.hook_font_size
     : autoFitHookPx != null
-      ? `${autoFitHookPx}px`
-      : template.hookFontSize
+      ? autoFitHookPx
+      : baseHookSizePx
   const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
 
   // quick-260515-nhf: hook casing/font/italic resolved via the shared
@@ -315,6 +318,17 @@ export function buildSlideHtml(
     ? `<div style="position:absolute; left:${captionCard.x}%; top:${captionCard.y}%; width:${captionCard.width}%; height:${captionCard.heightPct}%; background-color:${captionCard.backgroundColor}; z-index:2;"></div>`
     : ''
 
+  // Phase 82 Gap D (render-wiring): re-fit the news headline to the
+  // quick-260517-k2n caption card when one is enabled, so the HTML export
+  // matches the canvas preview + Satori PNG. `isNewsLayoutSlide` mirrors the
+  // gate in render-slide-satori.tsx + slide-preview.tsx. `resolveNewsHeadlineFit`
+  // returns `hookFontSizePx` unchanged for every non-news / no-caption-card
+  // slide, so the emitted CSS string stays byte-identical for those.
+  const isNewsLayoutSlide = template.backgroundMode == null && overrides.layout != null
+  const newsHeadlineFontSizePx = resolveNewsHeadlineFit(
+    captionCard, slide.hook_text, hookFontSizePx, isNewsLayoutSlide,
+  )
+
   // Build custom image HTML
   const customImageHtml = (slide.custom_images ?? []).map((ci) =>
     `<img src="${ci.url}" style="position:absolute; left:${ci.x}%; top:${ci.y}%; width:${ci.width}%; height:${ci.height}%; object-fit:cover; opacity:${(ci.opacity ?? 100) / 100}; border-radius:${ci.border_radius ?? 0}px; z-index:1;" />`
@@ -387,7 +401,7 @@ export function buildSlideHtml(
       width: ${hookWidth}%;
       text-align: ${hookTextAlign};
       z-index: 1;
-      font-size: ${hookFontSize};
+      font-size: ${newsHeadlineFontSizePx}px;
       font-weight: 900;
       line-height: 1.1;
       ${hookFontFamilyCss}

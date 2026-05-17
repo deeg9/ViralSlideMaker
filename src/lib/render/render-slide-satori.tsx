@@ -24,6 +24,7 @@ import {
   renderTextBlock,
   renderTightHighlight,
   resolveCaptionBar,
+  resolveNewsHeadlineFit,
   renderGrain,
   renderVignette,
   renderDecorativeOverlay,
@@ -221,6 +222,15 @@ export function buildSlideElement(
     : autoFitHookPx != null
       ? autoFitHookPx
       : baseHookSizePx
+  // Phase 82 Gap D (render-wiring): re-fit the news headline to a quick-260517-k2n
+  // caption card when one is enabled, so the headline fills the box the user
+  // dragged/resized. `newsZone != null` gates this to news-layout slides — every
+  // non-news / no-caption-card slide gets `hookFontSize` back unchanged. `cc` is
+  // resolved ONCE here and reused by the caption-card JSX below (PARITY-01).
+  const cc = resolveCaptionBar(overrides, template)
+  const newsHeadlineFontSize = resolveNewsHeadlineFit(
+    cc, slide.hook_text, hookFontSize, newsZone != null,
+  )
   const bodyFontSize = overrides.body_font_size
     ? overrides.body_font_size
     : parseInt(template.bodyFontSize, 10) || 32
@@ -310,7 +320,8 @@ export function buildSlideElement(
     // explicit-intent rather than a Satori bug fix; keeps the two renderers
     // byte-identical on the alignment axis.
     justifyContent: alignToJustifyContent(hookTextAlign),
-    fontSize: hookFontSize,
+    // Phase 82 Gap D: caption-card-aware re-fit (= hookFontSize when no card).
+    fontSize: newsHeadlineFontSize,
     // 260503-0f2: respect overrides + template-level hookFontWeight to match
     // slide-preview.tsx:610. Templates using single-weight display fonts (Anton)
     // MUST set hookFontWeight: 400 so Satori does not request weight 900 (which
@@ -431,7 +442,8 @@ export function buildSlideElement(
           and HTML paths consume (PARITY-01 / TPLREND-05). With zero overrides
           the resolver returns enabled:false => no card, byte-identical. */}
       {(() => {
-        const cc = resolveCaptionBar(overrides, template)
+        // `cc` is the SAME resolveCaptionBar value hoisted above for the
+        // headline re-fit — resolved once (PARITY-01).
         if (!cc.enabled) return null
         return (
           <div

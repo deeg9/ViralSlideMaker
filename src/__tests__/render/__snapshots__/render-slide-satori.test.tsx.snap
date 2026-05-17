@@ -345,7 +345,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
           "color": "#000000",
           "marginRight": "0",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
           "padding": "4px 8px",
         }
       }
@@ -976,7 +976,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
         {
           "color": "#FFFFFF",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
         }
       }
     >
@@ -990,7 +990,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
           "color": "#000000",
           "marginRight": "8px",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
           "padding": "4px 12px",
         }
       }
@@ -1002,7 +1002,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
         {
           "color": "#FFFFFF",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
         }
       }
     >
