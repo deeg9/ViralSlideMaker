@@ -1,11 +1,13 @@
 /**
  * quick-260517-fu9 — TextBackgroundControls extraction tests.
  *
- * The text-background ("highlight") color/style/padding control was an inner
+ * The text-background ("highlight") color/style control was an inner
  * `HighlightControls` component inside ActiveTextBoxCard. It is extracted here
- * so the Elements tab can mount the same control. These tests pin the four
- * behaviors the extracted component must keep verbatim — including the testids
- * and the `+ '88'` alpha-suffix convention the renderer depends on.
+ * so the TEXT tab can mount it as a reusable control. These tests pin the
+ * behaviors the component must keep verbatim — including the testids and the
+ * `+ '88'` alpha-suffix convention the renderer depends on.
+ *
+ * quick-260517-iiy — the padding slider was removed; its test is dropped too.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -57,15 +59,12 @@ describe('quick-260517-fu9 — TextBackgroundControls', () => {
     expect(onChange).toHaveBeenCalledWith({ style: 'full' })
   })
 
-  it('changing the padding range calls onChange with a numeric padding', () => {
-    const onChange = vi.fn()
+  it('does not render a padding slider (quick-260517-iiy)', () => {
     const { container } = render(
-      <TextBackgroundControls highlight={baseHighlight} onChange={onChange} />,
+      <TextBackgroundControls highlight={baseHighlight} onChange={vi.fn()} />,
     )
-    const padding = container.querySelector(
-      '[data-testid="highlight-padding"]',
-    ) as HTMLInputElement
-    fireEvent.change(padding, { target: { value: '16' } })
-    expect(onChange).toHaveBeenCalledWith({ padding: 16 })
+    expect(
+      container.querySelector('[data-testid="highlight-padding"]'),
+    ).toBeNull()
   })
 })
