@@ -1,8 +1,18 @@
 ---
 phase: 82-category-driven-generation-headline-first-copy-engine-conten
 verified: 2026-05-17T14:55:00Z
-status: human_needed
-score: 10/10 structural — R10 gap-closure complete; R10 visual sign-off still human_needed
+status: blocked
+score: 9/10 — R10 visual sign-off NEEDS WORK (headline auto-fit); blocked on parallel task 260517-k2n
+blocked_on: 260517-k2n (caption-card rework) must merge before the R10 headline auto-fit fix can run
+
+> **Update 2026-05-17 (R10 round 2) — BLOCKED on 260517-k2n.**
+> After the gap-closure, the user re-tested: news pills + a large headline now
+> generate, but the flat NEWS_HEADLINE_FONT_SIZE=200 overflows and breaks words
+> mid-word ("ANNOUNCE"/"S"). The fix — auto-fit the headline to the caption card
+> — depends on the caption-card geometry being concurrently reworked by quick
+> task 260517-k2n (draggable/resizable caption card; touches the same render
+> files). Per user decision, the R10 headline auto-fit fix is HELD until
+> 260517-k2n merges. See 82-VISUAL-SIGNOFF.md "R10 round 2" for full detail.
 ---
 
 > **Update 2026-05-17T14:55 — R10 gap-closure cycle complete (Plans 06 + 07).**
