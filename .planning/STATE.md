@@ -163,6 +163,7 @@ Last activity: 2026-05-14 -- Phase 80 marked complete
 ### Roadmap Evolution
 
 - Phase 80 added: composition-aware style extraction — replace flat StyleSpec tagging with archetype classification + typed slot primitives so style-from-reference can faithfully reproduce captioned/collage/highlight-rhythm layouts that the renderer already supports
+- Phase 82 added: category-driven generation — headline-first copy engine + content-category picker + template curation. Post-v2.13 feature; spun out of a /gsd-quick request to fix ugly "no template / random" news output. Routed to /gsd-spec-phase (fuzzy WHAT). 3 workstreams: W1 headline-first prompt+schema, W2 content-category picker, W3 cull 12 templates → ~4-6.
 
 ### Carry-over from v2.12
 

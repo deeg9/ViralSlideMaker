@@ -221,4 +221,23 @@ Plans:
 **Depends on:** Phase 78 (publish toggle exists), v2.13 reference uploader (Phase 74)
 **Status:** 🚧 SPEC.md locked 2026-05-15 (ambiguity 0.15) — discuss → plan → execute pending.
 
+### Phase 82: Category-driven generation — headline-first copy engine + content-category picker + template curation
+
+**Goal:** When creating a carousel, the user picks a *content category* (News, Facts & Info, Health & Wellness, Beauty…). The **category — not the visual template — drives Gemini's copy**, which is the real lever for "containing" Gemini's output style. For News/Facts that means headline-first slides: one big bold headline per slide, accent-highlighted keywords, no required body text, optional small accessory labels ("TRENDING NEWS", one-liner kickers). The category also filters the template gallery to a curated set. Templates are culled from 12 down to a handful of polished, example-worthy designs. The output schema is updated so `body_text` is optional and headline-only slides are first-class. Motivated by a user report that "no template / random" generation produces cramped, washed-out, header+body slides instead of the clean headline-first news look.
+
+**Three workstreams** (to break into plans during planning):
+- **W1 — Headline-first generation engine:** rewrite Gemini category prompts + `responseSchema`/Zod (`src/lib/ai/prompts.ts`, `generate-slides.ts`, `schemas.ts`) so `body_text` is optional and headline-only slides with accent segments + optional accessory labels are first-class.
+- **W2 — Content-category picker:** category selector in the creation flow; wire category → prompt module and category → template filtering; decouple content-category from visual-template (today `templateId` is the only style signal Gemini gets).
+- **W3 — Template curation:** cull 12 templates → ~4–6 polished ones as the example gallery; handle the `premium-tier.ts` marker + saved-project fallbacks for removed templates.
+
+**Requirements**: TBD — run `/gsd-spec-phase 82` to lock scope, then discuss → plan
+**Depends on:** Phase 81
+**References:** `~/Desktop/Screenshot 2026-05-17 at 11.14.48 AM.png` (ugly fallback output), `~/Desktop/Screenshot 2026-05-15 at 5.13.25/5.13.49/5.14.10 PM.png` (target news-headline style), `~/Desktop/Screenshot 2026-05-17 at 11.26.26 AM.png` (current creation flow). Caveat: W1 fixes the copy; matching the reference *visuals* (full-bleed photo, gradient, kicker label) lands in W3.
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-spec-phase 82 → discuss → /gsd-plan-phase 82 to break down)
+
+**Status:** 🚧 Added 2026-05-17 — post-v2.13 feature phase. `/gsd-spec-phase 82` pending (fuzzy WHAT: category taxonomy, which templates survive, headline-only schema shape).
+
 ---
