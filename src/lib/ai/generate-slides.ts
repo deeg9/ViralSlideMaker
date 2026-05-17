@@ -26,7 +26,7 @@ import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
 import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
 import { decorationDiversityCheck } from './decoration-diversity-check'
-import { getTemplate } from '@/lib/render/templates'
+import { getTemplate, TEMPLATE_IDS } from '@/lib/render/templates'
 import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import type { Slide, TextBox } from '@/lib/types/slide'
 
@@ -104,6 +104,12 @@ const responseSchema: Schema = {
           // silently stripped server-side by validateAndRepair (D-06, D-08).
           template_id_override: {
             type: Type.STRING,
+            // quick-fix: this was documented "Closed enum from registry" but the
+            // `enum` was never applied — leaving it an open string. On the
+            // style-heavy News prompt the model degenerated into a multi-KB
+            // runaway string here, hitting MAX_TOKENS (~148s) and truncating the
+            // JSON so the whole generation failed. The enum is the actual close.
+            enum: [...TEMPLATE_IDS],
             description:
               'Optional per-slide template_id override for visual rhythm. Leave unset to use the project template. Closed enum — invalid IDs silently stripped server-side.',
           },
@@ -208,6 +214,12 @@ export async function generateSlideContent(
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema,
+        // Hard output cap — defense-in-depth against a runaway-string
+        // degeneration filling output to MAX_TOKENS (the root cause behind
+        // the template_id_override closed-enum fix: an open string field let
+        // the model loop until ~148s + a truncated, unparseable response).
+        // A normal carousel is far under this; only model misbehavior reaches it.
+        maxOutputTokens: 8192,
       },
     })
     if (!response.text) {
