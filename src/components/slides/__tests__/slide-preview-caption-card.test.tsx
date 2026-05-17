@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import { getTemplate } from '@/lib/render/templates/index'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
@@ -115,5 +115,78 @@ describe('SlidePreview — caption card (non-editable branch)', () => {
       />,
     )
     expect(container.querySelector('[data-testid="bg-bleed"]')).not.toBeNull()
+  })
+})
+
+describe('SlidePreview — caption card (editable branch / <Rnd>)', () => {
+  it('renders no caption-card element when caption_bar_enabled is unset', () => {
+    const { container } = render(
+      <SlidePreview
+        slide={makeSlide()}
+        template={getTemplate('magazine-bold')}
+        index={0}
+        editable
+      />,
+    )
+    expect(container.querySelector('[data-testid="caption-card"]')).toBeNull()
+  })
+
+  it('renders the enabled caption card in the editable branch', () => {
+    const { container } = render(
+      <SlidePreview
+        slide={makeSlide({ caption_bar_enabled: true })}
+        template={getTemplate('magazine-bold')}
+        index={0}
+        editable
+      />,
+    )
+    expect(
+      container.querySelector('[data-testid="caption-card"]'),
+    ).not.toBeNull()
+  })
+
+  it('clicking the card body selects it and reveals resize handles', () => {
+    const { container } = render(
+      <SlidePreview
+        slide={makeSlide({ caption_bar_enabled: true })}
+        template={getTemplate('magazine-bold')}
+        index={0}
+        editable
+      />,
+    )
+    const card = container.querySelector(
+      '[data-testid="caption-card"]',
+    ) as HTMLElement
+    // Pre-click: no resize-handle squares (8x8 white) rendered.
+    expect(card.querySelectorAll('div[style*="width: 8px"]').length).toBe(0)
+    fireEvent.mouseDown(card)
+    // Post-click: react-rnd renders the 8 resize handles.
+    expect(
+      card.querySelectorAll('div[style*="width: 8px"]').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('clicking another element (empty canvas) deselects the card', () => {
+    const { container } = render(
+      <SlidePreview
+        slide={makeSlide({ caption_bar_enabled: true })}
+        template={getTemplate('magazine-bold')}
+        index={0}
+        editable
+      />,
+    )
+    const card = container.querySelector(
+      '[data-testid="caption-card"]',
+    ) as HTMLElement
+    fireEvent.mouseDown(card)
+    expect(
+      card.querySelectorAll('div[style*="width: 8px"]').length,
+    ).toBeGreaterThan(0)
+    // The editable canvas inner container owns the capture-phase deselect.
+    const canvasInner = container.querySelector(
+      '[data-testid="slide-preview"]',
+    )!.firstElementChild as HTMLElement
+    fireEvent.pointerDown(canvasInner)
+    expect(card.querySelectorAll('div[style*="width: 8px"]').length).toBe(0)
   })
 })
