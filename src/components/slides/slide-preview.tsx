@@ -73,6 +73,7 @@ import {
   renderTextBlock,
   renderTightHighlight,
   resolveCaptionBar,
+  resolveNewsHeadlineFit,
   renderGrain,
   renderVignette,
   renderDecorativeOverlay,
@@ -747,6 +748,14 @@ export function SlidePreview({
         ? clampManualHookSize(overrides.hook_font_size, template.id, slide.hook_text, baseHookSize, hasBody)
         : overrides.hook_font_size)
     : (autoFitHookSize ?? baseHookSize)
+  // Phase 82 Gap D (render-wiring): re-fit the news headline to a quick-260517-k2n
+  // caption card when one is enabled, so the canvas preview matches the Satori +
+  // HTML exports. `resolveNewsHeadlineFit` is a no-op (returns hookFontSize) for
+  // every non-news slide and every slide without an enabled caption card.
+  const captionBarForFit = resolveCaptionBar(slide.style_overrides, template)
+  const newsHeadlineFontSize = resolveNewsHeadlineFit(
+    captionBarForFit, slide.hook_text, hookFontSize, isNewsLayoutSlide,
+  )
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
   // Font family overrides (Phase 12)
@@ -930,7 +939,8 @@ export function SlidePreview({
   }, [editingHookBodyId, slide.text_boxes])
 
   const hookTextStyle: React.CSSProperties = {
-    fontSize: `${hookFontSize}px`,
+    // Phase 82 Gap D: caption-card-aware re-fit (= hookFontSize when no card).
+    fontSize: `${newsHeadlineFontSize}px`,
     fontFamily: hookFontFamily,
     fontWeight: hookFontWeight,
     // quick-260515-nhf: italic still honors the per-override hook_font_style
