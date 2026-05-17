@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { pickerTemplates } from '@/lib/render/templates/index'
+import { getCategory } from '@/lib/ai/categories'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { makeSampleSlide } from '@/lib/render/sample-slide'
@@ -11,6 +12,10 @@ interface TemplatePickerProps {
   selectedId: string
   onSelect: (id: string) => void
   brandKit?: BrandKit | null
+  /** Phase 82 (R7/R8): when set, the picker shows only the intersection of
+   *  the keeper set (pickerTemplates) and this category's curated templateIds,
+   *  ordered by the category's templateIds. Absent → all keepers shown. */
+  category?: string
 }
 
 /**
@@ -25,10 +30,21 @@ function isBrandKitConfigured(bk: BrandKit | null | undefined): bk is BrandKit {
   return hasColors || hasFont
 }
 
-export function TemplatePicker({ selectedId, onSelect, brandKit }: TemplatePickerProps) {
+export function TemplatePicker({ selectedId, onSelect, brandKit, category }: TemplatePickerProps) {
   const configured = isBrandKitConfigured(brandKit)
   const brandKitTemplate = configured ? synthesizeBrandKitTemplate(brandKit) : null
   const isBrandKitSelected = selectedId === BRAND_KIT_TEMPLATE_ID
+
+  // Phase 82 (R7/R8): filter to the selected category's curated subset.
+  // When the category resolves, show only keeper templates the category
+  // allows, in the category's templateIds order. Absent/unresolved category
+  // falls back to the full keeper set (current behavior — no regression).
+  const categoryModule = category ? getCategory(category) : undefined
+  const visibleTemplates = categoryModule
+    ? categoryModule.templateIds
+        .map((id) => pickerTemplates.find((t) => t.id === id))
+        .filter((t): t is (typeof pickerTemplates)[number] => t !== undefined)
+    : pickerTemplates
 
   return (
     <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-4 px-4">
@@ -98,7 +114,7 @@ export function TemplatePicker({ selectedId, onSelect, brandKit }: TemplatePicke
         </Link>
       )}
 
-      {pickerTemplates.map((template) => {
+      {visibleTemplates.map((template) => {
         const isSelected = selectedId === template.id
         return (
           <button

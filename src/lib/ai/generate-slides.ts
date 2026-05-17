@@ -189,12 +189,15 @@ export async function generateSlideContent(
   slideCount: number = 7,
   imageStyleHint?: string,
   templateId?: string,
+  // Phase 82 (R1): the content category threads through to prompt assembly —
+  // buildSystemPrompt selects the copy module by category, not templateId.
+  category?: string,
 ): Promise<CarouselWithTextBoxes> {
   const imageHintText = imageStyleHint
     ? `\n\nWhen generating image_query values, incorporate this visual preference: "${imageStyleHint}"`
     : ''
   const baseContents = `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).${imageHintText}`
-  const systemInstruction = buildSystemPrompt(templateId)
+  const systemInstruction = buildSystemPrompt(templateId, category)
 
   async function callGemini(contents: string): Promise<unknown> {
     const response = await ai.models.generateContent({

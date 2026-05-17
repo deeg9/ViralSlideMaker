@@ -6,6 +6,7 @@ import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createProjectService, updateProjectService } from '@/lib/services/projects'
 import { autoPublishOnGenerate } from '@/lib/services/auto-publish-on-generate'
 import { getTemplate } from '@/lib/render/templates/index'
+import { getCategory, DEFAULT_CATEGORY } from '@/lib/ai/categories'
 import type { Slide } from '@/lib/types/slide'
 // Phase 77 Plan 02 Task 4 (EMIT-02): sibling orchestrator that consumes
 // the persisted-spec + Plan 01 helpers + generateFromStyleSpec.
@@ -28,6 +29,8 @@ interface CarouselInput {
   slideCount?: number
   imageSource?: 'stock' | 'ai' | 'none'
   advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string }
+  /** Phase 82 (R1): content category that drives Gemini's copy. */
+  category?: string
 }
 
 /**
@@ -48,13 +51,26 @@ export async function generateCarousel(
     slideCount = 7,
     imageSource = 'stock',
     advancedOptions,
+    category,
   } = input
+
+  // Phase 82 (R1, R7): resolve the effective category (unknown/absent →
+  // default 'news') and an effective category-curated template. If the
+  // requested templateId is empty or not in the category's templateIds list,
+  // snap to the category default (templateIds[0]) — no silent highlight-bar
+  // fallback path remains.
+  const resolvedCategory = category && getCategory(category) ? category : DEFAULT_CATEGORY
+  const categoryModule = getCategory(resolvedCategory)!
+  const effectiveTemplateId =
+    templateId && categoryModule.templateIds.includes(templateId)
+      ? templateId
+      : categoryModule.templateIds[0]
 
   // Create project first
   const { id: projectId } = await createProjectService(supabase, userId, {
     title: topic,
     topic,
-    template_id: templateId,
+    template_id: effectiveTemplateId,
   })
 
   try {
@@ -64,9 +80,16 @@ export async function generateCarousel(
       .update({ generation_status: 'generating' })
       .eq('id', projectId)
 
-    // 1. Generate content with Gemini (templateId steers the prompt for templates like News Drop)
+    // 1. Generate content with Gemini. Phase 82 (R1): the resolved category
+    //    drives the copy module; the effective template is category-curated.
     const clampedCount = Math.max(3, Math.min(20, slideCount))
-    const carousel = await generateSlideContent(topic, clampedCount, advancedOptions?.imagePrompt, templateId)
+    const carousel = await generateSlideContent(
+      topic,
+      clampedCount,
+      advancedOptions?.imagePrompt,
+      effectiveTemplateId,
+      resolvedCategory,
+    )
 
     // 2. Fetch background images
     let slides: Slide[]
@@ -86,7 +109,7 @@ export async function generateCarousel(
     // explicitly via imageSource === 'none' on any template — the user picks
     // text-only output regardless of template's photoMode design.
     const isColorOnlyTemplate =
-      getTemplate(templateId).backgroundMode === 'color'
+      getTemplate(effectiveTemplateId).backgroundMode === 'color'
     const wantsNoPhotos = imageSource === 'none' || isColorOnlyTemplate
 
     if (wantsNoPhotos) {
@@ -175,7 +198,7 @@ export async function generateCarousel(
     // No-photos paths (color-only template OR imageSource === 'none') are pure
     // typography on a styled background — black drop shadows + 45% darkening
     // overlay would muddy the canvas, so skip them too.
-    if (!NEWS_TEMPLATES.has(templateId) && !wantsNoPhotos) {
+    if (!NEWS_TEMPLATES.has(effectiveTemplateId) && !wantsNoPhotos) {
       slides = slides.map((slide) => ({
         ...slide,
         style_overrides: {
@@ -196,7 +219,9 @@ export async function generateCarousel(
       .from('projects')
       .update({
         slide_data: slides,
-        template_id: templateId,
+        template_id: effectiveTemplateId,
+        // Phase 82 (R1): persist the category so Regenerate / Remix reuse it.
+        category: resolvedCategory,
         title: carousel.title,
         topic,
         generation_status: 'complete',

@@ -6,6 +6,8 @@ import { regenerateAction } from '@/app/(dashboard)/style-from-reference/actions
 import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
+import { CategorySelector } from './category-selector'
+import { DEFAULT_CATEGORY, getCategory } from '@/lib/ai/categories'
 import { Icon } from '@/components/ui/icon'
 import { LetterCircleLoader } from '@/components/ui/letter-circle-loader'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
@@ -23,6 +25,9 @@ interface GenerationFormProps {
   projectId: string
   currentTopic?: string
   currentTemplateId?: string
+  /** Phase 82 (R1): persisted content category — rehydrates the selector
+   *  so Regenerate reuses the project's category. */
+  currentCategory?: string
   hasSlides: boolean
   userTier?: 'free' | 'pro' | 'plus'
   brandKit?: BrandKit | null
@@ -40,6 +45,7 @@ export function GenerationForm({
   projectId,
   currentTopic,
   currentTemplateId,
+  currentCategory,
   hasSlides,
   userTier = 'free',
   brandKit,
@@ -47,7 +53,23 @@ export function GenerationForm({
   acceptTosAction,
 }: GenerationFormProps) {
   const [topic, setTopic] = useState(currentTopic ?? '')
-  const [templateId, setTemplateId] = useState(currentTemplateId ?? 'highlight-bar')
+  // Phase 82 (R6): the selected content category drives Gemini's copy.
+  // Defaults to News (the reported pain point + primary deliverable).
+  const [category, setCategory] = useState<string>(
+    currentCategory && getCategory(currentCategory) ? currentCategory : DEFAULT_CATEGORY,
+  )
+  // Phase 82 (R7): seed the template from the category's curated set so the
+  // picker never starts on the legacy 'highlight-bar' fallback. If a saved
+  // project's templateId is in the category's templateIds, keep it; else snap
+  // to the category default.
+  const [templateId, setTemplateId] = useState(() => {
+    const mod = getCategory(
+      currentCategory && getCategory(currentCategory) ? currentCategory : DEFAULT_CATEGORY,
+    )!
+    return currentTemplateId && mod.templateIds.includes(currentTemplateId)
+      ? currentTemplateId
+      : mod.templateIds[0]
+  })
   const [imageSource, setImageSource] = useState<ImageSource>('stock')
   const isPaidUser = userTier !== 'free'
   const sliderMax = 10
@@ -55,6 +77,9 @@ export function GenerationForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
+  // Phase 82 (R6): the Content Category collapsible defaults open so the new
+  // capability is discoverable on first paint.
+  const [showCategory, setShowCategory] = useState(true)
   const [showVisualStyle, setShowVisualStyle] = useState(true)
   const [showSlideCount, setShowSlideCount] = useState(true)
   const [showBackgroundImages, setShowBackgroundImages] = useState(true)
@@ -122,6 +147,18 @@ export function GenerationForm({
 
   function removeFile(idx: number) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  // Phase 82 (R6, R7): switching the category re-aligns the template picker.
+  // When the currently-selected templateId is not in the new category's
+  // curated templateIds list, snap to the category's default (templateIds[0])
+  // so the picker never sits on a template the category does not allow.
+  function handleCategoryChange(id: string) {
+    setCategory(id)
+    const mod = getCategory(id)
+    if (mod && !mod.templateIds.includes(templateId)) {
+      setTemplateId(mod.templateIds[0])
+    }
   }
 
   async function uploadAll(files: File[]): Promise<string[]> {
@@ -221,7 +258,9 @@ export function GenerationForm({
           fontColor: advancedFontColor || undefined,
           imagePrompt: advancedImagePrompt || undefined,
           uploadedImageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
-        }
+        },
+        // Phase 82 (R1): the selected content category drives generation.
+        category
       )
       if (!result.success) {
         setError(result.error)
@@ -410,6 +449,37 @@ export function GenerationForm({
         )}
       </div>
 
+      {/* Content Category — collapsible (Phase 82 R6). Inserted above Select
+          Visual Style: the user picks WHAT KIND of content before WHAT it
+          looks like. The category drives Gemini's copy; it also filters the
+          template picker below to the category's curated subset. */}
+      <div>
+        <div className="flex justify-between items-center mb-3">
+          <button
+            type="button"
+            onClick={() => setShowCategory(!showCategory)}
+            className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
+            aria-expanded={showCategory}
+          >
+            Content Category
+            <Icon
+              name="expand_more"
+              size="sm"
+              className={`transition-transform ${showCategory ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </div>
+        {showCategory && (
+          <div className="mt-4">
+            <CategorySelector
+              selected={category}
+              onSelect={handleCategoryChange}
+              disabled={isPending}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Template Picker — collapsible. (quick-260514-g7y: the References
           pill was removed from this header. The style-from-reference flow
           now lives in its own "Copy style" collapsible above, and the
@@ -432,7 +502,14 @@ export function GenerationForm({
         </div>
         {showVisualStyle && (
           <div className="mt-4">
-            <TemplatePicker selectedId={templateId} onSelect={setTemplateId} brandKit={brandKit} />
+            {/* Phase 82 (R7/R8): picker filtered to the selected category's
+                curated templateIds subset. */}
+            <TemplatePicker
+              selectedId={templateId}
+              onSelect={setTemplateId}
+              brandKit={brandKit}
+              category={category}
+            />
           </div>
         )}
       </div>

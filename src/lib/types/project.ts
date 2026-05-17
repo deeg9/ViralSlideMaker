@@ -9,6 +9,10 @@ export interface Project {
   description: string | null
   slide_data: Slide[]
   template_id?: string
+  /** Phase 82 (R1): content category that drove generation (e.g. 'news',
+      'facts'). Nullable — legacy pre-Phase-82 rows have no category;
+      generation code treats an absent category as the default ('news'). */
+  category?: string
   topic?: string
   generation_status?: GenerationStatus
   created_at: string
