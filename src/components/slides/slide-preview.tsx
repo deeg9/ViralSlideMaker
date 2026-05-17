@@ -930,7 +930,10 @@ export function SlidePreview({
     height: REF_HEIGHT,
     fontFamily: template.fontFamily,
     color: textColor,
-    backgroundColor: template.backgroundColor,
+    // quick-260517-h8z: user-controlled slide background color. Falls back to
+    // template default. TPLREND-05 mirror of render-slide-satori.tsx +
+    // render-slide.ts via `overrides.background_color ?? template.backgroundColor`.
+    backgroundColor: overrides.background_color ?? template.backgroundColor,
     // Phase 45: When useBgMode is active, BackgroundLayers renders the photo as
     // an absolutely-positioned <img> — suppress the CSS backgroundImage to avoid
     // a redundant second fetch and match Satori which never sets backgroundImage

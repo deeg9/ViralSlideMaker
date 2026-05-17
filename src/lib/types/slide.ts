@@ -187,6 +187,15 @@ export interface SlideStyleOverrides {
       Honored by slide-preview.tsx + render-slide-satori.tsx + render-slide.ts
       via `overrides.overlay_color ?? template.overlayColor`. */
   overlay_color?: string
+  /** quick-260517-h8z: user-controlled slide background color — the panel
+      visible behind a constrained news-carousel photo (e.g. the `cover`
+      layout where the photo covers only the top 55%). Hex string with a
+      leading `#` (matches the overlay_color shape above). Falls back to
+      `template.backgroundColor` when unset, so legacy slides render
+      byte-identically (TPLREND-05). Honored by slide-preview.tsx +
+      render-slide-satori.tsx + render-slide.ts via
+      `overrides.background_color ?? template.backgroundColor`. */
+  background_color?: string
   /** quick-260515-k12: per-slide caption-bar overrides for templates with
       backgroundMode === 'image-with-bottom-card' (magazine-bold, tr3nding-news).
       All optional — when unset, resolveCaptionBar falls back to the legacy
