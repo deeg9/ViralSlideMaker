@@ -196,6 +196,18 @@ export interface SlideStyleOverrides {
       render-slide-satori.tsx + render-slide.ts via
       `overrides.background_color ?? template.backgroundColor`. */
   background_color?: string
+  /** quick-260517-iiy: percent height of the constrained news-carousel photo.
+      Overrides `NEWS_LAYOUT[layout].imageHeight` (the `cover` preset is 55).
+      Moving this slider moves the photo / caption-panel boundary up or down —
+      a larger value means a taller photo and a shorter caption panel. Falls
+      back to the preset when unset, so a slide WITHOUT the override renders
+      byte-identically (TPLREND-05). Honored by slide-preview.tsx +
+      render-slide-satori.tsx + render-slide.ts via
+      `overrides.news_image_height ?? newsZone.imageHeight`, clamped to
+      [20, 80] at each render site (threat T-iiy-01 — a hand-edited payload
+      cannot push the photo off-canvas). Mirrors the background_color /
+      overlay_color additive-override precedent above. */
+  news_image_height?: number
   /** quick-260515-k12: per-slide caption-bar overrides for templates with
       backgroundMode === 'image-with-bottom-card' (magazine-bold, tr3nding-news).
       All optional — when unset, resolveCaptionBar falls back to the legacy
