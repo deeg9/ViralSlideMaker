@@ -4,17 +4,19 @@
  * quick-260517-fu9 — extracted from ActiveTextBoxCard's inner `HighlightControls`.
  *
  * Renders the "text background" (highlight) editor: a 4-swatch color row +
- * native palette opener, a Tight/Full style toggle, and a padding slider.
- * It edits `TextBox.effects.highlight` — the fill rendered behind a text
- * element. The component was inline-only inside the TEXT-tab card; extracting
- * it lets the Elements tab mount the SAME control without building a new
- * picker.
+ * native palette opener and a Tight/Full style toggle. It edits
+ * `TextBox.effects.highlight` — the fill rendered behind a text element.
  *
- * IMPORTANT: every `data-testid` is preserved verbatim from the original inner
- * component (`highlight-color-row`, `highlight-style-tight`,
- * `highlight-style-full`, `highlight-padding`) so the existing
- * ActiveTextBoxCard tests keep passing. The `+ '88'` alpha-suffix convention
- * (8-digit hex the renderer expects) is unchanged — zero render-path impact.
+ * quick-260517-iiy — the padding slider was removed. `TextHighlightEffect.padding`
+ * stays in the data model (legacy slides keep their stored value) but is no
+ * longer exposed in the UI and no longer read by the renderer — the tight
+ * highlight uses a fixed built-in inset.
+ *
+ * IMPORTANT: every remaining `data-testid` is preserved verbatim from the
+ * original inner component (`highlight-color-row`, `highlight-style-tight`,
+ * `highlight-style-full`) so the existing ActiveTextBoxCard tests keep
+ * passing. The `+ '88'` alpha-suffix convention (8-digit hex the renderer
+ * expects) is unchanged — zero render-path impact.
  */
 
 import { Icon } from '@/components/ui/icon'
@@ -86,25 +88,6 @@ export function TextBackgroundControls({
             {style === 'tight' ? 'Tight' : 'Full'}
           </button>
         ))}
-      </div>
-      <div className="space-y-1">
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
-            Padding
-          </span>
-          <span className="text-[10px] font-bold text-[#3d0000]">{highlight.padding}px</span>
-        </div>
-        <input
-          type="range"
-          data-testid="highlight-padding"
-          min={4}
-          max={24}
-          step={2}
-          value={highlight.padding}
-          onChange={(e) => onChange({ padding: Number(e.target.value) })}
-          aria-label="Highlight padding"
-          className="w-full h-1 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3d0000] focus-visible:ring-offset-1"
-        />
       </div>
     </>
   )
