@@ -9,11 +9,23 @@
  * slide the photo is an <img> covering the top portion; the remainder shows the
  * slide background color (the user's reported "yellow panel").
  *
- * Two controls:
- *   1. Color — recolors the panel (style_overrides.background_color hex).
- *   2. Height — moves the photo / caption-panel boundary
+ * Controls:
+ *   1. Caption panel on/off Switch — turns the caption panel on or off. OFF
+ *      reverts the slide to a full-bleed photo (no panel).
+ *   2. Bottom/Top position radiogroup — places the panel at the bottom or top.
+ *   3. Color — recolors the panel (style_overrides.background_color hex).
+ *   4. Height — moves the photo / caption-panel boundary
  *      (style_overrides.news_image_height, the PHOTO height percent). A LARGER
  *      photo means a SHORTER caption panel.
+ *
+ * quick-260517-jfg: the on/off Switch + Bottom/Top radiogroup map onto the
+ * existing `style_overrides.layout` field (no new field). The mapping:
+ *   ON + Bottom → layout: 'cover'   (photo top, caption panel bottom)
+ *   ON + Top    → layout: 'body'    (photo bottom, caption panel top)
+ *   OFF         → the `layout` KEY is DELETED — the slide reverts to the
+ *                 full-bleed background-image branch already handled by all 3
+ *                 renderers (no render-path change). The Color row and
+ *                 Photo-height slider are hidden while OFF.
  *
  * UNLIKE CaptionBarControls, this card is NOT gated on `backgroundMode` — every
  * selected slide has a background color, so the card is ALWAYS visible (the
@@ -35,6 +47,7 @@
 import { useEffect, useState } from 'react'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import { Switch } from '@/components/ui/switch'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
 
 /**
@@ -85,6 +98,13 @@ export function SlideBackgroundControls({
   // active swatch reflects what the slide actually renders.
   const color = slide.style_overrides?.background_color ?? template.backgroundColor
 
+  // quick-260517-jfg: caption-panel on/off + position state derived from the
+  // single `style_overrides.layout` field. Panel is ON iff `layout` is set;
+  // `position` defaults to 'cover' (panel at bottom) for the radiogroup.
+  const layout = slide.style_overrides?.layout
+  const captionPanelOn = layout != null
+  const position: 'cover' | 'body' = layout ?? 'cover'
+
   // quick-260517-iiy: resolved photo-height percent. Falls back to the
   // NEWS_LAYOUT cover preset (55). The slider stores PHOTO height — a larger
   // photo means a shorter caption panel.
@@ -103,6 +123,16 @@ export function SlideBackgroundControls({
    *  entry, so this always goes through the committing dispatch. */
   function patch(p: Partial<SlideStyleOverrides>) {
     const next = { ...(slide.style_overrides ?? {}), ...p }
+    onSlideUpdate({ style_overrides: next })
+  }
+
+  /** quick-260517-jfg: turn the caption panel OFF. DELETES the `layout` key
+   *  (does not set it to `undefined`) so the resulting slide is byte-identical
+   *  to one that never had a caption panel — the renderers' `newsZone` gate is
+   *  truthy only when `layout` is a defined key. Sibling overrides are kept. */
+  function setLayoutOff() {
+    const next = { ...(slide.style_overrides ?? {}) }
+    delete next.layout
     onSlideUpdate({ style_overrides: next })
   }
 
@@ -128,6 +158,72 @@ export function SlideBackgroundControls({
         Color and height of the panel your captions sit on.
       </p>
 
+      {/* quick-260517-jfg: on/off toggle — turns the caption panel on/off.
+          Row markup copied from WatermarkControls' "Show watermark" toggle.
+          ON → layout: 'cover'; OFF → the layout key is deleted (full-bleed). */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-[#3d0000]">
+          Caption panel
+        </span>
+        <Switch
+          aria-label="Caption panel"
+          data-testid="caption-card-toggle"
+          checked={captionPanelOn}
+          onCheckedChange={(checked) =>
+            checked ? patch({ layout: 'cover' }) : setLayoutOff()
+          }
+        />
+      </div>
+
+      {/* quick-260517-jfg: panel position — Bottom/Top radiogroup. cover = panel
+          at the bottom (photo top), body = panel at the top (photo bottom).
+          Only shown while the panel is ON — position is meaningless when OFF.
+          Button styling copied verbatim from caption-bar-controls.tsx. */}
+      {captionPanelOn && (
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
+            Position
+          </span>
+          <div
+            className="flex gap-2"
+            role="radiogroup"
+            aria-label="Caption panel position"
+          >
+            {(
+              [
+                { value: 'cover', label: 'Bottom' },
+                { value: 'body', label: 'Top' },
+              ] as const
+            ).map((opt) => {
+              const active = position === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  data-testid={`caption-card-position-${opt.value}`}
+                  onClick={() => patch({ layout: opt.value })}
+                  className={
+                    active
+                      ? 'flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-[#3d0000] text-white'
+                      : 'flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-white text-[#7d6161] border border-[#dbc1bc]/30 hover:bg-[#fadbdb]'
+                  }
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Color + Photo-height are only meaningful when the panel is ON, so they
+          are gated behind `captionPanelOn`. The on/off Switch and position
+          radiogroup above stay visible regardless. The heightDraft hooks above
+          remain unconditional (rules-of-hooks) — only this JSX is gated. */}
+      {captionPanelOn && (
+      <>
       {/* Color — swatch-row picker copied verbatim from caption-bar-controls.tsx:
           round COLOR_SWATCHES preset circles + a circular palette-icon button
           wrapping a hidden native <input type="color"> for arbitrary hex. Both
@@ -217,6 +313,8 @@ export function SlideBackgroundControls({
           A taller photo leaves a shorter caption panel.
         </p>
       </div>
+      </>
+      )}
     </div>
   )
 }

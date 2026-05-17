@@ -167,7 +167,7 @@ describe('SlideBackgroundControls', () => {
     it('seeds the slider from news_image_height (falls back to 55 preset)', () => {
       render(
         <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: {} })}
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
           template={TMPL}
           onSlideUpdate={vi.fn()}
           onSlidePreview={vi.fn()}
@@ -180,7 +180,9 @@ describe('SlideBackgroundControls', () => {
     it('seeds the slider from a stored news_image_height override', () => {
       render(
         <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { news_image_height: 70 } })}
+          slide={makeSlide({
+            style_overrides: { layout: 'cover', news_image_height: 70 },
+          })}
           template={TMPL}
           onSlideUpdate={vi.fn()}
           onSlidePreview={vi.fn()}
