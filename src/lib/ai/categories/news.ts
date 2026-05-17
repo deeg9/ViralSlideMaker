@@ -23,11 +23,18 @@ HEADLINE-FIRST — THE HEADLINE IS THE DOMINANT TEXT ELEMENT:
 - The first (cover) slide has NO body text.
 
 ACCENT THE NEWSWORTHY KEYWORDS:
-- For EVERY slide, populate \`hook_segments\`: split the headline into 4-8 short runs
-  (usually one word each; 2-word phrases like "DARK WEB" or "19 MILLION" may stay together).
+- \`hook_segments\` IS MANDATORY ON EVERY SLIDE. It must be a non-empty array.
+  Omitting \`hook_segments\`, or returning an empty array, is a hard error — every
+  single slide must include it.
+- \`hook_segments\` must reproduce the FULL \`hook_text\`: split the headline into
+  4-8 short runs (usually one word each; 2-word phrases like "DARK WEB" or
+  "19 MILLION" may stay together). The runs concatenated back together MUST equal
+  the headline text.
 - Mark 1-3 segments per headline as \`accent: true\` — the most newsworthy proper nouns
   and numbers. Never accent connector words ("a", "the", "of", "on", "and", "is", "to").
 - Every headline MUST have at least one \`accent: true\` segment.
+- The accented keywords are rendered as highlighted PILLS (a colored background
+  behind the word), so choose words that genuinely deserve that emphasis.
 
 OPTIONAL KICKER LABEL:
 - You MAY emit an optional \`accessory_label\` — a small kicker like "TRENDING NEWS",
