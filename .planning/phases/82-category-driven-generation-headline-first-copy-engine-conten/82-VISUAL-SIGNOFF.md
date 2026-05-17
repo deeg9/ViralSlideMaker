@@ -83,3 +83,33 @@ human judgment. The user must re-generate sample News carousels via the News
 category and confirm the output now matches `~/Desktop/Screenshot 2026-05-17 at
 2.13.25 PM.png` (big headline + pill-highlighted keywords). This autonomous run
 does NOT mark the visual sign-off approved.
+
+## R10 round 2 — NEEDS WORK (2026-05-17, deferred pending 260517-k2n)
+
+User re-tested after the gap-closure (News, "Major tech company announces 19,000
+layoffs"). Pills + large headline now generate — but two new defects, and the
+proper fix is **blocked on a parallel task**.
+
+- **Defect D — headline overflows / breaks mid-word.** Ref `~/Desktop/Screenshot
+  2026-05-17 at 3.04.57 PM.png`: the flat `NEWS_HEADLINE_FONT_SIZE = 200` is too
+  big; "ANNOUNCES" splits into "ANNOUNCE" + orphaned "S". The headline must
+  **auto-fit** its box (whole words, no overflow), not use a fixed size. Target:
+  `~/Desktop/Screenshot 2026-05-17 at 3.06.22 PM.png` (font ~142, contained in
+  the bottom black caption card).
+- **Defect E — word-break.** The renderer breaks words mid-word; needs whole-word
+  wrapping (`overflow-wrap`/`word-break`) so a word never splits.
+- **Smaller follow-up:** the auto-selected photo "isn't the most appealing" —
+  Pexels image-query quality, tracked separately, not blocking R10.
+
+**BLOCKED — deferred by user decision (2026-05-17):** the proper fix is "size the
+headline relative to the caption card." The caption card is being concurrently
+redefined by quick task **`260517-k2n`** (rework caption card into a
+draggable/resizable rectangle — touches `slide-preview.tsx`,
+`render-slide-satori.tsx`, `render-slide.ts`, `resolve-overlay.ts`). Doing the
+auto-fit fix now = merge conflicts with k2n's in-flight worktree + throwaway work
+against soon-to-change geometry. **Decision: hold the R10 headline auto-fit fix
+until `260517-k2n` merges to main, then run an R10 gap-closure against the final
+caption-card geometry.**
+
+**Verdict:** ⛔ PENDING — R10 visual sign-off not approved; headline auto-fit fix
+deferred until `260517-k2n` lands.
