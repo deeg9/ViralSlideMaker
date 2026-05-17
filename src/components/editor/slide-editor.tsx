@@ -1844,33 +1844,6 @@ export function SlideEditor({
                 onWatermarkLogoUpload={handleWatermarkLogoUpload}
                 onWatermarkLogoRemove={handleWatermarkLogoRemove}
                 isWatermarkPending={isWatermarkPending}
-                // quick-260517-fu9: surface the existing text-background
-                // (highlight) color control under the Elements tab. The card
-                // is text-box-scoped — ElementsPanel renders it only when an
-                // active text box is supplied. The lookup mirrors
-                // text-editor-panel.tsx (text_boxes.find by selectedTextBoxId).
-                activeTextBox={
-                  (currentSlide.text_boxes ?? []).find(
-                    (tb) => tb.id === selectedTextBoxId,
-                  ) ?? null
-                }
-                onTextBoxHighlightUpdate={(highlight) => {
-                  const activeTextBox = (currentSlide.text_boxes ?? []).find(
-                    (tb) => tb.id === selectedTextBoxId,
-                  )
-                  if (!activeTextBox) return
-                  // Single UPDATE_TEXT_BOX dispatch — one undo entry per
-                  // change (KBD-09). Same field both tabs write, so canvas
-                  // and PNG export stay in parity (TPLREND-05).
-                  dispatch({
-                    type: 'UPDATE_TEXT_BOX',
-                    slideIndex: selectedIndex,
-                    textBoxId: activeTextBox.id,
-                    updates: {
-                      effects: { ...activeTextBox.effects, highlight },
-                    },
-                  })
-                }}
               />
             )}
             {currentSlide && activeTab === 'images' && (

@@ -22,13 +22,12 @@
 import { Icon } from '@/components/ui/icon'
 import { DIVIDERS } from '@/lib/elements/dividers'
 import { DecorationCard } from './text-rail/decoration-card'
-import { TextBackgroundControls } from './text-rail/text-background-controls'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import { CaptionBarControls } from './caption-bar-controls'
 import { SlideBackgroundControls } from './slide-background-controls'
 import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Decoration } from '@/lib/types/decoration'
-import type { Slide, TextBox, TextHighlightEffect } from '@/lib/types/slide'
+import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
@@ -41,19 +40,6 @@ import type { BrandKit } from '@/lib/types/brand-kit'
  * regardless of which template the user is editing.
  */
 const PREVIEW_STROKE = '#3d0000'
-
-/**
- * quick-260517-fu9: default highlight ("text background") effect used when an
- * active text box has no stored `effects.highlight` yet. Matches
- * DEFAULT_HIGHLIGHT in ActiveTextBoxCard.tsx so the first edit from either tab
- * starts from the same baseline.
- */
-const DEFAULT_TEXT_BG: TextHighlightEffect = {
-  enabled: true,
-  color: '#00000088',
-  style: 'tight',
-  padding: 8,
-}
 
 interface ElementsPanelProps {
   /** Active slide — sibling panels (TextEditorPanel, ImagePickerPanel) take
@@ -115,15 +101,6 @@ interface ElementsPanelProps {
   /** Brand-kit palette + extracted palette piped to DecorationCard swatches. */
   brandKit?: BrandKit | null
   derivedPalette?: string[]
-  /** quick-260517-fu9: the currently-selected text box. When present (and
-   *  `onTextBoxHighlightUpdate` is wired) the panel renders a "Text Background"
-   *  card so the user can recolor the fill behind the text from the Elements
-   *  tab. Optional so isolated tests can omit it. */
-  activeTextBox?: TextBox | null
-  /** quick-260517-fu9: dispatches UPDATE_TEXT_BOX with a merged
-   *  `effects.highlight` for the active text box. Receives the FULL merged
-   *  highlight effect (not a partial) — the caller has already merged. */
-  onTextBoxHighlightUpdate?: (highlight: TextHighlightEffect) => void
 }
 
 export function ElementsPanel({
@@ -148,38 +125,7 @@ export function ElementsPanel({
   isWatermarkPending,
   brandKit,
   derivedPalette,
-  activeTextBox,
-  onTextBoxHighlightUpdate,
 }: ElementsPanelProps) {
-  // quick-260517-fu9: "Text Background" card. Text-box-scoped, so it mounts
-  // only when an active text box + its update callback are both present.
-  // IMPORTANT: it has its OWN conditional — it does NOT inherit the
-  // `slide && template && onSlideUpdate` guard that gates the Caption Bar /
-  // Watermark cards. A missing template must not suppress it. Mounted in
-  // BOTH selection-mode and library-mode renders (same as slideLevelCards).
-  const textBackgroundCard =
-    activeTextBox && onTextBoxHighlightUpdate ? (
-      <section
-        className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3"
-        data-testid="elements-text-background-card"
-      >
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">
-          Text Background
-        </h3>
-        <p className="text-xs text-[#7d6161] leading-snug">
-          Color the fill behind the selected text.
-        </p>
-        <TextBackgroundControls
-          highlight={activeTextBox.effects?.highlight ?? DEFAULT_TEXT_BG}
-          onChange={(partial) =>
-            onTextBoxHighlightUpdate({
-              ...(activeTextBox.effects?.highlight ?? DEFAULT_TEXT_BG),
-              ...partial,
-            })
-          }
-        />
-      </section>
-    ) : null
   // quick-260514-move-slide-cards-to-elements: shared slide-level cards
   // mounted at the bottom of BOTH selection-mode and library-mode renders.
   // The cards are slide-scoped, not selection-scoped, so they stay visible
@@ -254,7 +200,6 @@ export function ElementsPanel({
           brandKit={brandKit}
           derivedPalette={derivedPalette}
         />
-        {textBackgroundCard}
         {slideLevelCards}
       </div>
     )
@@ -345,7 +290,6 @@ export function ElementsPanel({
         </div>
       </section>
 
-      {textBackgroundCard}
       {slideLevelCards}
     </div>
   )
