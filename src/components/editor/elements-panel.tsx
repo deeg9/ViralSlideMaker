@@ -143,6 +143,7 @@ export function ElementsPanel({
           slide={slide}
           template={resolvePerSlideTemplate(slide, template)}
           onSlideUpdate={onSlideUpdate}
+          onSlidePreview={onSlidePreview ?? onSlideUpdate}
         />
         {/* quick-260515-k12: Caption Bar card. Needs the per-slide-RESOLVED
             template (the slide may carry a template_id_override) for both its

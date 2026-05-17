@@ -258,6 +258,13 @@ export function buildSlideHtml(
   const overlayColor = overrides.overlay_color ?? template.overlayColor
   const newsZone =
     !isColorOnlyTemplate && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
+  // quick-260517-iiy: constrained news-photo height — `news_image_height`
+  // override ?? NEWS_LAYOUT preset, clamped to [20, 80] (threat T-iiy-01).
+  // Unset → byte-identical legacy rendering (TPLREND-05). Mirrors
+  // slide-preview.tsx + render-slide-satori.tsx.
+  const newsImageHeight = newsZone
+    ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
+    : null
 
   // quick-260517-h8z: user-controlled slide background color. Falls back to
   // template default. TPLREND-05 mirror of slide-preview.tsx +
@@ -292,7 +299,7 @@ export function buildSlideHtml(
   // Suppressed entirely on color-only templates (newsZone is already null above
   // for that case, but guarding here too makes the intent explicit).
   const newsBgImageHtml = newsZone && slide.background_url && !isColorOnlyTemplate
-    ? `<img src="${slide.background_url}" style="position:absolute; left:0; top:${newsZone.imageTop}%; width:100%; height:${newsZone.imageHeight}%; object-fit:cover; z-index:0;" />`
+    ? `<img src="${slide.background_url}" style="position:absolute; left:0; top:${newsZone.imageTop}%; width:100%; height:${newsImageHeight ?? newsZone.imageHeight}%; object-fit:cover; z-index:0;" />`
     : ''
 
   // Build custom image HTML

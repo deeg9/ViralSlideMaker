@@ -192,6 +192,13 @@ export function buildSlideElement(
     !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
       ? NEWS_LAYOUT[overrides.layout]
       : null
+  // quick-260517-iiy: constrained news-photo height — `news_image_height`
+  // override ?? NEWS_LAYOUT preset, clamped to [20, 80] (threat T-iiy-01).
+  // Unset → byte-identical legacy rendering (TPLREND-05). Mirrors
+  // slide-preview.tsx + render-slide.ts.
+  const newsImageHeight = newsZone
+    ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
+    : null
 
   // Templates with a hook-fit registry entry auto-shrink hook size for long
   // headlines. quick-260510-export-overlap: in news layouts (where bodyY is
@@ -386,7 +393,9 @@ export function buildSlideElement(
             top: newsZone ? pxY(newsZone.imageTop) : 0,
             left: 0,
             width: W,
-            height: newsZone ? pxY(newsZone.imageHeight) : H,
+            // quick-260517-iiy: news_image_height override moves the photo /
+            // caption-panel boundary; falls back to the preset.
+            height: newsZone ? pxY(newsImageHeight ?? newsZone.imageHeight) : H,
             objectFit: 'cover',
             objectPosition: 'center',
           }}

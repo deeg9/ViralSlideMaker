@@ -785,6 +785,14 @@ export function SlidePreview({
     !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
       ? NEWS_LAYOUT[overrides.layout]
       : null
+  // quick-260517-iiy: the constrained news-photo height. Falls back to the
+  // NEWS_LAYOUT preset when `news_image_height` is unset → byte-identical
+  // legacy rendering (TPLREND-05). Clamped to [20, 80] so a hand-edited
+  // payload cannot push the photo off-canvas (threat T-iiy-01). Mirrored in
+  // render-slide-satori.tsx + render-slide.ts.
+  const newsImageHeight = newsZone
+    ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
+    : null
   const useBgMode = isTemplateBgMode
   const useBottomCard =
     useBgMode && template.backgroundMode === 'image-with-bottom-card'
@@ -960,7 +968,9 @@ export function SlidePreview({
         left: 0,
         top: `${newsZone.imageTop}%`,
         width: '100%',
-        height: `${newsZone.imageHeight}%`,
+        // quick-260517-iiy: news_image_height override moves the photo /
+        // caption-panel boundary; falls back to the preset (newsImageHeight).
+        height: `${newsImageHeight ?? newsZone.imageHeight}%`,
         objectFit: 'cover',
         zIndex: 0,
       }}
