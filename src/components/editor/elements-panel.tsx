@@ -189,7 +189,15 @@ export function ElementsPanel({
         {/* quick-260515-k12: Caption Bar card. Needs the per-slide-RESOLVED
             template (the slide may carry a template_id_override) for both its
             visibility gate and the color-picker default. CaptionBarControls
-            self-gates on backgroundMode, so it is mounted unconditionally. */}
+            self-gates on backgroundMode, so it is mounted unconditionally.
+
+            quick-260517-h8z: passing the PER-SLIDE-RESOLVED template here is
+            load-bearing — it makes CaptionBarControls' visibility gate mirror
+            the renderer's `useBottomCard` condition. A Style-from-Reference
+            `caption-bar-bottom` slide carries `template_id_override:
+            'magazine-bold'` (a bottom-card template) without changing the
+            project-level `template`, so resolving here is what surfaces the
+            card for that slide. Do NOT pass the raw `template`. */}
         <CaptionBarControls
           slide={slide}
           template={resolvePerSlideTemplate(slide, template)}
