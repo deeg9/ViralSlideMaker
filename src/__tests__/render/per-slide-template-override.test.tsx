@@ -11,13 +11,18 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 /**
  * quick-260515-epn — integration coverage for per-slide template_id_override
  * across the SlidePreview (DOM) AND buildSlideElement (Satori VDOM) render
- * surfaces. The bottom-card div (magazine-bold's
- * backgroundMode='image-with-bottom-card' marker) is the load-bearing
- * locator: present when the override is honored, ABSENT when the slide
- * has no override and the project template is bold-yellow.
+ * surfaces.
+ *
+ * quick-260517-k2n update: the caption card is no longer backgroundMode-gated
+ * template chrome — it is an opt-in overlay that renders ONLY when
+ * `style_overrides.caption_bar_enabled === true` (data-testid renamed
+ * bottom-card → caption-card). The override-active fixtures therefore carry
+ * `caption_bar_enabled: true` so the caption-card marker is the load-bearing
+ * locator: present when the override is honored, ABSENT when the slide has no
+ * override (and no caption_bar_enabled flag).
  *
  * TPLREND-05 byte-identity gate (Test 2 + Test 4): the override-absent
- * branches assert the legacy DOM/VDOM has NO bottom-card — proving the
+ * branches assert the legacy DOM/VDOM has NO caption-card — proving the
  * helper does not silently rewrite legacy slides.
  */
 
@@ -48,20 +53,25 @@ function styleOf(node: unknown): Record<string, unknown> | null {
   return props?.style ?? null
 }
 
-function findBottomCardNode(element: unknown): unknown | null {
+function findCaptionCardNode(element: unknown): unknown | null {
   const nodes = walk(element)
   for (const n of nodes) {
     const s = styleOf(n)
     if (!s) continue
-    // The Satori bottom-card is the only node that combines `position: 'absolute'`
-    // with an explicit numeric top of 1190 (62% of 1920) AND height 730 (38% of
-    // 1920) AND padding 80. Match on the top + padding + display:'flex' triple
-    // which is unique to the bottom-card layer.
+    // quick-260517-k2n: the Satori caption-card layer is an absolute-positioned
+    // flex column with default geometry derived from resolveCaptionBar — with a
+    // `bottom` position + 38% height the resolver yields y = 62, so top = 1190
+    // (62% of 1920) AND height = 730 (38% of 1920) AND width = 1080 (100% of
+    // 1080). It carries display:'flex' + flexDirection:'column' and (unlike the
+    // retired bottom-card chrome) NO padding. Match the top + height + width +
+    // flexDirection quad which is unique to the caption-card layer.
     if (
       s.position === 'absolute' &&
       s.top === Math.round(1920 * 0.62) &&
-      s.padding === 80 &&
-      s.display === 'flex'
+      s.height === Math.round(1920 * 0.38) &&
+      s.width === 1080 &&
+      s.display === 'flex' &&
+      s.flexDirection === 'column'
     ) {
       return n
     }
@@ -83,9 +93,14 @@ const baseSlide: Slide = {
 }
 
 const slideWithoutOverride: Slide = { ...baseSlide }
+// quick-260517-k2n: the caption card is opt-in — `caption_bar_enabled: true`
+// makes resolveCaptionBar(...).enabled true so the caption-card layer renders.
+// Paired with the per-slide template_id_override to keep this fixture the
+// "override honored AND card visible" case.
 const slideWithOverride: Slide = {
   ...baseSlide,
   template_id_override: 'magazine-bold',
+  style_overrides: { caption_bar_enabled: true },
 }
 
 function makeBrandKit(): BrandKit {
@@ -104,10 +119,10 @@ function makeBrandKit(): BrandKit {
 
 describe('quick-260515-epn — per-slide template_id_override across surfaces', () => {
   // ---------------------------------------------------------------------------
-  // Test 1: Browser preview — override-active surfaces the bottom-card marker.
+  // Test 1: Browser preview — override-active surfaces the caption-card marker.
   // ---------------------------------------------------------------------------
-  it('SlidePreview (DOM): override → renders magazine-bold bottom-card marker', () => {
-    const projectTemplate = getTemplate('bold-yellow') // bold-yellow has no bottom-card
+  it('SlidePreview (DOM): override → renders magazine-bold caption-card marker', () => {
+    const projectTemplate = getTemplate('bold-yellow') // bold-yellow has no caption card
     const effective = resolvePerSlideTemplate(slideWithOverride, projectTemplate)
     expect(effective.id).toBe('magazine-bold') // sanity
 
@@ -120,16 +135,16 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
         totalSlides={1}
       />,
     )
-    // slide-preview.tsx line 183: data-testid="bottom-card" wraps the
-    // image-with-bottom-card layer.
-    expect(container.querySelector('[data-testid="bottom-card"]')).not.toBeNull()
+    // quick-260517-k2n: CaptionCardLayer renders data-testid="caption-card"
+    // when slide.style_overrides.caption_bar_enabled === true.
+    expect(container.querySelector('[data-testid="caption-card"]')).not.toBeNull()
   })
 
   // ---------------------------------------------------------------------------
-  // Test 2: Browser preview — override-absent does NOT render the bottom-card
+  // Test 2: Browser preview — override-absent does NOT render the caption-card
   // (TPLREND-05 byte-identity — legacy bold-yellow slide still bold-yellow).
   // ---------------------------------------------------------------------------
-  it('SlidePreview (DOM): no override → NO bottom-card; legacy template preserved', () => {
+  it('SlidePreview (DOM): no override → NO caption-card; legacy template preserved', () => {
     const projectTemplate = getTemplate('bold-yellow')
     const effective = resolvePerSlideTemplate(slideWithoutOverride, projectTemplate)
     // Byte-identity gate: same reference.
@@ -144,15 +159,15 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
         totalSlides={1}
       />,
     )
-    expect(container.querySelector('[data-testid="bottom-card"]')).toBeNull()
+    expect(container.querySelector('[data-testid="caption-card"]')).toBeNull()
   })
 
   // ---------------------------------------------------------------------------
-  // Test 3: Satori VDOM — override-active produces the bottom-card div.
+  // Test 3: Satori VDOM — override-active produces the caption-card div.
   // buildSlideElement re-resolves slide.template_id_override INTERNALLY; the
   // route layer keeps passing the project-level effectiveTemplate unchanged.
   // ---------------------------------------------------------------------------
-  it('buildSlideElement (Satori): override → returned VDOM contains bottom-card div', () => {
+  it('buildSlideElement (Satori): override → returned VDOM contains caption-card div', () => {
     const projectTemplate = getTemplate('bold-yellow')
     const element = buildSlideElement(
       slideWithOverride,
@@ -162,13 +177,13 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
       'http://localhost',
       { slideIndex: 0, totalSlides: 1, topic: 'test' },
     )
-    expect(findBottomCardNode(element)).not.toBeNull()
+    expect(findCaptionCardNode(element)).not.toBeNull()
   })
 
   // ---------------------------------------------------------------------------
-  // Test 4: Satori VDOM — override-absent does NOT produce the bottom-card.
+  // Test 4: Satori VDOM — override-absent does NOT produce the caption-card.
   // ---------------------------------------------------------------------------
-  it('buildSlideElement (Satori): no override → returned VDOM has NO bottom-card div', () => {
+  it('buildSlideElement (Satori): no override → returned VDOM has NO caption-card div', () => {
     const projectTemplate = getTemplate('bold-yellow')
     const element = buildSlideElement(
       slideWithoutOverride,
@@ -178,7 +193,7 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
       'http://localhost',
       { slideIndex: 0, totalSlides: 1, topic: 'test' },
     )
-    expect(findBottomCardNode(element)).toBeNull()
+    expect(findCaptionCardNode(element)).toBeNull()
   })
 
   // ---------------------------------------------------------------------------
@@ -204,7 +219,7 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
   // handing to SlidePreview, otherwise published carousels with per-slide
   // overrides drift from the original project's visual.
   // ---------------------------------------------------------------------------
-  it('explore-card contract: published-carousel slide with override renders bottom-card', () => {
+  it('explore-card contract: published-carousel slide with override renders caption-card', () => {
     // Simulate the explore-card resolution path — published snapshot's
     // `templateId` field returns a project-level template; the surface
     // applies the per-slide override before mounting SlidePreview.
@@ -222,6 +237,6 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
         editable={false}
       />,
     )
-    expect(container.querySelector('[data-testid="bottom-card"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="caption-card"]')).not.toBeNull()
   })
 })

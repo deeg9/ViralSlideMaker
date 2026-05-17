@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Phase 46 premium templates — Satori snapshots > documentary: renders image-bleed full-bleed + ghosted top-right counter + free-slot gradient + NO bottom-card + NO mint accent > documentary-image-bleed-with-gradient-overlay 1`] = `
+exports[`Phase 46 premium templates — Satori snapshots > documentary: renders image-bleed full-bleed + ghosted top-right counter + free-slot gradient + NO caption-card + NO mint accent > documentary-image-bleed-with-gradient-overlay 1`] = `
 <div
   style={
     {
@@ -99,7 +99,7 @@ exports[`Phase 46 premium templates — Satori snapshots > documentary: renders 
 </div>
 `;
 
-exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: renders image-with-bottom-card + top-left mint chip + top-right counter + bottom-card + mint pill segments > magazine-bold-bottom-card-with-overlays 1`] = `
+exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: renders image-with-bottom-card + top-left mint chip + top-right counter + caption-card + mint pill segments > magazine-bold-bottom-card-with-overlays 1`] = `
 <div
   style={
     {
@@ -148,7 +148,6 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
         "flexDirection": "column",
         "height": 730,
         "left": 0,
-        "padding": 80,
         "position": "absolute",
         "top": 1190,
         "width": 1080,
@@ -189,7 +188,6 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -320,7 +318,6 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         "flexDirection": "column",
         "height": 730,
         "left": 0,
-        "padding": 80,
         "position": "absolute",
         "top": 1190,
         "width": 1080,
@@ -362,7 +359,6 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }

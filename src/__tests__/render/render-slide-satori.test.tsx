@@ -151,15 +151,24 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     expect(bleedImg).toBeDefined()
   })
 
-  // Test 3 — image-with-bottom-card mode (no overlays).
-  it('renders image-with-bottom-card with full-bleed photo + tint + bottom card', () => {
+  // Test 3 — image-with-bottom-card mode with the opt-in caption card.
+  // quick-260517-k2n: the caption card is no longer always-on chrome for
+  // image-with-bottom-card templates — it renders only when
+  // style_overrides.caption_bar_enabled === true. The fixture sets that flag so
+  // the caption-card layer renders; resolveCaptionBar maps the template's
+  // #000000 backgroundColor through bottomCardBackground → rgba(0, 0, 0, 0.85).
+  it('renders image-with-bottom-card with full-bleed photo + tint + caption card', () => {
     const tpl: SlideTemplate = {
       ...baseTemplate,
       backgroundMode: 'image-with-bottom-card',
       backgroundColor: '#000000',
     }
+    const slideWithCaption: Slide = {
+      ...baseSlide,
+      style_overrides: { caption_bar_enabled: true },
+    }
     const element = buildSlideElement(
-      baseSlide,
+      slideWithCaption,
       tpl,
       null,
       'free',
@@ -194,21 +203,23 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     })
     expect(tint).toBeDefined()
 
-    // (c) Bottom-card <div>: top:1190 (62% of 1920), height:730 (38% of 1920),
-    // padding:80, rgba bg. Satori does not honor `bottom: 0 + height: %`
-    // together — explicit numeric pixels are required for proper anchoring.
-    const bottomCard = nodes.find((n) => {
+    // (c) Caption-card <div>: top:1190 (62% of 1920), height:730 (38% of 1920),
+    // rgba bg. quick-260517-k2n — the reworked caption card is an absolute flex
+    // column with NO padding (unlike the retired bottom-card chrome). Satori
+    // does not honor `bottom: 0 + height: %` together — explicit numeric pixels
+    // are required for proper anchoring.
+    const captionCard = nodes.find((n) => {
       if (typeOf(n) !== 'div') return false
       const s = styleOf(n)
       if (s == null) return false
       return (
         s.height === 730 &&
         s.top === 1190 &&
-        s.padding === 80 &&
+        s.flexDirection === 'column' &&
         s.backgroundColor === 'rgba(0, 0, 0, 0.85)'
       )
     })
-    expect(bottomCard).toBeDefined()
+    expect(captionCard).toBeDefined()
   })
 
   // Test 4 — Overlays in image-with-bottom-card mode. quick-260514-kv9:
@@ -425,7 +436,9 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     expect(element).toMatchSnapshot('mutex-news-layout-wins')
 
     const nodes = walk(element)
-    // No bottom-card div should be present (legacy NEWS_LAYOUT path runs).
+    // No caption/bottom card div should be present: the legacy NEWS_LAYOUT path
+    // runs (layout=cover wins) AND the fixture sets no caption_bar_enabled
+    // override, so resolveCaptionBar(...).enabled is false (quick-260517-k2n).
     const bottomCard = nodes.find((n) => {
       if (typeOf(n) !== 'div') return false
       const s = styleOf(n)

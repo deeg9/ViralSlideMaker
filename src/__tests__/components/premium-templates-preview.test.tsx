@@ -106,11 +106,15 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
     expect(screen.queryByTestId('overlay-top-right')).toBeNull()
   })
 
-  it('magazine-bold: renders bottom-card with rgba(0,0,0,0.85) backgroundMode=image-with-bottom-card', () => {
+  it('magazine-bold: renders caption-card with rgba(0,0,0,0.85) when caption_bar_enabled', () => {
     const template = getTemplate('magazine-bold')
+    // quick-260517-k2n: the caption card is opt-in — `caption_bar_enabled: true`
+    // makes resolveCaptionBar(...).enabled true so CaptionCardLayer renders.
+    // magazine-bold's #000000 backgroundColor resolves to rgba(0, 0, 0, 0.85).
     const slide = makeSlide({
       hook_text: template.sample!.hook_text,
       body_text: template.sample!.body_text,
+      style_overrides: { caption_bar_enabled: true },
     })
     render(
       <SlidePreview
@@ -122,9 +126,9 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
         topic="folk-music"
       />,
     )
-    const bottomCard = screen.getByTestId('bottom-card')
-    expect(bottomCard).toBeInTheDocument()
-    expect(styleHas(bottomCard, 'rgba(0, 0, 0, 0.85)') || styleHas(bottomCard, 'rgba(0,0,0,0.85)')).toBe(true)
+    const captionCard = screen.getByTestId('caption-card')
+    expect(captionCard).toBeInTheDocument()
+    expect(styleHas(captionCard, 'rgba(0, 0, 0, 0.85)') || styleHas(captionCard, 'rgba(0,0,0,0.85)')).toBe(true)
   })
 
   it('magazine-bold: renders mint pill <span> on FIGHTS BACK and CLONED HER VOICE segments with parity-locked style', () => {
@@ -275,7 +279,7 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
     expect(screen.getByTestId('bg-bleed')).toBeInTheDocument()
   })
 
-  it('documentary: NO bottom-card — image-bleed mode locks this', () => {
+  it('documentary: NO caption-card — fixture sets no caption_bar_enabled override', () => {
     const template = getTemplate('documentary')
     const slide = makeSlide({
       hook_text: template.sample!.hook_text,
@@ -290,7 +294,9 @@ describe('Phase 46 premium templates — <SlidePreview> DOM signature parity', (
         totalSlides={5}
       />,
     )
-    expect(screen.queryByTestId('bottom-card')).toBeNull()
+    // quick-260517-k2n: caption card is opt-in — with no caption_bar_enabled
+    // override resolveCaptionBar(...).enabled is false and nothing renders.
+    expect(screen.queryByTestId('caption-card')).toBeNull()
   })
 
   it('documentary: top-right page-counter overlay suppressed (quick-260514-kv9)', () => {
