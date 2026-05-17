@@ -28,6 +28,13 @@ import type {
 // legacyToTextBoxes
 // -----------------------------------------------------------------------------
 
+/**
+ * Phase 82 (R5): font size (px in the 1080x1920 reference) for the small
+ * accessory-label kicker box. Deliberately small so the headline stays the
+ * dominant element — matches the reference kicker labels ("NEWS", "VIDEO: ICE").
+ */
+const ACCESSORY_LABEL_FONT_SIZE = 32
+
 function hookPosition(slide: Slide): TextBoxPosition {
   const overrides = slide.style_overrides
   if (overrides?.hook_position) {
@@ -111,26 +118,48 @@ export function legacyToTextBoxes(slide: Slide): TextBox[] {
   }
   boxes.push(hook)
 
-  const body: TextBox = {
-    id: crypto.randomUUID(),
-    role: 'body',
-    text: slide.body_text ?? '',
-    ...(slide.body_segments !== undefined ? { segments: slide.body_segments } : {}),
-    ...(overrides?.body_font_family !== undefined ? { font_family: overrides.body_font_family } : {}),
-    ...(overrides?.body_font_size !== undefined ? { font_size: overrides.body_font_size } : {}),
-    ...(overrides?.body_font_weight !== undefined ? { font_weight: overrides.body_font_weight } : {}),
-    ...(overrides?.body_font_style !== undefined ? { font_style: overrides.body_font_style } : {}),
-    ...(overrides?.body_text_color !== undefined ? { color: overrides.body_text_color } : {}),
-    ...(overrides?.text_align !== undefined ? { text_align: overrides.text_align } : {}),
-    ...(overrides?.body_text_effects !== undefined ? { effects: overrides.body_text_effects } : {}),
-    position: bodyPosition(slide),
+  // Phase 82 (R4): body_text is optional — headline-only slides are
+  // first-class. Only emit a body TextBox when body_text is a non-empty
+  // string. An absent/empty body produces NO body box (the headline box is
+  // still emitted). Slides that DO carry body_text behave exactly as before
+  // (pre-Phase-82 byte-identity preserved).
+  if (typeof slide.body_text === 'string' && slide.body_text.length > 0) {
+    const body: TextBox = {
+      id: crypto.randomUUID(),
+      role: 'body',
+      text: slide.body_text,
+      ...(slide.body_segments !== undefined ? { segments: slide.body_segments } : {}),
+      ...(overrides?.body_font_family !== undefined ? { font_family: overrides.body_font_family } : {}),
+      ...(overrides?.body_font_size !== undefined ? { font_size: overrides.body_font_size } : {}),
+      ...(overrides?.body_font_weight !== undefined ? { font_weight: overrides.body_font_weight } : {}),
+      ...(overrides?.body_font_style !== undefined ? { font_style: overrides.body_font_style } : {}),
+      ...(overrides?.body_text_color !== undefined ? { color: overrides.body_text_color } : {}),
+      ...(overrides?.text_align !== undefined ? { text_align: overrides.text_align } : {}),
+      ...(overrides?.body_text_effects !== undefined ? { effects: overrides.body_text_effects } : {}),
+      position: bodyPosition(slide),
+    }
+    boxes.push(body)
   }
-  boxes.push(body)
 
   if (slide.custom_texts && slide.custom_texts.length > 0) {
     for (const ct of slide.custom_texts) {
       boxes.push(customTextToBox(ct))
     }
+  }
+
+  // Phase 82 (R5): map an optional accessory_label to a DISTINCT small,
+  // uppercase, top-anchored role='custom' TextBox — the reference kicker
+  // label ("NEWS", "TRENDING NEWS"). It is NOT merged into the headline
+  // hook_text box. Read defensively — accessory_label is optional.
+  if (typeof slide.accessory_label === 'string' && slide.accessory_label.length > 0) {
+    boxes.push({
+      id: crypto.randomUUID(),
+      role: 'custom',
+      text: slide.accessory_label.toUpperCase(),
+      font_size: ACCESSORY_LABEL_FONT_SIZE,
+      text_transform: 'uppercase',
+      position: { anchor: 'top' },
+    })
   }
 
   return boxes

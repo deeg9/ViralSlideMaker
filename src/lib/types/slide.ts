@@ -292,12 +292,18 @@ export interface Watermark {
 export interface Slide {
   /** @deprecated v2.8 — use text_boxes. Retained for backward compat through v2.9. */
   hook_text: string
-  /** @deprecated v2.8 — use text_boxes. Retained for backward compat through v2.9. */
-  body_text: string
+  /** @deprecated v2.8 — use text_boxes. Retained for backward compat through v2.9.
+      Phase 82 (R4): OPTIONAL — headline-only slides have no body text. Consumers
+      must treat an absent body_text as "no body" (e.g. `slide.body_text ?? ''`). */
+  body_text?: string
   /** @deprecated v2.8 — use text_boxes. */
   hook_segments?: TextSegment[]
   /** @deprecated v2.8 — use text_boxes. */
   body_segments?: TextSegment[]
+  /** Phase 82 (R5): optional small accessory label (kicker / one-liner).
+      Emitted by Gemini for News/Facts headline-first slides; mapped to a
+      distinct small top-anchored role='custom' TextBox by legacyToTextBoxes. */
+  accessory_label?: string
   image_query: string
   is_cta: boolean
   background_url: string | null

@@ -123,7 +123,7 @@ export async function generateCarousel(
           batch.map(async (slide, batchIdx) => {
             const slideIdx = i + batchIdx
             try {
-              const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text, slide.is_cta, masterStyle, advancedOptions?.imagePrompt)
+              const prompt = await generateImagePrompt(topic, slide.hook_text, slide.body_text ?? '', slide.is_cta, masterStyle, advancedOptions?.imagePrompt)
               const result = await generateImagenBackground(user.id, prompt, projectId, slideIdx)
               if ('url' in result) {
                 return { ...slide, background_url: result.url, pexels_photo_id: null }

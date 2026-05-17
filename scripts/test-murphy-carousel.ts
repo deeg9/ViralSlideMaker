@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   for (let i = 0; i < carousel.slides.length; i++) {
     const s = carousel.slides[i]
     const hookWords = s.hook_text.trim().split(/\s+/).length
-    const bodyWords = s.body_text.trim().split(/\s+/).length
+    const bodyWords = (s.body_text ?? '').trim().split(/\s+/).filter(Boolean).length
     const hookPills = (s.hook_segments ?? []).filter(seg => seg.highlightColor).length
     console.log(`Slide ${i + 1} (${s.is_cta ? 'CTA' : 'content'}):`)
     console.log(`  hook (${hookWords}w): ${s.hook_text}`)
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
     const aiSlide = carousel.slides[i]
     const slide: Slide = {
       hook_text: aiSlide.hook_text,
-      body_text: aiSlide.body_text,
+      body_text: aiSlide.body_text ?? '',
       hook_segments: aiSlide.hook_segments,
       body_segments: aiSlide.body_segments,
       image_query: aiSlide.image_query,
