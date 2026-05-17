@@ -259,8 +259,11 @@ export function buildSlideElement(
   // News layouts always paint a solid background — the image renders as a constrained <img>.
   // Color-only templates always paint a solid background regardless of any
   // persisted slide.background_url (the photo is suppressed below).
+  // quick-260517-h8z: user-controlled slide background color. Falls back to
+  // template default. TPLREND-05 mirror of slide-preview.tsx + render-slide.ts
+  // via `overrides.background_color ?? template.backgroundColor`.
   if (!slide.background_url || newsZone || isColorOnlyTemplate) {
-    rootStyle.backgroundColor = template.backgroundColor
+    rootStyle.backgroundColor = overrides.background_color ?? template.backgroundColor
   }
 
   // quick-260515-nhf: hook casing/font/italic resolved via the shared
