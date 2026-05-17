@@ -2,7 +2,7 @@
 
 import { Icon } from '@/components/ui/icon'
 import { SlidePreview } from '@/components/slides/slide-preview'
-import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
+import type { Slide, TextPosition, CustomText, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { BrandKit } from '@/lib/types/brand-kit'
 // quick-260515-epn: canvas resolves per-slide template_id_override for the
@@ -103,6 +103,9 @@ interface SlideCanvasProps {
     id: string,
     size: { width: number; height: number },
   ) => void
+  // quick-260517-k2n: caption-card geometry commit pass-through. SlideCanvas is
+  // a thin forwarding wrapper — slide-editor.tsx wires this to handleUpdate.
+  onCaptionBarUpdate?: (updates: Partial<SlideStyleOverrides>) => void
 }
 
 export function SlideCanvas({
@@ -141,6 +144,7 @@ export function SlideCanvas({
   onAlign,
   onDecorationPositionChange,
   onDecorationSizeChange,
+  onCaptionBarUpdate,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   if (!currentSlide) return null
@@ -209,6 +213,7 @@ export function SlideCanvas({
             onAlign={onAlign}
             onDecorationPositionChange={onDecorationPositionChange}
             onDecorationSizeChange={onDecorationSizeChange}
+            onCaptionBarUpdate={onCaptionBarUpdate}
           />
           {/* quick-260514-ksh: IG feed safe-zone overlay + IG Grid toggle
               chip removed per user request. */}
