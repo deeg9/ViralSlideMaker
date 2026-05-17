@@ -1,8 +1,31 @@
 ---
 phase: 82-category-driven-generation-headline-first-copy-engine-conten
-verified: 2026-05-17T14:55:00Z
-status: gaps_found
-score: 9/10 — R10 visual sign-off NEEDS WORK (headline auto-fit + word-break); R10 gap-closure round 2 now UNBLOCKED
+verified: 2026-05-17T16:10:00Z
+status: human_needed
+score: 9/10 — R10 gap-closure round 2 (Gaps D + E) fixed in code; R10 visual sign-off awaits user re-test
+
+> **Update 2026-05-17 (R10 round 2) — GAP-CLOSURE COMPLETE; visual sign-off
+> human_needed.** Gaps D + E are fixed via gap-closure Plans 08 + 09 (commits
+> `d0763ed`, `28c4d5e`; merged to main `949af81`):
+> - **Gap D — FIXED (`82-08`).** The flat `NEWS_HEADLINE_FONT_SIZE = 200` is
+>   removed. New pure `fitHeadlineToBox` auto-fit in `hook-fit.ts` sizes the
+>   headline as large as fits its box (ceiling 240 / floor 64) without
+>   overflowing or splitting a word; `captionCardBox` derives the fit box from
+>   the k2n draggable caption card. `promoteNewsHeadline` now sizes each
+>   headline via the auto-fit against the default news hook box.
+> - **Gap E — FIXED (`82-09`).** `renderSegments` per-segment span wrap flipped
+>   `overflow-wrap: break-word` → `normal` (both pill + plain branches) — words
+>   wrap only at spaces, never split mid-word. New `resolveNewsHeadlineFit`
+>   re-fits the headline to an enabled caption card; wired identically into all
+>   three render paths (Satori / canvas / HTML).
+> All structural tests pass; render-parity regenerated narrowly (only the
+> `overflow-wrap` flip on segmented-hook fixtures — no unrelated template
+> changed); the full suite holds at its 43-failure pre-existing
+> `quick-260515-o75` baseline (zero new failures). Code review CLEAN. The R10
+> **visual** sign-off remains a human judgment — the user must re-generate a
+> News carousel and confirm the headline is cleanly contained (whole words, no
+> overflow), matching `~/Desktop/Screenshot 2026-05-17 at 3.06.22 PM.png`.
+> Status is `human_needed` on that single remaining item.
 
 > **Update 2026-05-17 (R10 round 2) — UNBLOCKED; gap-closure proceeding.**
 > 260517-k2n (caption-card rework into a draggable overlay) has merged to main
