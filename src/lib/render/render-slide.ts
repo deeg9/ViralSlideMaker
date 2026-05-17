@@ -348,7 +348,7 @@ export function buildSlideHtml(
     const bodyBase = isColorOnlyTemplate
       ? textColor
       : overrides.body_text_color ?? textColor
-    const bodyInner = renderSegments(slide.body_text, slide.body_segments, bodyBase, accentColor)
+    const bodyInner = renderSegments(slide.body_text ?? '', slide.body_segments, bodyBase, accentColor)
     return bodyHL.spanWrap
       ? `<span style="${bodyHL.spanCSS}">${bodyInner}</span>`
       : bodyInner

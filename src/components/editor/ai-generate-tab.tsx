@@ -52,7 +52,7 @@ export function AIGenerateTab({
     generateImagePromptAction(
       topic,
       slide.hook_text,
-      slide.body_text,
+      slide.body_text ?? '',
       slide.is_cta,
     )
       .then((result) => {

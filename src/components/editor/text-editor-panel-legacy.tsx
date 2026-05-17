@@ -57,7 +57,7 @@ export function LegacyTextEditorPanel({
 
   // Resolve segments — fall back to splitting the current text so the chips always render.
   const hookSegments: TextSegment[] = slide.hook_segments ?? splitToSegments(slide.hook_text)
-  const bodySegments: TextSegment[] = slide.body_segments ?? splitToSegments(slide.body_text)
+  const bodySegments: TextSegment[] = slide.body_segments ?? splitToSegments(slide.body_text ?? '')
 
   function toggleHookAccent(index: number) {
     const next = hookSegments.map((s, i) => i === index ? { ...s, accent: !s.accent } : s)

@@ -530,7 +530,7 @@ export function buildSlideElement(
       {!bodyBox?.hidden && (
         <div style={bodyStyle}>
           {renderTextBlock(
-            slide.body_text,
+            slide.body_text ?? '',
             slide.body_segments,
             bodyBox?.list_type,
             bodyBox?.list_indent,

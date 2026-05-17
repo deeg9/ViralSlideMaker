@@ -46,8 +46,10 @@ export interface OverflowFinding {
 }
 
 // Premium-tier scope only (D-01) — legacy templates always return [].
+// Phase 82 (R4): body_text is optional — headline-only slides have no body.
+// The body length-cap check is skipped when body_text is absent/empty.
 export function detectOverflows(
-  slides: ReadonlyArray<{ hook_text: string; body_text: string }>,
+  slides: ReadonlyArray<{ hook_text: string; body_text?: string }>,
   templateId?: string,
 ): OverflowFinding[] {
   if (!isPremiumTemplate(templateId)) return []
@@ -57,9 +59,12 @@ export function detectOverflows(
     if (hookCount > HOOK_CAP) {
       findings.push({ slideIndex, field: 'hook_text', count: hookCount, cap: HOOK_CAP })
     }
-    const bodyCount = wordCount(slide.body_text)
-    if (bodyCount > BODY_CAP) {
-      findings.push({ slideIndex, field: 'body_text', count: bodyCount, cap: BODY_CAP })
+    // Phase 82 (R4): skip the body length-cap check for headline-only slides.
+    if (typeof slide.body_text === 'string' && slide.body_text.length > 0) {
+      const bodyCount = wordCount(slide.body_text)
+      if (bodyCount > BODY_CAP) {
+        findings.push({ slideIndex, field: 'body_text', count: bodyCount, cap: BODY_CAP })
+      }
     }
   })
   return findings
@@ -73,11 +78,15 @@ export interface OrphanFinding {
 // whitespace split). |A ∩ B| / |A ∪ B| >= 0.80 → orphan. Also flags exact
 // equality (same string content) as an orphan even if it would not reach the
 // threshold (defensive — a literal duplicate is always an orphan).
+// Phase 82 (R4): headline-only slides (no body_text) are never orphans — the
+// hook-vs-body comparison is skipped gracefully when body_text is absent.
 export function detectOrphans(
-  slides: ReadonlyArray<{ hook_text: string; body_text: string }>,
+  slides: ReadonlyArray<{ hook_text: string; body_text?: string }>,
 ): OrphanFinding[] {
   const findings: OrphanFinding[] = []
   slides.forEach((slide, slideIndex) => {
+    // Phase 82 (R4): no body → not an orphan; skip this slide.
+    if (typeof slide.body_text !== 'string' || slide.body_text.length === 0) return
     if (slide.hook_text === slide.body_text && slide.hook_text.length > 0) {
       findings.push({ slideIndex })
       return
@@ -129,10 +138,12 @@ function scanFieldForTypos(text: string): string[] {
 }
 
 // Scope: ALL templates (the gate is cheap and benefits everyone — D-02).
+// Phase 82 (R4): body_text is optional — the body typo scan is skipped when
+// body_text is absent (headline-only slides).
 export function detectTypos(
   slides: ReadonlyArray<{
     hook_text: string
-    body_text: string
+    body_text?: string
     hook_segments?: Array<{ text: string }>
     body_segments?: Array<{ text: string }>
   }>,
@@ -142,9 +153,12 @@ export function detectTypos(
     scanFieldForTypos(slide.hook_text).forEach((typo) =>
       findings.push({ slideIndex, field: 'hook_text', typo }),
     )
-    scanFieldForTypos(slide.body_text).forEach((typo) =>
-      findings.push({ slideIndex, field: 'body_text', typo }),
-    )
+    // Phase 82 (R4): skip the body typo scan for headline-only slides.
+    if (typeof slide.body_text === 'string' && slide.body_text.length > 0) {
+      scanFieldForTypos(slide.body_text).forEach((typo) =>
+        findings.push({ slideIndex, field: 'body_text', typo }),
+      )
+    }
     slide.hook_segments?.forEach((seg) => {
       scanFieldForTypos(seg.text).forEach((typo) =>
         findings.push({ slideIndex, field: 'hook_segment', typo }),
@@ -181,7 +195,8 @@ export function validateAndRepair<
   T extends {
     slides: Array<{
       hook_text: string
-      body_text: string
+      // Phase 82 (R4): body_text is optional — headline-only slides are valid.
+      body_text?: string
       hook_segments?: Array<{
         text: string
         accent: boolean

@@ -111,7 +111,7 @@ export async function generateCarousel(
               const prompt = await generateImagePrompt(
                 topic,
                 slide.hook_text,
-                slide.body_text,
+                slide.body_text ?? '',
                 slide.is_cta,
                 masterStyle,
                 advancedOptions?.imagePrompt

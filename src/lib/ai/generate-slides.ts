@@ -69,11 +69,17 @@ const responseSchema: Schema = {
             description: 'Optional: per-word color spans for two-color news headlines',
             items: segmentSchema,
           },
-          body_text: { type: Type.STRING, description: 'Supporting body copy' },
+          body_text: { type: Type.STRING, description: 'Optional supporting body copy — omit for headline-only slides' },
           body_segments: {
             type: Type.ARRAY,
             description: 'Optional: per-word color spans for body copy',
             items: segmentSchema,
+          },
+          // Phase 82 (R5): optional small accessory label (kicker / one-liner).
+          accessory_label: {
+            type: Type.STRING,
+            description:
+              'Optional small accessory label — a kicker ("TRENDING NEWS") or one-liner. Sparse: at most roughly every 2nd-3rd slide, never mandatory. The headline stays dominant.',
           },
           image_query: { type: Type.STRING, description: 'Pexels search query for background image' },
           layout: {
@@ -148,7 +154,9 @@ const responseSchema: Schema = {
             },
           },
         },
-        required: ['hook_text', 'body_text', 'image_query', 'is_cta', 'role'],
+        // Phase 82 (R4): body_text dropped from required — headline-only slides
+        // are first-class. The property stays in `properties` (optional emit).
+        required: ['hook_text', 'image_query', 'is_cta', 'role'],
       },
     },
   },

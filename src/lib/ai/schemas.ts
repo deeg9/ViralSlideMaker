@@ -32,11 +32,23 @@ export const SlideContentSchema = z.object({
     .array(TextSegmentSchema)
     .optional()
     .describe('Optional: per-word color spans for two-color news headlines'),
-  body_text: z.string().describe('Supporting body copy'),
+  // Phase 82 (R4): body_text is OPTIONAL — headline-only slides are first-class.
+  // The property is KEPT (not renamed/removed) for back-compat with the ~50
+  // saved projects and pre-Phase-82 carousels.
+  body_text: z.string().optional().describe('Optional supporting body copy — omit for headline-only slides (Phase 82 R4)'),
   body_segments: z
     .array(TextSegmentSchema)
     .optional()
     .describe('Optional: per-word color spans for body copy'),
+  // Phase 82 (R5): optional small accessory label — a kicker ("TRENDING NEWS")
+  // or a one-liner ("This is crazy"). Sparse, never on every slide; the
+  // headline stays the dominant element.
+  accessory_label: z
+    .string()
+    .optional()
+    .describe(
+      'Optional small accessory label — a kicker ("TRENDING NEWS") or one-liner ("This is crazy"). Sparse, never on every slide; the headline stays dominant (Phase 82 R5).',
+    ),
   image_query: z.string().describe('Pexels search query for background image'),
   layout: z
     .enum(['cover', 'body'])
