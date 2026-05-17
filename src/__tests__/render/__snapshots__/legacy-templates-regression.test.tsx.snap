@@ -273,10 +273,10 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-cyan: r
   <div
     style={
       {
-        "backgroundColor": "#000000",
+        "backgroundColor": "#0a0a0a",
         "bottom": 0,
         "left": 0,
-        "opacity": 0,
+        "opacity": 0.45,
         "position": "absolute",
         "right": 0,
         "top": 0,
@@ -289,13 +289,13 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-cyan: r
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
-        "fontSize": 72,
+        "fontSize": 81,
         "fontWeight": 400,
+        "justifyContent": "flex-start",
         "left": 119,
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -310,6 +310,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > news-cyan: r
         "flexWrap": "wrap",
         "fontSize": 38,
         "fontWeight": 400,
+        "justifyContent": "flex-start",
         "left": 119,
         "lineHeight": 1.5,
         "opacity": 0.9,
