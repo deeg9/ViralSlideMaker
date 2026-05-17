@@ -111,36 +111,72 @@ describe('hook-fit registry', () => {
   // a news layout must be clamped so hook + body don't overlap in export.
   // Real reported bug: news-cyan cover, hook "YOUR BRAIN IS OUTSOURCING
   // THINKING TO AI" (40 chars), manual hook_font_size: 114 → wraps to 5 lines
-  // and collides with body at bodyY=83%. autoFit returns 50; clamp at 1.6× →
-  // 80, which fits in 3 lines.
-  describe('clampManualHookSize', () => {
+  // and collides with body at bodyY=83%. autoFit returns 50.
+  //
+  // Phase 82 Gap A: the cap is now body-aware (5th arg `hasBody`). It only
+  // fires for slides that carry body text, and the multiplier was raised
+  // 1.6× → 2.6×. The clamp cases below pass `hasBody = true`.
+  describe('clampManualHookSize (hasBody = true — overlap-protected)', () => {
     it('passes through manual size unchanged for templates without hook-fit', () => {
-      expect(clampManualHookSize(120, 'highlight-bar', 'anything', 88)).toBe(120)
-      expect(clampManualHookSize(200, 'y2k-pop', 'anything', 96)).toBe(200)
+      expect(clampManualHookSize(120, 'highlight-bar', 'anything', 88, true)).toBe(120)
+      expect(clampManualHookSize(200, 'y2k-pop', 'anything', 96, true)).toBe(200)
     })
 
     it('clamps oversized manual size on news templates with long hook', () => {
-      // news-cyan, 40-char hook → autoFit step 0.45 → 50px. Cap = 1.6 × 50 = 80.
+      // news-cyan, 40-char hook → autoFit step 0.45 → 50px. Cap = round(2.6 × 50) = 130.
       expect(
-        clampManualHookSize(114, 'news-cyan', 'YOUR BRAIN IS OUTSOURCING THINKING TO AI', 110),
-      ).toBe(80)
+        clampManualHookSize(300, 'news-cyan', 'YOUR BRAIN IS OUTSOURCING THINKING TO AI', 110, true),
+      ).toBe(130)
       // news-drop, same pattern.
-      expect(clampManualHookSize(150, 'news-drop', 'A'.repeat(40), 110)).toBe(80)
+      expect(clampManualHookSize(300, 'news-drop', 'A'.repeat(40), 110, true)).toBe(130)
     })
 
     it('leaves manual size unchanged when below the clamp', () => {
-      // news-cyan, 40 chars: cap = 80. Manual 64 < 80 → passthrough.
+      // news-cyan, 40 chars: cap = 130. Manual 64 < 130 → passthrough.
       expect(
-        clampManualHookSize(64, 'news-cyan', 'YOUR BRAIN IS OUTSOURCING THINKING TO AI', 110),
+        clampManualHookSize(64, 'news-cyan', 'YOUR BRAIN IS OUTSOURCING THINKING TO AI', 110, true),
       ).toBe(64)
     })
 
     it('scales with autoFit per template (short hooks get higher cap)', () => {
-      // news-drop, 14-char hook → autoFit 110px. Cap = 1.6 × 110 = 176.
-      // Manual 200 > 176 → clamped to 176.
-      expect(clampManualHookSize(200, 'news-drop', 'A'.repeat(14), 110)).toBe(176)
-      // Manual 150 < 176 → passthrough.
-      expect(clampManualHookSize(150, 'news-drop', 'A'.repeat(14), 110)).toBe(150)
+      // news-drop, 14-char hook → autoFit 110px. Cap = round(2.6 × 110) = 286.
+      // Manual 350 > 286 → clamped to 286.
+      expect(clampManualHookSize(350, 'news-drop', 'A'.repeat(14), 110, true)).toBe(286)
+      // Manual 150 < 286 → passthrough.
+      expect(clampManualHookSize(150, 'news-drop', 'A'.repeat(14), 110, true)).toBe(150)
+    })
+  })
+
+  // Phase 82 Gap A — headline-only news slides (no body box) must NOT be
+  // capped: the overlap rationale that motivated the cap does not apply when
+  // there is no body zone. clampManualHookSize returns the manual size verbatim
+  // when hasBody === false, so a user entering 190 vs 290 in the editor gets
+  // genuinely distinct rendered sizes and the headline can dominate the slide.
+  describe('clampManualHookSize — Phase 82 Gap A (hasBody = false)', () => {
+    it('does NOT cap a headline-only news slide — large size honored verbatim', () => {
+      // news-cyan, registered hook-fit template. hasBody=false → no clamp.
+      expect(
+        clampManualHookSize(290, 'news-cyan', 'MAJOR TECH COMPANY ANNOUNCES 19000 LAYOFFS', 110, false),
+      ).toBe(290)
+      // 190 and 290 must render distinctly — the Gap A defect was both
+      // collapsing to the same 1.6× value.
+      expect(
+        clampManualHookSize(190, 'news-cyan', 'MAJOR TECH COMPANY ANNOUNCES 19000 LAYOFFS', 110, false),
+      ).toBe(190)
+    })
+
+    it('still clamps the SAME slide when hasBody = true', () => {
+      // Same template + hook, hasBody=true → cap = round(2.6 × autoFit) applies.
+      const capped = clampManualHookSize(
+        290, 'news-cyan', 'MAJOR TECH COMPANY ANNOUNCES 19000 LAYOFFS', 110, true,
+      )
+      expect(capped).toBeLessThan(290)
+    })
+
+    it('passes through unregistered templates regardless of hasBody', () => {
+      // hasHookFit() false → manualSize unchanged whether hasBody true or false.
+      expect(clampManualHookSize(300, 'y2k-pop', 'anything', 96, false)).toBe(300)
+      expect(clampManualHookSize(300, 'y2k-pop', 'anything', 96, true)).toBe(300)
     })
   })
 

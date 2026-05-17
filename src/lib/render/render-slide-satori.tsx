@@ -211,9 +211,12 @@ export function buildSlideElement(
     overrides.hook_font_size == null && hasHookFit(template.id)
       ? getHookFontSize(template.id, slide.hook_text, baseHookSizePx)
       : null
+  // Phase 82 Gap A: the manual-hook cap is body-aware — headline-only news
+  // slides (no body box) are no longer capped, so the headline can dominate.
+  const hasBody = typeof slide.body_text === 'string' && slide.body_text.length > 0
   const hookFontSize = overrides.hook_font_size
     ? newsZone
-      ? clampManualHookSize(overrides.hook_font_size, template.id, slide.hook_text, baseHookSizePx)
+      ? clampManualHookSize(overrides.hook_font_size, template.id, slide.hook_text, baseHookSizePx, hasBody)
       : overrides.hook_font_size
     : autoFitHookPx != null
       ? autoFitHookPx

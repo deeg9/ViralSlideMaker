@@ -153,30 +153,44 @@ export const HOOK_FIT_TEMPLATE_IDS = Object.keys(HOOK_FIT_REGISTRY)
  * news-cyan cover layout with hook_font_size: 114 — wraps to 5 lines and
  * collides with body at bodyY=84%.)
  *
+ * Phase 82 Gap A: the cap is now BODY-AWARE. The overlap rationale above only
+ * applies when the slide actually HAS a body — a headline crashing into the
+ * body zone. Phase 82 News slides are headline-only (R4 — body_text optional,
+ * headline-only is the default), so there is no body zone for the headline to
+ * collide with: on those slides the manual size is honored verbatim and the
+ * headline can own the whole canvas (the reference news look). The cap only
+ * fires for slides that carry body text, and was raised 1.6× → 2.6× so a
+ * legitimately large user pick survives instead of being flattened.
+ *
  * Both renderers (render-slide-satori.tsx + slide-preview.tsx) call this
- * helper at the same point in the resolution pipeline (TPLREND-05 parity
- * contract — both must produce identical clamped fontSize).
+ * helper at the same point in the resolution pipeline and MUST pass the same
+ * `hasBody` value (TPLREND-05 parity contract — both must produce identical
+ * clamped fontSize).
  *
  * Behavior:
  *   - When `hookFit` is unknown for the template, returns `manualSize`
  *     unchanged (templates outside the registry have no calibrated cap).
- *   - When `hookFit` is registered, allows the manual override to grow
- *     up to MANUAL_GROWTH_MAX × the auto-fit value. Past that, the hook
- *     would wrap into the body zone in nearly all cases.
- *
- * The 1.6× constant is calibrated empirically for news templates: at 1.6×
- * the auto-fit, hook wraps to ≤4 lines on the cover layout (24% zone =
- * 460px on 1920 canvas, lineHeight 1.1 → 4 × 1.1 × 104 = 458px).
+ *   - When `hasBody` is false (headline-only slide), returns `manualSize`
+ *     unchanged — no body zone to collide with.
+ *   - When `hookFit` is registered AND `hasBody` is true, allows the manual
+ *     override to grow up to MANUAL_GROWTH_MAX × the auto-fit value. Past
+ *     that, the hook would wrap into the body zone.
  */
-const MANUAL_GROWTH_MAX = 1.6
+const MANUAL_GROWTH_MAX = 2.6
 
 export function clampManualHookSize(
   manualSize: number,
   templateId: string,
   hookText: string | null | undefined,
   baseSize: number,
+  hasBody: boolean,
 ): number {
   if (!hasHookFit(templateId)) return manualSize
+  // Phase 82 Gap A: headline-only slides (no body box) have no body zone for
+  // the hook to wrap into — the overlap rationale that motivated the cap does
+  // not apply, so the manual size is honored verbatim. The headline can own
+  // the whole canvas (the reference news look).
+  if (!hasBody) return manualSize
   const autoFit = getHookFontSize(templateId, hookText, baseSize)
   const cap = Math.round(autoFit * MANUAL_GROWTH_MAX)
   return Math.min(manualSize, cap)

@@ -292,7 +292,10 @@ export function ActiveTextBoxCard({
           data-testid="active-text-box-size"
           aria-label="Font size"
           min={textBox.role === 'body' ? 14 : 16}
-          max={textBox.role === 'body' ? 120 : 240}
+          // Phase 82 Gap A: hook max raised 240 → 400 so the editor can express
+          // the large headline sizes the body-aware renderer now honors on
+          // headline-only news slides (clampManualHookSize no longer caps them).
+          max={textBox.role === 'body' ? 120 : 400}
           step={1}
           value={textBox.font_size ?? defaultSizeForRole(textBox.role, template)}
           onChange={(e) => {
