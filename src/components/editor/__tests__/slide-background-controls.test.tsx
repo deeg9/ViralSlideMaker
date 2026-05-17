@@ -5,18 +5,17 @@ import { getTemplate } from '@/lib/render/templates/index'
 import type { Slide } from '@/lib/types/slide'
 
 /**
- * quick-260517-h8z — unit coverage for the Slide Background control card.
+ * quick-260517-k2n — unit coverage for the reworked Caption Card control card.
  *
- * The card recolors the slide background panel (the user's "yellow panel"
- * behind a constrained news-carousel photo). UNLIKE CaptionBarControls it is
- * NOT gated on backgroundMode — every selected slide has a background color, so
- * the card is ALWAYS visible. It emits merged `style_overrides` patches with a
- * single `background_color` hex string; a discrete pick = one undo entry.
+ * The caption card is now an independent draggable/resizable colored rectangle
+ * overlay — it NO LONGER constrains the photo. This panel therefore exposes:
+ *   - an on/off Switch driving `style_overrides.caption_bar_enabled`
+ *   - color swatches driving `style_overrides.caption_bar_color`
+ *   - an opacity slider driving `style_overrides.caption_bar_opacity` (0..1)
+ *   - Top/Bottom snap buttons rewriting `style_overrides.caption_bar_y`
  *
- * quick-260517-jfg — added an on/off "Caption panel" Switch + a Bottom/Top
- * position radiogroup. Both map onto `style_overrides.layout`:
- *   ON + Bottom → layout: 'cover'; ON + Top → layout: 'body'; OFF → key deleted.
- * The Color row and Photo-height slider are only rendered while the panel is ON.
+ * It NEVER writes `layout` / `news_image_height` / `background_color` anymore.
+ * The card is NOT backgroundMode-gated — every selected slide can enable it.
  */
 
 const TMPL = getTemplate('highlight-bar') // backgroundColor: '#ffffff'
@@ -45,205 +44,23 @@ describe('SlideBackgroundControls', () => {
     expect(screen.getByTestId('slide-background-controls')).toBeTruthy()
   })
 
-  it('shows the uppercase "Caption Card" title and helper text (quick-260517-iiy)', () => {
-    render(
+  it('shows the uppercase "Caption Card" title', () => {
+    const { container } = render(
       <SlideBackgroundControls
         slide={makeSlide()}
         template={TMPL}
         onSlideUpdate={vi.fn()}
       />,
     )
-    expect(screen.getByText(/^caption card$/i)).toBeTruthy()
-    // The card title is no longer "Slide Background".
-    expect(screen.queryByText(/^slide background$/i)).toBeNull()
+    // The card title is the uppercase-styled span directly inside the shell.
+    const title = container
+      .querySelector('[data-testid="slide-background-controls"]')!
+      .querySelector('span.uppercase')
+    expect(title?.textContent).toMatch(/^caption card$/i)
   })
 
-  it('clicking a preset swatch commits the merged style_overrides.background_color', () => {
-    const onSlideUpdate = vi.fn()
-    render(
-      <SlideBackgroundControls
-        slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-        template={TMPL}
-        onSlideUpdate={onSlideUpdate}
-      />,
-    )
-    fireEvent.click(screen.getByTestId('slide-background-color-swatch-#3d0000'))
-    expect(onSlideUpdate).toHaveBeenCalledTimes(1)
-    expect(onSlideUpdate).toHaveBeenCalledWith({
-      style_overrides: expect.objectContaining({
-        layout: 'cover', // pre-existing override preserved (merged patch)
-        background_color: '#3d0000',
-      }),
-    })
-  })
-
-  it('the palette input emits an explicit hex string (PCL12)', () => {
-    const onSlideUpdate = vi.fn()
-    render(
-      <SlideBackgroundControls
-        slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-        template={TMPL}
-        onSlideUpdate={onSlideUpdate}
-      />,
-    )
-    const colorInput = screen.getByTestId('slide-background-color')
-    fireEvent.change(colorInput, { target: { value: '#3d6be5' } })
-    expect(onSlideUpdate).toHaveBeenCalledTimes(1)
-    const patch = onSlideUpdate.mock.calls[0][0]
-    expect(patch.style_overrides.background_color).toBe('#3d6be5')
-    expect(patch.style_overrides.background_color.startsWith('#')).toBe(true)
-  })
-
-  it('the palette-icon button is present', () => {
-    render(
-      <SlideBackgroundControls
-        slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-        template={TMPL}
-        onSlideUpdate={vi.fn()}
-      />,
-    )
-    expect(screen.getByTestId('slide-background-color-palette')).toBeTruthy()
-  })
-
-  it('falls back to template.backgroundColor for the active swatch when unset', () => {
-    // highlight-bar.backgroundColor is '#ffffff' → that swatch is active.
-    render(
-      <SlideBackgroundControls
-        slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-        template={TMPL}
-        onSlideUpdate={vi.fn()}
-      />,
-    )
-    expect(
-      screen
-        .getByTestId('slide-background-color-swatch-#ffffff')
-        .getAttribute('aria-pressed'),
-    ).toBe('true')
-    expect(
-      screen
-        .getByTestId('slide-background-color-swatch-#3d0000')
-        .getAttribute('aria-pressed'),
-    ).toBe('false')
-  })
-
-  it('marks the swatch matching the resolved background_color override as active', () => {
-    render(
-      <SlideBackgroundControls
-        slide={makeSlide({
-          style_overrides: { background_color: '#3d0000', layout: 'cover' },
-        })}
-        template={TMPL}
-        onSlideUpdate={vi.fn()}
-      />,
-    )
-    expect(
-      screen
-        .getByTestId('slide-background-color-swatch-#3d0000')
-        .getAttribute('aria-pressed'),
-    ).toBe('true')
-    expect(
-      screen
-        .getByTestId('slide-background-color-swatch-#ffffff')
-        .getAttribute('aria-pressed'),
-    ).toBe('false')
-  })
-
-  // quick-260517-iiy — the Height slider moves the photo / caption-panel
-  // boundary. It writes `style_overrides.news_image_height` (the PHOTO height
-  // percent). Preview-on-change, commit-on-pointer-up (KBD-09).
-  describe('Height slider (quick-260517-iiy)', () => {
-    it('renders the caption-card-height range slider', () => {
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-          template={TMPL}
-          onSlideUpdate={vi.fn()}
-          onSlidePreview={vi.fn()}
-        />,
-      )
-      expect(screen.getByTestId('caption-card-height')).toBeTruthy()
-    })
-
-    it('seeds the slider from news_image_height (falls back to 55 preset)', () => {
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-          template={TMPL}
-          onSlideUpdate={vi.fn()}
-          onSlidePreview={vi.fn()}
-        />,
-      )
-      const slider = screen.getByTestId('caption-card-height') as HTMLInputElement
-      expect(slider.value).toBe('55')
-    })
-
-    it('seeds the slider from a stored news_image_height override', () => {
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide({
-            style_overrides: { layout: 'cover', news_image_height: 70 },
-          })}
-          template={TMPL}
-          onSlideUpdate={vi.fn()}
-          onSlidePreview={vi.fn()}
-        />,
-      )
-      const slider = screen.getByTestId('caption-card-height') as HTMLInputElement
-      expect(slider.value).toBe('70')
-    })
-
-    it('drag preview routes through onSlidePreview (noHistory)', () => {
-      const onSlidePreview = vi.fn()
-      const onSlideUpdate = vi.fn()
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-          template={TMPL}
-          onSlideUpdate={onSlideUpdate}
-          onSlidePreview={onSlidePreview}
-        />,
-      )
-      const slider = screen.getByTestId('caption-card-height')
-      fireEvent.change(slider, { target: { value: '62' } })
-      expect(onSlidePreview).toHaveBeenCalledTimes(1)
-      expect(onSlidePreview).toHaveBeenCalledWith({
-        style_overrides: expect.objectContaining({
-          layout: 'cover',
-          news_image_height: 62,
-        }),
-      })
-      // The committing dispatch fires on release, not on change.
-      expect(onSlideUpdate).not.toHaveBeenCalled()
-    })
-
-    it('release commits the merged news_image_height through onSlideUpdate', () => {
-      const onSlideUpdate = vi.fn()
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
-          template={TMPL}
-          onSlideUpdate={onSlideUpdate}
-          onSlidePreview={vi.fn()}
-        />,
-      )
-      const slider = screen.getByTestId('caption-card-height')
-      fireEvent.change(slider, { target: { value: '48' } })
-      fireEvent.pointerUp(slider, { target: { value: '48' } })
-      expect(onSlideUpdate).toHaveBeenCalledWith({
-        style_overrides: expect.objectContaining({
-          layout: 'cover',
-          news_image_height: 48,
-        }),
-      })
-    })
-  })
-
-  // quick-260517-jfg — the on/off "Caption panel" Switch + Bottom/Top position
-  // radiogroup. Both write `style_overrides.layout`: ON+Bottom → 'cover',
-  // ON+Top → 'body', OFF → the `layout` key is DELETED (slide reverts to a
-  // full-bleed photo). Color + Photo-height controls are hidden while OFF.
-  describe('Caption panel toggle + position (quick-260517-jfg)', () => {
-    it('renders the on/off Switch UNCHECKED when no layout override exists', () => {
+  describe('on/off toggle', () => {
+    it('renders the Switch UNCHECKED when caption_bar_enabled is unset', () => {
       render(
         <SlideBackgroundControls
           slide={makeSlide()}
@@ -251,42 +68,15 @@ describe('SlideBackgroundControls', () => {
           onSlideUpdate={vi.fn()}
         />,
       )
-      const toggle = screen.getByTestId('caption-card-toggle')
-      expect(toggle).toBeTruthy()
-      expect(toggle.getAttribute('aria-checked')).toBe('false')
-    })
-
-    it('hides the Color row and Photo-height slider while the panel is OFF', () => {
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide()}
-          template={TMPL}
-          onSlideUpdate={vi.fn()}
-        />,
-      )
-      expect(screen.queryByTestId('caption-card-height')).toBeNull()
-      expect(screen.queryByTestId('slide-background-color')).toBeNull()
       expect(
-        screen.queryByTestId('slide-background-color-palette'),
-      ).toBeNull()
+        screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+      ).toBe('false')
     })
 
-    it('hides the position radiogroup while the panel is OFF', () => {
+    it('renders the Switch CHECKED when caption_bar_enabled is true', () => {
       render(
         <SlideBackgroundControls
-          slide={makeSlide()}
-          template={TMPL}
-          onSlideUpdate={vi.fn()}
-        />,
-      )
-      expect(screen.queryByTestId('caption-card-position-cover')).toBeNull()
-      expect(screen.queryByTestId('caption-card-position-body')).toBeNull()
-    })
-
-    it('shows the Switch CHECKED with Bottom selected for layout: cover', () => {
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
           template={TMPL}
           onSlideUpdate={vi.fn()}
         />,
@@ -294,45 +84,9 @@ describe('SlideBackgroundControls', () => {
       expect(
         screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
       ).toBe('true')
-      expect(
-        screen
-          .getByTestId('caption-card-position-cover')
-          .getAttribute('aria-checked'),
-      ).toBe('true')
-      expect(
-        screen
-          .getByTestId('caption-card-position-body')
-          .getAttribute('aria-checked'),
-      ).toBe('false')
-      // Color + Photo-height controls are visible while ON.
-      expect(screen.getByTestId('caption-card-height')).toBeTruthy()
-      expect(screen.getByTestId('slide-background-color')).toBeTruthy()
     })
 
-    it('shows the Switch CHECKED with Top selected for layout: body', () => {
-      render(
-        <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'body' } })}
-          template={TMPL}
-          onSlideUpdate={vi.fn()}
-        />,
-      )
-      expect(
-        screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
-      ).toBe('true')
-      expect(
-        screen
-          .getByTestId('caption-card-position-body')
-          .getAttribute('aria-checked'),
-      ).toBe('true')
-      expect(
-        screen
-          .getByTestId('caption-card-position-cover')
-          .getAttribute('aria-checked'),
-      ).toBe('false')
-    })
-
-    it('clicking the Switch while OFF turns the panel ON (layout: cover)', () => {
+    it('clicking the Switch while OFF turns the card ON (caption_bar_enabled:true)', () => {
       const onSlideUpdate = vi.fn()
       render(
         <SlideBackgroundControls
@@ -344,16 +98,19 @@ describe('SlideBackgroundControls', () => {
       fireEvent.click(screen.getByTestId('caption-card-toggle'))
       expect(onSlideUpdate).toHaveBeenCalledTimes(1)
       expect(onSlideUpdate).toHaveBeenCalledWith({
-        style_overrides: expect.objectContaining({ layout: 'cover' }),
+        style_overrides: expect.objectContaining({ caption_bar_enabled: true }),
       })
     })
 
-    it('clicking the Switch while ON deletes the layout key (full-bleed)', () => {
+    it('clicking the Switch while ON deletes the caption_bar_enabled key', () => {
       const onSlideUpdate = vi.fn()
       render(
         <SlideBackgroundControls
           slide={makeSlide({
-            style_overrides: { layout: 'cover', background_color: '#3d0000' },
+            style_overrides: {
+              caption_bar_enabled: true,
+              caption_bar_color: '#3d0000',
+            },
           })}
           template={TMPL}
           onSlideUpdate={onSlideUpdate}
@@ -363,39 +120,273 @@ describe('SlideBackgroundControls', () => {
       expect(onSlideUpdate).toHaveBeenCalledTimes(1)
       const patch = onSlideUpdate.mock.calls[0][0]
       // The key is DELETED, not set to undefined.
-      expect('layout' in patch.style_overrides).toBe(false)
-      // Sibling overrides are preserved in the emitted patch.
-      expect(patch.style_overrides.background_color).toBe('#3d0000')
+      expect('caption_bar_enabled' in patch.style_overrides).toBe(false)
+      // Sibling overrides are preserved.
+      expect(patch.style_overrides.caption_bar_color).toBe('#3d0000')
     })
 
-    it('clicking "Top" while layout: cover switches to body', () => {
+    it('hides color/opacity/position controls while the card is OFF', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(screen.queryByTestId('caption-card-opacity')).toBeNull()
+      expect(screen.queryByTestId('caption-card-color')).toBeNull()
+      expect(screen.queryByTestId('caption-card-position-cover')).toBeNull()
+      expect(screen.queryByTestId('caption-card-position-body')).toBeNull()
+    })
+  })
+
+  describe('color swatches', () => {
+    it('clicking a preset swatch commits style_overrides.caption_bar_color', () => {
       const onSlideUpdate = vi.fn()
       render(
         <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      fireEvent.click(
+        screen.getByTestId('caption-card-color-swatch-#3d0000'),
+      )
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      expect(onSlideUpdate).toHaveBeenCalledWith({
+        style_overrides: expect.objectContaining({
+          caption_bar_enabled: true,
+          caption_bar_color: '#3d0000',
+        }),
+      })
+    })
+
+    it('the palette input emits an explicit caption_bar_color hex (PCL12)', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      fireEvent.change(screen.getByTestId('caption-card-color'), {
+        target: { value: '#3d6be5' },
+      })
+      const patch = onSlideUpdate.mock.calls[0][0]
+      expect(patch.style_overrides.caption_bar_color).toBe('#3d6be5')
+      expect(patch.style_overrides.caption_bar_color.startsWith('#')).toBe(true)
+    })
+
+    it('marks the swatch matching the resolved caption_bar_color as active', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({
+            style_overrides: {
+              caption_bar_enabled: true,
+              caption_bar_color: '#3d0000',
+            },
+          })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(
+        screen
+          .getByTestId('caption-card-color-swatch-#3d0000')
+          .getAttribute('aria-pressed'),
+      ).toBe('true')
+    })
+  })
+
+  describe('opacity slider', () => {
+    it('renders the caption-card-opacity slider while the card is ON', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      expect(screen.getByTestId('caption-card-opacity')).toBeTruthy()
+    })
+
+    it('seeds the slider from caption_bar_opacity (default 85%)', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      const slider = screen.getByTestId(
+        'caption-card-opacity',
+      ) as HTMLInputElement
+      expect(slider.value).toBe('85')
+    })
+
+    it('seeds the slider from a stored caption_bar_opacity override', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({
+            style_overrides: {
+              caption_bar_enabled: true,
+              caption_bar_opacity: 0.5,
+            },
+          })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      const slider = screen.getByTestId(
+        'caption-card-opacity',
+      ) as HTMLInputElement
+      expect(slider.value).toBe('50')
+    })
+
+    it('drag preview routes through onSlidePreview as a 0..1 fraction (noHistory)', () => {
+      const onSlidePreview = vi.fn()
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+          onSlidePreview={onSlidePreview}
+        />,
+      )
+      fireEvent.change(screen.getByTestId('caption-card-opacity'), {
+        target: { value: '60' },
+      })
+      expect(onSlidePreview).toHaveBeenCalledTimes(1)
+      expect(onSlidePreview).toHaveBeenCalledWith({
+        style_overrides: expect.objectContaining({ caption_bar_opacity: 0.6 }),
+      })
+      expect(onSlideUpdate).not.toHaveBeenCalled()
+    })
+
+    it('release commits caption_bar_opacity once through onSlideUpdate (KBD-09)', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      const slider = screen.getByTestId('caption-card-opacity')
+      fireEvent.change(slider, { target: { value: '40' } })
+      fireEvent.pointerUp(slider, { target: { value: '40' } })
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      expect(onSlideUpdate).toHaveBeenCalledWith({
+        style_overrides: expect.objectContaining({ caption_bar_opacity: 0.4 }),
+      })
+    })
+  })
+
+  describe('Top/Bottom snap presets', () => {
+    it('clicking Top snaps caption_bar_position:top and caption_bar_y:0', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
           template={TMPL}
           onSlideUpdate={onSlideUpdate}
         />,
       )
       fireEvent.click(screen.getByTestId('caption-card-position-body'))
       expect(onSlideUpdate).toHaveBeenCalledTimes(1)
-      expect(onSlideUpdate.mock.calls[0][0].style_overrides.layout).toBe('body')
+      const patch = onSlideUpdate.mock.calls[0][0]
+      expect(patch.style_overrides.caption_bar_position).toBe('top')
+      expect(patch.style_overrides.caption_bar_y).toBe(0)
     })
 
-    it('clicking "Bottom" while layout: body switches to cover', () => {
+    it('clicking Bottom snaps caption_bar_position:bottom and caption_bar_y:100-height', () => {
       const onSlideUpdate = vi.fn()
       render(
         <SlideBackgroundControls
-          slide={makeSlide({ style_overrides: { layout: 'body' } })}
+          slide={makeSlide({
+            style_overrides: {
+              caption_bar_enabled: true,
+              caption_bar_height_pct: 40,
+            },
+          })}
           template={TMPL}
           onSlideUpdate={onSlideUpdate}
         />,
       )
       fireEvent.click(screen.getByTestId('caption-card-position-cover'))
       expect(onSlideUpdate).toHaveBeenCalledTimes(1)
-      expect(onSlideUpdate.mock.calls[0][0].style_overrides.layout).toBe(
-        'cover',
+      const patch = onSlideUpdate.mock.calls[0][0]
+      expect(patch.style_overrides.caption_bar_position).toBe('bottom')
+      expect(patch.style_overrides.caption_bar_y).toBe(60) // 100 - 40
+    })
+
+    it('Bottom snap uses the default height (38) when none is stored', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
       )
+      fireEvent.click(screen.getByTestId('caption-card-position-cover'))
+      expect(onSlideUpdate.mock.calls[0][0].style_overrides.caption_bar_y).toBe(
+        62,
+      )
+    })
+  })
+
+  describe('does not touch the retired photo-constraining fields', () => {
+    it('has NO Photo-height (caption-card-height) slider', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      expect(screen.queryByTestId('caption-card-height')).toBeNull()
+    })
+
+    it('never emits layout / news_image_height / background_color', () => {
+      const onSlideUpdate = vi.fn()
+      const onSlidePreview = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+          onSlidePreview={onSlidePreview}
+        />,
+      )
+      // Exercise every control.
+      fireEvent.click(screen.getByTestId('caption-card-color-swatch-#3d0000'))
+      fireEvent.change(screen.getByTestId('caption-card-opacity'), {
+        target: { value: '70' },
+      })
+      fireEvent.pointerUp(screen.getByTestId('caption-card-opacity'), {
+        target: { value: '70' },
+      })
+      fireEvent.click(screen.getByTestId('caption-card-position-body'))
+      fireEvent.click(screen.getByTestId('caption-card-toggle'))
+
+      const allPatches = [
+        ...onSlideUpdate.mock.calls,
+        ...onSlidePreview.mock.calls,
+      ].map((c) => c[0].style_overrides)
+      for (const p of allPatches) {
+        expect('layout' in p).toBe(false)
+        expect('news_image_height' in p).toBe(false)
+        expect('background_color' in p).toBe(false)
+      }
     })
   })
 })

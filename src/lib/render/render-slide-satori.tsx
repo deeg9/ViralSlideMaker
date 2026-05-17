@@ -231,8 +231,8 @@ export function buildSlideElement(
   const hookAccentColor = hookBox?.accent_color ?? accentColor
   const bodyAccentColor = bodyBox?.accent_color ?? accentColor
   const useBgMode = isTemplateBgMode
-  const useBottomCard =
-    useBgMode && template.backgroundMode === 'image-with-bottom-card'
+  // quick-260517-k2n: `useBottomCard` removed — the caption card is no longer
+  // backgroundMode-gated; it renders on any template via resolveCaptionBar.
 
   // Resolve text positions: news layouts win over text_position; user-supplied positions still win over both.
   const posPreset = overrides.text_position ?? template.textPosition
@@ -421,39 +421,34 @@ export function buildSlideElement(
       />
       {/* Phase 55 (D-13, layer 2.5): radial vignette — only when template opts in. */}
       {template.vignette ? renderVignette(template.vignette.strength) : null}
-      {/* Phase 45: bottom-card layer for backgroundMode === 'image-with-bottom-card'.
-          Sits ABOVE tint and BELOW overlays/hook/body per CONTEXT.md Area 1 DOM order.
-          Card height locked at 38% of canvas (≈730px on 1920); padding 80px matches
-          the Murphy reference. Hook+body still flow through their existing position
-          resolution and naturally sit on top of this card surface. */}
-      {useBottomCard &&
-        (() => {
-          // quick-260515-k12: caption-bar geometry/color resolved through the
-          // shared resolveCaptionBar helper so the Satori PNG export cannot
-          // drift from the browser preview (PARITY-01). Satori does not honor
-          // `bottom: 0` + percentage height together — it anchors to the top —
-          // so we convert to explicit numeric px. With zero overrides
-          // `H - round(H*38/100)` = 1920 - 730 = 1190, identical to the old
-          // hardcoded `round(H*0.62)` = 1190 (TPLREND-05 byte-identity).
-          const captionBar = resolveCaptionBar(overrides, template)
-          const barHeightPx = Math.round((H * captionBar.heightPct) / 100)
-          return (
-            <div
-              key="bottom-card"
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: captionBar.position === 'top' ? 0 : H - barHeightPx,
-                width: W,
-                height: barHeightPx,
-                padding: 80,
-                backgroundColor: captionBar.backgroundColor,
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            />
-          )
-        })()}
+      {/* quick-260517-k2n: caption card — an independent draggable/resizable
+          colored rectangle. NO LONGER backgroundMode-gated (key_decision 2):
+          it renders on ANY template iff resolveCaptionBar(...).enabled. Sits
+          ABOVE tint and BELOW overlays/hook/body (CONTEXT.md Area 1 DOM order).
+          Satori needs explicit numeric px (it does not honor percent + a
+          bottom anchor), so the resolved x/y/width/heightPct percents are
+          converted against W/H — the SAME resolveCaptionBar values the canvas
+          and HTML paths consume (PARITY-01 / TPLREND-05). With zero overrides
+          the resolver returns enabled:false => no card, byte-identical. */}
+      {(() => {
+        const cc = resolveCaptionBar(overrides, template)
+        if (!cc.enabled) return null
+        return (
+          <div
+            key="caption-card"
+            style={{
+              position: 'absolute',
+              left: Math.round((cc.x / 100) * W),
+              top: Math.round((cc.y / 100) * H),
+              width: Math.round((cc.width / 100) * W),
+              height: Math.round((cc.heightPct / 100) * H),
+              backgroundColor: cc.backgroundColor,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          />
+        )
+      })()}
       {/* Phase 45: overlay zones (chip / counter / mid pill / bottom card surface).
           Inserted AFTER bottom-card and BEFORE the hook so headline pills stay
           top-most (CONTEXT.md Area 1 layer 4 vs layer 5). Each overlay's text is

@@ -23,7 +23,6 @@ import { Icon } from '@/components/ui/icon'
 import { DIVIDERS } from '@/lib/elements/dividers'
 import { DecorationCard } from './text-rail/decoration-card'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
-import { CaptionBarControls } from './caption-bar-controls'
 import { SlideBackgroundControls } from './slide-background-controls'
 import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Decoration } from '@/lib/types/decoration'
@@ -133,31 +132,14 @@ export function ElementsPanel({
   const slideLevelCards =
     slide && template && onSlideUpdate ? (
       <>
-        {/* quick-260517-h8z: Slide Background card. Recolors the slide
-            background panel visible behind a constrained news-carousel photo
-            (the user's "yellow panel"). UNLIKE CaptionBarControls it is NOT
-            gated on backgroundMode — every selected slide has a background
-            color, so the card is ALWAYS visible (like WatermarkControls). It
-            still takes the PER-SLIDE-RESOLVED template for the swatch default. */}
+        {/* quick-260517-k2n: Caption Card panel — the reworked
+            SlideBackgroundControls. It exposes on/off + color + opacity +
+            Top/Bottom snap for the `caption_bar_*` family on EVERY template
+            (a strict superset of the old caption-bar panel), so the legacy
+            backgroundMode-gated caption-bar panel was removed to avoid a
+            dual-panel collision on magazine-bold / tr3nding-news. Takes the
+            PER-SLIDE-RESOLVED template for the color-swatch default. */}
         <SlideBackgroundControls
-          slide={slide}
-          template={resolvePerSlideTemplate(slide, template)}
-          onSlideUpdate={onSlideUpdate}
-          onSlidePreview={onSlidePreview ?? onSlideUpdate}
-        />
-        {/* quick-260515-k12: Caption Bar card. Needs the per-slide-RESOLVED
-            template (the slide may carry a template_id_override) for both its
-            visibility gate and the color-picker default. CaptionBarControls
-            self-gates on backgroundMode, so it is mounted unconditionally.
-
-            quick-260517-h8z: passing the PER-SLIDE-RESOLVED template here is
-            load-bearing — it makes CaptionBarControls' visibility gate mirror
-            the renderer's `useBottomCard` condition. A Style-from-Reference
-            `caption-bar-bottom` slide carries `template_id_override:
-            'magazine-bold'` (a bottom-card template) without changing the
-            project-level `template`, so resolving here is what surfaces the
-            card for that slide. Do NOT pass the raw `template`. */}
-        <CaptionBarControls
           slide={slide}
           template={resolvePerSlideTemplate(slide, template)}
           onSlideUpdate={onSlideUpdate}
