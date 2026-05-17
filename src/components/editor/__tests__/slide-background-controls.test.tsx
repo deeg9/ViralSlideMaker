@@ -40,7 +40,7 @@ describe('SlideBackgroundControls', () => {
     expect(screen.getByTestId('slide-background-controls')).toBeTruthy()
   })
 
-  it('shows the uppercase "Slide Background" title and helper text', () => {
+  it('shows the uppercase "Caption Card" title and helper text (quick-260517-iiy)', () => {
     render(
       <SlideBackgroundControls
         slide={makeSlide()}
@@ -48,10 +48,9 @@ describe('SlideBackgroundControls', () => {
         onSlideUpdate={vi.fn()}
       />,
     )
-    expect(screen.getByText(/^slide background$/i)).toBeTruthy()
-    expect(
-      screen.getByText(/color the slide background behind the photo/i),
-    ).toBeTruthy()
+    expect(screen.getByText(/^caption card$/i)).toBeTruthy()
+    // The card title is no longer "Slide Background".
+    expect(screen.queryByText(/^slide background$/i)).toBeNull()
   })
 
   it('clicking a preset swatch commits the merged style_overrides.background_color', () => {
@@ -140,5 +139,93 @@ describe('SlideBackgroundControls', () => {
         .getByTestId('slide-background-color-swatch-#ffffff')
         .getAttribute('aria-pressed'),
     ).toBe('false')
+  })
+
+  // quick-260517-iiy — the Height slider moves the photo / caption-panel
+  // boundary. It writes `style_overrides.news_image_height` (the PHOTO height
+  // percent). Preview-on-change, commit-on-pointer-up (KBD-09).
+  describe('Height slider (quick-260517-iiy)', () => {
+    it('renders the caption-card-height range slider', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      expect(screen.getByTestId('caption-card-height')).toBeTruthy()
+    })
+
+    it('seeds the slider from news_image_height (falls back to 55 preset)', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: {} })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      const slider = screen.getByTestId('caption-card-height') as HTMLInputElement
+      expect(slider.value).toBe('55')
+    })
+
+    it('seeds the slider from a stored news_image_height override', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { news_image_height: 70 } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      const slider = screen.getByTestId('caption-card-height') as HTMLInputElement
+      expect(slider.value).toBe('70')
+    })
+
+    it('drag preview routes through onSlidePreview (noHistory)', () => {
+      const onSlidePreview = vi.fn()
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+          onSlidePreview={onSlidePreview}
+        />,
+      )
+      const slider = screen.getByTestId('caption-card-height')
+      fireEvent.change(slider, { target: { value: '62' } })
+      expect(onSlidePreview).toHaveBeenCalledTimes(1)
+      expect(onSlidePreview).toHaveBeenCalledWith({
+        style_overrides: expect.objectContaining({
+          layout: 'cover',
+          news_image_height: 62,
+        }),
+      })
+      // The committing dispatch fires on release, not on change.
+      expect(onSlideUpdate).not.toHaveBeenCalled()
+    })
+
+    it('release commits the merged news_image_height through onSlideUpdate', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+          onSlidePreview={vi.fn()}
+        />,
+      )
+      const slider = screen.getByTestId('caption-card-height')
+      fireEvent.change(slider, { target: { value: '48' } })
+      fireEvent.pointerUp(slider, { target: { value: '48' } })
+      expect(onSlideUpdate).toHaveBeenCalledWith({
+        style_overrides: expect.objectContaining({
+          layout: 'cover',
+          news_image_height: 48,
+        }),
+      })
+    })
   })
 })
