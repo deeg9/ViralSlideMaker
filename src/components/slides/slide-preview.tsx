@@ -623,6 +623,15 @@ export function SlidePreview({
   // `draggingElementId` is still used by the smart-guide overlay to know
   // which element to exclude from snap targets.
 
+  // quick-260517-k2n: caption-card canvas-selection state. Local state ONLY —
+  // the caption card is NOT an addressable Selection-model element (it has no
+  // id; key_decision 3). `true` => the card shows 8 resize handles + a
+  // selection outline. Set true by clicking the card's body; cleared by a
+  // single capture-phase pointer-down on the editable canvas container (which
+  // runs before any child stopPropagation, catching clicks on every other
+  // element type + empty canvas).
+  const [captionCardSelected, setCaptionCardSelected] = useState(false)
+
   // Phase 72 Plan 02 (ROTATE-02, PERF-01): per-decoration local rotation preview.
   // Updated per-tick during a rotation-handle drag — the rendered transform
   // reads from this map (falling back to d.rotation) so the decoration appears
@@ -1511,6 +1520,17 @@ export function SlidePreview({
         // via elementsInRect + manual px→% conversion using the existing `scale`
         // factor. selecto package is installed (Plan 61-01) but we don't wire
         // its hit-tester — avoids the Day-1 setScale debugging surface entirely.
+        onPointerDownCapture={(e) => {
+          // quick-260517-k2n: any pointer-down that is NOT on the caption card
+          // deselects it. Capture phase runs BEFORE child stopPropagation, so
+          // this catches clicks on hook/body/custom-text/custom-image/
+          // decoration AND empty canvas in one place. The caption-card <Rnd>
+          // sets the selection back to true in its own (bubble-phase)
+          // onMouseDown, which fires AFTER this — so clicking the card nets
+          // out selected.
+          void e
+          if (captionCardSelected) setCaptionCardSelected(false)
+        }}
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget) return
           const rect = e.currentTarget.getBoundingClientRect()
@@ -1626,11 +1646,104 @@ export function SlidePreview({
           </>
         )}
 
-        {/* quick-260517-k2n: caption card (editable branch). Task 2 mounts the
-            plain div here as a sibling outside the useBgMode ternary so it
-            appears on every template (key_decision 2); Task 3 swaps it for an
-            <Rnd> so the card is draggable/resizable on the editor canvas. */}
-        <CaptionCardLayer template={template} slide={slide} />
+        {/* quick-260517-k2n: caption card (editable branch) — rendered as an
+            <Rnd> so the user drags/resizes it directly on the canvas. Sibling
+            outside the useBgMode ternary => appears on every template
+            (key_decision 2). The card stays VISUALLY at zIndex 2 (below text);
+            only its selection chrome (resize handles) floats above via the
+            handle zIndex. Drag/resize commits go through onCaptionBarUpdate
+            (Task 3a) — ONE UPDATE_SLIDE per gesture => one undo entry (KBD-09). */}
+        {(() => {
+          const cc = resolveCaptionBar(slide.style_overrides, template)
+          if (!cc.enabled) return null
+          const ccXpx = (cc.x / 100) * REF_WIDTH
+          const ccYpx = (cc.y / 100) * REF_HEIGHT
+          const ccWpx = (cc.width / 100) * REF_WIDTH
+          const ccHpx = (cc.heightPct / 100) * REF_HEIGHT
+          // Selection chrome — 8 white square handles, mirroring the decoration
+          // resize chrome. zIndex 51 keeps the handles grabbable ABOVE the text
+          // (text is at zIndex 10) even though the card body sits at zIndex 2.
+          const ccHandleStyle: React.CSSProperties = {
+            width: 8,
+            height: 8,
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            border: '1px solid rgba(0, 0, 0, 0.3)',
+            borderRadius: 1,
+            position: 'absolute',
+            zIndex: 51,
+          }
+          return (
+            <Rnd
+              data-testid="caption-card"
+              position={{ x: ccXpx, y: ccYpx }}
+              size={{ width: ccWpx, height: ccHpx }}
+              scale={scale}
+              bounds="parent"
+              enableResizing={
+                captionCardSelected
+                  ? {
+                      top: true,
+                      bottom: true,
+                      left: true,
+                      right: true,
+                      topLeft: true,
+                      topRight: true,
+                      bottomLeft: true,
+                      bottomRight: true,
+                    }
+                  : false
+              }
+              resizeHandleStyles={{
+                topLeft: { ...ccHandleStyle, top: -4, left: -4 },
+                topRight: { ...ccHandleStyle, top: -4, right: -4 },
+                bottomLeft: { ...ccHandleStyle, bottom: -4, left: -4 },
+                bottomRight: { ...ccHandleStyle, bottom: -4, right: -4 },
+                top: { ...ccHandleStyle, top: -4, left: '50%', transform: 'translateX(-50%)' },
+                bottom: { ...ccHandleStyle, bottom: -4, left: '50%', transform: 'translateX(-50%)' },
+                left: { ...ccHandleStyle, left: -4, top: '50%', transform: 'translateY(-50%)' },
+                right: { ...ccHandleStyle, right: -4, top: '50%', transform: 'translateY(-50%)' },
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation()
+                setCaptionCardSelected(true)
+              }}
+              onDragStop={(_e, data) => {
+                const x = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+                const y = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
+                onCaptionBarUpdate?.({ caption_bar_x: x, caption_bar_y: y })
+              }}
+              onResizeStop={(_e, _dir, ref, _delta, position) => {
+                const w = Math.max(
+                  5,
+                  Math.min(100, (parseInt(ref.style.width) / REF_WIDTH) * 100),
+                )
+                const h = Math.max(
+                  10,
+                  Math.min(90, (parseInt(ref.style.height) / REF_HEIGHT) * 100),
+                )
+                const x = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+                const y = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
+                onCaptionBarUpdate?.({
+                  caption_bar_width: w,
+                  caption_bar_height_pct: h,
+                  caption_bar_x: x,
+                  caption_bar_y: y,
+                })
+              }}
+              style={{ zIndex: 2, cursor: 'grab' }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: cc.backgroundColor,
+                  outline: captionCardSelected ? '2px solid #3d0000' : undefined,
+                  outlineOffset: 2,
+                }}
+              />
+            </Rnd>
+          )
+        })()}
 
         {/* Phase 45 layer 4: overlay zones — same DOM order as non-editable branch. */}
         <OverlayLayers template={template} ctx={resolveCtx} />
