@@ -21,6 +21,7 @@ export { DecorationSchema, parseDecorationsArraySafe }
 export type { DecorationContent }
 import { buildSystemPrompt } from './prompts'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
+import { promoteNewsHeadline } from './categories/promote-news-headline'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
 import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
@@ -264,6 +265,24 @@ export async function generateSlideContent(
 
   // Validate final shape with Zod (schema gate — separate from validateAndRepair).
   const parsedCarousel = CarouselSchema.parse(data)
+
+  // Phase 82 Gap B + Gap C: News-category post-generation promotion. Runs
+  // AFTER the Zod parse and BEFORE legacyToTextBoxes so the pill-highlighted
+  // hook_segments + the large hook_font_size flow into BOTH the legacy slide
+  // fields (read directly by both renderers) and the derived text_boxes.
+  //   Gap B — every news headline gets pill-highlighted keywords
+  //           (highlightColor + highlightStyle:'pill'); when Gemini emits no
+  //           hook_segments at all, they are derived deterministically so the
+  //           headline is never left plain.
+  //   Gap C — every news headline gets a large hook_font_size so it dominates
+  //           the slide instead of falling back to the ~124px template default.
+  // News-only — facts/legacy generation paths are untouched.
+  if (category === 'news') {
+    const newsTemplate = templateId ? getTemplate(templateId) : getTemplate('news-cyan')
+    const accentHex =
+      newsTemplate.accentColor ?? getTemplate('news-cyan').accentColor ?? '#00E5FF'
+    promoteNewsHeadline(parsedCarousel, accentHex)
+  }
 
   // Phase 71 (AI-01..04): server-side decorations ingest. AI emits named
   // tokens + semantic anchors via DecorationEmitSchema; we resolve to
