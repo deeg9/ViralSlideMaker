@@ -1,14 +1,12 @@
-// Phase 82 Gap B + Gap C — tests for the News-category post-generation
+// Phase 82 Gap B + Gap D — tests for the News-category post-generation
 // transform. Pure unit tests over promoteNewsHeadline — no network, no Gemini.
 //
 // Fixtures use the 82-VISUAL-SIGNOFF fixed test topic
 // ("Major tech company announces 19,000 layoffs").
 
 import { describe, it, expect } from 'vitest'
-import {
-  promoteNewsHeadline,
-  NEWS_HEADLINE_FONT_SIZE,
-} from '@/lib/ai/categories/promote-news-headline'
+import { promoteNewsHeadline } from '@/lib/ai/categories/promote-news-headline'
+import { HEADLINE_FIT_CEILING, HEADLINE_FIT_FLOOR } from '@/lib/render/hook-fit'
 
 const NEWS_CYAN_ACCENT = '#00E5FF'
 
@@ -130,17 +128,41 @@ describe('Phase 82 Gap B2 — backfill when Gemini emits no usable segments', ()
   })
 })
 
-describe('Phase 82 Gap C — large headline size', () => {
-  it('sets style_overrides.hook_font_size to NEWS_HEADLINE_FONT_SIZE on every slide', () => {
+describe('Phase 82 Gap D — auto-fit headline size (no flat constant)', () => {
+  it('every slide gets a numeric hook_font_size within the auto-fit range', () => {
     const c = carousel([
       { hook_text: 'MAJOR TECH COMPANY ANNOUNCES 19000 LAYOFFS' },
       { hook_text: 'CEO BLAMES AI SHIFT' },
     ])
     promoteNewsHeadline(c, NEWS_CYAN_ACCENT)
-    expect(NEWS_HEADLINE_FONT_SIZE).toBeGreaterThanOrEqual(180)
     for (const slide of c.slides as Array<{ style_overrides?: { hook_font_size?: number } }>) {
-      expect(slide.style_overrides?.hook_font_size).toBe(NEWS_HEADLINE_FONT_SIZE)
+      const size = slide.style_overrides?.hook_font_size
+      expect(typeof size).toBe('number')
+      expect(size!).toBeGreaterThanOrEqual(HEADLINE_FIT_FLOOR)
+      expect(size!).toBeLessThanOrEqual(HEADLINE_FIT_CEILING)
     }
+  })
+
+  it('a long headline gets a SMALLER size than a short headline (content-aware, not flat)', () => {
+    const c = carousel([
+      { hook_text: 'BREAKING' },
+      { hook_text: 'MAJOR TECH COMPANY ANNOUNCES 19000 LAYOFFS NATIONWIDE TODAY' },
+    ])
+    promoteNewsHeadline(c, NEWS_CYAN_ACCENT)
+    const shortSize = (c.slides[0] as { style_overrides: { hook_font_size: number } })
+      .style_overrides.hook_font_size
+    const longSize = (c.slides[1] as { style_overrides: { hook_font_size: number } })
+      .style_overrides.hook_font_size
+    // A flat constant would make these equal — the auto-fit makes them differ.
+    expect(longSize).toBeLessThan(shortSize)
+  })
+
+  it('a short headline is sized near the ceiling so it dominates the slide', () => {
+    const c = carousel([{ hook_text: 'BREAKING' }])
+    promoteNewsHeadline(c, NEWS_CYAN_ACCENT)
+    const size = (c.slides[0] as { style_overrides: { hook_font_size: number } })
+      .style_overrides.hook_font_size
+    expect(size).toBeGreaterThanOrEqual(200)
   })
 
   it('respects a pre-existing hook_font_size override', () => {
