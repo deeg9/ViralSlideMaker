@@ -143,10 +143,30 @@ change is the `overflow-wrap` flip; no unrelated template changed (verified via
 `git diff`). The full test suite holds at its 43-failure pre-existing
 `quick-260515-o75` baseline — zero new failures. Code review CLEAN.
 
+## R10 round 2 — critical generation bug found + fixed during re-test (2026-05-17)
+
+While re-testing Gaps D/E, News generation appeared to "hang" — every run took
+~134-148s then failed. Diagnosed with an isolated probe + a raw-response dump:
+
+- **Root cause:** the Gemini `responseSchema` field `template_id_override` was
+  documented "Closed enum from registry" but the `enum` array was never
+  applied — it stayed an open `Type.STRING`. On the style-heavy News-category
+  prompt the model degenerated into a multi-KB runaway string in that field,
+  hit `MAX_TOKENS` (~148s of generation), and truncated the JSON → `JSON.parse`
+  threw → the whole carousel generation failed after a ~2.5-minute spinner.
+- **Fix (commit `fe5f173`):** applied `enum: [...TEMPLATE_IDS]` to
+  `template_id_override` (the close the comment always claimed) + added
+  `maxOutputTokens: 8192` as defense-in-depth.
+- **Verified:** `generateSlideContent` 148,158ms → 1,677ms; Gemini
+  `finishReason` MAX_TOKENS → STOP. Generation is fast and reliable again.
+
+This bug masked the Gap D/E visual verification — it must now be re-tested.
+
 **Verdict:** ⛔ STILL PENDING USER VISUAL APPROVAL. Gaps D + E are fixed in code
-with passing tests, but the R10 **visual** sign-off remains a human judgment.
-The user must re-generate a sample News carousel ("Major tech company announces
-19,000 layoffs") via the News category and confirm the headline is now cleanly
-contained — whole words, no overflow — matching `~/Desktop/Screenshot 2026-05-17
-at 3.06.22 PM.png`. This autonomous run does NOT mark the visual sign-off
-approved.
+with passing tests, and the generation perf/correctness bug above is fixed. The
+R10 **visual** sign-off remains a human judgment: the user must re-generate a
+sample News carousel ("Major tech company announces 19,000 layoffs") via the
+News category and confirm (a) it generates in seconds, and (b) the headline is
+cleanly contained — whole words, no overflow — matching `~/Desktop/Screenshot
+2026-05-17 at 3.06.22 PM.png`. This autonomous run does NOT mark the visual
+sign-off approved.
