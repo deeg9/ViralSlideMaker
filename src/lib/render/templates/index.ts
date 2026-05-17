@@ -183,14 +183,33 @@ export const TEMPLATE_IDS: readonly string[] = templates.map((t) => t.id)
 // getTemplate()) but hidden from the user-facing visual-style picker.
 // Adding an ID here removes it from the picker without breaking existing
 // projects whose template_id was assigned before the style was retired.
+//
+// Phase 82 (R8/R9): this set IS the user-approved cull list recorded in
+// `82-KEEPER-SIGNOFF.md` (signed off 2026-05-17). The keeper-list curation is
+// hide-not-delete — the 7 ids below lose only their picker visibility; their
+// renderer code and registry entries stay, so `getTemplate()` still resolves
+// every culled id and the ~50 saved projects render byte-identically (v2.13
+// render-parity invariant preserved). pickerTemplates (below) therefore yields
+// exactly the 5 approved keepers: news-cyan, tr3nding-news, bold-yellow,
+// editorial-serif, y2k-pop. Both shipping content categories (News, Facts) are
+// covered by keepers — no category can resolve to a hidden template.
 export const HIDDEN_FROM_PICKER: ReadonlySet<string> = new Set([
   'highlight-bar',
   'news-drop',
   'magazine-bold',
   'documentary',
+  'notes-app-chic',
   'brutalist-grid',
+  'paper-essay',
 ])
 
+// Phase 82 (R8): the keeper-filtered picker list — exactly the 5 approved
+// keepers. Category->template coverage (every `templateIds` entry across all
+// CATEGORIES modules must be a picker-visible keeper, so a category never
+// resolves to a hidden template — SPEC R7) is asserted in the keeper-curation
+// test: `templates/__tests__/keeper-curation.test.ts`. Importing the category
+// registry here would create a render<->ai import cycle, so the invariant is
+// enforced by that test rather than at module load.
 export const pickerTemplates: SlideTemplate[] = templates.filter(
   (t) => !HIDDEN_FROM_PICKER.has(t.id),
 )

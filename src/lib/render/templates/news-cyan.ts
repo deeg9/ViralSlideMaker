@@ -4,12 +4,27 @@ import type { SlideTemplate } from './index'
 // Black background, oversized condensed display headline, cyan accent for keywords.
 // Pairs with style_overrides.layout = 'cover' | 'body' just like News Drop, and
 // shares the same Gemini prompt branch via the NEWS_TEMPLATES set.
+//
+// Phase 82 (R8): the News-category keeper, polished toward the reference
+// news-headline style — full-bleed photojournalism image (via the legacy
+// newsZone `cover`/`body` layout path, which already renders the background
+// photo edge-to-edge), a dark tint under the headline for legibility, an
+// oversized bold headline as the focal element, and a punchy cyan accent.
+// `backgroundMode` / `overlays` are intentionally left undefined so the
+// template keeps the newsZone full-bleed path and leaves room for the small
+// top-anchored accessory_label (Plan 01) above the bottom-anchored headline.
+// This is the ONE template whose render output changes deliberately in this
+// phase — its render-parity snapshots (legacy regression + template
+// fingerprint) and its byte-identical hash fixture are regenerated for this
+// template only; every other template stays byte-identical.
 export const newsCyan: SlideTemplate = {
   id: 'news-cyan',
   name: 'News Cyan',
   thumbnail: '/templates/news-cyan.png',
   fontFamily: "'Anton', sans-serif",
-  hookFontSize: '110px',
+  // Phase 82 (R8): headline is the focal element — bumped 110 -> 124px so the
+  // big bold headline dominates the slide, matching the reference.
+  hookFontSize: '124px',
   // 260503-0f2: Anton ships single-weight (400) on Google Fonts. Force 400 so
   // Satori PNG export matches browser preview (which falls back to 400 when
   // 900 is requested but unavailable).
@@ -17,8 +32,11 @@ export const newsCyan: SlideTemplate = {
   bodyFontSize: '38px',
   textColor: '#ffffff',
   backgroundColor: '#0a0a0a',
-  overlayColor: '#000000',
-  overlayOpacity: 0,
+  // Phase 82 (R8): dark tint over the full-bleed photo so the big white
+  // headline reads against bright news imagery (reference: dark gradient
+  // under the headline). Opacity raised 0 -> 0.45.
+  overlayColor: '#0a0a0a',
+  overlayOpacity: 0.45,
   textAlign: 'left',
   textPosition: 'bottom',
   hookStyle: 'uppercase',
