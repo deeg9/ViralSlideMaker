@@ -22,6 +22,7 @@ import {
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
   renderTextBlock,
+  renderTightHighlight,
   resolveCaptionBar,
   renderGrain,
   renderVignette,
@@ -92,13 +93,21 @@ function satoriEffectStyles(effects: ResolvedTextEffectStyles): React.CSSPropert
 }
 
 /**
- * Build highlight style for Satori (always full-width).
- * REND-04: Satori does not support box-decoration-break: clone,
- * so tight highlight gracefully falls back to full-width.
+ * Build the CONTAINER highlight style for Satori — `full` style only.
+ *
+ * REND-04 (resolved by quick-260517-iiy): Satori has no
+ * `box-decoration-break`, so the old tight path silently fell back to
+ * full-width here — non-parity with the canvas. Tight is now rendered as
+ * per-line `inline-block` pills via the shared `renderTightHighlight` helper
+ * (Satori's CSS subset honors `display: flex` + `inline-block`), producing
+ * pills identical to the canvas + HTML paths. So this helper returns null for
+ * `tight` — the container gets NO background; the per-line pills carry it.
  */
 function satoriHighlightStyle(effects: ResolvedTextEffectStyles): React.CSSProperties | null {
   if (!effects.highlight?.enabled) return null
-  // REND-04: Always use full-width in Satori (tight not supported without box-decoration-break)
+  // Tight → per-line pills (renderTightHighlight); no container background.
+  if (effects.highlight.style === 'tight') return null
+  // Full → background painted on the text container.
   return {
     backgroundColor: effects.highlight.color,
     padding: `${effects.highlight.padding}px`,
@@ -183,6 +192,13 @@ export function buildSlideElement(
     !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
       ? NEWS_LAYOUT[overrides.layout]
       : null
+  // quick-260517-iiy: constrained news-photo height — `news_image_height`
+  // override ?? NEWS_LAYOUT preset, clamped to [20, 80] (threat T-iiy-01).
+  // Unset → byte-identical legacy rendering (TPLREND-05). Mirrors
+  // slide-preview.tsx + render-slide.ts.
+  const newsImageHeight = newsZone
+    ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
+    : null
 
   // Templates with a hook-fit registry entry auto-shrink hook size for long
   // headlines. quick-260510-export-overlap: in news layouts (where bodyY is
@@ -377,7 +393,9 @@ export function buildSlideElement(
             top: newsZone ? pxY(newsZone.imageTop) : 0,
             left: 0,
             width: W,
-            height: newsZone ? pxY(newsZone.imageHeight) : H,
+            // quick-260517-iiy: news_image_height override moves the photo /
+            // caption-panel boundary; falls back to the preset.
+            height: newsZone ? pxY(newsImageHeight ?? newsZone.imageHeight) : H,
             objectFit: 'cover',
             objectPosition: 'center',
           }}
@@ -516,27 +534,53 @@ export function buildSlideElement(
       {/* Hook text — Phase 64 LOCK-07: skip when text_boxes hook entry has hidden=true */}
       {!hookBox?.hidden && (
         <div style={hookStyle}>
-          {renderTextBlock(
-            slide.hook_text,
-            slide.hook_segments,
-            hookBox?.list_type,
-            hookBox?.list_indent,
-            isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
-            hookAccentColor,
-          )}
+          {resolved.hookEffects.highlight?.enabled &&
+          resolved.hookEffects.highlight.style === 'tight'
+            ? // quick-260517-iiy: per-line tight pills — shared with canvas/HTML.
+              renderTightHighlight(
+                slide.hook_text,
+                slide.hook_segments,
+                hookBox?.list_type,
+                hookBox?.list_indent,
+                isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
+                hookAccentColor,
+                resolved.hookEffects.highlight,
+                hookTextAlign,
+              )
+            : renderTextBlock(
+                slide.hook_text,
+                slide.hook_segments,
+                hookBox?.list_type,
+                hookBox?.list_indent,
+                isColorOnlyTemplate ? textColor : overrides.hook_text_color ?? textColor,
+                hookAccentColor,
+              )}
         </div>
       )}
       {/* Body text — Phase 64 LOCK-07: skip when text_boxes body entry has hidden=true */}
       {!bodyBox?.hidden && (
         <div style={bodyStyle}>
-          {renderTextBlock(
-            slide.body_text ?? '',
-            slide.body_segments,
-            bodyBox?.list_type,
-            bodyBox?.list_indent,
-            isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
-            bodyAccentColor,
-          )}
+          {resolved.bodyEffects.highlight?.enabled &&
+          resolved.bodyEffects.highlight.style === 'tight'
+            ? // quick-260517-iiy: per-line tight pills — shared with canvas/HTML.
+              renderTightHighlight(
+                slide.body_text ?? '',
+                slide.body_segments,
+                bodyBox?.list_type,
+                bodyBox?.list_indent,
+                isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
+                bodyAccentColor,
+                resolved.bodyEffects.highlight,
+                bodyTextAlign,
+              )
+            : renderTextBlock(
+                slide.body_text ?? '',
+                slide.body_segments,
+                bodyBox?.list_type,
+                bodyBox?.list_indent,
+                isColorOnlyTemplate ? textColor : overrides.body_text_color ?? textColor,
+                bodyAccentColor,
+              )}
         </div>
       )}
       {/* Custom images (before text so text layers on top in Satori DOM order)
@@ -619,7 +663,20 @@ export function buildSlideElement(
               ...(ctHighlight ?? {}),
             }}
           >
-            {renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}
+            {resolvedCt?.resolvedEffects.highlight?.enabled &&
+            resolvedCt.resolvedEffects.highlight.style === 'tight'
+              ? // quick-260517-iiy: per-line tight pills — shared with canvas/HTML.
+                renderTightHighlight(
+                  ct.text,
+                  ct.segments,
+                  ct.list_type,
+                  ct.list_indent,
+                  ctBaseColor,
+                  accentColor,
+                  resolvedCt.resolvedEffects.highlight,
+                  ct.text_align,
+                )
+              : renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}
           </div>
         )
       })}

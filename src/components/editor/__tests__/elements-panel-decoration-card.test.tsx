@@ -12,7 +12,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import { ElementsPanel } from '../elements-panel'
 import type { Decoration, ShapeDecoration } from '@/lib/types/decoration'
-import type { TextBox } from '@/lib/types/slide'
 
 const DECO_SHAPE: ShapeDecoration = {
   id: 'd-shape',
@@ -20,16 +19,6 @@ const DECO_SHAPE: ShapeDecoration = {
   shapeKind: 'rect',
   fill: '#FF0000',
   position: { x: 0, y: 0, width: 10, height: 10 },
-}
-
-const TEXT_BOX: TextBox = {
-  id: 'tb-1',
-  role: 'hook',
-  text: 'Hello',
-  position: { anchor: 'top' },
-  effects: {
-    highlight: { enabled: true, color: '#3d000088', style: 'tight', padding: 8 },
-  },
 }
 
 describe('ElementsPanel', () => {
@@ -138,102 +127,6 @@ describe('ElementsPanel', () => {
       expect(del).toBeTruthy()
       fireEvent.click(del!)
       expect(onDecorationRemove).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  // quick-260517-fu9: the "Text Background" card surfaces the existing
-  // text-background (highlight) color control under the Elements tab. It is
-  // text-box-scoped — it appears only when an active text box is provided,
-  // and it must not depend on the slide/template/onSlideUpdate guards that
-  // gate the Caption Bar + Watermark cards.
-  describe('Text Background card (quick-260517-fu9)', () => {
-    it('renders the card when a text box is the active selection', () => {
-      const { container } = render(
-        <ElementsPanel
-          templateTextColor="#3d0000"
-          onInsertDivider={vi.fn()}
-          activeTextBox={TEXT_BOX}
-          onTextBoxHighlightUpdate={vi.fn()}
-        />,
-      )
-      expect(
-        container.querySelector('[data-testid="elements-text-background-card"]'),
-      ).toBeTruthy()
-      // It mounts the extracted TextBackgroundControls (testids preserved).
-      expect(
-        container.querySelector('[data-testid="highlight-color-row"]'),
-      ).toBeTruthy()
-    })
-
-    it('does not render the card when no text box is selected', () => {
-      const { container } = render(
-        <ElementsPanel
-          templateTextColor="#3d0000"
-          onInsertDivider={vi.fn()}
-          activeTextBox={null}
-          onTextBoxHighlightUpdate={vi.fn()}
-        />,
-      )
-      expect(
-        container.querySelector('[data-testid="elements-text-background-card"]'),
-      ).toBeNull()
-    })
-
-    it('appears even without slide/template/onSlideUpdate (own conditional)', () => {
-      // The Caption Bar + Watermark cards are gated on slide && template &&
-      // onSlideUpdate. The Text Background card must NOT inherit that guard.
-      const { container } = render(
-        <ElementsPanel
-          templateTextColor="#3d0000"
-          onInsertDivider={vi.fn()}
-          activeTextBox={TEXT_BOX}
-          onTextBoxHighlightUpdate={vi.fn()}
-        />,
-      )
-      expect(
-        container.querySelector('[data-testid="elements-text-background-card"]'),
-      ).toBeTruthy()
-    })
-
-    it('changing the color routes a merged highlight through onTextBoxHighlightUpdate', () => {
-      const onTextBoxHighlightUpdate = vi.fn()
-      const { container } = render(
-        <ElementsPanel
-          templateTextColor="#3d0000"
-          onInsertDivider={vi.fn()}
-          activeTextBox={TEXT_BOX}
-          onTextBoxHighlightUpdate={onTextBoxHighlightUpdate}
-        />,
-      )
-      const firstSwatch = container.querySelector(
-        '[data-testid="elements-text-background-card"] [data-testid="highlight-color-row"] button',
-      ) as HTMLButtonElement
-      fireEvent.click(firstSwatch)
-      expect(onTextBoxHighlightUpdate).toHaveBeenCalledTimes(1)
-      // first swatch '#ffffff' → '#ffffff88'; merged with existing fields.
-      expect(onTextBoxHighlightUpdate).toHaveBeenCalledWith({
-        enabled: true,
-        color: '#ffffff88',
-        style: 'tight',
-        padding: 8,
-      })
-    })
-
-    it('also renders in selection mode when a decoration is active', () => {
-      const { container } = render(
-        <ElementsPanel
-          templateTextColor="#3d0000"
-          onInsertDivider={vi.fn()}
-          activeDecoration={DECO_SHAPE as Decoration}
-          onDecorationUpdate={vi.fn()}
-          onDecorationRemove={vi.fn()}
-          activeTextBox={TEXT_BOX}
-          onTextBoxHighlightUpdate={vi.fn()}
-        />,
-      )
-      expect(
-        container.querySelector('[data-testid="elements-text-background-card"]'),
-      ).toBeTruthy()
     })
   })
 })

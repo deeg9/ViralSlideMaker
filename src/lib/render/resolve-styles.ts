@@ -231,26 +231,10 @@ export function resolveSlideStyles(
   }
 }
 
-export function buildHighlightWrapperStyle(
-  highlight: ResolvedTextEffectStyles['highlight'],
-  mode: 'tight' | 'full-width-fallback'
-): CSSProperties | null {
-  if (!highlight?.enabled) return null
-
-  const effectiveStyle = mode === 'full-width-fallback' ? 'full' : highlight.style
-
-  if (effectiveStyle === 'tight') {
-    return {
-      backgroundColor: highlight.color,
-      padding: `${highlight.padding}px ${highlight.padding}px`,
-      boxDecorationBreak: 'clone' as const,
-      WebkitBoxDecorationBreak: 'clone' as const,
-    }
-  }
-
-  // full-width: background on the container div
-  return {
-    backgroundColor: highlight.color,
-    padding: `${highlight.padding}px`,
-  }
-}
+// quick-260517-iiy: `buildHighlightWrapperStyle` was deleted. Its `tight`
+// branch relied on `box-decoration-break: clone` on a single wrapper span,
+// which renders segment-less plain text as a continuous horizontal bar and is
+// unsupported by Satori. Tight highlight is now rendered as per-line
+// `inline-block` pills by the shared `renderTightHighlight` helper in
+// resolve-overlay.ts — see Task 3 of quick-260517-iiy. The `full` highlight
+// background is applied directly on the text container at each render site.
