@@ -100,25 +100,78 @@ function renderSegments(
     .join('')
 }
 
-/** Build highlight CSS for HTML renderer. Supports both tight and full-width modes. */
-function highlightCSS(effects: ResolvedTextEffectStyles, mode: 'full' | 'native'): { containerCSS: string; spanWrap: boolean; spanCSS: string } {
-  if (!effects.highlight?.enabled) return { containerCSS: '', spanWrap: false, spanCSS: '' }
+// quick-260517-iiy: fixed inset for the tight-highlight pill. Mirrors
+// TIGHT_HIGHLIGHT_PADDING in resolve-overlay.ts — the canvas/Satori paths use
+// that const; the HTML string-builder duplicates the value here so the three
+// paths emit identical pills (TPLREND-05). `effects.highlight.padding` is
+// intentionally NOT read.
+const TIGHT_HIGHLIGHT_PADDING = 8
+
+/**
+ * Build highlight CSS for the HTML renderer.
+ *
+ *   - `full`  → background painted on the text container (`containerCSS`).
+ *   - `tight` → `isTight: true`; caller must render per-line pills via
+ *               `buildTightHighlightHtml` instead of using the container CSS.
+ *
+ * quick-260517-iiy: the old `tight` path set `box-decoration-break: clone` on a
+ * single wrapper span — that renders as one continuous horizontal bar for
+ * segment-less plain text and is unsupported by Satori. Tight is now per-line
+ * inline-block pills (see buildTightHighlightHtml) so all three render paths
+ * match.
+ */
+function highlightCSS(
+  effects: ResolvedTextEffectStyles,
+  mode: 'full' | 'native',
+): { containerCSS: string; isTight: boolean } {
+  if (!effects.highlight?.enabled) return { containerCSS: '', isTight: false }
 
   if (mode === 'native' && effects.highlight.style === 'tight') {
-    // Tight: wrap text in span with background + box-decoration-break: clone
-    return {
-      containerCSS: '',
-      spanWrap: true,
-      spanCSS: `background-color: ${effects.highlight.color}; padding: ${effects.highlight.padding}px; box-decoration-break: clone; -webkit-box-decoration-break: clone;`,
-    }
+    // Tight: caller renders per-line pills — no container background.
+    return { containerCSS: '', isTight: true }
   }
 
-  // Full-width: background on the container
+  // Full-width: background on the container.
   return {
     containerCSS: `background-color: ${effects.highlight.color}; padding: ${effects.highlight.padding}px;`,
-    spanWrap: false,
-    spanCSS: '',
+    isTight: false,
   }
+}
+
+/**
+ * quick-260517-iiy: HTML equivalent of resolve-overlay.renderTightHighlight —
+ * emit one `inline-block` padded pill per `\n`-split line inside a
+ * `flex-direction: column` container. Line-deterministic; no
+ * `box-decoration-break`. The per-line markup is byte-structurally identical
+ * to the canvas + Satori paths (TPLREND-05).
+ *
+ * `inner` is the pre-rendered inner HTML for single-line text (e.g. segmented
+ * spans). For multi-line text each line is escaped + wrapped individually.
+ */
+function buildTightHighlightHtml(
+  text: string,
+  color: string,
+  textColor: string,
+  textAlign: string,
+  inner: string,
+): string {
+  const lines = text.split('\n')
+  const flexAlign =
+    textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start'
+  const pillStyle =
+    `display: inline-block; background-color: ${color}; color: ${textColor};` +
+    ` padding: ${TIGHT_HIGHLIGHT_PADDING}px ${TIGHT_HIGHLIGHT_PADDING}px;` +
+    ` align-self: ${flexAlign}; max-width: 100%; overflow-wrap: break-word;`
+  const pills =
+    lines.length === 1
+      ? `<span style="${pillStyle}">${inner}</span>`
+      : lines
+          .map((line) => `<span style="${pillStyle}">${escapeHtml(line)}</span>`)
+          .join('')
+  return (
+    `<span style="display: flex; flex-direction: column; width: 100%;` +
+    ` gap: 8px; align-items: ${flexAlign};">${pills}</span>`
+  )
 }
 
 export function buildSlideHtml(
@@ -263,12 +316,21 @@ export function buildSlideHtml(
   const customTextHtml = (slide.custom_texts ?? []).map((ct) => {
     const resolvedCt = resolved.customTexts.find(rc => rc.id === ct.id)
     const ctEffectStr = resolvedCt ? effectsToCSS(resolvedCt.resolvedEffects) : ''
-    const ctHL = resolvedCt ? highlightCSS(resolvedCt.resolvedEffects, 'native') : { containerCSS: '', spanWrap: false, spanCSS: '' }
+    const ctHL = resolvedCt
+      ? highlightCSS(resolvedCt.resolvedEffects, 'native')
+      : { containerCSS: '', isTight: false }
     const ctBaseColor = ct.color ?? textColor
     const ctInner = renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)
-    const ctContent = ctHL.spanWrap
-      ? `<span style="${ctHL.spanCSS}">${ctInner}</span>`
-      : ctInner
+    const ctContent =
+      ctHL.isTight && resolvedCt?.resolvedEffects.highlight?.enabled
+        ? buildTightHighlightHtml(
+            ct.text,
+            resolvedCt.resolvedEffects.highlight.color,
+            ctBaseColor,
+            ct.text_align ?? 'left',
+            ctInner,
+          )
+        : ctInner
 
     const ctEffectInline = ctEffectStr.replace(/\n\s+/g, ' ').trim()
     const ctHighlightInline = ctHL.containerCSS.trim()
@@ -339,8 +401,14 @@ export function buildSlideHtml(
       ? textColor
       : overrides.hook_text_color ?? textColor
     const hookInner = renderSegments(slide.hook_text, slide.hook_segments, hookBase, accentColor)
-    return hookHL.spanWrap
-      ? `<span style="${hookHL.spanCSS}">${hookInner}</span>`
+    return hookHL.isTight && resolved.hookEffects.highlight?.enabled
+      ? buildTightHighlightHtml(
+          slide.hook_text,
+          resolved.hookEffects.highlight.color,
+          hookBase,
+          hookTextAlign,
+          hookInner,
+        )
       : hookInner
   })()}</div>
   <div class="body">${(() => {
@@ -349,8 +417,14 @@ export function buildSlideHtml(
       ? textColor
       : overrides.body_text_color ?? textColor
     const bodyInner = renderSegments(slide.body_text ?? '', slide.body_segments, bodyBase, accentColor)
-    return bodyHL.spanWrap
-      ? `<span style="${bodyHL.spanCSS}">${bodyInner}</span>`
+    return bodyHL.isTight && resolved.bodyEffects.highlight?.enabled
+      ? buildTightHighlightHtml(
+          slide.body_text ?? '',
+          resolved.bodyEffects.highlight.color,
+          bodyBase,
+          bodyTextAlign,
+          bodyInner,
+        )
       : bodyInner
   })()}</div>
   ${customImageHtml}

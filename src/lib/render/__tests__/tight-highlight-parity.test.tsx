@@ -51,7 +51,7 @@ const baseTemplate: SlideTemplate = {
   overlayOpacity: 0.4,
   textAlign: 'left',
   textPosition: 'bottom',
-  hookStyle: 'none',
+  hookStyle: 'normal',
 }
 
 // A hook with three visual lines — the multi-line scenario.
@@ -85,7 +85,7 @@ function walk(node: unknown): unknown[] {
   const out: unknown[] = [node]
   const kids = (node as { props?: { children?: unknown } }).props?.children
   if (Array.isArray(kids)) {
-    for (const k of kids) out.push(...walk(kids ? kids : []))
+    for (const k of kids) out.push(...walk(k))
   } else if (kids != null) {
     out.push(...walk(kids))
   }
