@@ -12,6 +12,18 @@
  * card renders `null` for every other template, so the parent can mount it
  * unconditionally.
  *
+ * quick-260517-h8z: the visibility gate MIRRORS the renderer's `useBottomCard`
+ * condition (slide-preview.tsx:788-789, render-slide-satori.tsx:215-216) — both
+ * are `backgroundMode === 'image-with-bottom-card'`. ElementsPanel passes the
+ * PER-SLIDE-RESOLVED template (post `resolvePerSlideTemplate`), so the card
+ * appears whenever the canvas actually draws the solid bottom-card panel —
+ * including Style-from-Reference `caption-bar-bottom` archetype slides, which
+ * carry `style_overrides.template_id_override = 'magazine-bold'` without
+ * touching the project-level template. If the user can SEE the bottom panel,
+ * the editing card is in the ELEMENTS tab; templates with no bottom card show
+ * NO card (no false-positive). The card's Color row writes `caption_bar_color`
+ * — the exact override `resolveCaptionBar` reads to color that panel.
+ *
  * Writes per-slide `style_overrides` (the 4 caption_bar_* fields). The
  * renderers read those overrides through `resolveCaptionBar`. Slider drags
  * route through `onSlidePreview` (noHistory:true) on every tick and commit
@@ -85,7 +97,18 @@ export function CaptionBarControls({
   // bottom caption bar. Render nothing so the parent can mount unconditionally.
   // Declared AFTER the hooks above so the hook order stays stable across the
   // gate flipping (rules-of-hooks).
-  if (template.backgroundMode !== 'image-with-bottom-card') return null
+  //
+  // quick-260517-h8z: this is the EXACT condition the renderers use for
+  // `useBottomCard` (slide-preview.tsx:788-789, render-slide-satori.tsx:215-216).
+  // `template` here is the PER-SLIDE-RESOLVED template handed in by
+  // ElementsPanel (`resolvePerSlideTemplate(slide, template)`), so the gate
+  // tracks what the canvas actually draws — a Style-from-Reference
+  // `caption-bar-bottom` slide (template_id_override = 'magazine-bold') resolves
+  // to a bottom-card template and surfaces the card, while a `color` /
+  // undefined backgroundMode template never does.
+  const rendersBottomCard =
+    template.backgroundMode === 'image-with-bottom-card'
+  if (!rendersBottomCard) return null
 
   /** Emit a merged style_overrides patch. `commit` picks the history-recording
    *  dispatch vs the transient (noHistory) one. */
