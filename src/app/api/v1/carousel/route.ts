@@ -8,6 +8,7 @@ import {
   FREE_TIER_PROJECT_LIMIT,
 } from '@/lib/credits/check-credits'
 import { generateCarousel } from '@/lib/services/carousel'
+import { getCategory } from '@/lib/ai/categories'
 
 export const maxDuration = 60
 
@@ -19,9 +20,10 @@ export const POST = withApiAuth(async (req, ctx) => {
     return apiError('VALIDATION_ERROR', 'Invalid JSON body', 400)
   }
 
-  const { topic, templateId, imageSource, slideCount, advancedOptions } = body as {
+  const { topic, templateId, category, imageSource, slideCount, advancedOptions } = body as {
     topic?: unknown
     templateId?: unknown
+    category?: unknown
     imageSource?: unknown
     slideCount?: unknown
     advancedOptions?: unknown
@@ -33,6 +35,12 @@ export const POST = withApiAuth(async (req, ctx) => {
   }
   if (typeof templateId !== 'string' || templateId.length === 0) {
     return apiError('VALIDATION_ERROR', 'templateId is required and must be a non-empty string', 400)
+  }
+  // Phase 82 (R1): category is optional, but when supplied it MUST be a known
+  // content category. An absent category lets generateCarousel resolve the
+  // default; an unknown one is a hard validation error (no silent fallback).
+  if (category !== undefined && (typeof category !== 'string' || !getCategory(category))) {
+    return apiError('VALIDATION_ERROR', 'category must be a known content category', 400)
   }
 
   // Validate optional fields
@@ -83,6 +91,8 @@ export const POST = withApiAuth(async (req, ctx) => {
     const result = await generateCarousel(ctx.supabase, ctx.userId, {
       topic,
       templateId,
+      // Phase 82 (R1): category threads into prompt assembly.
+      category: typeof category === 'string' ? category : undefined,
       slideCount: validSlideCount,
       imageSource: validImageSource as 'stock' | 'ai' | 'none',
       advancedOptions: advancedOptions as { font?: string; fontColor?: string; imagePrompt?: string } | undefined,

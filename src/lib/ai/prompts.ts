@@ -1,4 +1,5 @@
 import { getTemplate } from '@/lib/render/templates'
+import { getCategory } from '@/lib/ai/categories'
 import { isPremiumTemplate } from './validate-slides'
 import { AI_HOOK_VARIETY_ADDENDUM, AI_SLOP_AVOID_ADDENDUM } from './slop-guardrails'
 import type { SlideTemplate } from '@/lib/render/templates'
@@ -15,7 +16,27 @@ import {
 // accent color (and a few visual tokens) differ.
 const NEWS_TEMPLATES = new Set(['news-drop', 'news-cyan'])
 
-export function buildSystemPrompt(templateId?: string): string {
+export function buildSystemPrompt(templateId?: string, category?: string): string {
+  // Phase 82 (R1): the CONTENT CATEGORY — not the templateId — drives the copy.
+  // When a category resolves, its headline-first prompt module is the authority
+  // on how Gemini writes; it takes precedence over the base SLIDE STRUCTURE
+  // RULES and the legacy NEWS_TEMPLATES template-based branch. When no category
+  // is supplied (legacy callers, tests, pre-Phase-82 paths), this block is empty
+  // and the original templateId-based behavior is preserved unchanged.
+  const categoryModule = category ? getCategory(category) : undefined
+  const categoryBlock = categoryModule
+    ? `
+
+================================================================
+${categoryModule.buildPrompt()}
+
+The CONTENT CATEGORY rules above are AUTHORITATIVE. Where they conflict with the
+generic "SLIDE STRUCTURE RULES" below (which mandate hook + body on middle
+slides), the CONTENT CATEGORY rules WIN — write headline-first, omit body text.
+================================================================
+`
+    : ''
+
   const newsDropAddendum = templateId && NEWS_TEMPLATES.has(templateId) ? `
 
 NEWS DROP TEMPLATE (active):
@@ -81,7 +102,7 @@ PER-ROLE COPY GUIDANCE — every slide has a role; write each accordingly:
 - close (last slide): action / CTA / bookmark prompt — tell the viewer what to do next
 `
 
-  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}${perRoleGuidance}
+  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${categoryBlock}${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}${perRoleGuidance}
 HOOK PATTERNS — proven 2025-26 viral carousel formulas. Pick whichever fits the slide's role and the active TEMPLATE VOICE NOTE; vary across slides:
 - Insider / gatekept knowledge: "the strategy viral creators don't tell you" — implies hidden value.
 - Simplicity promise: "the only 3 things you need to [outcome]" — cuts through noise with a small number.

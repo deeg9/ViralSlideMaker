@@ -232,10 +232,17 @@ describe('AI output → text_boxes population (Phase 51 light-touch)', () => {
       const slide = makeBaseSlide(overrides)
       expect(() => legacyToTextBoxes(slide)).not.toThrow()
       const boxes = legacyToTextBoxes(slide)
-      // Always at least hook + body emitted (2)
-      expect(boxes.length).toBeGreaterThanOrEqual(2)
+      // The hook box is always emitted (index 0).
+      expect(boxes.length).toBeGreaterThanOrEqual(1)
       expect(boxes[0].role).toBe('hook')
-      expect(boxes[1].role).toBe('body')
+      // Phase 82 (R4): the body box is emitted ONLY when body_text is a
+      // non-empty string — headline-only slides have no body box.
+      const hasBody = typeof slide.body_text === 'string' && slide.body_text.length > 0
+      if (hasBody) {
+        expect(boxes[1]?.role).toBe('body')
+      } else {
+        expect(boxes.some((b) => b.role === 'body')).toBe(false)
+      }
     }
   })
 })

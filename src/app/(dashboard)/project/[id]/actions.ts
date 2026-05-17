@@ -1,6 +1,7 @@
 'use server'
 
 import { generateSlideContent } from '@/lib/ai/generate-slides'
+import { getCategory, DEFAULT_CATEGORY } from '@/lib/ai/categories'
 import { matchPhotosToSlides } from '@/lib/ai/match-photos-to-slides'
 import { searchPhotos } from '@/lib/pexels/search-photos'
 import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generate-prompt'
@@ -27,9 +28,25 @@ export async function generateCarousel(
   templateId: string,
   imageSource: 'stock' | 'ai' | 'none' = 'stock',
   slideCount: number = 7,
-  advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string; uploadedImageUrls?: string[] }
+  advancedOptions?: { font?: string; fontColor?: string; imagePrompt?: string; uploadedImageUrls?: string[] },
+  // Phase 82 (R1): the content category that drives Gemini's copy.
+  category?: string
 ): Promise<{ success: true; slideCount: number } | { success: false; error: string; upgradeEligible?: boolean }> {
   const supabase = await createClient()
+
+  // Phase 82 (R1, R7): resolve the effective category — an unknown/absent
+  // category falls back to the default ('news'). Then resolve an effective
+  // template: if the requested templateId is empty, missing, or not in the
+  // category's curated templateIds list, snap to the category's DEFAULT
+  // template (templateIds[0]). This removes the silent highlight-bar fallback
+  // (getTemplate's templates[0]) — a selected category ALWAYS resolves to a
+  // curated, category-appropriate template.
+  const resolvedCategory = category && getCategory(category) ? category : DEFAULT_CATEGORY
+  const categoryModule = getCategory(resolvedCategory)!
+  const effectiveTemplateId =
+    templateId && categoryModule.templateIds.includes(templateId)
+      ? templateId
+      : categoryModule.templateIds[0]
 
   try {
     // Get authenticated user
@@ -81,9 +98,16 @@ export async function generateCarousel(
       return { success: false, error: 'Insufficient credits. Please try again.', upgradeEligible: true }
     }
 
-    // 1. Generate content with Gemini (templateId steers the prompt for templates like News Drop)
+    // 1. Generate content with Gemini. Phase 82 (R1): the resolved category
+    //    drives the copy module; the effective template is category-curated.
     const clampedCount = Math.max(3, Math.min(10, slideCount))
-    const carousel = await generateSlideContent(topic, clampedCount, advancedOptions?.imagePrompt, templateId)
+    const carousel = await generateSlideContent(
+      topic,
+      clampedCount,
+      advancedOptions?.imagePrompt,
+      effectiveTemplateId,
+      resolvedCategory,
+    )
 
     // 2. Fetch background images
     let slides: Slide[]
@@ -199,7 +223,7 @@ export async function generateCarousel(
     //                              re-treatment in editor never compounds
     //   slide.style_overrides.treatment_applied → preset descriptor
     {
-      const template = getTemplate(templateId)
+      const template = getTemplate(effectiveTemplateId)
       if (template.photoTreatment) {
         const presetKind = template.photoTreatment
         const spec: TreatmentPreset =
@@ -286,8 +310,8 @@ export async function generateCarousel(
     // "No Photos" / color-only templates also skip these defaults — black drop
     // shadows + 45% darkening overlay are pure photo-readability artifacts and
     // look gross on a flat-color canvas.
-    const isColorOnlyTemplate = getTemplate(templateId).backgroundMode === 'color'
-    if (!NEWS_TEMPLATES.has(templateId) && !wantsNoPhotos && !isColorOnlyTemplate) {
+    const isColorOnlyTemplate = getTemplate(effectiveTemplateId).backgroundMode === 'color'
+    if (!NEWS_TEMPLATES.has(effectiveTemplateId) && !wantsNoPhotos && !isColorOnlyTemplate) {
       slides = slides.map(slide => ({
         ...slide,
         style_overrides: {
@@ -308,7 +332,9 @@ export async function generateCarousel(
       .from('projects')
       .update({
         slide_data: slides,
-        template_id: templateId,
+        template_id: effectiveTemplateId,
+        // Phase 82 (R1): persist the category so Regenerate / Remix reuse it.
+        category: resolvedCategory,
         title: carousel.title,
         topic,
         generation_status: 'complete',
