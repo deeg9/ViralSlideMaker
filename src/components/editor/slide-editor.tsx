@@ -1619,6 +1619,19 @@ export function SlideEditor({
               },
             })
           }}
+          // quick-260517-k2n: caption-card drag/resize commit. The caption-card
+          // <Rnd> in slide-preview supplies a Partial<SlideStyleOverrides>
+          // geometry patch; merge it onto the current slide and commit one
+          // UPDATE_SLIDE (one undo entry per gesture — SlidePreview fires
+          // onDragStop/onResizeStop once).
+          onCaptionBarUpdate={(updates) => {
+            handleUpdate({
+              style_overrides: {
+                ...(currentSlide?.style_overrides ?? {}),
+                ...updates,
+              },
+            })
+          }}
         />
 
         {/* Right panel: Editor controls. quick-260514-tan-rail-white-tiles:

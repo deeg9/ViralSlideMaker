@@ -218,6 +218,18 @@ export interface SlideStyleOverrides {
   caption_bar_color?: string            // hex with leading '#'; default template.backgroundColor
   caption_bar_opacity?: number          // 0..1; default 0.85
   caption_bar_position?: 'bottom' | 'top'  // default 'bottom'
+  /** quick-260517-k2n: caption card reworked into an independent
+      draggable/resizable colored rectangle overlay (NOT a photo-constraining
+      zone). `caption_bar_enabled` is the on/off state — the card renders iff
+      this is true, on ANY template (no longer backgroundMode-gated). Geometry
+      is free-form percent of the 1080x1920 frame; the user drags/resizes it on
+      the canvas. `caption_bar_position` is reused only as a Top/Bottom snap
+      preset that rewrites caption_bar_y. All optional — a slide without
+      caption_bar_enabled renders byte-identical to pre-change (TPLREND-05). */
+  caption_bar_enabled?: boolean         // on/off; card renders iff true
+  caption_bar_x?: number                // left edge, percent 0..100; default 0
+  caption_bar_y?: number                // top edge,  percent 0..100; default from position
+  caption_bar_width?: number            // width,     percent 0..100; default 100
   // Phase 11: Bold/italic
   hook_font_weight?: number
   body_font_weight?: number

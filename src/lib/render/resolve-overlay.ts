@@ -462,32 +462,45 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 export interface ResolvedCaptionBar {
+  enabled: boolean           // quick-260517-k2n: card renders iff true
   heightPct: number          // 10..90
+  x: number                  // left edge percent 0..100
+  y: number                  // top edge  percent 0..100
+  width: number              // width     percent 0..100
   backgroundColor: string    // rgba() string
-  position: 'bottom' | 'top'
+  position: 'bottom' | 'top' // retained: the snap preset
 }
 
 /**
- * quick-260515-k12: SINGLE source of truth for caption-bar geometry/color on
- * `backgroundMode === 'image-with-bottom-card'` templates (magazine-bold,
- * tr3nding-news). Both slide-preview.tsx and render-slide-satori.tsx import
- * this so the browser preview and the Satori PNG export cannot drift
- * (PARITY-01).
+ * quick-260515-k12 / quick-260517-k2n: SINGLE source of truth for the caption
+ * card's enabled state + geometry + color. Reworked from the k12 bottom-card
+ * resolver into a free-form draggable/resizable rectangle overlay (it is no
+ * longer backgroundMode-gated — the card renders on ANY template iff
+ * `caption_bar_enabled === true`).
  *
- * Byte-identity (TPLREND-05): with NO caption-bar overrides the result is
- * { heightPct: 38, backgroundColor: bottomCardBackground(template.backgroundColor),
- *   position: 'bottom' } — exactly what the old hardcoded path produced.
+ * All THREE render paths import this — slide-preview.tsx (browser preview /
+ * canvas), render-slide-satori.tsx (Satori PNG export) and render-slide.ts
+ * (HTML export) — so the paths cannot drift (PARITY-01).
  *
- * The no-override branch reuses `bottomCardBackground` verbatim rather than
- * `hexToRgba` because magazine-bold's `template.backgroundColor` is '#000000'
- * (6-digit) and `bottomCardBackground` also handles the 8-digit-hex
- * passthrough case — keeping the legacy path byte-identical.
+ * Byte-identity (TPLREND-05): with NO caption_bar_* overrides the result is
+ * `enabled: false` — no card renders at all, identical to a pre-change slide.
+ *
+ * Geometry: `x`/`y`/`width` are percent of the 1080x1920 frame, clamped to
+ * [0,100]; `heightPct` is clamped to [10,90] (threat T-k2n-01 — a hand-edited
+ * payload cannot push an out-of-range value into any layout). `y` defaults
+ * from `caption_bar_position` (top => 0, bottom => 100 - heightPct) but an
+ * explicit `caption_bar_y` always wins.
+ *
+ * The no-color/no-opacity branch reuses `bottomCardBackground` verbatim (it
+ * also handles the 8-digit-hex passthrough case) so an already-customized k12
+ * slide keeps its color.
  */
 export function resolveCaptionBar(
   overrides: SlideStyleOverrides | undefined,
   template: SlideTemplate,
 ): ResolvedCaptionBar {
   const o = overrides ?? {}
+  const enabled = o.caption_bar_enabled === true
   const heightPct = clamp(o.caption_bar_height_pct ?? 38, 10, 90)
   const hasColor = o.caption_bar_color != null
   const hasOpacity = o.caption_bar_opacity != null
@@ -499,7 +512,11 @@ export function resolveCaptionBar(
           o.caption_bar_opacity ?? 0.85,
         )
   const position = o.caption_bar_position ?? 'bottom'
-  return { heightPct, backgroundColor, position }
+  const x = clamp(o.caption_bar_x ?? 0, 0, 100)
+  const width = clamp(o.caption_bar_width ?? 100, 0, 100)
+  const positionY = position === 'top' ? 0 : 100 - heightPct
+  const y = clamp(o.caption_bar_y ?? positionY, 0, 100)
+  return { enabled, heightPct, x, y, width, backgroundColor, position }
 }
 
 /**

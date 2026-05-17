@@ -12,7 +12,7 @@ import { getHookFontSize, hasHookFit } from './hook-fit'
 import { resolvePerSlideTemplate } from './resolve-per-slide-template'
 // quick-260515-nhf: shared hook-typography resolver — single source of truth
 // for hook casing/font-family/italic precedence across all three render paths.
-import { resolveHookTypography } from './resolve-overlay'
+import { resolveHookTypography, resolveCaptionBar } from './resolve-overlay'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -302,6 +302,19 @@ export function buildSlideHtml(
     ? `<img src="${slide.background_url}" style="position:absolute; left:0; top:${newsZone.imageTop}%; width:100%; height:${newsImageHeight ?? newsZone.imageHeight}%; object-fit:cover; z-index:0;" />`
     : ''
 
+  // quick-260517-k2n: caption card — an independent draggable/resizable colored
+  // rectangle. The HTML export path previously rendered NO caption card; this
+  // adds it so all THREE paths (canvas / Satori PNG / HTML) render the same
+  // rectangle for the same overrides (TPLREND-05 / PARITY-01). Resolved via the
+  // SAME shared resolveCaptionBar the canvas + Satori paths use. With zero
+  // caption_bar_* overrides the resolver returns enabled:false => no card
+  // (byte-identical to pre-change). z-index:2 sits above the photo (z-index:0)
+  // and below the hook/body text — matching the canvas zIndex discipline.
+  const captionCard = resolveCaptionBar(overrides, template)
+  const captionCardHtml = captionCard.enabled
+    ? `<div style="position:absolute; left:${captionCard.x}%; top:${captionCard.y}%; width:${captionCard.width}%; height:${captionCard.heightPct}%; background-color:${captionCard.backgroundColor}; z-index:2;"></div>`
+    : ''
+
   // Build custom image HTML
   const customImageHtml = (slide.custom_images ?? []).map((ci) =>
     `<img src="${ci.url}" style="position:absolute; left:${ci.x}%; top:${ci.y}%; width:${ci.width}%; height:${ci.height}%; object-fit:cover; opacity:${(ci.opacity ?? 100) / 100}; border-radius:${ci.border_radius ?? 0}px; z-index:1;" />`
@@ -402,6 +415,7 @@ export function buildSlideHtml(
 <body>
   ${newsBgImageHtml}
   <div class="overlay"></div>
+  ${captionCardHtml}
   <div class="hook">${(() => {
     const hookHL = highlightCSS(resolved.hookEffects, 'native')
     const hookBase = isColorOnlyTemplate
