@@ -1,9 +1,29 @@
 ---
 phase: 82-category-driven-generation-headline-first-copy-engine-conten
-verified: 2026-05-17T14:05:00Z
+verified: 2026-05-17T14:55:00Z
 status: human_needed
-score: 9/10 requirements verified (R10 visual sign-off requires the user)
+score: 10/10 structural — R10 gap-closure complete; R10 visual sign-off still human_needed
 ---
+
+> **Update 2026-05-17T14:55 — R10 gap-closure cycle complete (Plans 06 + 07).**
+> The R10 visual sign-off returned NEEDS WORK with 3 defects (Gaps A/B/C). All
+> three are now fixed via gap-closure Plans 06 and 07 (commits `939d8cf`,
+> `f1acfac`, `53f4a5c`):
+> - **Gap A** — `clampManualHookSize` is body-aware (headline-only news slides
+>   uncapped; `MANUAL_GROWTH_MAX` 1.6×→2.6×); editor hook max 240→400.
+> - **Gap B** — new `promoteNewsHeadline` transform promotes news `accent` runs
+>   to pill highlights and deterministically backfills `hook_segments` when
+>   Gemini emits none (the "no highlight at all" root cause — `hook_segments`
+>   schema-optional + Gemini non-compliance — found and closed).
+> - **Gap C** — `promoteNewsHeadline` sets a large `hook_font_size` (200); a
+>   code-review fix corrected the layout-lift to merge `style_overrides`.
+> All structural tests pass (1680 passing across the AI/render/editor suites;
+> the new `promote-news-headline` + Gap-A `hook-fit` suites included). Render-
+> parity is unchanged vs the pre-existing 16-failure `quick-260515-o75`
+> baseline — no Phase 82 snapshot regeneration was needed. The R10 **visual**
+> sign-off remains `human_needed`: the user must re-generate sample News
+> carousels and confirm the output matches the reference. Status stays
+> `human_needed` on that single remaining item.
 
 > **Update 2026-05-17T14:05 — Plan 04 executed (R9 sign-off APPROVED).**
 > The user approved the 5-keeper list on 2026-05-17 (`82-KEEPER-SIGNOFF.md`).
