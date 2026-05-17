@@ -1,4 +1,5 @@
 import React from 'react'
+import { fitHeadlineToBox, captionCardBox } from './hook-fit'
 import type { OverlayContent, SlideTemplate } from './templates'
 import type { DecorativeAsset } from './templates/decorative'
 import type {
@@ -194,14 +195,16 @@ export function renderSegments(
         padding: isPill ? '4px 12px' : '4px 8px',
         borderRadius: isPill ? '8px' : '0',
         marginRight: isLast ? '0' : '8px',
-        // Prevent a single long-word pill from extending past the hook
-        // container's flex bounds and bleeding past the 1080px canvas.
-        // quick-260502-j14: do NOT set `wordBreak: 'break-word'` — that
-        // deprecated value behaves like `overflow-wrap: anywhere` and breaks
-        // mid-word even when the word would fit on the next line.
-        // `overflow-wrap: break-word` is the right rule.
+        // Phase 82 Gap E: words wrap ONLY at spaces — `overflow-wrap: normal`
+        // (the CSS default) never splits a word mid-word. The hook container's
+        // `flex-wrap: wrap` already wraps between word-spans at spaces;
+        // combined with the Plan 08 headline auto-fit (the longest word always
+        // fits the box) no mid-word break is ever needed. This supersedes the
+        // old quick-260502-j14 `overflow-wrap: break-word` — which still split
+        // a single-word news segment when that one word was wider than the
+        // container ("ANNOUNCE" + orphaned "S").
         maxWidth: '100%',
-        overflowWrap: 'break-word',
+        overflowWrap: 'normal',
         ...segmentFontFamily,
         ...segmentBoldStyle,
       }
@@ -220,13 +223,14 @@ export function renderSegments(
         key: `${i}-${seg.text.slice(0, 20)}`,
         style: {
           color: baseSegmentColor,
-          // Same wrap protections as pill segments — keeps a long plain
-          // segment from extending past the hook container's flex bounds
-          // and bleeding past the canvas.
-          // quick-260502-j14: do NOT set `wordBreak: 'break-word'` — see pill
-          // segment style above for context.
+          // Phase 82 Gap E: whole-word wrap — `overflow-wrap: normal` never
+          // splits a word mid-word. The hook container's `flex-wrap: wrap`
+          // wraps between word-spans at spaces; combined with the Plan 08
+          // headline auto-fit no mid-word break is needed. See the pill
+          // segment style above for the full rationale (supersedes the old
+          // quick-260502-j14 `overflow-wrap: break-word`).
           maxWidth: '100%',
-          overflowWrap: 'break-word',
+          overflowWrap: 'normal',
           ...segmentFontFamily,
           ...segmentBoldStyle,
         },
@@ -517,6 +521,37 @@ export function resolveCaptionBar(
   const positionY = position === 'top' ? 0 : 100 - heightPct
   const y = clamp(o.caption_bar_y ?? positionY, 0, 100)
   return { enabled, heightPct, x, y, width, backgroundColor, position }
+}
+
+/**
+ * Phase 82 Gap D (render-wiring) — re-fit a news headline to an enabled
+ * caption card.
+ *
+ * Plan 08's `promoteNewsHeadline` sizes a generated news headline to the
+ * default news hook box. But the user's target is the headline contained in
+ * the BOTTOM BLACK CAPTION CARD, and the quick-260517-k2n caption card is
+ * draggable/resizable — the box the headline must fill is only known at render
+ * time from `resolveCaptionBar`. This helper performs that render-time re-fit.
+ *
+ * When the slide has a caption card ENABLED and is a news-layout slide, the
+ * headline font size is recomputed via `fitHeadlineToBox` against the caption
+ * card's resolved box (`captionCardBox`) so the headline fills the card the
+ * user dragged/resized. Otherwise the incoming size is returned UNCHANGED —
+ * byte-identity for every slide without an enabled caption card and every
+ * non-news slide.
+ *
+ * SINGLE source of truth: all three render paths (canvas preview, Satori PNG
+ * export, HTML export) call this on identical `resolveCaptionBar` values so
+ * preview == export (PARITY-01 / TPLREND-05). Pure — no DOM, never throws.
+ */
+export function resolveNewsHeadlineFit(
+  resolvedCaptionBar: ResolvedCaptionBar,
+  hookText: string | null | undefined,
+  currentHookFontSize: number,
+  isNewsLayoutSlide: boolean,
+): number {
+  if (!resolvedCaptionBar.enabled || !isNewsLayoutSlide) return currentHookFontSize
+  return fitHeadlineToBox(hookText ?? '', captionCardBox(resolvedCaptionBar))
 }
 
 /**

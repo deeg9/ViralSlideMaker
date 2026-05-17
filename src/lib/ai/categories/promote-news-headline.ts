@@ -1,4 +1,4 @@
-// Phase 82 Gap B + Gap C: post-generation transform for News-category carousels.
+// Phase 82 Gap B + Gap C/D: post-generation transform for News-category carousels.
 //
 // The R10 visual sign-off found two coupled defects in generated news slides:
 //
@@ -12,8 +12,16 @@
 //   with no segments at all — and on the user's test run it did, leaving the
 //   headline entirely un-highlighted.
 //
-//   Gap C — generated headline starts too small. Generation never sets
-//   `font_size`; news headlines fall back to the template default (~124px).
+//   Gap C/D — generated headline sizing. Generation never sets `font_size`;
+//   the R10-round-1 fix stamped a flat 200 onto every slide, which the R10
+//   round-2 sign-off found overflows the slide and breaks mid-word for long
+//   headlines (Gap D). The headline must AUTO-FIT — sized as large as fits its
+//   box without overflowing or splitting a word — relative to where the text
+//   is and where the caption card / black box is. Target: `~/Desktop/
+//   Screenshot 2026-05-17 at 3.06.22 PM.png` (headline cleanly contained,
+//   whole words). The fit uses the shared `fitHeadlineToBox` auto-fit
+//   (hook-fit.ts); the renderer re-fits to a draggable caption card when one
+//   is enabled (Plan 09).
 //
 // This module is the single shared fix: `generateSlideContent` invokes it for
 // the news category AFTER `CarouselSchema.parse` and BEFORE `legacyToTextBoxes`,
@@ -23,10 +31,17 @@
 // Pure module — no I/O, no Gemini, never throws. Mirrors validateAndRepair's
 // documented in-place-mutation contract; also returns the carousel for chaining.
 
-/** Phase 82 Gap C: large headline font size (px on the 1080×1920 reference)
- *  so the generated news headline dominates the slide like the reference,
- *  instead of falling back to the ~124px template default. */
-export const NEWS_HEADLINE_FONT_SIZE = 200
+import { fitHeadlineToBox, type HeadlineBox } from '@/lib/render/hook-fit'
+
+/** Phase 82 Gap D: the default news hook-zone box on the 1080×1920 canvas — a
+ *  headline-only news slide (R4 default — no body, no caption card enabled at
+ *  generation time). 842 ≈ 78% of the 1080 canvas (the practical news hook
+ *  container width cited in hook-fit.ts's HOOK_FIT_REGISTRY comments); 620 is
+ *  the headline-only vertical zone from the cover-layout hookY (~60%) down to
+ *  the bottom safe margin. `promoteNewsHeadline` fits each headline to this box
+ *  via `fitHeadlineToBox`; the renderer re-fits to a caption card when one is
+ *  enabled on the slide (Plan 09). */
+const NEWS_DEFAULT_HEADLINE_BOX: HeadlineBox = { widthPx: 842, heightPx: 620 }
 
 // Connector / stopwords — never accented (mirrors the news.ts prompt rule).
 // Lowercased for case-insensitive comparison.
@@ -114,8 +129,10 @@ function deriveSegments(hookText: string, accentColorHex: string): LooseSegment[
  *    `highlightStyle: 'pill'` (mirrors the editor's `toggleAccent`).
  *  - Gap B2 — if the slide has no `hook_segments` / an empty array / none
  *    accented, segments are derived deterministically from `hook_text`.
- *  - Gap C — `style_overrides.hook_font_size` is set to NEWS_HEADLINE_FONT_SIZE
- *    (a pre-existing `hook_font_size` is respected and left as-is).
+ *  - Gap D — `style_overrides.hook_font_size` is set to an AUTO-FIT size:
+ *    `fitHeadlineToBox(hook_text, NEWS_DEFAULT_HEADLINE_BOX)` — as large as fits
+ *    the news hook box without overflowing or breaking mid-word, instead of a
+ *    flat constant (a pre-existing `hook_font_size` is respected and left as-is).
  *
  * GUARANTEE: after this call every slide has `hook_segments` with ≥ 1 entry
  * where `accent === true && highlightColor === accentColorHex &&
@@ -147,10 +164,13 @@ export function promoteNewsHeadline<T extends { slides: LooseNewsSlide[] }>(
       slide.hook_segments = deriveSegments(slide.hook_text ?? '', accentColorHex)
     }
 
-    // Gap C — large headline size. Respect a pre-existing override if present.
+    // Gap D — auto-fit headline size. Sized as large as fits the default news
+    // hook box without overflowing or splitting a word — NOT a flat constant.
+    // Respect a pre-existing override if present.
     const overrides = slide.style_overrides ?? {}
     if (overrides.hook_font_size == null) {
-      slide.style_overrides = { ...overrides, hook_font_size: NEWS_HEADLINE_FONT_SIZE }
+      const fitted = fitHeadlineToBox(slide.hook_text ?? '', NEWS_DEFAULT_HEADLINE_BOX)
+      slide.style_overrides = { ...overrides, hook_font_size: fitted }
     }
   }
   return carousel
