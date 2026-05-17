@@ -195,3 +195,137 @@ export function clampManualHookSize(
   const cap = Math.round(autoFit * MANUAL_GROWTH_MAX)
   return Math.min(manualSize, cap)
 }
+
+// =====================================================================
+// Phase 82 Gap D — news headline auto-fit.
+//
+// The R10 round-2 visual sign-off found the generated news headline
+// overflowing the slide and breaking mid-word: `promoteNewsHeadline` used to
+// stamp a FLAT `NEWS_HEADLINE_FONT_SIZE = 200` onto every news slide, far too
+// big for a long headline. The user's explicit ask was "font size logic
+// relative to where the text is and where the caption card / black box is."
+//
+// `fitHeadlineToBox` is the pure sizing primitive: it returns the LARGEST font
+// size whose longest word still fits the box width AND whose whole-word-wrapped
+// lines still fit the box height. Because no candidate size lets a word exceed
+// the box width, the auto-fit also removes the mid-word-break at the sizing
+// layer (the renderer-side whole-word wrap is Gap E / Plan 09).
+//
+// `captionCardBox` derives a fit box from the quick-260517-k2n draggable /
+// resizable caption card (`ResolvedCaptionBar`), so a headline rendered into a
+// caption card fills the box the user dragged — never the default hook zone.
+//
+// Both functions are PURE — no DOM, no measurement API — so they run
+// identically server-side (Satori), client-side (canvas preview), and at
+// generation time. The `ResolvedCaptionBar` shape is imported as a TYPE ONLY so
+// this module never takes a runtime dependency on resolve-overlay.ts (which, as
+// of Plan 09, imports `fitHeadlineToBox` back — a `import type` keeps the graph
+// acyclic). The 1080x1920 canvas dimensions are re-declared as local literals
+// here for the same reason (they mirror `CANVAS` in resolve-overlay.ts).
+// =====================================================================
+
+import type { ResolvedCaptionBar } from './resolve-overlay'
+
+/** A target box for headline auto-fit, in pixels on the 1080x1920 canvas. */
+export interface HeadlineBox {
+  widthPx: number
+  heightPx: number
+}
+
+/** Largest headline font size the auto-fit will ever return. The news headline
+ *  must DOMINATE the slide (reference ~142px; the user's manual edit went
+ *  larger) — 240 is a generous ceiling for short headlines. */
+export const HEADLINE_FIT_CEILING = 240
+
+/** Hard minimum headline size. A pathologically long single word can force the
+ *  fit down to the floor; whole-word wrapping (Gap E) keeps it readable. */
+export const HEADLINE_FIT_FLOOR = 64
+
+// Line-height of the hook text — mirrors `hookStyle.lineHeight` in both
+// renderers (render-slide-satori.tsx + slide-preview.tsx).
+const HEADLINE_LINE_HEIGHT = 1.1
+
+// Average glyph advance as a fraction of font size for the condensed display
+// font used by the news templates (Anton). The HOOK_FIT_REGISTRY comments cite
+// ~0.45; 0.50 is intentionally a touch more conservative so the auto-fit never
+// overflows the box (better to size slightly small than to clip).
+const CONDENSED_CHAR_ADVANCE = 0.5
+
+// 1080x1920 canvas — local literals (mirror `CANVAS` in resolve-overlay.ts) so
+// this module keeps a type-only dependency on resolve-overlay.ts.
+const CANVAS_W = 1080
+const CANVAS_H = 1920
+
+/**
+ * Greedily pack words into whole-word lines and return the line count for a
+ * given per-character advance and box width. A word wider than the box on its
+ * own still occupies one line — callers reject that size via the longest-word
+ * check below, so this never silently produces an overflowing layout.
+ */
+function wrappedLineCount(words: string[], charWidthPx: number, boxWidthPx: number): number {
+  if (words.length === 0) return 0
+  let lines = 1
+  let lineWidth = 0
+  for (let i = 0; i < words.length; i++) {
+    const wordPx = words[i].length * charWidthPx
+    // Inter-word gap (one space worth of advance) precedes every word but the
+    // first on a line.
+    const withGap = lineWidth === 0 ? wordPx : lineWidth + charWidthPx + wordPx
+    if (lineWidth > 0 && withGap > boxWidthPx) {
+      lines++
+      lineWidth = wordPx
+    } else {
+      lineWidth = withGap
+    }
+  }
+  return lines
+}
+
+/**
+ * Compute the largest integer font size at which `headline` fits `box`:
+ *  - the longest single word fits within `box.widthPx` (so no word ever needs
+ *    to break — this also removes Gap E's mid-word break at the sizing layer),
+ *  - the whole-word-wrapped headline's total line height fits `box.heightPx`.
+ *
+ * Searches `[HEADLINE_FIT_FLOOR, HEADLINE_FIT_CEILING]` from the ceiling down
+ * and returns the first fitting size. If even the floor does not fit (a
+ * pathologically long single word), returns `HEADLINE_FIT_FLOOR` — the hard
+ * minimum. Always returns an integer. Pure — never throws on string input.
+ */
+export function fitHeadlineToBox(headline: string, box: HeadlineBox): number {
+  const trimmed = (headline ?? '').trim()
+  if (trimmed.length === 0) return HEADLINE_FIT_FLOOR
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  const longestWordLen = words.reduce((m, w) => Math.max(m, w.length), 0)
+  const boxWidthPx = Math.max(1, box.widthPx)
+  const boxHeightPx = Math.max(1, box.heightPx)
+
+  for (let size = HEADLINE_FIT_CEILING; size >= HEADLINE_FIT_FLOOR; size--) {
+    const charWidthPx = size * CONDENSED_CHAR_ADVANCE
+    const longestWordPx = longestWordLen * charWidthPx
+    if (longestWordPx > boxWidthPx) continue
+    const lines = wrappedLineCount(words, charWidthPx, boxWidthPx)
+    const totalHeightPx = lines * size * HEADLINE_LINE_HEIGHT
+    if (totalHeightPx <= boxHeightPx) return size
+  }
+  return HEADLINE_FIT_FLOOR
+}
+
+/**
+ * Derive a headline-fit box from a resolved (quick-260517-k2n) caption card.
+ * The card's `width`/`heightPct` are percents of the 1080x1920 frame; convert
+ * to pixels and subtract a symmetric `inset` (default 80 — the old bottom-card
+ * padding) so the headline does not touch the card edges. Dimensions are
+ * floored at 1 so a tiny card never yields a negative box.
+ */
+export function captionCardBox(
+  resolved: ResolvedCaptionBar,
+  inset = 80,
+): HeadlineBox {
+  const widthPx = (resolved.width / 100) * CANVAS_W - 2 * inset
+  const heightPx = (resolved.heightPct / 100) * CANVAS_H - 2 * inset
+  return {
+    widthPx: Math.max(1, widthPx),
+    heightPx: Math.max(1, heightPx),
+  }
+}

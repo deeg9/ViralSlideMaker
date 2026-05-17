@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { getHookFontSize, hasHookFit, HOOK_FIT_TEMPLATE_IDS, clampManualHookSize } from '../hook-fit'
+import {
+  getHookFontSize,
+  hasHookFit,
+  HOOK_FIT_TEMPLATE_IDS,
+  clampManualHookSize,
+  fitHeadlineToBox,
+  captionCardBox,
+  HEADLINE_FIT_CEILING,
+  HEADLINE_FIT_FLOOR,
+} from '../hook-fit'
 import { templates } from '../templates'
+import { resolveCaptionBar } from '../resolve-overlay'
+import { magazineBold } from '../templates/magazine-bold'
 
 describe('hook-fit registry', () => {
   it('returns base size unchanged for unregistered templates', () => {
@@ -195,5 +206,82 @@ describe('hook-fit registry', () => {
       expect(fittedSize).toBeLessThanOrEqual(baseSize)
       expect(fittedSize).toBeGreaterThan(0)
     }
+  })
+})
+
+// =====================================================================
+// Phase 82 Gap D — fitHeadlineToBox + captionCardBox auto-fit.
+// =====================================================================
+describe('fitHeadlineToBox + captionCardBox — Phase 82 Gap D', () => {
+  // The default news hook box from promote-news-headline.ts.
+  const NEWS_BOX = { widthPx: 842, heightPx: 620 }
+  // Conservative char advance — must match CONDENSED_CHAR_ADVANCE in hook-fit.ts.
+  const CHAR_ADVANCE = 0.5
+
+  it('returns an integer within [FLOOR, CEILING] for any headline', () => {
+    for (const hook of ['BREAKING', 'MAJOR TECH COMPANY ANNOUNCES 19000 LAYOFFS', '']) {
+      const size = fitHeadlineToBox(hook, NEWS_BOX)
+      expect(Number.isInteger(size)).toBe(true)
+      expect(size).toBeGreaterThanOrEqual(HEADLINE_FIT_FLOOR)
+      expect(size).toBeLessThanOrEqual(HEADLINE_FIT_CEILING)
+    }
+  })
+
+  it('a short headline fits at a large near-ceiling size', () => {
+    expect(fitHeadlineToBox('BREAKING', NEWS_BOX)).toBeGreaterThanOrEqual(200)
+  })
+
+  it('a long headline gets a smaller size that does NOT overflow the box width', () => {
+    const longHook = 'MAJOR TECH COMPANY ANNOUNCES 19,000 LAYOFFS'
+    const size = fitHeadlineToBox(longHook, NEWS_BOX)
+    expect(size).toBeLessThan(fitHeadlineToBox('BREAKING', NEWS_BOX))
+    expect(size).toBeLessThanOrEqual(HEADLINE_FIT_CEILING)
+    // Gap-D regression: the longest word at the fitted size must not exceed
+    // the box width — no word would ever need a mid-word break.
+    const longestWordLen = longHook
+      .trim()
+      .split(/\s+/)
+      .reduce((m, w) => Math.max(m, w.length), 0)
+    expect(longestWordLen * size * CHAR_ADVANCE).toBeLessThanOrEqual(NEWS_BOX.widthPx)
+  })
+
+  it('is monotonic — a longer headline never returns a larger size', () => {
+    const a = fitHeadlineToBox('AI', NEWS_BOX)
+    const b = fitHeadlineToBox('AI SHIFT HITS HARD', NEWS_BOX)
+    const c = fitHeadlineToBox('AI SHIFT HITS HARD ACROSS THE ENTIRE TECH SECTOR NATIONWIDE', NEWS_BOX)
+    expect(b).toBeLessThanOrEqual(a)
+    expect(c).toBeLessThanOrEqual(b)
+  })
+
+  it('captionCardBox converts a resolved caption card to a pixel box with inset', () => {
+    const resolved = resolveCaptionBar(
+      {
+        caption_bar_enabled: true,
+        caption_bar_width: 90,
+        caption_bar_height_pct: 30,
+      },
+      magazineBold,
+    )
+    const box = captionCardBox(resolved)
+    // 90% of 1080 minus 2*80 inset; 30% of 1920 minus 2*80 inset.
+    expect(box.widthPx).toBeCloseTo(0.9 * 1080 - 160, 0)
+    expect(box.heightPx).toBeCloseTo(0.3 * 1920 - 160, 0)
+    expect(box.widthPx).toBeGreaterThanOrEqual(1)
+    expect(box.heightPx).toBeGreaterThanOrEqual(1)
+  })
+
+  it('a headline fit to a small caption card is smaller than fit to the default news box', () => {
+    const resolved = resolveCaptionBar(
+      {
+        caption_bar_enabled: true,
+        caption_bar_width: 50,
+        caption_bar_height_pct: 20,
+      },
+      magazineBold,
+    )
+    const hook = 'MAJOR TECH COMPANY ANNOUNCES 19,000 LAYOFFS'
+    const fitToCard = fitHeadlineToBox(hook, captionCardBox(resolved))
+    const fitToNewsBox = fitHeadlineToBox(hook, NEWS_BOX)
+    expect(fitToCard).toBeLessThan(fitToNewsBox)
   })
 })

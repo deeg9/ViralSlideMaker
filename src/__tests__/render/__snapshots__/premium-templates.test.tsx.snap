@@ -198,7 +198,7 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
         {
           "color": "#ffffff",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
         }
       }
     >
@@ -212,7 +212,7 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
           "color": "#000000",
           "marginRight": "8px",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
           "padding": "4px 12px",
         }
       }
@@ -224,7 +224,7 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
         {
           "color": "#ffffff",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
         }
       }
     >
@@ -238,7 +238,7 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
           "color": "#000000",
           "marginRight": "0",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
           "padding": "4px 12px",
         }
       }
@@ -369,7 +369,7 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         {
           "color": "#ffffff",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
         }
       }
     >
@@ -383,7 +383,7 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
           "color": "#000000",
           "marginRight": "8px",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
           "padding": "4px 12px",
         }
       }
@@ -395,7 +395,7 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         {
           "color": "#ffffff",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
         }
       }
     >
@@ -409,7 +409,7 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
           "color": "#000000",
           "marginRight": "0",
           "maxWidth": "100%",
-          "overflowWrap": "break-word",
+          "overflowWrap": "normal",
           "padding": "4px 12px",
         }
       }
