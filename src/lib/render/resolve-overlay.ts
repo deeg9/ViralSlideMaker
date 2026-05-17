@@ -1,7 +1,13 @@
 import React from 'react'
 import type { OverlayContent, SlideTemplate } from './templates'
 import type { DecorativeAsset } from './templates/decorative'
-import type { Slide, SlideStyleOverrides, TextBox, TextSegment } from '@/lib/types/slide'
+import type {
+  Slide,
+  SlideStyleOverrides,
+  TextBox,
+  TextHighlightEffect,
+  TextSegment,
+} from '@/lib/types/slide'
 
 /**
  * Phase 45 — shared resolver foundation.
@@ -302,6 +308,106 @@ export function renderTextBlock(
           },
         },
         `${marker}${line}`,
+      )
+    }),
+  )
+}
+
+/**
+ * quick-260517-iiy: fixed built-in inset for the `tight` highlight pill.
+ *
+ * The `TextHighlightEffect.padding` field stays in the data model but is NO
+ * LONGER read by the renderer — the UI padding slider was removed (Task 2) and
+ * legacy slides render with this consistent inset regardless of their stored
+ * `padding`. Threat T-iiy-02: an out-of-range stored padding has zero rendered
+ * effect, so no clamp is needed.
+ */
+export const TIGHT_HIGHLIGHT_PADDING = 8
+
+/**
+ * quick-260517-iiy: render a `tight` highlight as one `inline-block` padded
+ * pill PER VISUAL LINE.
+ *
+ * ROOT CAUSE of the old bug: `tight` used to wrap text in ONE inline <span>
+ * with `box-decoration-break: clone`. For segment-less plain text that span
+ * held a single text node, so it rendered as a single continuous padded inline
+ * run — a horizontal bar — not one pill per line. `box-decoration-break` only
+ * yields per-line pills when the inline box actually breaks across line-boxes
+ * via inline flow, which a single-text-node span never does. Satori has no
+ * `box-decoration-break` support at all and silently fell back to full-width.
+ *
+ * FIX: split the text on `\n` and emit one `inline-block` padded span per
+ * line, inside a `flex-direction: column` container. This is line-exact and
+ * needs no `box-decoration-break`, so all three render paths (canvas / Satori
+ * / HTML) produce structurally identical per-line pills (TPLREND-05).
+ *
+ * `alignSelf` honors text-align so each pill hugs and aligns correctly
+ * (left → flex-start, center → center, right → flex-end). Satori-safe: only
+ * `<span>` tags + `display: flex` / `inline-block` — no `<div>` inside `<p>`
+ * (would trip React hydration — see renderTextBlock note above) and no
+ * `box-decoration-break`.
+ *
+ * `highlight.padding` is intentionally NOT read — see TIGHT_HIGHLIGHT_PADDING.
+ */
+export function renderTightHighlight(
+  text: string,
+  segments: TextSegment[] | undefined,
+  listType: 'numbered' | 'bulleted' | undefined,
+  listIndent: number | undefined,
+  baseColor: string,
+  accentColor: string,
+  highlight: TextHighlightEffect,
+  textAlign: string | undefined,
+): React.ReactNode {
+  const indentPx = Math.max(0, Math.min(2, Math.floor(listIndent ?? 0))) * 32
+  const lines = text.split('\n')
+  // flex alignSelf for the per-line pill — left/center/right → flex bounds.
+  const pillAlign = alignToJustifyContent(textAlign)
+
+  return React.createElement(
+    'span',
+    {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        gap: 8,
+        // Container alignment matches the pill alignment so the column of
+        // pills sits flush against the text-aligned edge.
+        alignItems: pillAlign,
+      },
+    },
+    lines.map((line, lineIdx) => {
+      const marker =
+        listType === 'numbered'
+          ? `${lineIdx + 1}. `
+          : listType === 'bulleted'
+            ? '•  '
+            : ''
+      // Per-segment highlight markup is preserved for segmented text by
+      // delegating to renderSegments; for a list line or segment-less line we
+      // emit the bare (marker-prefixed) string. The pill background + inset
+      // comes from THIS span — one independent inline-block pill per line.
+      const lineChildren =
+        !listType && segments && segments.length > 0 && lines.length === 1
+          ? renderSegments(line, segments, baseColor, accentColor)
+          : `${marker}${line}`
+      return React.createElement(
+        'span',
+        {
+          key: `tight-line-${lineIdx}`,
+          style: {
+            display: 'inline-block',
+            backgroundColor: highlight.color,
+            color: baseColor,
+            padding: `${TIGHT_HIGHLIGHT_PADDING}px ${TIGHT_HIGHLIGHT_PADDING}px`,
+            paddingLeft: indentPx ? indentPx + TIGHT_HIGHLIGHT_PADDING : TIGHT_HIGHLIGHT_PADDING,
+            alignSelf: pillAlign,
+            maxWidth: '100%',
+            overflowWrap: 'break-word',
+          },
+        },
+        lineChildren,
       )
     }),
   )

@@ -21,7 +21,7 @@ import {
   type SmartGuideOverlayHandle,
   type GuideLine,
 } from '@/components/editor/smart-guide-overlay'
-import { resolveSlideStyles, buildHighlightWrapperStyle, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
+import { resolveSlideStyles, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
 import { getHookFontSize, hasHookFit, clampManualHookSize } from '@/lib/render/hook-fit'
@@ -71,6 +71,7 @@ import {
   SLOT_GEOMETRY,
   renderSegments as renderSegmentsShared,
   renderTextBlock,
+  renderTightHighlight,
   resolveCaptionBar,
   renderGrain,
   renderVignette,
@@ -1191,7 +1192,7 @@ export function SlidePreview({
           }}>
             <div style={{ ...hookTextStyle, lineHeight: 1.1, ...hookEffectCSS }}>
               {resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}</span>
+                ? renderTightHighlight(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor, resolved.hookEffects.highlight, hookTextAlign)
                 : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}
             </div>
           </div>
@@ -1212,7 +1213,7 @@ export function SlidePreview({
             }}>
               <p className="opacity-90" style={{ ...bodyTextStyle, lineHeight: 1.5, ...bodyEffectCSS }}>
                 {resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}</span>
+                  ? renderTightHighlight(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor, resolved.bodyEffects.highlight, bodyTextAlign)
                   : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}
               </p>
             </div>
@@ -1367,7 +1368,7 @@ export function SlidePreview({
                 }}
               >
                 {ctHighlight?.enabled && ctHighlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}</span>
+                  ? renderTightHighlight(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor, ctHighlight, ct.text_align)
                   : renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}
               </div>
             )
@@ -1968,7 +1969,7 @@ export function SlidePreview({
               {hookEditing
                 ? slide.hook_text
                 : resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'tight'
-                  ? <span style={buildHighlightWrapperStyle(resolved.hookEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}</span>
+                  ? renderTightHighlight(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor, resolved.hookEffects.highlight, hookTextAlign)
                   : renderTextBlock(slide.hook_text, slide.hook_segments, hookListType, hookListIndent, hookTextColor, hookAccentColor)}
             </div>
           </div>
@@ -2279,7 +2280,7 @@ export function SlidePreview({
                 {bodyEditing
                   ? slide.body_text
                   : resolved.bodyEffects.highlight?.enabled && resolved.bodyEffects.highlight.style === 'tight'
-                    ? <span style={buildHighlightWrapperStyle(resolved.bodyEffects.highlight, 'tight') ?? undefined}>{renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}</span>
+                    ? renderTightHighlight(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor, resolved.bodyEffects.highlight, bodyTextAlign)
                     : renderTextBlock(slide.body_text, slide.body_segments, bodyListType, bodyListIndent, bodyTextColor, bodyAccentColor)}
               </div>
             </div>
@@ -2619,7 +2620,7 @@ export function SlidePreview({
                 )}
                 {isEditing ? ct.text : (
                   ctHighlight?.enabled && ctHighlight.style === 'tight'
-                    ? <span style={buildHighlightWrapperStyle(ctHighlight, 'tight') ?? undefined}>{renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)}</span>
+                    ? renderTightHighlight(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor, ctHighlight, ct.text_align)
                     : renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)
                 )}
               </div>
