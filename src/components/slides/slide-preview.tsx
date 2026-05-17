@@ -130,7 +130,6 @@ function renderSegments(
 interface BackgroundLayersProps {
   template: SlideTemplate
   slide: Slide
-  useBottomCard: boolean
   overlayOpacity: number
   overlayColor: string
 }
@@ -138,7 +137,6 @@ interface BackgroundLayersProps {
 function BackgroundLayers({
   template,
   slide,
-  useBottomCard,
   overlayOpacity,
   overlayColor,
 }: BackgroundLayersProps) {
@@ -180,35 +178,47 @@ function BackgroundLayers({
           Imported from @/lib/render/resolve-overlay (TPLREND-05 — same module as the
           Satori renderer). Sits ABOVE tint, BELOW hook/body text + overlays. */}
       {template.vignette ? renderVignette(template.vignette.strength) : null}
-      {useBottomCard &&
-        (() => {
-          // quick-260515-k12: caption-bar geometry/color resolved through the
-          // shared resolveCaptionBar helper so the browser preview cannot drift
-          // from the Satori PNG export (PARITY-01). With zero overrides this
-          // yields the legacy 38% / rgba(0,0,0,0.85) / bottom values byte-
-          // identically (TPLREND-05).
-          const captionBar = resolveCaptionBar(slide.style_overrides, template)
-          return (
-            <div
-              data-testid="bottom-card"
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                // Exactly one of top/bottom is set so the bar anchors to a
-                // single edge.
-                ...(captionBar.position === 'top'
-                  ? { top: 0 }
-                  : { bottom: 0 }),
-                height: `${captionBar.heightPct}%`,
-                padding: 80,
-                backgroundColor: captionBar.backgroundColor,
-                zIndex: 2,
-              }}
-            />
-          )
-        })()}
     </>
+  )
+}
+
+/**
+ * quick-260517-k2n: the reworked caption card — an independent draggable/
+ * resizable colored rectangle overlay rendered ABOVE the photo+tint (zIndex 2)
+ * and BELOW the hook/body text (zIndex 10). It is NO LONGER backgroundMode-
+ * gated (key_decision 2) — the card renders on ANY template iff
+ * resolveCaptionBar(...).enabled is true, so this layer is mounted as a sibling
+ * OUTSIDE the useBgMode ternary (the legacy non-bgMode branch had no
+ * BackgroundLayers). With zero caption_bar_* overrides this resolves
+ * enabled:false and renders nothing — byte-identical to pre-change (TPLREND-05).
+ *
+ * This is the NON-EDITABLE (plain div) form, shared by both branches' non-
+ * interactive callers. The editable branch renders the card as an <Rnd>
+ * instead (see the editable render path) and so passes `editable` to skip
+ * this plain div.
+ */
+function CaptionCardLayer({
+  template,
+  slide,
+}: {
+  template: SlideTemplate
+  slide: Slide
+}) {
+  const cc = resolveCaptionBar(slide.style_overrides, template)
+  if (!cc.enabled) return null
+  return (
+    <div
+      data-testid="caption-card"
+      style={{
+        position: 'absolute',
+        left: `${cc.x}%`,
+        top: `${cc.y}%`,
+        width: `${cc.width}%`,
+        height: `${cc.heightPct}%`,
+        backgroundColor: cc.backgroundColor,
+        zIndex: 2,
+      }}
+    />
   )
 }
 
@@ -797,8 +807,9 @@ export function SlidePreview({
     ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
     : null
   const useBgMode = isTemplateBgMode
-  const useBottomCard =
-    useBgMode && template.backgroundMode === 'image-with-bottom-card'
+  // quick-260517-k2n: `useBottomCard` removed — the caption card is no longer
+  // backgroundMode-gated. It now renders on any template via CaptionCardLayer /
+  // the editable <Rnd>, gated solely on resolveCaptionBar(...).enabled.
 
   const positionPreset = overrides.text_position ?? template.textPosition
   const defaults = newsZone ?? SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
@@ -1169,7 +1180,6 @@ export function SlidePreview({
             <BackgroundLayers
               template={template}
               slide={slide}
-              useBottomCard={useBottomCard}
               overlayOpacity={overlayOpacity}
               overlayColor={overlayColor}
             />
@@ -1184,6 +1194,11 @@ export function SlidePreview({
               }} />
             </>
           )}
+
+          {/* quick-260517-k2n: caption card — sibling layer outside the
+              useBgMode ternary so it renders on EVERY template (key_decision 2).
+              Non-editable branch => plain div. */}
+          <CaptionCardLayer template={template} slide={slide} />
 
           {/* Phase 45 layer 4: overlay zones (chip, counter, mid pill).
               Above tint+card per CONTEXT.md Area 1; below hook so headline
@@ -1585,7 +1600,6 @@ export function SlidePreview({
           <BackgroundLayers
             template={template}
             slide={slide}
-            useBottomCard={useBottomCard}
             overlayOpacity={overlayOpacity}
             overlayColor={overlayColor}
           />
@@ -1601,6 +1615,12 @@ export function SlidePreview({
             }} />
           </>
         )}
+
+        {/* quick-260517-k2n: caption card (editable branch). Task 2 mounts the
+            plain div here as a sibling outside the useBgMode ternary so it
+            appears on every template (key_decision 2); Task 3 swaps it for an
+            <Rnd> so the card is draggable/resizable on the editor canvas. */}
+        <CaptionCardLayer template={template} slide={slide} />
 
         {/* Phase 45 layer 4: overlay zones — same DOM order as non-editable branch. */}
         <OverlayLayers template={template} ctx={resolveCtx} />
