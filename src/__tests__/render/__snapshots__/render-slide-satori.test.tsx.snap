@@ -68,7 +68,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > falls back gracefu
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -181,21 +180,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
   <div
     style={
       {
-        "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "display": "flex",
-        "flexDirection": "column",
-        "height": 730,
-        "left": 0,
-        "padding": 80,
-        "position": "absolute",
-        "top": 1190,
-        "width": 1080,
-      }
-    }
-  />
-  <div
-    style={
-      {
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Inter', sans-serif",
@@ -206,7 +190,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > mutex: style_overr
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -329,7 +312,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders block-styl
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -466,7 +448,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-blee
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -535,7 +516,7 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-blee
 </div>
 `;
 
-exports[`buildSlideElement — Phase 45 overlay composition > renders image-with-bottom-card with full-bleed photo + tint + bottom card > image-with-bottom-card-no-overlays 1`] = `
+exports[`buildSlideElement — Phase 45 overlay composition > renders image-with-bottom-card with full-bleed photo + tint + caption card > image-with-bottom-card-no-overlays 1`] = `
 <div
   style={
     {
@@ -584,7 +565,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-with
         "flexDirection": "column",
         "height": 730,
         "left": 0,
-        "padding": 80,
         "position": "absolute",
         "top": 1190,
         "width": 1080,
@@ -604,7 +584,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders image-with
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -727,7 +706,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders legacy tem
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -840,21 +818,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders literal ov
   <div
     style={
       {
-        "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "display": "flex",
-        "flexDirection": "column",
-        "height": 730,
-        "left": 0,
-        "padding": 80,
-        "position": "absolute",
-        "top": 1190,
-        "width": 1080,
-      }
-    }
-  />
-  <div
-    style={
-      {
         "alignItems": "center",
         "display": "flex",
         "fontSize": 28,
@@ -881,7 +844,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders literal ov
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -1004,7 +966,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders mint pill 
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }
@@ -1153,21 +1114,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders slide-fiel
   <div
     style={
       {
-        "backgroundColor": "rgba(0, 0, 0, 0.85)",
-        "display": "flex",
-        "flexDirection": "column",
-        "height": 730,
-        "left": 0,
-        "padding": 80,
-        "position": "absolute",
-        "top": 1190,
-        "width": 1080,
-      }
-    }
-  />
-  <div
-    style={
-      {
         "alignItems": "center",
         "display": "flex",
         "fontSize": 28,
@@ -1194,7 +1140,6 @@ exports[`buildSlideElement — Phase 45 overlay composition > renders slide-fiel
         "lineHeight": 1.1,
         "position": "absolute",
         "textAlign": "left",
-        "textTransform": "uppercase",
         "top": 922,
         "width": 842,
       }

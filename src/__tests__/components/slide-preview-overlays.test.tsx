@@ -279,22 +279,30 @@ describe('SlidePreview — Phase 45 overlay parity', () => {
     expect(bg.src).toBe('https://example.com/folk.jpg')
   })
 
-  it('renders backgroundMode "image-with-bottom-card" with rgba(0,0,0,0.85) card', () => {
+  it('renders the opt-in caption card with rgba(0,0,0,0.85) when caption_bar_enabled', () => {
     const t: SlideTemplate = {
       ...fixtureTemplate,
       backgroundMode: 'image-with-bottom-card',
       backgroundColor: '#000000',
     }
+    // quick-260517-k2n: the caption card is no longer always-on chrome for
+    // image-with-bottom-card templates — it renders only when
+    // style_overrides.caption_bar_enabled === true. With the template's #000000
+    // backgroundColor, resolveCaptionBar yields rgba(0, 0, 0, 0.85).
+    const slideWithCaption: Slide = {
+      ...fixtureSlide,
+      style_overrides: { caption_bar_enabled: true },
+    }
     render(
       <SlidePreview
-        slide={fixtureSlide}
+        slide={slideWithCaption}
         template={t}
         index={0}
         slideIndex={0}
         totalSlides={5}
       />,
     )
-    const card = screen.getByTestId('bottom-card')
+    const card = screen.getByTestId('caption-card')
     const css = card.getAttribute('style') ?? ''
     expect(css).toMatch(
       /background-color:\s*rgba\(0,\s*0,\s*0,\s*0\.85\)/i,
@@ -342,7 +350,7 @@ describe('SlidePreview — Phase 45 overlay parity', () => {
   // quick-260514-kv9: page-counter default-render test removed — the overlay
   // is now suppressed at the consumer (verified above).
 
-  it('legacy template — emits NO overlay/backgroundMode/bottom-card layers', () => {
+  it('legacy template — emits NO overlay/backgroundMode/caption-card layers', () => {
     render(
       <SlidePreview
         slide={fixtureSlide}
@@ -352,7 +360,9 @@ describe('SlidePreview — Phase 45 overlay parity', () => {
     )
     expect(screen.queryByTestId('overlay-top-left')).toBeNull()
     expect(screen.queryByTestId('overlay-top-right')).toBeNull()
-    expect(screen.queryByTestId('bottom-card')).toBeNull()
+    // quick-260517-k2n: fixtureSlide sets no caption_bar_enabled override, so
+    // CaptionCardLayer resolves enabled:false and renders nothing.
+    expect(screen.queryByTestId('caption-card')).toBeNull()
     expect(screen.queryByTestId('bg-bleed')).toBeNull()
   })
 })
