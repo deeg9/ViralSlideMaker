@@ -46,6 +46,7 @@ describe('resolveCaptionBar — caption-card override resolution', () => {
       width: 100,
       backgroundColor: 'rgba(0, 0, 0, 0.85)',
       position: 'bottom',
+      blendPct: 0, // quick-260518-ch8: edge-blend off by default
     })
   })
 

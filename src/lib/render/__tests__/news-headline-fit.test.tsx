@@ -129,18 +129,67 @@ describe('Phase 82 Gap D — resolveNewsHeadlineFit render-wiring', () => {
     expect(fitted).toBeGreaterThan(0)
   })
 
-  it('a smaller caption card yields a smaller headline size', () => {
-    const big = resolveCaptionBar(
-      { caption_bar_enabled: true, caption_bar_width: 95, caption_bar_height_pct: 40 },
+  it('a narrower caption card yields a smaller headline size (WIDTH coupling kept)', () => {
+    // Phase 82 width/overflow safety: a narrower card forces a smaller font so
+    // the headline never overflows the card horizontally / breaks mid-word.
+    const wide = resolveCaptionBar(
+      { caption_bar_enabled: true, caption_bar_width: 95 },
       magazineBold,
     )
-    const small = resolveCaptionBar(
-      { caption_bar_enabled: true, caption_bar_width: 50, caption_bar_height_pct: 18 },
+    const narrow = resolveCaptionBar(
+      { caption_bar_enabled: true, caption_bar_width: 50 },
       magazineBold,
     )
     const hook = 'MAJOR TECH COMPANY ANNOUNCES 19,000 LAYOFFS'
-    const fitBig = resolveNewsHeadlineFit(big, hook, 200, true)
-    const fitSmall = resolveNewsHeadlineFit(small, hook, 200, true)
-    expect(fitSmall).toBeLessThan(fitBig)
+    const fitWide = resolveNewsHeadlineFit(wide, hook, 200, true)
+    const fitNarrow = resolveNewsHeadlineFit(narrow, hook, 200, true)
+    expect(fitNarrow).toBeLessThan(fitWide)
+  })
+
+  // quick-260518-ch8 checkpoint-feedback fix — the caption card's Height
+  // slider must NOT resize the headline (or any other element). The headline
+  // auto-fit uses a fixed reference height, so changing caption_bar_height_pct
+  // leaves resolveNewsHeadlineFit's result unchanged. Only the card's own
+  // visual height grows; the headline font size is invariant.
+  it('the headline font size is INVARIANT to caption card height', () => {
+    const hook = 'ORACLE CUTS 30,000'
+    const sizes = [10, 25, 38, 60, 90].map((heightPct) => {
+      const bar = resolveCaptionBar(
+        {
+          caption_bar_enabled: true,
+          caption_bar_width: 100,
+          caption_bar_height_pct: heightPct,
+        },
+        magazineBold,
+      )
+      return resolveNewsHeadlineFit(bar, hook, 200, true)
+    })
+    // Every height — from the 10% floor to the 90% ceiling — produces the
+    // SAME headline font size. The Height slider does not touch the headline.
+    for (const size of sizes) {
+      expect(size).toBe(sizes[0])
+    }
+  })
+
+  it('a slide at the DEFAULT caption height re-fits identically to the fixed reference (byte-identity)', () => {
+    // The fixed reference height equals the 38% default, so a default-height
+    // slide's headline fit is unchanged by this fix — byte-identity (TPLREND-05).
+    const hook = 'MAJOR TECH COMPANY ANNOUNCES 19,000 LAYOFFS'
+    const defaultHeight = resolveCaptionBar(
+      { caption_bar_enabled: true, caption_bar_width: 90 },
+      magazineBold,
+    )
+    const explicit38 = resolveCaptionBar(
+      { caption_bar_enabled: true, caption_bar_width: 90, caption_bar_height_pct: 38 },
+      magazineBold,
+    )
+    const tall = resolveCaptionBar(
+      { caption_bar_enabled: true, caption_bar_width: 90, caption_bar_height_pct: 90 },
+      magazineBold,
+    )
+    const fitDefault = resolveNewsHeadlineFit(defaultHeight, hook, 200, true)
+    expect(resolveNewsHeadlineFit(explicit38, hook, 200, true)).toBe(fitDefault)
+    // A non-default (tall) height now matches the 38% result instead of scaling.
+    expect(resolveNewsHeadlineFit(tall, hook, 200, true)).toBe(fitDefault)
   })
 })
