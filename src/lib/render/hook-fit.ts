@@ -312,18 +312,47 @@ export function fitHeadlineToBox(headline: string, box: HeadlineBox): number {
 }
 
 /**
+ * quick-260518-ch8 — the FIXED reference height (% of the 1080x1920 frame)
+ * used to derive a headline-fit box's `heightPx`. It MUST equal the default
+ * `caption_bar_height_pct` (`?? 38` in `resolveCaptionBar`) so that a slide at
+ * the default caption height re-fits byte-identically before and after the
+ * checkpoint-feedback decoupling fix (TPLREND-05).
+ *
+ * The headline auto-fit deliberately does NOT read the user-controlled
+ * `caption_bar_height_pct`: the Caption Card's Height slider is a pure visual
+ * property of the card and must never resize the headline (or any other text
+ * element). A taller card just gives the caption more empty breathing room.
+ */
+export const CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT = 38
+
+/**
  * Derive a headline-fit box from a resolved (quick-260517-k2n) caption card.
- * The card's `width`/`heightPct` are percents of the 1080x1920 frame; convert
- * to pixels and subtract a symmetric `inset` (default 80 — the old bottom-card
- * padding) so the headline does not touch the card edges. Dimensions are
- * floored at 1 so a tiny card never yields a negative box.
+ *
+ * `widthPx` is coupled to the card's `width` — the Phase 82 overflow safety:
+ * a long headline must shrink so it never overflows the card horizontally or
+ * breaks mid-word.
+ *
+ * `heightPx`, however, is derived from the FIXED
+ * `CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT` (38%) — NOT the user-controlled
+ * `resolved.heightPct` (quick-260518-ch8 checkpoint-feedback fix). Dragging the
+ * Caption Card Height slider therefore leaves the headline font size unchanged;
+ * the card's height is purely the card's own visual property. At the default
+ * caption height the box is byte-identical to the pre-fix box.
+ *
+ * Both percents map onto the 1080x1920 frame; `inset` (default 80 — the old
+ * bottom-card padding) is subtracted symmetrically so the headline does not
+ * touch the card edges. Dimensions are floored at 1 so a tiny card never
+ * yields a negative box.
  */
 export function captionCardBox(
   resolved: ResolvedCaptionBar,
   inset = 80,
 ): HeadlineBox {
   const widthPx = (resolved.width / 100) * CANVAS_W - 2 * inset
-  const heightPx = (resolved.heightPct / 100) * CANVAS_H - 2 * inset
+  // quick-260518-ch8: heightPx uses the FIXED reference height, NOT
+  // resolved.heightPct — the Height slider must not resize the headline.
+  const heightPx =
+    (CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT / 100) * CANVAS_H - 2 * inset
   return {
     widthPx: Math.max(1, widthPx),
     heightPx: Math.max(1, heightPx),
