@@ -443,16 +443,28 @@ describe('SlideBackgroundControls', () => {
   })
 
   describe('does not touch the retired photo-constraining fields', () => {
-    it('has NO Photo-height (caption-card-height) slider', () => {
+    // quick-260518-ch8: the `caption-card-height` testid was previously asserted
+    // ABSENT (the retired Photo-height slider that resized the *photo zone*).
+    // ch8 reintroduces a `caption-card-height` slider — but it is a CARD-height
+    // control: it writes `caption_bar_height_pct`, NEVER `news_image_height`.
+    // The "no photo-constraining field" intent is fully covered by the sibling
+    // "never emits layout / news_image_height / background_color" test below.
+    it('Height slider writes caption_bar_height_pct, never news_image_height', () => {
+      const onSlideUpdate = vi.fn()
       render(
         <SlideBackgroundControls
           slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
           template={TMPL}
-          onSlideUpdate={vi.fn()}
+          onSlideUpdate={onSlideUpdate}
           onSlidePreview={vi.fn()}
         />,
       )
-      expect(screen.queryByTestId('caption-card-height')).toBeNull()
+      const heightSlider = screen.getByTestId('caption-card-height')
+      expect(heightSlider).not.toBeNull()
+      fireEvent.pointerUp(heightSlider, { target: { value: '55' } })
+      const patch = onSlideUpdate.mock.calls[0][0].style_overrides
+      expect(patch.caption_bar_height_pct).toBe(55)
+      expect(patch).not.toHaveProperty('news_image_height')
     })
 
     it('never emits layout / news_image_height / background_color', () => {
