@@ -214,11 +214,16 @@ function BackgroundLayers({
 function CaptionCardLayer({
   template,
   slide,
+  isNewsLayoutSlide,
 }: {
   template: SlideTemplate
   slide: Slide
+  // quick-260518-8o0: threaded from the parent (which owns the gate at
+  // `template.backgroundMode == null && overrides.layout != null`) so an
+  // unedited news slide resolves the seeded black caption card.
+  isNewsLayoutSlide: boolean
 }) {
-  const cc = resolveCaptionBar(slide.style_overrides, template)
+  const cc = resolveCaptionBar(slide.style_overrides, template, isNewsLayoutSlide)
   if (!cc.enabled) return null
   return (
     <div
@@ -765,7 +770,9 @@ export function SlidePreview({
   // caption card when one is enabled, so the canvas preview matches the Satori +
   // HTML exports. `resolveNewsHeadlineFit` is a no-op (returns hookFontSize) for
   // every non-news slide and every slide without an enabled caption card.
-  const captionBarForFit = resolveCaptionBar(slide.style_overrides, template)
+  // quick-260518-8o0: pass `isNewsLayoutSlide` so an unedited news slide
+  // resolves enabled:true with seeded bottom-region black geometry.
+  const captionBarForFit = resolveCaptionBar(slide.style_overrides, template, isNewsLayoutSlide)
   const newsHeadlineFontSize = resolveNewsHeadlineFit(
     captionBarForFit, slide.hook_text, hookFontSize, isNewsLayoutSlide,
   )
@@ -839,14 +846,11 @@ export function SlidePreview({
     !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
       ? NEWS_LAYOUT[overrides.layout]
       : null
-  // quick-260517-iiy: the constrained news-photo height. Falls back to the
-  // NEWS_LAYOUT preset when `news_image_height` is unset → byte-identical
-  // legacy rendering (TPLREND-05). Clamped to [20, 80] so a hand-edited
-  // payload cannot push the photo off-canvas (threat T-iiy-01). Mirrored in
-  // render-slide-satori.tsx + render-slide.ts.
-  const newsImageHeight = newsZone
-    ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
-    : null
+  // quick-260518-8o0: `newsImageHeight` retired. The news photo is now a
+  // full-bleed background (it goes through the same `innerStyle.backgroundImage`
+  // path as non-news photos — see `innerStyle` below), so it no longer has a
+  // movable photo/caption boundary; `news_image_height` is dead resolver wiring
+  // and is removed from all 3 render paths.
   const useBgMode = isTemplateBgMode
   // quick-260517-k2n: `useBottomCard` removed — the caption card is no longer
   // backgroundMode-gated. It now renders on any template via CaptionCardLayer /
@@ -988,8 +992,11 @@ export function SlidePreview({
     color: bodyTextColor,
   }
 
-  // Background style (shared). News layouts skip the full-bleed bg image and render
-  // it as a constrained <img> below — see newsBgImageNode.
+  // Background style (shared).
+  // quick-260518-8o0: news-layout slides now render the photo full-bleed via
+  // this same CSS `backgroundImage` — the constrained `newsBgImageNode` <img>
+  // is retired. The caption card owns the headline backdrop; the photo is a
+  // permanent full-bleed background, identical to the non-news path.
   const innerStyle: React.CSSProperties = {
     width: REF_WIDTH,
     height: REF_HEIGHT,
@@ -1003,7 +1010,9 @@ export function SlidePreview({
     // an absolutely-positioned <img> — suppress the CSS backgroundImage to avoid
     // a redundant second fetch and match Satori which never sets backgroundImage
     // on the root element (Satori uses only the <img> tag, no CSS background).
-    backgroundImage: !newsZone && !useBgMode && !isColorOnlyTemplate && slide.background_url
+    // quick-260518-8o0: `!newsZone` removed from the gate so news-layout slides
+    // also render the photo full-bleed through this CSS background-image.
+    backgroundImage: !useBgMode && !isColorOnlyTemplate && slide.background_url
       ? `url(${slide.background_url})`
       : undefined,
     backgroundSize: 'cover',
@@ -1014,24 +1023,6 @@ export function SlidePreview({
     transform: `scale(${scale})`,
     transformOrigin: 'top left',
   }
-
-  const newsBgImageNode = newsZone && slide.background_url ? (
-    <img
-      src={slide.background_url}
-      draggable={false}
-      style={{
-        position: 'absolute',
-        left: 0,
-        top: `${newsZone.imageTop}%`,
-        width: '100%',
-        // quick-260517-iiy: news_image_height override moves the photo /
-        // caption-panel boundary; falls back to the preset (newsImageHeight).
-        height: `${newsImageHeight ?? newsZone.imageHeight}%`,
-        objectFit: 'cover',
-        zIndex: 0,
-      }}
-    />
-  ) : null
 
   // Phase 63 Plan 04 (SNAP-02..06, SNAP-09, DIFF-03, PERF-03):
   // Single helper closure consumed by all 4 onDrag sites (hook, body,
@@ -1217,7 +1208,9 @@ export function SlidePreview({
       >
         <div style={innerStyle}>
           {/* Phase 45 layers 1-3: backgroundMode photo + tint + optional bottom-card.
-              Mutually exclusive with newsZone (legacy path keeps newsBgImageNode + tint div). */}
+              quick-260518-8o0: the legacy news <img> (newsBgImageNode) is retired —
+              the news photo is full-bleed via innerStyle.backgroundImage, so the
+              non-bgMode branch only paints the tint div. */}
           {useBgMode ? (
             <BackgroundLayers
               template={template}
@@ -1226,21 +1219,18 @@ export function SlidePreview({
               overlayColor={overlayColor}
             />
           ) : (
-            <>
-              {newsBgImageNode}
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundColor: overlayColor,
-                opacity: overlayOpacity,
-              }} />
-            </>
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: overlayColor,
+              opacity: overlayOpacity,
+            }} />
           )}
 
           {/* quick-260517-k2n: caption card — sibling layer outside the
               useBgMode ternary so it renders on EVERY template (key_decision 2).
               Non-editable branch => plain div. */}
-          <CaptionCardLayer template={template} slide={slide} />
+          <CaptionCardLayer template={template} slide={slide} isNewsLayoutSlide={isNewsLayoutSlide} />
 
           {/* Phase 45 layer 4: overlay zones (chip, counter, mid pill).
               Above tint+card per CONTEXT.md Area 1; below hook so headline
@@ -1670,16 +1660,14 @@ export function SlidePreview({
             overlayColor={overlayColor}
           />
         ) : (
-          <>
-            {newsBgImageNode}
-            {/* Overlay */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: overlayColor,
-              opacity: overlayOpacity,
-            }} />
-          </>
+          /* quick-260518-8o0: legacy news <img> retired — news photo is
+             full-bleed via innerStyle.backgroundImage; only the tint remains. */
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: overlayColor,
+            opacity: overlayOpacity,
+          }} />
         )}
 
         {/* quick-260517-k2n: caption card (editable branch) — rendered as an
@@ -1690,7 +1678,9 @@ export function SlidePreview({
             handle zIndex. Drag/resize commits go through onCaptionBarUpdate
             (Task 3a) — ONE UPDATE_SLIDE per gesture => one undo entry (KBD-09). */}
         {(() => {
-          const cc = resolveCaptionBar(slide.style_overrides, template)
+          // quick-260518-8o0: `isNewsLayoutSlide` passed so an unedited news
+          // slide shows the seeded black caption card on the editable canvas.
+          const cc = resolveCaptionBar(slide.style_overrides, template, isNewsLayoutSlide)
           if (!cc.enabled) return null
           const ccXpx = (cc.x / 100) * REF_WIDTH
           const ccYpx = (cc.y / 100) * REF_HEIGHT
