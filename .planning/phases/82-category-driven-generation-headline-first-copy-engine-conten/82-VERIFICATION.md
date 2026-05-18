@@ -1,8 +1,21 @@
 ---
 phase: 82-category-driven-generation-headline-first-copy-engine-conten
 verified: 2026-05-17T16:10:00Z
-status: human_needed
-score: 9/10 — R10 gap-closure round 2 (Gaps D + E) fixed in code; R10 visual sign-off awaits user re-test
+status: gaps_found
+score: 9/10 — R10 round 3: generation perf bug fixed (148s→2s); thumbnail/canvas headline-wrap parity gap (Gap F) open
+
+> **Update 2026-05-17 (R10 round 3) — perf bug fixed; new parity gap.**
+> Browser re-test (Playwright): the 148s generation bug is FIXED (commit
+> fe5f173 — template_id_override closed-enum); generation now ~2s and the
+> News carousel renders headline-first with pill keywords. One new gap:
+>   Gap F — the news headline wraps differently in the editor's read-only
+>   thumbnail strip vs the editable main canvas (same font 112px Anton, same
+>   words; "APPROVES MASSIVE" lands on one line in the thumbnail, two lines on
+>   the canvas). Root cause: SlidePreview's editable branch renders the
+>   headline in a draggable <Rnd> box (k2n caption-card rework) with a
+>   different width than the read-only branch's plain `width: hookWidth%` div.
+>   Fix: unify the headline box width across both render branches; gate on the
+>   render-parity test suite. See 82-VISUAL-SIGNOFF.md "R10 round 3".
 
 > **Update 2026-05-17 (R10 round 2) — GAP-CLOSURE COMPLETE; visual sign-off
 > human_needed.** Gaps D + E are fixed via gap-closure Plans 08 + 09 (commits

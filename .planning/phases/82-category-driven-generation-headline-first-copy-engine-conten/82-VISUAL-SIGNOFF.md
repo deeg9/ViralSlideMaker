@@ -170,3 +170,27 @@ News category and confirm (a) it generates in seconds, and (b) the headline is
 cleanly contained — whole words, no overflow — matching `~/Desktop/Screenshot
 2026-05-17 at 3.06.22 PM.png`. This autonomous run does NOT mark the visual
 sign-off approved.
+
+## R10 round 3 — thumbnail/canvas headline-wrap parity (Gap F, 2026-05-17)
+
+Browser re-test via Playwright. Generation is now fast and correct (the 148s
+perf bug is fixed — `fe5f173`). New defect found:
+
+- **Gap F — read-only thumbnail ≠ editable canvas headline wrapping.** The same
+  news headline ("CITY COUNCIL APPROVES MASSIVE DOWNTOWN TRANSIT UPGRADE")
+  wraps differently between the editor's left thumbnail strip and the main
+  centre canvas. Live DOM inspection: both render at font 112px Anton with
+  identical words, but the thumbnail places "APPROVES" + "MASSIVE" on one line
+  (both top=483) while the canvas splits them (top 656 / 711).
+  Root cause: `SlidePreview`'s **editable** branch renders the headline inside
+  a draggable/resizable `<Rnd>` box (from the `260517-k2n` caption-card rework)
+  whose width differs from the **read-only** branch's plain `width: hookWidth%`
+  div. Same font + words, different container width → different flex-wrap.
+  Fix: unify the headline box width across the editable and read-only render
+  branches of `SlidePreview`; gate on the render-parity test suite.
+
+**Decision (user, 2026-05-17):** route as a proper R10 gap-closure (delicate
+render-architecture, freshly reworked by k2n) rather than an inline hot-patch.
+
+**Verdict:** ⛔ PENDING — R10 visual sign-off not approved; Gap F gap-closure
+in progress.
