@@ -102,7 +102,11 @@ describe('SlideBackgroundControls', () => {
       })
     })
 
-    it('clicking the Switch while ON deletes the caption_bar_enabled key', () => {
+    it('clicking the Switch while ON writes explicit caption_bar_enabled:false', () => {
+      // quick-260518-8o0: OFF now writes explicit `false` (one uniform code
+      // path) — so the news-layout resolver default cannot silently re-enable
+      // the card. At render time this is still byte-identical for non-news
+      // slides because the resolver gate is `===true || (==null && news)`.
       const onSlideUpdate = vi.fn()
       render(
         <SlideBackgroundControls
@@ -119,8 +123,8 @@ describe('SlideBackgroundControls', () => {
       fireEvent.click(screen.getByTestId('caption-card-toggle'))
       expect(onSlideUpdate).toHaveBeenCalledTimes(1)
       const patch = onSlideUpdate.mock.calls[0][0]
-      // The key is DELETED, not set to undefined.
-      expect('caption_bar_enabled' in patch.style_overrides).toBe(false)
+      // Explicit false — NOT a deleted key.
+      expect(patch.style_overrides.caption_bar_enabled).toBe(false)
       // Sibling overrides are preserved.
       expect(patch.style_overrides.caption_bar_color).toBe('#3d0000')
     })
@@ -137,6 +141,101 @@ describe('SlideBackgroundControls', () => {
       expect(screen.queryByTestId('caption-card-color')).toBeNull()
       expect(screen.queryByTestId('caption-card-position-cover')).toBeNull()
       expect(screen.queryByTestId('caption-card-position-body')).toBeNull()
+    })
+  })
+
+  describe('quick-260518-8o0 — news-layout caption-card awareness', () => {
+    it('Test 1: news-layout slide with no caption_bar_* overrides → toggle reads ON', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+      ).toBe('true')
+    })
+
+    it('Test 2: non-news slide with no overrides → toggle reads OFF', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+      ).toBe('false')
+    })
+
+    it('Test 3: toggling OFF on a news-layout slide emits explicit caption_bar_enabled:false', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      // The toggle reads ON (resolver default) — clicking it turns it OFF.
+      fireEvent.click(screen.getByTestId('caption-card-toggle'))
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      const patch = onSlideUpdate.mock.calls[0][0]
+      // Explicit false — so the resolver default cannot re-enable the card.
+      expect(patch.style_overrides.caption_bar_enabled).toBe(false)
+      // The news `layout` override is preserved untouched.
+      expect(patch.style_overrides.layout).toBe('cover')
+    })
+
+    it('Test 4: toggling OFF on a non-news slide also writes explicit false (uniform path)', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      fireEvent.click(screen.getByTestId('caption-card-toggle'))
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      expect(
+        onSlideUpdate.mock.calls[0][0].style_overrides.caption_bar_enabled,
+      ).toBe(false)
+    })
+
+    it('Test 5: toggling ON still emits caption_bar_enabled:true', () => {
+      const onSlideUpdate = vi.fn()
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={onSlideUpdate}
+        />,
+      )
+      // Non-news slide → toggle starts OFF; clicking turns it ON.
+      fireEvent.click(screen.getByTestId('caption-card-toggle'))
+      expect(onSlideUpdate).toHaveBeenCalledTimes(1)
+      expect(
+        onSlideUpdate.mock.calls[0][0].style_overrides.caption_bar_enabled,
+      ).toBe(true)
+    })
+
+    it('explicit caption_bar_enabled:false on a news slide keeps the toggle OFF', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide({
+            style_overrides: { layout: 'cover', caption_bar_enabled: false },
+          })}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+      ).toBe('false')
     })
   })
 
