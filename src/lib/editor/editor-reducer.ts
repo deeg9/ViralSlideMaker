@@ -329,9 +329,50 @@ export function editorReducer(state: EditorHistory, action: EditorAction): Edito
       return pushHistory(state, slides)
     }
 
+    // quick-260517-textbox-revert: UPDATE_CUSTOM_TEXT must write THROUGH
+    // text_boxes (the canonical store) and route through applyDualWrite —
+    // NOT write the legacy `custom_texts` projection directly.
+    //
+    // Bug it fixes: a role='custom' box lives in text_boxes; applyDualWrite
+    // regenerates custom_texts FROM text_boxes on every UPDATE_TEXT_BOX. The
+    // old implementation here mutated only the derived custom_texts array, so
+    // text_boxes still held the stale 'New Text' creation default. The very
+    // next UPDATE_TEXT_BOX (any property toggle — bold/italic/color/…) re-ran
+    // applyDualWrite, regenerated custom_texts from the stale text_boxes, and
+    // silently discarded the user's typed text.
+    //
+    // Fix: locate the matching text_boxes entry by id, merge the translated
+    // updates, route through applyDualWrite. CustomText fields map 1:1 onto
+    // TextBox except: `text_effects` → `effects`, and `x`/`y`/`width` →
+    // `position.{x,y,width}`. Unknown id (e.g. a true legacy custom_text with
+    // no text_boxes mirror) falls back to the legacy-array merge so nothing
+    // regresses for pre-migration slides.
     case 'UPDATE_CUSTOM_TEXT': {
       const slides = state.present.map((slide, i) => {
         if (i !== action.slideIndex) return slide
+        const boxes = slide.text_boxes
+        const matchIdx = boxes?.findIndex((tb) => tb.id === action.textId) ?? -1
+        if (boxes && matchIdx !== -1) {
+          const { text_effects, x, y, width, ...rest } = action.updates
+          const existing = boxes[matchIdx]
+          const merged: TextBox = {
+            ...existing,
+            ...rest,
+            ...(text_effects !== undefined ? { effects: text_effects } : {}),
+          }
+          if (x !== undefined || y !== undefined || width !== undefined) {
+            merged.position = {
+              ...existing.position,
+              ...(x !== undefined ? { x } : {}),
+              ...(y !== undefined ? { y } : {}),
+              ...(width !== undefined ? { width } : {}),
+            }
+          }
+          const nextTextBoxes = boxes.slice()
+          nextTextBoxes[matchIdx] = merged
+          return applyDualWrite(slide, nextTextBoxes)
+        }
+        // Legacy fallback: slide has no text_boxes mirror for this id.
         const custom_texts = (slide.custom_texts ?? []).map((ct) =>
           ct.id === action.textId ? { ...ct, ...action.updates } : ct
         )
