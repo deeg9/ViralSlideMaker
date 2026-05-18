@@ -44,10 +44,12 @@
   2. `getTemplate`, `pickerTemplates`, and `TEMPLATE_IDS` each resolve both code templates and DB rows from one merged registry.
   3. A DB-backed template renders identically across all three render paths — canvas editor preview, Satori PNG export, and HTML export.
   4. The 13 existing code templates and all ~82 existing carousels render byte-identically after the storage change — `legacy-templates-byte-identical` + render-parity fingerprint suites stay green.
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
-- [ ] 83-01: TBD
+- [ ] 83-01: Additive `templates` table migration — text PK, flat_style + nullable layout_recipe/preview, created_by FK, public-read RLS deny-by-default writes (TSTORE-01)
+- [ ] 83-02: Async hybrid registry merge — resolveTemplate / getPickerTemplates / isKnownTemplateId, ~60s TTL cache, code-wins collision rule, fetcher test seam (TSTORE-02)
+- [ ] 83-03: DB-template render parity across canvas/Satori/HTML + sync/async byte-identity guard; legacy + new-parity suites green, no fixture regen (TSTORE-03, TSTORE-04)
 
 **Risk framing**: The migration hits the shared prod Supabase project — must be additive and reversible per the project's migration discipline. The registry merge changes how *no* existing carousel renders; byte-identity (TSTORE-04 / TPLREND-05) is the gate, not a nice-to-have. The 13 code templates stay in code for back-compat — DB storage is additive, not a migration of existing templates.
 
