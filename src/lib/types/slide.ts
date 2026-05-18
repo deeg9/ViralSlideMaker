@@ -230,6 +230,12 @@ export interface SlideStyleOverrides {
   caption_bar_x?: number                // left edge, percent 0..100; default 0
   caption_bar_y?: number                // top edge,  percent 0..100; default from position
   caption_bar_width?: number            // width,     percent 0..100; default 100
+  /** quick-260518-ch8: fades the card edge that meets the photo (top edge when
+      snapped Bottom, bottom edge when snapped Top) from the card color into
+      transparent via a CSS linear-gradient, replacing the hard straight cut.
+      Optional — when unset (or 0) the card renders byte-identical to a
+      pre-change slide (solid color, no gradient — TPLREND-05). */
+  caption_bar_blend_pct?: number        // 0..50; default 0 (0 = edge blend off)
   // Phase 11: Bold/italic
   hook_font_weight?: number
   body_font_weight?: number
