@@ -1,6 +1,8 @@
 import type { TextSegment } from '@/lib/types/slide'
 import { newsDrop } from './news-drop'
 import { newsCyan } from './news-cyan'
+// quick task 260518-jhg: Oracle-style news keeper for the marketing-launch picker.
+import { newsOracle } from './news-oracle'
 import { highlightBar } from './highlight-bar'
 import { y2kPop } from './y2k-pop'
 import { boldYellow } from './bold-yellow'
@@ -168,6 +170,9 @@ export const templates: SlideTemplate[] = [
   brutalistGrid,
   // Pure-typography editorial cream — no photo, restrained mindful-essay vibe.
   paperEssay,
+  // quick task 260518-jhg: appended at the END so existing templates keep
+  // their indices (registry-driven fingerprint test assigns this PTF13).
+  newsOracle,
 ]
 
 // Phase 44: fail fast at module load if any registered template is misconfigured.
@@ -186,16 +191,22 @@ export const TEMPLATE_IDS: readonly string[] = templates.map((t) => t.id)
 //
 // Phase 82 (R8/R9): this set IS the user-approved cull list recorded in
 // `82-KEEPER-SIGNOFF.md` (signed off 2026-05-17). The keeper-list curation is
-// hide-not-delete — the 7 ids below lose only their picker visibility; their
+// hide-not-delete — the ids below lose only their picker visibility; their
 // renderer code and registry entries stay, so `getTemplate()` still resolves
 // every culled id and the ~50 saved projects render byte-identically (v2.13
 // render-parity invariant preserved). pickerTemplates (below) therefore yields
-// exactly the 5 approved keepers: news-cyan, tr3nding-news, bold-yellow,
+// exactly the 5 approved keepers: news-oracle, tr3nding-news, bold-yellow,
 // editorial-serif, y2k-pop. Both shipping content categories (News, Facts) are
 // covered by keepers — no category can resolve to a hidden template.
+//
+// quick task 260518-jhg: 'news-cyan' retired from the picker (non-destructive —
+// news-cyan.ts unmodified, getTemplate('news-cyan') still resolves so the 3
+// existing news-cyan carousels render byte-identically). The new picker-facing
+// news keeper is 'news-oracle'.
 export const HIDDEN_FROM_PICKER: ReadonlySet<string> = new Set([
   'highlight-bar',
   'news-drop',
+  'news-cyan',
   'magazine-bold',
   'documentary',
   'notes-app-chic',
@@ -204,7 +215,9 @@ export const HIDDEN_FROM_PICKER: ReadonlySet<string> = new Set([
 ])
 
 // Phase 82 (R8): the keeper-filtered picker list — exactly the 5 approved
-// keepers. Category->template coverage (every `templateIds` entry across all
+// keepers (news-oracle, tr3nding-news, bold-yellow, editorial-serif, y2k-pop;
+// see quick task 260518-jhg for the news-cyan -> news-oracle swap).
+// Category->template coverage (every `templateIds` entry across all
 // CATEGORIES modules must be a picker-visible keeper, so a category never
 // resolves to a hidden template — SPEC R7) is asserted in the keeper-curation
 // test: `templates/__tests__/keeper-curation.test.ts`. Importing the category
