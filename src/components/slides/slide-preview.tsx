@@ -1803,6 +1803,15 @@ export function SlidePreview({
           // quick-260514-l9z: in-place edit gate for hook. Mirrors the
           // editingCustomTextId pattern at the custom-text site.
           const hookEditing = !!hookLockedBox && editingHookBodyId === hookLockedBox.id
+          // quick-260518-htt (HTT-01): per-element selection gate for resize
+          // chrome. Handles render ONLY when this element is selected — when
+          // `selection` is passed (the real editor always passes it) the
+          // authoritative source is `selection.ids`; for legacy callers that
+          // omit `selection` (older tests / Storybook) fall back to the
+          // hook's existing single-id slot.
+          const hookRndSelected = selection
+            ? !!hookLockedBox && selection.ids.includes(hookLockedBox.id)
+            : (hookSelected || hookEditing)
           return (
         <Rnd
           // GAP-F (82-10): the <Rnd> renders at the PADDED geometry so the
@@ -1812,7 +1821,8 @@ export function SlidePreview({
           size={{ width: hookRndWidthPx, height: 'auto' as unknown as number }}
           scale={scale}
           bounds="parent"
-          enableResizing={hookLocked || hookEditing ? false : enableResizing}
+          // quick-260518-htt (HTT-01): chrome shows only when selected.
+          enableResizing={hookLocked || hookEditing || !hookRndSelected ? false : enableResizing}
           disableDragging={hookLocked || hookEditing}
           resizeHandleStyles={resizeHandleStyles}
           onDragStart={(_e, data) => {
@@ -2205,13 +2215,20 @@ export function SlidePreview({
           const bodyLocked = bodyLockedBox?.locked === true
           // quick-260514-l9z: in-place edit gate for body.
           const bodyEditing = !!bodyLockedBox && editingHookBodyId === bodyLockedBox.id
+          // quick-260518-htt (HTT-01): per-element selection gate for resize
+          // chrome — same shape as the hook site above. `selection.ids` is
+          // authoritative; legacy callers fall back to the body's single-id slot.
+          const bodyRndSelected = selection
+            ? !!bodyLockedBox && selection.ids.includes(bodyLockedBox.id)
+            : (bodySelected || bodyEditing)
           return (
           <Rnd
             position={bodyPixels}
             size={{ width: bodyWidthPx, height: 'auto' as unknown as number }}
             scale={scale}
             bounds="parent"
-            enableResizing={bodyLocked || bodyEditing ? false : enableResizing}
+            // quick-260518-htt (HTT-01): chrome shows only when selected.
+            enableResizing={bodyLocked || bodyEditing || !bodyRndSelected ? false : enableResizing}
             disableDragging={bodyLocked || bodyEditing}
             resizeHandleStyles={resizeHandleStyles}
             onDragStart={(_e, data) => {
@@ -2532,6 +2549,13 @@ export function SlidePreview({
           // both block drag). enableResizing is forced to false when locked.
           const ctLockedBox = slide.text_boxes?.find((tb) => tb.id === ct.id)
           const ctLocked = ctLockedBox?.locked === true
+          // quick-260518-htt (HTT-01): per-element selection gate for resize
+          // chrome. `selection.ids` is authoritative; legacy callers fall back
+          // to the custom-text single-id slot (selectedCustomTextId / the
+          // pre-existing `isSelected` const above).
+          const ctRndSelected = selection
+            ? selection.ids.includes(ct.id)
+            : (selectedCustomTextId === ct.id || isSelected)
 
           return (
             <Rnd
@@ -2540,7 +2564,8 @@ export function SlidePreview({
               size={{ width: ctWidthPx, height: 'auto' as unknown as number }}
               scale={scale}
               bounds="parent"
-              enableResizing={ctLocked ? false : enableResizing}
+              // quick-260518-htt (HTT-01): chrome shows only when selected.
+              enableResizing={ctLocked || !ctRndSelected ? false : enableResizing}
               resizeHandleStyles={resizeHandleStyles}
               disableDragging={isEditing || ctLocked}
               onDragStart={(_e, data) => {
@@ -2864,6 +2889,12 @@ export function SlidePreview({
           // gated behind `editable={true}` (this whole subtree returns early
           // for editable=false at line 916).
           const ciLocked = ci.locked === true
+          // quick-260518-htt (HTT-01): per-element selection gate for resize
+          // chrome. `selection.ids` is authoritative; legacy callers fall back
+          // to the custom-image single-id slot (`isImageSelected` above).
+          const ciRndSelected = selection
+            ? selection.ids.includes(ci.id)
+            : isImageSelected
 
           const imageResizeHandleStyle: React.CSSProperties = {
             width: 8,
@@ -2883,7 +2914,8 @@ export function SlidePreview({
               bounds="parent"
               lockAspectRatio={true}
               disableDragging={ciLocked}
-              enableResizing={ciLocked ? false : {
+              // quick-260518-htt (HTT-01): chrome shows only when selected.
+              enableResizing={ciLocked || !ciRndSelected ? false : {
                 top: true,
                 bottom: true,
                 left: true,
@@ -3183,6 +3215,13 @@ export function SlidePreview({
               borderRadius: 1,
               position: 'absolute',
             }
+            // quick-260518-htt (HTT-01): per-element selection gate for resize
+            // chrome. Decorations have no legacy single-id slot, so the
+            // no-`selection` legacy path simply resolves false (acceptable —
+            // the real editor always passes `selection`).
+            const dRndSelected = selection
+              ? selection.ids.includes(d.id)
+              : false
             return (
               <React.Fragment key={d.id}>
                 <Rnd
@@ -3199,7 +3238,8 @@ export function SlidePreview({
                   lockAspectRatio={d.kind === 'icon'}
                   // quick-260515-k54: 8-handle resize for non-locked
                   // decorations; locked decorations keep no handles (LOCK-04).
-                  enableResizing={d.locked === true ? false : {
+                  // quick-260518-htt (HTT-01): chrome shows only when selected.
+                  enableResizing={d.locked === true || !dRndSelected ? false : {
                     top: true,
                     bottom: true,
                     left: true,
