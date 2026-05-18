@@ -233,3 +233,13 @@ passing tests, but the R10 **visual** sign-off remains a human judgment: the
 user must re-test in the editor — generate a News carousel and confirm the
 headline now wraps IDENTICALLY in the left thumbnail strip and the main centre
 canvas. This autonomous run does NOT mark the visual sign-off approved.
+
+## R10 — VISUAL SIGN-OFF APPROVED (2026-05-17)
+
+The user approved the R10 visual sign-off after a browser re-test. The News
+carousel generates in ~2s and renders headline-first with pill-highlighted
+keywords, a large auto-fit headline (whole words, no overflow), and the
+left-strip thumbnail now wraps identically to the main canvas (Gap F verified
+via live DOM: "APPROVES MASSIVE" share a line in both render paths).
+
+**Verdict:** ✅ APPROVED — SPEC R10 satisfied. Phase 82 complete.

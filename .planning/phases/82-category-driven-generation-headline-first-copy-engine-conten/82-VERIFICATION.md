@@ -1,8 +1,17 @@
 ---
 phase: 82-category-driven-generation-headline-first-copy-engine-conten
-verified: 2026-05-17T21:15:00Z
-status: human_needed
-score: 9/10 — R10 round 3: Gap F (thumbnail/canvas headline-wrap parity) fixed in code (82-10); R10 visual sign-off remains human_needed
+verified: 2026-05-17T21:40:00Z
+status: passed
+score: 10/10 — all requirements satisfied; R10 visual sign-off APPROVED by the user 2026-05-17
+
+> **Update 2026-05-17 (R10 round 3) — VISUAL SIGN-OFF APPROVED. Phase 82 COMPLETE.**
+> The user approved the R10 visual sign-off after browser re-test. All 10
+> requirements are satisfied: R1-R9 verified earlier; R10's structural half
+> passes and the visual half is now user-approved. The R10 testing surfaced and
+> resolved, across three gap-closure rounds, a generation-perf bug
+> (template_id_override runaway, ~148s → ~2s, `fe5f173`) and Gaps A-F
+> (headline cap, pill highlights, headline size, overflow auto-fit, mid-word
+> wrap, thumbnail/canvas wrap parity). Phase 82 is done.
 
 > **Update 2026-05-17 (R10 round 3) — GAP-CLOSURE COMPLETE; visual sign-off
 > human_needed.** Gap F is fixed via gap-closure Plan 10 (commits `2938955`,

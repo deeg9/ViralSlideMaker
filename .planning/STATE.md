@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-10 — v2.13 milestone started)
 
 ## Current Position
 
-Phase: 82 (category-driven-generation-headline-first-copy-engine-conten) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 82
-Last activity: 2026-05-17 -- Phase 82 execution started
+Phase: 82 (category-driven-generation-headline-first-copy-engine-conten) — COMPLETE
+Plan: —
+Status: Phase 82 complete — all 10 requirements verified; R10 visual sign-off user-approved
+Last activity: 2026-05-17 -- Phase 82 complete (category-driven generation; R10 approved after perf-bug + Gap A-F fixes)
 
 ## v2.13 Phase Map
 
