@@ -5,7 +5,7 @@
 // `.planning/phases/82-.../82-KEEPER-SIGNOFF.md`). This suite pins the cull so
 // it cannot silently drift:
 //   - pickerTemplates contains EXACTLY the 5 approved keepers.
-//   - each of the 7 culled ids is absent from the picker but still resolves
+//   - each of the 8 culled ids is absent from the picker but still resolves
 //     via getTemplate() (renderer retained — back-compat with ~50 saved
 //     projects; SPEC R8 hide-not-delete).
 //   - every category's templateIds entry is a picker-visible keeper, so a
@@ -21,8 +21,10 @@ import {
 import { CATEGORIES } from '@/lib/ai/categories'
 
 // The user-approved keeper list (82-KEEPER-SIGNOFF.md, signed off 2026-05-17).
+// quick task 260518-jhg: news-cyan retired from the picker, replaced by the
+// Oracle-style news-oracle keeper — still 5 keepers (a swap, not an addition).
 const APPROVED_KEEPERS = [
-  'news-cyan',
+  'news-oracle',
   'tr3nding-news',
   'bold-yellow',
   'editorial-serif',
@@ -30,9 +32,11 @@ const APPROVED_KEEPERS = [
 ] as const
 
 // The user-approved cull list (hidden from picker, renderers retained).
+// quick task 260518-jhg: news-cyan added to the cull (8 culled ids now).
 const CULLED_IDS = [
   'highlight-bar',
   'news-drop',
+  'news-cyan',
   'magazine-bold',
   'documentary',
   'notes-app-chic',
@@ -69,12 +73,12 @@ describe('Phase 82 — keeper-list curation (R8/R9 hide-not-delete)', () => {
     expect(tpl.name).toBe('Highlight Bar')
   })
 
-  it('the registry still holds all 12 templates (no deletions — hide-not-delete)', () => {
+  it('the registry still holds all 13 templates (no deletions — hide-not-delete; +news-oracle per quick task 260518-jhg)', () => {
     const registryIds = new Set(templates.map((t) => t.id))
     for (const id of [...APPROVED_KEEPERS, ...CULLED_IDS]) {
       expect(registryIds.has(id), `template '${id}' must remain registered`).toBe(true)
     }
-    expect(templates.length).toBe(12)
+    expect(templates.length).toBe(13)
   })
 
   it('every category templateIds entry is a picker-visible keeper (no category resolves to a hidden template — SPEC R7)', () => {
