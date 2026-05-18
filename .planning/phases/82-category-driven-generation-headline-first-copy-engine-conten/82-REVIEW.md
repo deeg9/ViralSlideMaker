@@ -3,11 +3,11 @@ phase: 82
 slug: category-driven-generation-headline-first-copy-engine-conten
 status: clean
 depth: standard
-reviewed: 2026-05-17T14:20:00Z
-files_reviewed: 29
+reviewed: 2026-05-17T21:25:00Z
+files_reviewed: 31
 critical: 0
 warning: 0
-info: 2
+info: 3
 ---
 
 # Phase 82 — Code Review
@@ -157,5 +157,67 @@ None.
 - Snapshot regeneration is narrow + intentional (only the `overflow-wrap:
   break-word → normal` flip; no unrelated template changed — verified via
   `git diff`).
+
+No fix pass required.
+
+---
+
+## R10 round 3 re-review (2026-05-17) — Plan 10 (Gap F)
+
+**Appended below.** The earlier reviews are unchanged. This re-review adds the
+Plan 10 changed files; overall status stays **CLEAN** (0 critical, 0 warning).
+
+**Scope:** commits `2938955` (Plan 10), `542bda4` (summary).
+**Files reviewed (2):**
+- `src/components/slides/slide-preview.tsx`
+- `src/lib/render/__tests__/parity.thumbnail-vs-canvas-hook-wrap.test.tsx` (new)
+
+**Runtime note:** the `gsd-code-reviewer` subagent could not be spawned in this
+environment (no Agent/Task tool). Per the workflow `<runtime_compatibility>`
+fallback, this re-review was performed inline at standard depth.
+
+### Critical / Warning
+None.
+
+### Info
+
+3. **`bounds="parent"` clamps the padded headline `<Rnd>` at the extreme left
+   edge.** The editable headline `<Rnd>` now renders at
+   `hookRndPixels.x = hookPixels.x - HOOK_WRAPPER_PAD_X` (8px left of the text)
+   with `bounds="parent"`. If the headline is dragged so its persisted
+   `hook_position.x` is within ~8px of the canvas left edge, the padded box's
+   left edge goes slightly negative and `bounds="parent"` clamps it to 0,
+   shifting the visible text ~8px right of the read-only branch. **Not a
+   regression in the gap being fixed** — the wrap divergence is width-driven and
+   width is unaffected by position clamping; the default hook x is the 11%
+   safe-zone inset (118px), far from the edge; pre-fix the editable headline was
+   *already* offset 8px right of the read-only text (the wrapper padding) and
+   this fix corrects that for all normal positions. Only the sub-8px extreme
+   remains imperfect — out of spec, recorded for awareness. No fix.
+
+### Verdict — CLEAN
+
+The `HOOK_WRAPPER_PAD_X` padding-compensation is correct and consistently
+applied. Every drag/resize commit-math site was audited:
+
+- **Pure-delta math** (`onDragStart` snapshot; `onDrag` axis-constrain; the
+  alt-duplicate + group-drag `deltaX = data.x - startRef.x`) operates on two
+  padded-frame values — the `±8` offset cancels in the subtraction, correctly
+  left untouched.
+- **Snap query** is shifted into the headline's text frame
+  (`data.x + HOOK_WRAPPER_PAD_X`) so guides align to the visible headline edges;
+  the result is shifted back to the padded frame. The multi-select branch's
+  "delta from the union AABB is invariant" property still holds (verified: the
+  `data.x = result.x + (data.x - queryX)` translate-back preserves the `-8`).
+- **Absolute conversions** (`onDragStop`/`onResizeStop` `percentX`,
+  `onResizeStop` `newWidthPx`) all add the padding back, so persisted
+  `hook_position.x` / `hook_width` are byte-identical to a pre-fix gesture.
+- `scaleFontSizeOnCorner` receives the unpadded `newWidthPx` and ratios it
+  against the unpadded `onResizeStart` snapshot — ratio unchanged by the fix.
+- All 112 SlidePreview component tests pass; the new regression test passes and
+  was revert-verified. `tsc` clean on the file; `lint:gates` passes.
+- The k2n caption-card `<Rnd>`, the read-only headline div, and
+  `render-slide-satori.tsx` are byte-identical to HEAD (verified via `git diff`)
+  — the fix is scoped to the single divergent branch.
 
 No fix pass required.
