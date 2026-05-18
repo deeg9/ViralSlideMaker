@@ -1,187 +1,143 @@
 # Roadmap — TikTok Slideshow Creator
 
-## Active Milestone — v2.13 Style-from-Reference Generation
+## Active Milestone — v2.14 Save as Template
 
-**Goal:** Let users upload reference slideshow images and generate a new slideshow that mimics the reference's full design template (palette, type, layout, shape/decoration patterns) with their own content — at full template fidelity, with two content paths (AI-generated copy from a topic, OR user-supplied copy with style-only application), output landing in the existing project editor.
+**Goal:** Admin-authored, DB-backed templates that capture a real carousel's full layout recipe — so the team can mint polished picker templates from real carousels with no code deploy, and new carousels generate pre-shaped to them.
 
-**Requirements coverage:** 75/75 v2.13 reqs mapped (100%). Source of truth: `.planning/REQUIREMENTS.md`. Research synthesis: `.planning/research/SUMMARY.md`.
+**Requirements coverage:** 9/9 v2.14 reqs mapped (100%). Source of truth: `.planning/REQUIREMENTS.md`. Feature spec: `.planning/SAVE-AS-TEMPLATE-SPEC.md` (authoritative — goal, background, 8 source requirements with Current/Target/Acceptance, boundaries, constraints, recommended phase breakdown).
 
-**Phase numbering:** Continues from v2.12 (last shipped Phase 72) → v2.13 starts at Phase 73. (No `--reset-phase-numbers` flag passed.)
+**Phase numbering:** Continues from v2.13 (last shipped Phase 82) → v2.14 starts at Phase 83. (No `--reset-phase-numbers` flag passed.) The v2.13 roadmap is archived at `.planning/milestones/v2.13-ROADMAP.md`.
 
-**Hard constraints (locked, non-negotiable):**
-- Phase 73 (cost rails) MUST ship before any extraction code (Phase 75). Roadmap MUST NOT allow merging Phase 73 into Phase 74 or 75.
-- Phase 74's STYLESPEC-11 PTF baseline MUST be locked BEFORE any vision-extraction feature code (mirrors v2.12 Phase 67 PTF16 discipline).
-- Phase 76's PREVIEW-01 mandatory non-skippable spec-preview is the single biggest UX defense — do NOT split across phases or make optional.
-- Closed-enum schema (STYLESPEC-03..09) is THE primary architectural principle — defends against both legal AND prompt-injection threats simultaneously. Phase 74 owns this as load-bearing.
+**Locked decisions (discussion 2026-05-18, from the spec):**
+1. **Audience — admin-only authoring.** Only an admin saves templates; saved templates go global to every user's picker. No per-user template UI, no moderation pipeline. End-user and community/publishable templates are explicitly deferred.
+2. **Capture — full layout recipe.** A saved template carries per-slide structure (caption-card geometry, hook positions/sizes, accent/highlight rhythm, accessory labels), not just flat style. This is what makes new carousels generate pre-shaped like the source.
+3. **Storage — DB-backed.** Templates move to a database table; the code registry and DB rows merge into one picker list. Saving a template requires no code deploy.
+4. **V1 is save-new-only.** No editing or deleting a DB template after save; a re-save mints a new template.
 
-**Locked decisions (pre-roadmap, 2026-05-10):**
-1. Free-tier with daily cap (5 uploads × 3 images = 15 vision calls/day) — Phase 73 owns the cap rails
-2. Refusal pre-pass = second Gemini Vision call (no new vendor; ~$0.001/image extra) — Phase 75
-3. Storage bucket name: `slide-references` (matches existing `slide-*` prefix) — Phase 74
-4. NSFW pre-classifier deferred — rely on Gemini `BLOCK_ONLY_HIGH` + recovery UI; revisit on telemetry — explicitly NOT in Phase 73 scope
+**Constraints carried into every phase (locked, non-negotiable):**
+- **Closed-enum invariant:** `LayoutRecipe` fields are closed enums wherever feasible — project-wide closed-enum rule; defends schema + injection surface.
+- **Render-parity (TPLREND-05 / PARITY-01):** the 13 code templates stay byte-identical; DB templates and recipe-shaped slides render identically across all 3 render paths.
+- **Additive, reversible migrations on the shared Supabase project** — follow the project's migration discipline; the migration changes how *no* existing carousel renders.
+- **Cost:** no new Gemini model/vendor tier; recipe extraction is deterministic code, no new AI call.
+- **Admin gating is real auth** — server-enforced role check, mirrored on every Save-as-Template endpoint (model on `src/app/api/admin/seed-explore/route.ts`).
+- **Public-by-default:** any generation path touched still routes new carousels through `autoPublishOnGenerate`.
 
 ---
 
 ## Phases
 
-- [x] **Phase 73: Cost & Preprocessing Rails (Foundation)** — sharp pipeline + SHA-256 cache + per-user-per-day rate cap + bill alarm; NO vision call code lands until this ships. ✅ Shipped 2026-05-10 (3 plans, 54+1todo tests, 8/8 reqs).
-- [x] **Phase 74: Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline** — `StyleSpec` type + closed-enum design + idempotent-absence PTF baseline + `slide-references` bucket + reference upload pipeline. ✅ Shipped 2026-05-10 (4 plans, 168 tests, 22/22 reqs, closed-enum CI gate live).
-- [x] **Phase 75: Vision Extraction + Two-Phase Architecture + Safety Config** — `extract-style-spec.ts` + refusal pre-pass + `BLOCK_ONLY_HIGH` safety + `node-vibrant` for palette. ✅ Shipped 2026-05-10 (3 plans, 51 tests, 8/8 reqs, two-phase firewall structurally enforced).
-- [x] **Phase 76: Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery** — mandatory non-skippable spec-preview panel + per-aspect checkboxes + brand-kit toggle + safety-block recovery UI. ✅ Shipped 2026-05-10 (3 plans, 112 tests, 12/12 reqs, PREVIEW-01 enforced by reducer + source-grep gate).
-- [x] **Phase 77: Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff** — `generate-from-style-spec.ts` + two content paths + spec replaces `aiVoiceNote` + roundtrip parity + editor handoff. ✅ Shipped 2026-05-10 (3 plans, 98 tests, 14/14 reqs, PTF77 byte-identity locked, 12K-token CI gate live).
-- [x] **Phase 78: Remix / Fork / Publish Snapshot** — `published_carousels` columns + publish/fork RPC extensions + "Regenerate from references". ✅ Shipped 2026-05-10 (2 plans, 30 tests, 5/5 reqs).
-- [x] **Phase 79: Legal Hardening + ToS Clickwrap + Audit Log + Copy Review** — ToS clickwrap + `style_reference_uploads` audit table + DMCA docs + Inspired-by copy enforcement. ✅ Shipped 2026-05-10 (2 plans, 87 tests, 7/7 reqs, all 3 CI gates GREEN).
+- [ ] **Phase 83: DB-Backed Template Storage + Registry Merge** — `templates` DB table + migration + merged code/DB registry; render parity for DB templates + byte-identity for 13 code templates and ~82 existing carousels. No recipe yet.
+- [ ] **Phase 84: LayoutRecipe Model + Extraction** — Typed role-keyed `LayoutRecipe` schema + deterministic extraction of a recipe + flat style from a source carousel's slide_data.
+- [ ] **Phase 85: Recipe-Driven Generation** — Generation pipeline applies a template's `LayoutRecipe` so new carousels come out pre-shaped. Highest blast radius. Absorbs the removed placeholder Phase 83.
+- [ ] **Phase 86: Admin Save-as-Template Flow + Previews** — Admin-role-gated authoring flow that ties it together + faithful DB-template picker previews.
 
 ---
 
 ## Phase Details
 
-### Phase 73: Cost & Preprocessing Rails (Foundation)
-**Goal**: Lock cost ceilings and deterministic preprocessing in place before a single vision call ships, so extraction work in Phase 75 cannot blow the budget or compound retry costs.
-**Depends on**: Nothing (foundation phase; hard prerequisite for Phase 75)
-**Requirements**: COST-01, COST-02, COST-03, COST-04, COST-05, COST-06, COST-07, PARITY-04
+### Phase 83: DB-Backed Template Storage + Registry Merge
+**Goal**: Templates can live in a database row, not just code — a merged registry resolves both, so a DB template appears in the picker with no code deploy, while the 13 code templates and ~82 existing carousels keep rendering byte-identically.
+**Depends on**: Nothing (first phase of milestone; builds on the existing v2.13 template system + `style-spec-projector`)
+**Requirements**: TSTORE-01, TSTORE-02, TSTORE-03, TSTORE-04
 **Success Criteria** (what must be TRUE):
-  1. Every uploaded reference image is downscaled to ≤1024×1024 and JPEG-normalized by sharp before any downstream consumer sees it (HEIC inputs transcoded; aspect 9:16 normalize verified by regression test).
-  2. A free-tier user attempting a 6th extraction in 24 hours is blocked at the server action with a clear "daily cap reached" response (5 calls × 3 images ceiling enforced).
-  3. The `style_spec_cache` table returns the persisted StyleSpec on SHA-256 hash hit without invoking Gemini Vision (cache miss + persist + cache hit round-trip observable in telemetry).
-  4. A daily Vercel cron emits an alert when extraction-call cost crosses the configured ceiling for the day.
-  5. A failed vision call refunds credits via the charge-then-refund ledger pattern (mirror v2.6 `gemini_vision_match`); transient errors fail loud after 1 retry, not 3.
-**Plans**: 3 plans
-  - [ ] 73-01-PLAN.md — Sharp preprocessing pipeline + 9:16 PARITY-04 regression test (COST-01, COST-02, PARITY-04)
-  - [ ] 73-02-PLAN.md — `style_spec_cache` table + SHA-256 lookup/persist helpers (COST-03)
-  - [ ] 73-03-PLAN.md — Rate cap + charge-then-refund ledger + single-retry policy + bill-alarm cron (COST-04, COST-05, COST-06, COST-07)
-
-### Phase 74: Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline
-**Goal**: Land the StyleSpec contract, the closed-enum invariant, the reference upload pipeline, and the byte-identity baseline so all subsequent feature work has a stable surface and proven non-regression on legacy projects.
-**Depends on**: Phase 73 (cost rails must exist before storage upload paths consume them)
-**Requirements**: REF-01, REF-02, REF-03, REF-04, REF-05, REF-06, REF-07, STYLESPEC-01, STYLESPEC-02, STYLESPEC-03, STYLESPEC-04, STYLESPEC-05, STYLESPEC-06, STYLESPEC-07, STYLESPEC-08, STYLESPEC-09, STYLESPEC-10, STYLESPEC-11, STYLESPEC-12, PARITY-01, PARITY-03, PARITY-05
-**Success Criteria** (what must be TRUE):
-  1. A user can upload 1–8 reference images (PNG/JPEG/WebP/HEIC) via drag-and-drop or click-to-add, see inline previews with X-to-remove, and the upload completes via signed URL directly to the `slide-references` bucket without hitting the 4MB Vercel body cap.
-  2. Every existing legacy project (with `style_spec: null`) renders byte-identical to its v2.12 baseline across all 12 templates × both renderers — PTF baseline test (`style-spec-absent-baseline.test.ts`) is GREEN and locked BEFORE any vision-extraction feature code lands.
-  3. `git grep "reference_artist\|reference_brand\|copy_exactly\|style_freetext"` returns zero matches in production source; only `voice_note` is free-text (sanitized, ≤200 chars, single line); all other StyleSpec fields are closed enums backed by existing v2.9/v2.12 catalogs.
-  4. The Zod validator at the AI-ingest boundary silently drops unknown enum values and increments a silent-drop counter (mirror v2.12 DECOR-05); upload ≠ extraction trigger (user must explicitly click "Extract style").
-  5. `projects.style_spec jsonb` and `projects.reference_assets jsonb` columns exist via migration; `Slide` type has zero new fields (StyleSpec consumed entirely server-side at emit time).
-**Plans**: 4 plans
-  - [ ] 74-01-PLAN.md — StyleSpec type + Zod validator + silent-drop counter + closed-enum CI grep gate (STYLESPEC-01, 03–10, PARITY-03, PARITY-05)
-  - [ ] 74-02-PLAN.md — Migration: projects.style_spec + reference_assets jsonb columns + slide-references private bucket + per-user RLS (STYLESPEC-02, REF-01, REF-07)
-  - [ ] 74-03-PLAN.md — Signed-URL upload route + ReferenceImageUploader component (drag-drop, 1–8 cap, REF-06 separation) (REF-02, REF-03, REF-04, REF-05, REF-06)
-  - [ ] 74-04-PLAN.md — PTF baseline test (12 templates × 2 renderers) + Slide-zero-new-fields invariant (STYLESPEC-11, STYLESPEC-12, PARITY-01)
-
-### Phase 75: Vision Extraction + Two-Phase Architecture + Safety Config
-**Goal**: Stand up the extraction endpoint with the load-bearing two-phase firewall (vision → validated spec → emit; raw image bytes never reach text emit), refusal pre-pass for logos/faces/watermarks, and structured safety-block routing.
-**Depends on**: Phase 73 (cost rails), Phase 74 (StyleSpec schema + reference upload + cache table) — HARD PREREQUISITE on Phase 73; merging is forbidden.
-**Requirements**: EXTRACT-01, EXTRACT-02, EXTRACT-03, EXTRACT-04, EXTRACT-05, EXTRACT-06, EXTRACT-07, EXTRACT-08
-**Success Criteria** (what must be TRUE):
-  1. POST to `extract-style-spec.ts` with `{project_id, reference_urls[]}` returns a Zod-validated, closed-enum-coerced `StyleSpec` within 10 seconds (Promise.race timeout) or refunds credits via recovery UI handoff.
-  2. The palette in the returned StyleSpec is deterministic (extracted by `node-vibrant` from preprocessed bytes, NOT by Gemini); Gemini is invoked only for categorical role/style inference under `responseMimeType: 'application/json'` + `responseSchema`.
-  3. Every reference is run through a refusal pre-pass (second Gemini Vision call) that flags `{contains_logo, contains_face, contains_watermark}`; flagged images are surfaced as warnings in the Phase 76 UI (NOT auto-rejected — user gets choice).
-  4. When `BLOCK_ONLY_HIGH` safety filter triggers (`promptFeedback.blockReason` populated), the response carries structured `{blocked: true, reason, recovery_suggestion}` for Phase 76 UI to render.
-  5. Per-extraction telemetry records `vision_calls_count`, `tokens_in/out`, `cache_hit/miss`, `duration_ms` — observable in the bill-alarm cron from Phase 73.
-**Plans**: 3 plans
-  - [ ] 75-01-PLAN.md — extract-style-spec.ts orchestrator + types + two-phase firewall + Promise.race timeout + telemetry + safety routing (EXTRACT-01, EXTRACT-02, EXTRACT-03, EXTRACT-06, EXTRACT-07, EXTRACT-08) — Wave 2 (depends on 75-02 + 75-03)
-  - [ ] 75-02-PLAN.md — refusal-pre-pass.ts (second Gemini Vision call: logo/face/watermark flags; graceful-degradation contract) (EXTRACT-05, EXTRACT-06) — Wave 1
-  - [ ] 75-03-PLAN.md — palette-extraction.ts (node-vibrant deterministic palette + multi-image dominant-color voting merge) (EXTRACT-04) — Wave 1
-
-### Phase 76: Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery
-**Goal**: Stand the mandatory non-skippable spec-preview panel between extraction and emit so users see exactly what will be applied, can toggle aspects off, and have a recovery path when references are flagged or blocked.
-**Depends on**: Phase 75 (extraction must exist before its output can be previewed)
-**Requirements**: PREVIEW-01, PREVIEW-02, PREVIEW-03, PREVIEW-04, PREVIEW-05, PREVIEW-06, PREVIEW-07, PREVIEW-08, PREVIEW-09, PREVIEW-10, PREVIEW-11, PREVIEW-12
-**Success Criteria** (what must be TRUE):
-  1. A user cannot reach the emit-trigger without first being shown the spec-preview panel — palette swatches (4–6 colors with hex labels), font category badges, layout sketch, and sanitized voice_note are all visible inline.
-  2. The user can toggle off `palette / typography / layout / decorations` independently via per-aspect checkboxes and the resulting emit only applies the checked aspects.
-  3. The user can click "Re-extract" up to 2 times per generation (free retries) and the spec-preview panel updates in place; the visible credit cost ("Generating will use N credits") refreshes accordingly.
-  4. When EXTRACT-05 flags a logo/face/watermark, an inline warning appears with "Inspired by"-framing copy and a confirm-and-continue control; reference thumbnails stay sticky throughout the flow.
-  5. When EXTRACT-07 reports a safety block, the recovery UI shows specific, actionable guidance ("Try cropping high-skin areas / try a different image / describe the style in text instead").
-**Plans**: 3 plans
-  - [ ] 76-01-PLAN.md — State machine + page shell + Server Action + sticky strip + spec-preview panel skeleton (PREVIEW-01, PREVIEW-09)
-  - [ ] 76-02-PLAN.md — Display components: palette swatches + font badges + layout sketch + voice-note caption + per-aspect toggles + brand-kit remix toggle + credit cost (PREVIEW-02, PREVIEW-03, PREVIEW-04, PREVIEW-05, PREVIEW-06, PREVIEW-08, PREVIEW-11)
-  - [ ] 76-03-PLAN.md — Recovery surfaces: refusal warning + safety-block recovery + error router + Re-extract counter wiring + dashboard CTA (PREVIEW-07, PREVIEW-10, PREVIEW-12)
-**UI hint**: yes
-
-### Phase 77: Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff
-**Goal**: Wire the StyleSpec → Slide projector + Gemini text emit through both content paths (ai-copy and user-copy), prove byte-identity round-trip, and hand the result off to the existing v2.11/v2.12 editor with a single undo entry.
-**Depends on**: Phase 76 (spec must be previewed and aspect-filtered before emit consumes it)
-**Requirements**: EMIT-01, EMIT-02, EMIT-03, EMIT-04, EMIT-05, EMIT-06, EMIT-07, EMIT-08, EMIT-09, EMIT-10, EDITOR-01, EDITOR-02, EDITOR-03, PARITY-02
-**Success Criteria** (what must be TRUE):
-  1. A user submitting `mode: 'ai-copy'` with a topic gets a fully-generated 5-slide carousel that visually inherits palette/typography/layout/decoration patterns from the extracted spec; submitting `mode: 'user-copy'` with per-slide strings produces the same visual treatment with the user's exact words.
-  2. The generated project lands in the existing editor with no new wiring (same routing as today's Gemini emit flow); a single Cmd+Z restores the exact pre-generation state (one reducer dispatch + one `pushHistory` per generation, mirror v2.12 BULK_ROTATE pattern).
-  3. The `style-spec-roundtrip.test.ts` proves byte-identity: spec → emit → React preview ≡ Satori PNG (mirror v2.12 PTF17 AI-emit parity); silent-drop counter is also instrumented at the emit boundary.
-  4. The CI prompt-token-budget gate fails the build if `style_spec + topic + brand_kit + system_prompt` exceeds 12K tokens (Gemini 2.5 Flash headroom); the StyleSpec → Slide projector emits ONLY values that round-trip through both renderers (no new Slide fields).
-  5. The dashboard / project list shows a "From references" badge on style-from-reference projects, and the project detail page persists reference thumbnails for visible provenance.
-**Plans**: 3 plans across 2 waves
-  - [ ] 77-01-PLAN.md (wave 1) — Pure helpers: applyAspectFilter + applyBrandKitRemix + projectStyleSpecToSlideOverrides + narrowDecorationAllowlist (EMIT-07)
-  - [ ] 77-02-PLAN.md (wave 2, depends on 77-01) — generate-from-style-spec.ts + buildFromSpecPrompt + generateCarouselFromReferences + regenerateAction Server Action wiring + 12K-token CI gate + PARITY-02 roundtrip PTF (EMIT-01..06, 08, 09, 10, EDITOR-01, PARITY-02)
-  - [ ] 77-03-PLAN.md (wave 1, parallel with 77-01) — FromReferencesBadge + ReferenceThumbnailsStrip + ProjectCard + project detail page wiring + Project type extension (EDITOR-02, EDITOR-03)
-**UI hint**: yes
-
-### Phase 78: Remix / Fork / Publish Snapshot
-**Goal**: Extend the v2.4 publish/fork pipeline so style specs and reference assets travel with published carousels, and forkers can regenerate new content from the inherited references in one click.
-**Depends on**: Phase 77 (emit + editor handoff must exist before publish flow can snapshot it)
-**Requirements**: REMIX-01, REMIX-02, REMIX-03, REMIX-04, REMIX-05
-**Success Criteria** (what must be TRUE):
-  1. Publishing a style-from-reference carousel snapshots both `style_spec` and `reference_assets` into the `published_carousels` row (one-line additive migration, snapshot pattern matches v2.4).
-  2. Forking a published style-from-reference carousel copies `style_spec + reference_assets` into the new project; the forker sees inherited reference thumbnails on their fork (provenance preserved).
-  3. The fork detail page exposes a "Regenerate from references" action that re-invokes the Phase 75 extraction + Phase 77 emit pipeline against the inherited references — new content, same template fidelity.
-  4. Existing v2.12-and-prior published carousels (no `style_spec`) continue to publish/fork byte-identical to today; the new columns are nullable additive.
+  1. A row inserted into the new `templates` DB table (id, name, category, flat-style fields, `layout_recipe` JSON, preview reference, `created_by`, timestamps) appears in the picker for every user with no code deploy.
+  2. `getTemplate`, `pickerTemplates`, and `TEMPLATE_IDS` each resolve both code templates and DB rows from one merged registry.
+  3. A DB-backed template renders identically across all three render paths — canvas editor preview, Satori PNG export, and HTML export.
+  4. The 13 existing code templates and all ~82 existing carousels render byte-identically after the storage change — `legacy-templates-byte-identical` + render-parity fingerprint suites stay green.
 **Plans**: TBD
 
-### Phase 79: Legal Hardening + ToS Clickwrap + Audit Log + Copy Review
-**Goal**: Close the legal exposure surface with explicit user acknowledgement, durable audit trail, public DMCA process, and a copy review pass enforcing "Inspired by" framing across every UI surface.
-**Depends on**: Phase 78 (full feature must be wired end-to-end before legal hardening + copy review pass)
-**Requirements**: LEGAL-01, LEGAL-02, LEGAL-03, LEGAL-04, LEGAL-05, LEGAL-06, PARITY-05
+Plans:
+- [ ] 83-01: TBD
+
+**Risk framing**: The migration hits the shared prod Supabase project — must be additive and reversible per the project's migration discipline. The registry merge changes how *no* existing carousel renders; byte-identity (TSTORE-04 / TPLREND-05) is the gate, not a nice-to-have. The 13 code templates stay in code for back-compat — DB storage is additive, not a migration of existing templates.
+
+### Phase 84: LayoutRecipe Model + Extraction
+**Goal**: A typed `LayoutRecipe` model exists that captures a carousel's per-slide structure as role-keyed archetypes, and a source carousel's `slide_data` can be deterministically turned into a `LayoutRecipe` + flat style — with no new AI call.
+**Depends on**: Phase 83 (the `templates` table carries the `layout_recipe` JSON column the model is stored in)
+**Requirements**: RECIPE-01, RECIPE-02
 **Success Criteria** (what must be TRUE):
-  1. On the user's first style-from-reference upload, a ToS clickwrap modal blocks submission until "I have rights to these images" is explicitly checked; the `{user_id, ToS_version, accepted_at}` is recorded.
-  2. The `style_reference_uploads` audit table records `{user_id, sha256, ToS_version, accepted_at}` per upload with 12-month retention enforced via `pg_cron`.
-  3. Every UI surface mentioning style-from-reference uses "Inspired by" framing — `git grep "exactly like\|clone\|copy this\|duplicate the"` in the style-reference UI code returns zero matches; copy review checklist shipped.
-  4. `docs/legal/dmca-style-references.md` exists and documents takedown contact, audit-log lookup procedure, and response SLA; ToS document carries a new section covering style-from-reference rights/responsibilities (Canva AI Product Terms pattern).
-  5. The closed-enum invariant grep gate (PARITY-05) remains GREEN end-to-end after the legal hardening pass — no free-text artist/brand fields slipped in.
+  1. A `LayoutRecipe` is a typed, role-keyed set of slide archetypes (cover / body / cta) — not a fixed slide array — each describing layout mode, caption-card geometry (`enabled`, `x`, `y`, `width`, `height_pct`, `blend_pct`, `opacity`, `position`), hook placement (position band, font-size band, `text_align`), accent/highlight rhythm, and optional accessory-label slots, with closed-enum fields wherever feasible.
+  2. A `LayoutRecipe` scales to variable slide counts (1–10) and fully expresses the Oracle carousel's per-slide pattern (cover = blended caption card; middle = full-bleed photo, no card; cta = caption card + follow CTA).
+  3. Running extraction on a source carousel classifies each slide into a role/archetype and extracts representative geometry / hook placement / accent rhythm per archetype, deterministically — no new Gemini call.
+  4. Extraction run on the Oracle project produces a `LayoutRecipe` + flat style that, when applied to a fresh generation, reproduces the Oracle look.
 **Plans**: TBD
+
+Plans:
+- [ ] 84-01: TBD
+
+**Risk framing**: The closed-enum invariant applies to `LayoutRecipe` fields wherever feasible — it defends the schema and injection surface. Extraction is deterministic code built on existing archetype machinery (`slideArchetype`, `caption-bar-bottom`, `computeCaptionBarBottomPositions`, Phase 80 archetype classification, `style-spec-projector`) — build on it, do not reinvent. No new Gemini model tier; no new AI call.
+
+### Phase 85: Recipe-Driven Generation
+**Goal**: When a carousel is generated on a template carrying a `LayoutRecipe`, the generation pipeline applies the recipe so the output is pre-shaped — per-slide caption-card geometry, hook positions, accent placement, and accessory labels match the recipe.
+**Depends on**: Phase 84 (consumes the `LayoutRecipe` model and the recipes extraction produces)
+**Requirements**: RECGEN-01
+**Success Criteria** (what must be TRUE):
+  1. Generating a carousel on a template that carries a `LayoutRecipe` produces slides whose per-slide caption-card geometry, hook positions, accent placement, and accessory labels match the recipe.
+  2. A News-category generation on the News Oracle template comes out shaped like the Oracle reference — full-bleed photo, cover caption card with edge-blend, big centered condensed headline, cyan pill-highlight keywords, a small "Trending" accessory label — verified against the Oracle reference look.
+  3. A generation on a flat-style-only template (no `LayoutRecipe`) is unaffected — recipe application is additive and only fires when a recipe is present.
+  4. Newly generated recipe-shaped carousels still default to Public — every touched generation path routes through `autoPublishOnGenerate`.
+**Plans**: TBD
+
+Plans:
+- [ ] 85-01: TBD
+
+**Risk framing**: Highest blast radius of the milestone — this touches the live generation pipeline (`prompts.ts`, `style-spec-projector.ts`, `style-spec-projector-constants.ts`, `validate-slides.ts`) and affects *every generated carousel for a category* on a recipe-carrying template. Needs heavy verification: a recipe-carrying generation must come out pre-shaped without regressing flat-style-only (no-recipe) generations, and the change must not breach generation-perf budgets (cf. v2.12 `template_id_override` open-string runaway). Absorbs the removed placeholder Phase 83 ("template-driven layout generation"). Recipe application is deterministic code; no new Gemini model tier.
+
+### Phase 86: Admin Save-as-Template Flow + Previews
+**Goal**: An admin can save a chosen source carousel as a new template — name it, assign a content category — through an admin-role-gated flow, and the resulting DB template carries a faithful picker preview; a non-admin cannot reach the flow or its endpoint.
+**Depends on**: Phase 83 (the flow writes a `templates` DB row + preview reference); benefits from Phases 84 and 85 (the flow extracts a recipe, and the template it mints is recipe-driven at generation time)
+**Requirements**: ADMIN-01, ADMIN-02
+**Success Criteria** (what must be TRUE):
+  1. An admin can pick a source carousel (an admin project, or one built via the Viral Slide Maker API), name it, assign a content category, and save it as a new template through the authoring flow; the new template appears in every user's picker.
+  2. A non-admin cannot reach the Save-as-Template flow or its endpoint — gating is a real server-enforced role check, mirrored on every endpoint, not obscurity.
+  3. A DB-backed template carries a picker preview (rendered snapshot in storage, or a `sample`-equivalent payload) so its picker tile is visually faithful to the source carousel.
+  4. The saved template behaves as a normal picker template — selectable like any code template, and (because it carries a recipe) generating on it produces pre-shaped carousels.
+**Plans**: TBD
+
+Plans:
+- [ ] 86-01: TBD
+
+**UI hint**: yes
+
+**Risk framing**: Admin gating must be real server-enforced auth, mirrored on every Save-as-Template endpoint — model on `src/app/api/admin/seed-explore/route.ts`, not obscurity. V1 is save-new-only: there is no edit/delete of a saved template (a re-save mints a new one). Save-as-Template is a web admin action; the Viral Slide Maker MCP is for *building* the source carousels, not for saving templates.
 
 ---
 
 ## Progress
 
+**Execution Order:**
+Phases execute in numeric order: 83 → 84 → 85 → 86
+
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 73. Cost & Preprocessing Rails (Foundation) | 0/3 | Not started | — |
-| 74. Schema Foundation + Closed-Enum + Reference Upload + PTF Baseline | 0/4 | Not started | — |
-| 75. Vision Extraction + Two-Phase Architecture + Safety Config | 0/3 | Not started | — |
-| 76. Spec Preview UI + Per-Aspect Controls + Re-Extract + Recovery | 0/? | Not started | — |
-| 77. Emit Integration + Token Budget Gate + Single-Undo + Editor Handoff | 0/? | Not started | — |
-| 78. Remix / Fork / Publish Snapshot | 0/? | Not started | — |
-| 79. Legal Hardening + ToS Clickwrap + Audit Log + Copy Review | 0/? | Not started | — |
+| 83. DB-Backed Template Storage + Registry Merge | 0/TBD | Not started | — |
+| 84. LayoutRecipe Model + Extraction | 0/TBD | Not started | — |
+| 85. Recipe-Driven Generation | 0/TBD | Not started | — |
+| 86. Admin Save-as-Template Flow + Previews | 0/TBD | Not started | — |
 
 ---
 
 ## Coverage Audit
 
-**v2.13 requirement count:** 75 requirements across 9 categories
-**Mapped:** 75/75 (100%) ✓
+**v2.14 requirement count:** 9 requirements across 4 categories
+**Mapped:** 9/9 (100%) ✓
 **Orphans:** 0
 **Duplicates:** 0
 
-| Category | Count | Phase(s) |
-|----------|-------|----------|
-| COST | 7 | 73 |
-| REF | 7 | 74 |
-| STYLESPEC | 12 | 74 |
-| EXTRACT | 8 | 75 |
-| PREVIEW | 12 | 76 |
-| EMIT | 10 | 77 |
-| EDITOR | 3 | 77 |
-| REMIX | 5 | 78 |
-| LEGAL | 6 | 79 |
-| PARITY | 5 | 73 (PARITY-04), 74 (PARITY-01, -03, -05), 77 (PARITY-02), 79 (PARITY-05 verification) |
-
-**PARITY-03 note:** Silent-drop counter is *introduced* in Phase 74 (with STYLESPEC-10 at the AI-ingest boundary) and *verified at the emit boundary* in Phase 77 (with EMIT-08). Primary owner = Phase 74; emit-boundary verification is built into Phase 77's EMIT-08 success criteria.
-**PARITY-05 note:** The closed-enum CI grep gate is *introduced* in Phase 74 (load-bearing on STYLESPEC-03..09) and *verified end-to-end* in Phase 79 (legal hardening pass). Primary owner = Phase 74; final verification is built into Phase 79's success criteria.
+| Category | Count | Phase | Requirements |
+|----------|-------|-------|--------------|
+| TSTORE | 4 | 83 | TSTORE-01, TSTORE-02, TSTORE-03, TSTORE-04 |
+| RECIPE | 2 | 84 | RECIPE-01, RECIPE-02 |
+| RECGEN | 1 | 85 | RECGEN-01 |
+| ADMIN | 2 | 86 | ADMIN-01, ADMIN-02 |
 
 ---
 
 ## Milestones
 
-- 🚧 **v2.13 Style-from-Reference Generation** — Phases 73–79 (planning 2026-05-10). 75 reqs across 9 categories. Vision-LLM-driven style extraction from uploaded slideshow images + spec preview + two content paths + remix/fork/publish snapshot + legal hardening. Closed-enum schema is THE primary architectural defense against legal exposure AND prompt injection. See [REQUIREMENTS.md](REQUIREMENTS.md).
-- ✅ **v2.12 Shapes & Icons (Decoration Primitives)** — Phases 67–72 (shipped 2026-05-04). 81 reqs across 12 categories. Lucide icon picker (118-icon allowlist) + 8 Canva-style shapes + full v2.11 editor parity (multi-select / align / group / lock / layers / z-order) + Gemini AI emit + interactive rotation handles + rotation-aware AABB. See [archive](milestones/v2.12-ROADMAP.md).
+- 🚧 **v2.14 Save as Template** — Phases 83–86 (planning 2026-05-18). 9 reqs across 4 categories (TSTORE / RECIPE / RECGEN / ADMIN). Admin-authored, DB-backed templates that capture a real carousel's full layout recipe: DB-backed storage + code/DB registry merge → typed `LayoutRecipe` model + deterministic extraction → recipe-driven generation (pre-shaped output) → admin Save-as-Template flow + picker previews. Closed-enum invariant + TPLREND-05 render parity + byte-identity back-compat preserved throughout. See [REQUIREMENTS.md](REQUIREMENTS.md) and [SAVE-AS-TEMPLATE-SPEC.md](SAVE-AS-TEMPLATE-SPEC.md).
+- ✅ **v2.13 Style-from-Reference Generation** — Phases 73–82 (shipped 2026-05-14). Vision-LLM-driven style extraction from uploaded slideshow images + spec preview + two content paths + remix/fork/publish snapshot + legal hardening + composition-aware archetype extraction (Phase 80) + first-run onboarding (Phase 81) + category-driven headline-first generation (Phase 82). See [archive](milestones/v2.13-ROADMAP.md).
+- ✅ **v2.12 Shapes & Icons (Decoration Primitives)** — Phases 67–72 (shipped 2026-05-04). Lucide icon picker (118-icon allowlist) + 8 Canva-style shapes + full v2.11 editor parity + Gemini AI emit + interactive rotation handles + rotation-aware AABB. See [archive](milestones/v2.12-ROADMAP.md).
 - ✅ **v2.11 Full Editor Parity** — Phases 60–66 (shipped 2026-05-03) — Multi-select, alignment, group/ungroup, smart guides, lock/hide, z-order, layers panel, power-user differentiators. See [archive](milestones/v2.11-ROADMAP.md).
 - ✅ **v2.10 Text Box Resize Handles** — Phase 59 (shipped 2026-05-02). See [archive](milestones/v2.10-ROADMAP.md).
 - ✅ **v2.9 Viral Visual Quality** — Phases 54–58 (shipped 2026-05-01). See [archive](milestones/v2.9-ROADMAP.md).
@@ -193,45 +149,3 @@
 - ✅ **v2.2 Public REST API** — Phases 20–25 (shipped 2026-04-09). See [archive](milestones/v2.2-ROADMAP.md).
 - ✅ **v2.1 Text Effects** — Phases 17–19 (shipped 2026-04-07). See [archive](milestones/v2.1-ROADMAP.md).
 - ✅ **v2.0 API & MCP Platform** — Phases 14–16 (shipped 2026-04-07). See [archive](milestones/v2.0-ROADMAP.md).
-
-### Phase 80: composition-aware style extraction — replace flat StyleSpec tagging with archetype classification + typed slot primitives so style-from-reference can faithfully reproduce captioned/collage/highlight-rhythm layouts that the renderer already supports
-
-**Goal:** Replace the flat-tag v2.13 StyleSpec schema with a composition-aware schema that classifies each reference into one of 8 named slide archetypes plus per-archetype typed slot params, so the projector emits `template_id_override` and the AI generator can faithfully reproduce captioned, collage, and highlight-rhythm layouts the renderer already supports. Schema_version bumps 1→2; cache purges v1; PARITY-05 + two-phase firewall preserved; 3 of 5 curated references must classify correctly (Meta-workers + chip-sales MUST-PASS).
-**Requirements**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12
-**Depends on:** Phase 79
-**Plans:** 7 plans (✅ all complete) + cleanup + review-fix
-
-Plans:
-- [x] 80-01-PLAN.md — Canonical archetypes module + StyleSpec slideArchetype + STYLE_SPEC_VERSION 1→2 (Wave 1)
-- [x] 80-02-PLAN.md — Zod validator: discriminated union + reject v1 payloads + slot-mismatch silent-drop (Wave 1)
-- [x] 80-03-PLAN.md — Gemini extractor: responseSchema + system prompt archetype classification (Wave 2)
-- [x] 80-04-PLAN.md — Projector: emit template_id_override per archetype + decoration default fix (Wave 2)
-- [x] 80-05-PLAN.md — Generation prompt: archetype-conditional guidance for text_position + custom_images + highlight rhythm (Wave 2)
-- [x] 80-06-PLAN.md — Supabase migration purging schema_version != 2 cache rows + defensive lookup filter (Wave 3)
-- [x] 80-07-PLAN.md — 80-DOCS.md mapping + fixtures catalog + 80-VERIFICATION.md scaffold + projector unit test + live-Gemini integration test (Wave 3)
-
-**Status:** ✅ Code complete. Verification: 11/13 auto-PASS; 2/13 (Meta-workers + chip-sales archetype classification) require live-Gemini smoke test with fixtures placed in `fixtures/` and `GEMINI_API_KEY` + `PHASE80_LIVE_FIXTURES=1` set.
-
----
-
-### Phase 81: First-Run Onboarding Tour — welcome modal + cross-route coachmark checklist for activation polish
-
-**Goal:** A first-time signed-in user lands on `/dashboard`, sees a 4-slide product-themed welcome modal, then advances through a persistent cross-route coachmark checklist that spotlights the 4 key product surfaces (reference uploader, topic input, generate button, publish toggle). Skipping OR completing all steps marks `profiles.onboarding_completed_at` so the flow never auto-fires again. Migration backfills all existing ~50 users as completed so only new signups see the tour. Off-theme polish phase added post-v2.13 ship.
-**Requirements**: see `81-SPEC.md` (7 locked requirements)
-**Depends on:** Phase 78 (publish toggle exists), v2.13 reference uploader (Phase 74)
-**Status:** 🚧 SPEC.md locked 2026-05-15 (ambiguity 0.15) — discuss → plan → execute pending.
-
-### Phase 82: Category-driven generation — headline-first copy engine + content-category picker + template curation
-
-**Goal:** When creating a carousel, the user picks a *content category* (News, Facts & Info, Health & Wellness, Beauty…). The **category — not the visual template — drives Gemini's copy**, which is the real lever for "containing" Gemini's output style. For News/Facts that means headline-first slides: one big bold headline per slide, accent-highlighted keywords, no required body text, optional small accessory labels ("TRENDING NEWS", one-liner kickers). The category also filters the template gallery to a curated set. Templates are culled from 12 down to a handful of polished, example-worthy designs. The output schema is updated so `body_text` is optional and headline-only slides are first-class. Motivated by a user report that "no template / random" generation produces cramped, washed-out, header+body slides instead of the clean headline-first news look.
-
-**Three workstreams** (to break into plans during planning):
-- **W1 — Headline-first generation engine:** rewrite Gemini category prompts + `responseSchema`/Zod (`src/lib/ai/prompts.ts`, `generate-slides.ts`, `schemas.ts`) so `body_text` is optional and headline-only slides with accent segments + optional accessory labels are first-class.
-- **W2 — Content-category picker:** category selector in the creation flow; wire category → prompt module and category → template filtering; decouple content-category from visual-template (today `templateId` is the only style signal Gemini gets).
-- **W3 — Template curation:** cull 12 templates → ~4–6 polished ones as the example gallery; handle the `premium-tier.ts` marker + saved-project fallbacks for removed templates.
-
-**Requirements**: 10 locked — see `phases/82-.../82-SPEC.md`
-**Depends on:** Phase 81
-**Plans:** 10 plans (✅ all complete) — 01-05 initial build (optional `body_text` + `accessory_label` schema, content-category registry + News/Facts headline-first modules, generation wiring + category picker, template cull to 5 keepers, structural test suite), 06-10 R10 gap-closures (headline cap, pill highlights, headline size, overflow auto-fit + whole-word wrap, thumbnail/canvas wrap parity).
-
-**Status:** ✅ COMPLETE 2026-05-17 — all 10 requirements verified; R10 visual sign-off user-approved. R10 testing surfaced and fixed a critical generation-perf bug (`template_id_override` open-string runaway, ~148s → ~2s, `fe5f173`) plus Gaps A-F. See `phases/82-.../82-VERIFICATION.md`.
