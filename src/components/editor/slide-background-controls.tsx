@@ -54,6 +54,12 @@ import { COLOR_SWATCHES } from './text-rail/color-swatches'
 const DEFAULT_CAPTION_HEIGHT = 38
 /** Default caption-card opacity — matches resolveCaptionBar's default (0.85). */
 const DEFAULT_CAPTION_OPACITY = 0.85
+/** quick-260518-ch8: default caption-card edge-blend percent — matches
+ *  resolveCaptionBar's default (0 = blend off). */
+const DEFAULT_CAPTION_BLEND = 0
+/** quick-260518-ch8: blend amount written when the Edge blend toggle is flipped
+ *  ON — a sensible mid-range starting fade. */
+const BLEND_ON_DEFAULT = 25
 
 export interface SlideBackgroundControlsProps {
   slide: Slide
@@ -130,6 +136,25 @@ export function SlideBackgroundControls({
     setOpacityDraft(opacityPct)
   }, [opacityPct])
 
+  // quick-260518-ch8: resolved caption-card height percent (10..90) for the
+  // Height slider — mirrors resolveCaptionBar's `caption_bar_height_pct ?? 38`.
+  const heightPct =
+    slide.style_overrides?.caption_bar_height_pct ?? DEFAULT_CAPTION_HEIGHT
+  const [heightDraft, setHeightDraft] = useState(heightPct)
+  useEffect(() => {
+    setHeightDraft(heightPct)
+  }, [heightPct])
+
+  // quick-260518-ch8: resolved edge-blend percent (0..50) for the Edge blend
+  // slider — mirrors resolveCaptionBar's `caption_bar_blend_pct ?? 0`. Blend is
+  // "on" when this is > 0.
+  const blendPct =
+    slide.style_overrides?.caption_bar_blend_pct ?? DEFAULT_CAPTION_BLEND
+  const [blendDraft, setBlendDraft] = useState(blendPct)
+  useEffect(() => {
+    setBlendDraft(blendPct)
+  }, [blendPct])
+
   /** Emit a merged style_overrides patch. A single discrete pick = one undo
    *  entry, so this always goes through the committing dispatch. */
   function patch(p: Partial<SlideStyleOverrides>) {
@@ -156,6 +181,39 @@ export function SlideBackgroundControls({
     const next = {
       ...(slide.style_overrides ?? {}),
       caption_bar_opacity: valuePct / 100,
+    }
+    ;(commit ? onSlideUpdate : onSlidePreview ?? onSlideUpdate)({
+      style_overrides: next,
+    })
+  }
+
+  /** quick-260518-ch8: Height-slider patch — mirrors patchOpacity's
+   *  preview-on-change / commit-on-release pattern (KBD-09). Writes
+   *  `caption_bar_height_pct`. On a COMMIT it ALSO re-anchors `caption_bar_y`
+   *  the same way `snap()` does: a bottom-snapped card must keep its top edge
+   *  at `100 - newHeight` so it grows upward and stays glued to the bottom edge
+   *  (without this it would grow downward off-canvas). A top-snapped card keeps
+   *  `caption_bar_y: 0`. */
+  function patchHeight(valuePct: number, commit: boolean) {
+    const next: Partial<SlideStyleOverrides> = {
+      ...(slide.style_overrides ?? {}),
+      caption_bar_height_pct: valuePct,
+    }
+    if (commit) {
+      next.caption_bar_y = position === 'cover' ? 100 - valuePct : 0
+    }
+    ;(commit ? onSlideUpdate : onSlidePreview ?? onSlideUpdate)({
+      style_overrides: next,
+    })
+  }
+
+  /** quick-260518-ch8: Edge-blend-amount-slider patch — mirrors patchOpacity's
+   *  preview-on-change / commit-on-release pattern (KBD-09). Writes
+   *  `caption_bar_blend_pct` (0..50). */
+  function patchBlend(valuePct: number, commit: boolean) {
+    const next = {
+      ...(slide.style_overrides ?? {}),
+      caption_bar_blend_pct: valuePct,
     }
     ;(commit ? onSlideUpdate : onSlidePreview ?? onSlideUpdate)({
       style_overrides: next,
@@ -336,6 +394,101 @@ export function SlideBackgroundControls({
         />
         <p className="text-[10px] text-[#7d6161] leading-snug">
           A lower opacity lets the photo show through the card.
+        </p>
+      </div>
+
+      {/* quick-260518-ch8: Height — resizes the caption card from the panel
+          (previously only via the canvas resize-handles). Writes
+          caption_bar_height_pct. Preview-on-change, commit-on-release (KBD-09);
+          a commit also re-anchors caption_bar_y so a bottom-snapped card grows
+          upward instead of off the bottom of the canvas. */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold text-[#3d0000]">
+            Height
+          </span>
+          <span className="text-[11px] font-bold text-[#7d6161]">
+            {Math.round(heightDraft)}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={10}
+          max={90}
+          step={1}
+          value={heightDraft}
+          data-testid="caption-card-height"
+          aria-label="Caption card height"
+          className="w-full accent-[#3d0000]"
+          onChange={(e) => {
+            const n = Number(e.target.value)
+            setHeightDraft(n)
+            patchHeight(n, false)
+          }}
+          onPointerUp={(e) =>
+            patchHeight(Number((e.target as HTMLInputElement).value), true)
+          }
+          onMouseUp={(e) =>
+            patchHeight(Number((e.target as HTMLInputElement).value), true)
+          }
+        />
+        <p className="text-[10px] text-[#7d6161] leading-snug">
+          A taller card gives the caption more breathing room.
+        </p>
+      </div>
+
+      {/* quick-260518-ch8: Edge blend — toggle + amount slider. ON writes a
+          sensible default blend amount; OFF writes 0. The amount slider only
+          shows while blend is on. Writes caption_bar_blend_pct (0..50). */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold text-[#3d0000]">
+            Edge blend
+          </span>
+          <Switch
+            aria-label="Edge blend"
+            data-testid="caption-card-blend-toggle"
+            checked={blendPct > 0}
+            onCheckedChange={(checked) =>
+              patch({ caption_bar_blend_pct: checked ? BLEND_ON_DEFAULT : 0 })
+            }
+          />
+        </div>
+        {blendPct > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-[#3d0000]">
+                Amount
+              </span>
+              <span className="text-[11px] font-bold text-[#7d6161]">
+                {Math.round(blendDraft)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={5}
+              max={50}
+              step={1}
+              value={blendDraft}
+              data-testid="caption-card-blend-amount"
+              aria-label="Edge blend amount"
+              className="w-full accent-[#3d0000]"
+              onChange={(e) => {
+                const n = Number(e.target.value)
+                setBlendDraft(n)
+                patchBlend(n, false)
+              }}
+              onPointerUp={(e) =>
+                patchBlend(Number((e.target as HTMLInputElement).value), true)
+              }
+              onMouseUp={(e) =>
+                patchBlend(Number((e.target as HTMLInputElement).value), true)
+              }
+            />
+          </div>
+        )}
+        <p className="text-[10px] text-[#7d6161] leading-snug">
+          Fades the card edge that meets the photo into a smooth transition.
         </p>
       </div>
       </>

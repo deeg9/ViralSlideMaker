@@ -24,6 +24,7 @@ import {
   renderTextBlock,
   renderTightHighlight,
   resolveCaptionBar,
+  captionCardBackgroundStyle,
   resolveNewsHeadlineFit,
   renderGrain,
   renderVignette,
@@ -456,7 +457,14 @@ export function buildSlideElement(
               top: Math.round((cc.y / 100) * H),
               width: Math.round((cc.width / 100) * W),
               height: Math.round((cc.heightPct / 100) * H),
-              backgroundColor: cc.backgroundColor,
+              // quick-260518-ch8: shared helper — Satori supports a
+              // linear-gradient backgroundImage; solid color when blend off
+              // keeps the export byte-identical for legacy slides (TPLREND-05).
+              ...captionCardBackgroundStyle({
+                backgroundColor: cc.backgroundColor,
+                blendPct: cc.blendPct,
+                position: cc.position,
+              }),
               display: 'flex',
               flexDirection: 'column',
             }}
