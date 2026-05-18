@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import { getTemplate } from '@/lib/render/templates/index'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
@@ -254,5 +254,136 @@ describe('SlidePreview — resize chrome gated on selection (quick-260518-htt)',
     )
     // No 8px-square handles anywhere on the canvas while nothing is selected.
     expect(container.querySelectorAll('div[style*="width: 8px"]').length).toBe(0)
+  })
+})
+
+/**
+ * quick-260518-htt checkpoint-feedback fix — click-off clears ALL chrome.
+ *
+ * BUG (verified): after HTT-01 the resize HANDLES are gated on `selection.ids`,
+ * but (a) the dashed selection RING is still keyed on the legacy
+ * `selectedTextBoxId`, so the two surfaces desync — a click-off that clears
+ * `selection.ids` leaves the ring stuck; (b) the empty-canvas no-drag deselect
+ * never cleared `selectedTextBoxId`, and (c) clicks on the photo background /
+ * off the slide card never ran ANY deselect handler. Net effect: the user can
+ * never reach a zero-chrome state.
+ *
+ * Fix: ONE authoritative per-element selection signal (`*RndSelected`, derived
+ * from `selection.ids`) drives BOTH handles AND the dashed ring; every deselect
+ * gesture clears `selection` AND `selectedTextBoxId`; a unified deselect fires
+ * for any pointer-down that is not on a `[data-selectable-element]`.
+ */
+describe('SlidePreview — click-off clears all resize chrome (quick-260518-htt fix)', () => {
+  it('the dashed selection ring is gated on selection.ids, not the legacy selectedTextBoxId', () => {
+    // Desynced state: the legacy single-select still points at the hook, but
+    // the authoritative multi-select model is empty (this is exactly what a
+    // click-off produced before the fix). The ring MUST follow selection.ids.
+    const slide = makeSlide()
+    const hookId = slide.text_boxes!.find((tb) => tb.role === 'hook')!.id
+    render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable
+        selection={{ ids: [], primary: null }}
+        selectedTextBoxId={hookId}
+      />,
+    )
+    const hookRnd = screen.getByTestId('hook-text-wrapper').parentElement
+    expect(hookRnd?.className ?? '').not.toContain('outline-dashed')
+    // And no handles either — the two surfaces agree.
+    expect(textRndHandles(hookRnd)).toBe(0)
+  })
+
+  it('pointer-down on the photo background clears selection AND the legacy selectedTextBoxId', () => {
+    const slide = makeSlide()
+    const hookId = slide.text_boxes!.find((tb) => tb.role === 'hook')!.id
+    const onSelectionChange = vi.fn()
+    const onTextBoxSelect = vi.fn()
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable
+        selection={{ ids: [hookId], primary: hookId }}
+        selectedTextBoxId={hookId}
+        onSelectionChange={onSelectionChange}
+        onTextBoxSelect={onTextBoxSelect}
+      />,
+    )
+    // The photo/tint background layer is an absolutely-positioned child of the
+    // canvas-root that carries NO data-selectable-element marker.
+    const innerCanvas = container.querySelector(
+      '[data-testid="slide-preview"]',
+    )!.firstElementChild as HTMLElement
+    const bgLayer = innerCanvas.firstElementChild as HTMLElement
+    expect(bgLayer).not.toBeNull()
+    expect(bgLayer.closest('[data-selectable-element]')).toBeNull()
+
+    fireEvent.pointerDown(bgLayer)
+
+    expect(onSelectionChange).toHaveBeenCalledWith({ ids: [], primary: null })
+    expect(onTextBoxSelect).toHaveBeenCalledWith(null)
+  })
+
+  it('pointer-down on a selectable element does NOT trigger the deselect', () => {
+    const slide = makeSlide()
+    const hookId = slide.text_boxes!.find((tb) => tb.role === 'hook')!.id
+    const onSelectionChange = vi.fn()
+    const onTextBoxSelect = vi.fn()
+    render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('highlight-bar')}
+        index={0}
+        editable
+        selection={{ ids: [hookId], primary: hookId }}
+        selectedTextBoxId={hookId}
+        onSelectionChange={onSelectionChange}
+        onTextBoxSelect={onTextBoxSelect}
+      />,
+    )
+    const hookRnd = screen.getByTestId('hook-text-wrapper')
+      .parentElement as HTMLElement
+    // The hook <Rnd> wrapper is a selectable element — a pointer-down on it
+    // must NOT clear selection (its own handler selects it instead).
+    expect(hookRnd.closest('[data-selectable-element]')).not.toBeNull()
+    fireEvent.pointerDown(hookRnd)
+    expect(onSelectionChange).not.toHaveBeenCalledWith({
+      ids: [],
+      primary: null,
+    })
+    expect(onTextBoxSelect).not.toHaveBeenCalledWith(null)
+  })
+
+  it('every editable-canvas element wrapper carries data-selectable-element', () => {
+    // The unified deselect distinguishes "clicked an element" from "clicked
+    // off" via this marker — every selectable <Rnd> must carry it. This
+    // fixture exercises all 5 element kinds at once: hook, body, custom-text,
+    // custom-image, decoration, AND the caption card (enabled via
+    // caption_bar_enabled).
+    const slide = makeSlideWithDecoration()
+    slide.style_overrides = { caption_bar_enabled: true }
+    slide.custom_images = [
+      { id: 'img-htt-x', url: 'data:,', x: 20, y: 20, width: 25, height: 25 },
+    ]
+    slide.custom_texts = [
+      { id: 'ct-htt-x', text: 'Custom label', x: 40, y: 40, width: 30 },
+    ]
+    slide.text_boxes = legacyToTextBoxes(slide)
+    const { container } = render(
+      <SlidePreview
+        slide={slide}
+        template={getTemplate('magazine-bold')}
+        index={0}
+        editable
+        selection={{ ids: [], primary: null }}
+      />,
+    )
+    const markers = container.querySelectorAll('[data-selectable-element]')
+    // hook + body + custom-text + custom-image + decoration + caption card.
+    expect(markers.length).toBeGreaterThanOrEqual(6)
   })
 })
