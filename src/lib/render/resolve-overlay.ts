@@ -1,5 +1,9 @@
 import React from 'react'
-import { fitHeadlineToBox, captionCardBox } from './hook-fit'
+import {
+  fitHeadlineToBox,
+  captionCardBox,
+  CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT,
+} from './hook-fit'
 import type { OverlayContent, SlideTemplate } from './templates'
 import type { DecorativeAsset } from './templates/decorative'
 import type {
@@ -528,7 +532,14 @@ export function resolveCaptionBar(
   const enabled =
     o.caption_bar_enabled === true ||
     (o.caption_bar_enabled == null && isNewsLayoutSlide)
-  const heightPct = clamp(o.caption_bar_height_pct ?? 38, 10, 90)
+  // quick-260518-ch8: the default caption height is the SAME named constant the
+  // headline auto-fit uses as its fixed reference (`captionCardBox`) — keeping
+  // them in sync guarantees a default-height slide re-fits byte-identically.
+  const heightPct = clamp(
+    o.caption_bar_height_pct ?? CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT,
+    10,
+    90,
+  )
   // quick-260518-ch8: edge-blend amount, clamped [0,50] (threat T-ch8-01 — a
   // hand-edited payload cannot push an out-of-range gradient stop into any
   // render path). Default 0 keeps every legacy slide byte-identical (TPLREND-05).
@@ -601,10 +612,17 @@ export function captionCardBackgroundStyle(cc: {
  *
  * When the slide has a caption card ENABLED and is a news-layout slide, the
  * headline font size is recomputed via `fitHeadlineToBox` against the caption
- * card's resolved box (`captionCardBox`) so the headline fills the card the
- * user dragged/resized. Otherwise the incoming size is returned UNCHANGED —
- * byte-identity for every slide without an enabled caption card and every
- * non-news slide.
+ * card's resolved box (`captionCardBox`). Otherwise the incoming size is
+ * returned UNCHANGED — byte-identity for every slide without an enabled
+ * caption card and every non-news slide.
+ *
+ * quick-260518-ch8 (checkpoint-feedback fix): the fit box's WIDTH tracks the
+ * card width (Phase 82 horizontal-overflow safety — a long headline shrinks so
+ * it never overflows the card / breaks mid-word), but its HEIGHT is a FIXED
+ * reference (`CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT`). Dragging the Caption
+ * Card Height slider therefore does NOT resize the headline — height is purely
+ * the card's own visual property. Only `caption_bar_width` (and the headline
+ * text itself) affects the returned size.
  *
  * SINGLE source of truth: all three render paths (canvas preview, Satori PNG
  * export, HTML export) call this on identical `resolveCaptionBar` values so

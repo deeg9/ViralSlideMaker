@@ -6,6 +6,7 @@ import {
   clampManualHookSize,
   fitHeadlineToBox,
   captionCardBox,
+  CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT,
   HEADLINE_FIT_CEILING,
   HEADLINE_FIT_FLOOR,
 } from '../hook-fit'
@@ -253,7 +254,10 @@ describe('fitHeadlineToBox + captionCardBox — Phase 82 Gap D', () => {
     expect(c).toBeLessThanOrEqual(b)
   })
 
-  it('captionCardBox converts a resolved caption card to a pixel box with inset', () => {
+  it('captionCardBox derives widthPx from the card width but heightPx from the FIXED reference height', () => {
+    // quick-260518-ch8: captionCardBox's heightPx is NO LONGER coupled to the
+    // user-controlled caption_bar_height_pct — it uses a fixed 38% reference so
+    // the Height slider cannot resize the headline. Only the width is coupled.
     const resolved = resolveCaptionBar(
       {
         caption_bar_enabled: true,
@@ -263,19 +267,36 @@ describe('fitHeadlineToBox + captionCardBox — Phase 82 Gap D', () => {
       magazineBold,
     )
     const box = captionCardBox(resolved)
-    // 90% of 1080 minus 2*80 inset; 30% of 1920 minus 2*80 inset.
+    // widthPx: 90% of 1080 minus 2*80 inset — still coupled to caption_bar_width.
     expect(box.widthPx).toBeCloseTo(0.9 * 1080 - 160, 0)
-    expect(box.heightPx).toBeCloseTo(0.3 * 1920 - 160, 0)
+    // heightPx: derived from the FIXED 38% reference (NOT the 30% override).
+    expect(box.heightPx).toBeCloseTo((CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT / 100) * 1920 - 160, 0)
     expect(box.widthPx).toBeGreaterThanOrEqual(1)
     expect(box.heightPx).toBeGreaterThanOrEqual(1)
   })
 
-  it('a headline fit to a small caption card is smaller than fit to the default news box', () => {
+  it('captionCardBox heightPx is INVARIANT to caption_bar_height_pct', () => {
+    // The Height slider must not change the fit box's heightPx — every height
+    // from the 10% floor to the 90% ceiling yields the same heightPx.
+    const heights = [10, 30, 38, 60, 90].map((heightPct) => {
+      const resolved = resolveCaptionBar(
+        { caption_bar_enabled: true, caption_bar_width: 90, caption_bar_height_pct: heightPct },
+        magazineBold,
+      )
+      return captionCardBox(resolved).heightPx
+    })
+    for (const h of heights) {
+      expect(h).toBe(heights[0])
+    }
+  })
+
+  it('a narrower caption card fits a headline smaller than the default news box (WIDTH coupling kept)', () => {
+    // Phase 82 width/overflow safety — a narrow card must still shrink the
+    // headline so it never overflows the card horizontally / breaks mid-word.
     const resolved = resolveCaptionBar(
       {
         caption_bar_enabled: true,
         caption_bar_width: 50,
-        caption_bar_height_pct: 20,
       },
       magazineBold,
     )
