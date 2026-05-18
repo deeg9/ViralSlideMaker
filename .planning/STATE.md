@@ -164,6 +164,7 @@ Last activity: 2026-05-17 -- Phase 82 complete (category-driven generation; R10 
 
 - Phase 80 added: composition-aware style extraction — replace flat StyleSpec tagging with archetype classification + typed slot primitives so style-from-reference can faithfully reproduce captioned/collage/highlight-rhythm layouts that the renderer already supports
 - Phase 82 added: category-driven generation — headline-first copy engine + content-category picker + template curation. Post-v2.13 feature; spun out of a /gsd-quick request to fix ugly "no template / random" news output. Routed to /gsd-spec-phase (fuzzy WHAT). 3 workstreams: W1 headline-first prompt+schema, W2 content-category picker, W3 cull 12 templates → ~4-6.
+- Phase 83 added: Template-driven layout generation — make newly generated carousels auto-shape to a template's layout DNA (per-slide caption-card geometry, hook positions, accent placement, accessory labels), not just the flat SlideTemplate style config. Deferred half of quick task 260518-jhg — the user chose to ship the "News Oracle" template now and queue this AI-generation-pipeline work (prompts.ts, style-spec-projector, categories/news.ts, validate-slides) as a separate phase. Not planned yet — run /gsd-plan-phase 83.
 
 ### Carry-over from v2.12
 

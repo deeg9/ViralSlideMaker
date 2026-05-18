@@ -236,4 +236,16 @@ Plans:
 
 **Status:** ✅ COMPLETE 2026-05-17 — all 10 requirements verified; R10 visual sign-off user-approved. R10 testing surfaced and fixed a critical generation-perf bug (`template_id_override` open-string runaway, ~148s → ~2s, `fe5f173`) plus Gaps A-F. See `phases/82-.../82-VERIFICATION.md`.
 
+### Phase 83: Template-driven layout generation — generated carousels auto-shape to a template's layout DNA
+
+**Goal:** When a user picks a template, newly generated carousels should auto-shape to that template's layout DNA — per-slide caption-card geometry, hook positions/sizes, accent/highlight placement, accessory labels — not just inherit the flat `SlideTemplate` style config. Concrete first target: the "News Oracle" template (shipped flat-style-only in quick task 260518-jhg) should make new News-category carousels generate pre-shaped like the reference "Oracle Layoff Analysis" carousel — full-bleed photo, caption card on the cover with edge-blend, big centered condensed headline, cyan pill-highlight keywords, the small "Trending" accessory label. Touches the AI generation pipeline (Gemini prompts in `prompts.ts`, `style-spec-projector.ts` + `style-spec-projector-constants.ts`, `categories/news.ts`, `validate-slides.ts`) — high blast radius (every generated carousel for a category), so it needs careful planning + verification.
+**Requirements**: TBD (derive at /gsd-plan-phase)
+**Depends on:** Phase 82 (category-driven generation), quick-260518-jhg (News Oracle template + picker)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 83 to break down)
+
+**Origin:** Deferred half of quick task 260518-jhg — the user chose to ship the News Oracle template now and queue this "exact layout" generation work as a separate phase (2026-05-18).
+
 ---
