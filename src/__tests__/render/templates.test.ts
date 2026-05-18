@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 
 describe('templates', () => {
-  it('templates array has exactly 12 entries (5 legacy + 3 Phase 46 premium + 3 Phase 56 free + paper-essay)', async () => {
+  it('templates array has exactly 13 entries (5 legacy + 3 Phase 46 premium + 3 Phase 56 free + paper-essay + news-oracle)', async () => {
     const { templates } = await import('@/lib/render/templates/index')
-    expect(templates).toHaveLength(12)
+    expect(templates).toHaveLength(13)
   })
 
   it('each template has all required SlideTemplate fields', async () => {
@@ -35,12 +35,17 @@ describe('templates', () => {
     expect(template.id).toBe('highlight-bar')
   })
 
-  it('module-load validator passes for the live registry (legacy 5 + Phase 46 premium 3 + Phase 56 free 3 + paper-essay)', async () => {
+  it('module-load validator passes for the live registry (legacy 5 + Phase 46 premium 3 + Phase 56 free 3 + paper-essay + news-oracle)', async () => {
     const mod = await import('@/lib/render/templates/index')
     // If validateTemplateRegistry threw at load, this import would have rejected.
-    expect(mod.templates).toHaveLength(12)
+    expect(mod.templates).toHaveLength(13)
 
-    const legacyIds = new Set(['highlight-bar', 'news-drop', 'news-cyan', 'y2k-pop', 'bold-yellow'])
+    // quick task 260518-jhg: news-oracle is a non-overlay news template (same
+    // newsZone full-bleed render path as news-drop / news-cyan) — overlays
+    // must be undefined, so it belongs in the legacy/no-overlay bucket.
+    const legacyIds = new Set([
+      'highlight-bar', 'news-drop', 'news-cyan', 'y2k-pop', 'bold-yellow', 'news-oracle',
+    ])
     const premiumIds = new Set(['magazine-bold', 'tr3nding-news', 'documentary'])
     const freeOverlayIds = new Set(['editorial-serif', 'notes-app-chic', 'brutalist-grid', 'paper-essay'])
 
