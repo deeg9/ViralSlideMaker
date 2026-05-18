@@ -487,7 +487,12 @@ export interface ResolvedCaptionBar {
  * (HTML export) — so the paths cannot drift (PARITY-01).
  *
  * Byte-identity (TPLREND-05): with NO caption_bar_* overrides the result is
- * `enabled: false` — no card renders at all, identical to a pre-change slide.
+ * `enabled: false` for non-news slides — no card renders at all, identical to a
+ * pre-change slide. For news-layout slides (`isNewsLayoutSlide === true`) with
+ * NO `caption_bar_*` overrides the result is `enabled: true` with seeded
+ * bottom-region black geometry (the quick-260518-8o0 news black-headline-
+ * backdrop migration — the historical solid-black region behind a news
+ * headline is now a real caption card).
  *
  * Geometry: `x`/`y`/`width` are percent of the 1080x1920 frame, clamped to
  * [0,100]; `heightPct` is clamped to [10,90] (threat T-k2n-01 — a hand-edited
@@ -498,13 +503,30 @@ export interface ResolvedCaptionBar {
  * The no-color/no-opacity branch reuses `bottomCardBackground` verbatim (it
  * also handles the 8-digit-hex passthrough case) so an already-customized k12
  * slide keeps its color.
+ *
+ * quick-260518-8o0: the `isNewsLayoutSlide` flag (defaulting to `false`) seeds
+ * the news migration. When it fires AND no explicit caption_bar_* geometry/
+ * color keys are present, the seeded geometry falls out of the EXISTING
+ * defaults — `heightPct = 38`, `position = 'bottom'`, `x = 0`, `width = 100`,
+ * `y = 100 - heightPct`, `backgroundColor = bottomCardBackground(
+ * template.backgroundColor)`. For a news template (`backgroundColor: '#000000'`)
+ * that is `rgba(0, 0, 0, 0.85)` — a bottom-region black block identical to
+ * today's backdrop. No extra seeding code is needed; only the `enabled` gate
+ * changes.
  */
 export function resolveCaptionBar(
   overrides: SlideStyleOverrides | undefined,
   template: SlideTemplate,
+  isNewsLayoutSlide = false,
 ): ResolvedCaptionBar {
   const o = overrides ?? {}
-  const enabled = o.caption_bar_enabled === true
+  // quick-260518-8o0: `== null` (the key is ABSENT) triggers the news-layout
+  // default; an EXPLICIT `caption_bar_enabled: false` does NOT — that is what
+  // lets "Toggle OFF removes the block" survive the default on news slides
+  // (CONTEXT.md "Toggle OFF behavior", locked: absent != false).
+  const enabled =
+    o.caption_bar_enabled === true ||
+    (o.caption_bar_enabled == null && isNewsLayoutSlide)
   const heightPct = clamp(o.caption_bar_height_pct ?? 38, 10, 90)
   const hasColor = o.caption_bar_color != null
   const hasOpacity = o.caption_bar_opacity != null
