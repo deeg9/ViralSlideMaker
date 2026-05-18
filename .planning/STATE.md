@@ -7,7 +7,7 @@ stopped_at: Phase 82 UI-SPEC approved
 last_updated: "2026-05-17T20:04:40.051Z"
 last_activity: 2026-05-17 -- Phase 82 execution started
 progress:
-  total_phases: 10
+  total_phases: 9
   completed_phases: 8
   total_plans: 39
   completed_plans: 28
@@ -164,7 +164,7 @@ Last activity: 2026-05-17 -- Phase 82 complete (category-driven generation; R10 
 
 - Phase 80 added: composition-aware style extraction — replace flat StyleSpec tagging with archetype classification + typed slot primitives so style-from-reference can faithfully reproduce captioned/collage/highlight-rhythm layouts that the renderer already supports
 - Phase 82 added: category-driven generation — headline-first copy engine + content-category picker + template curation. Post-v2.13 feature; spun out of a /gsd-quick request to fix ugly "no template / random" news output. Routed to /gsd-spec-phase (fuzzy WHAT). 3 workstreams: W1 headline-first prompt+schema, W2 content-category picker, W3 cull 12 templates → ~4-6.
-- Phase 83 added: Template-driven layout generation — make newly generated carousels auto-shape to a template's layout DNA (per-slide caption-card geometry, hook positions, accent placement, accessory labels), not just the flat SlideTemplate style config. Deferred half of quick task 260518-jhg — the user chose to ship the "News Oracle" template now and queue this AI-generation-pipeline work (prompts.ts, style-spec-projector, categories/news.ts, validate-slides) as a separate phase. Not planned yet — run /gsd-plan-phase 83.
+- "Save as Template" feature spec'd → `.planning/SAVE-AS-TEMPLATE-SPEC.md` (2026-05-18). Admin-authored, DB-backed templates that capture a carousel's FULL layout recipe (per-slide structure), not just flat style — so the team can mint polished templates from real carousels with no code deploy. The placeholder Phase 83 ("template-driven layout generation", added then removed same day) folded into this spec as its Phase C. Recommended routing: its own milestone (v2.14, ~4 phases A–D). Not yet routed.
 
 ### Carry-over from v2.12
 
@@ -247,7 +247,7 @@ Last activity: 2026-05-17 -- Phase 82 complete (category-driven generation; R10 
 
 ## Session Continuity
 
-Last activity: 2026-05-18 — Completed quick task 260518-jhg (`--discuss --validate`): Added a new picker template **News Oracle** (`src/lib/render/templates/news-oracle.ts`) capturing the user's polished "Oracle Layoff Analysis" carousel style — center-aligned Anton, near-black bg, dark overlay, cyan accent — and retired `news-cyan` from the picker non-destructively (added to `HIDDEN_FROM_PICKER`, news-cyan.ts untouched, 3 existing carousels byte-identical; News category + `NEWS_TEMPLATES` repointed). Verified `passed`. The AI generation recipe (auto-shaping new carousels like Oracle) was deferred — see the new roadmap phase below.
+Last activity: 2026-05-18 — Completed quick task 260518-jhg (`--discuss --validate`): Added a new picker template **News Oracle** (`src/lib/render/templates/news-oracle.ts`) capturing the user's polished "Oracle Layoff Analysis" carousel style — center-aligned Anton, near-black bg, dark overlay, cyan accent — and retired `news-cyan` from the picker non-destructively (added to `HIDDEN_FROM_PICKER`, news-cyan.ts untouched, 3 existing carousels byte-identical; News category + `NEWS_TEMPLATES` repointed). Verified `passed`. The AI generation recipe (auto-shaping new carousels like Oracle) was deferred and is now captured in the "Save as Template" feature spec — `.planning/SAVE-AS-TEMPLATE-SPEC.md` (admin-authored, DB-backed, full-layout-recipe templates; recommended as milestone v2.14).
 
 Stopped at: Phase 82 UI-SPEC approved
 
