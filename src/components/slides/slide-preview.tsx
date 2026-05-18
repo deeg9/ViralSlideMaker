@@ -677,6 +677,80 @@ export function SlidePreview({
   useEffect(() => { marqueeStartRef.current = marqueeStart }, [marqueeStart])
   const modifiers = useModifierState()
 
+  // quick-260518-htt checkpoint-feedback fix: UNIFIED CANVAS DESELECT.
+  //
+  // BUG: a click-off (empty canvas, the photo background, or anywhere OUTSIDE
+  // the slide card) could never reach a zero-chrome state — the marquee
+  // onPointerDown early-returns on `e.target !== e.currentTarget`, so a
+  // pointer-down on the absolutely-positioned photo/tint layer (a CHILD of the
+  // canvas-root) or on the `slide-canvas` padding region around the card never
+  // ran any deselect. At least one element stayed selected forever.
+  //
+  // FIX: a single capture-phase `pointerdown` listener. It attaches to the
+  // nearest `[data-testid="slide-canvas"]` ancestor (the editor canvas region,
+  // which spans the card AND its padding — so "off the page" is covered),
+  // falling back to the SlidePreview root for standalone renders (tests /
+  // storybook). On every pointer-down it checks whether the target sits inside
+  // a `[data-selectable-element]` (the marker now carried by all 6 editable
+  // <Rnd> wrappers — hook, body, custom-text, custom-image, decoration,
+  // caption card). If NOT, it clears EVERYTHING: the multi-select `selection`,
+  // the legacy `selectedTextBoxId`, the custom-text/image single-selects, the
+  // caption-card chrome, and exits any active group. A click ON an element is
+  // ignored here — that element's own onMouseDown selects it (those handlers
+  // still win; this listener never competes with them).
+  const deselectRefs = useRef({
+    onSelectionChange,
+    onTextBoxSelect,
+    onCustomTextSelect,
+    onCustomImageSelect,
+    onExitGroup,
+    currentlyInsideGroup,
+  })
+  deselectRefs.current = {
+    onSelectionChange,
+    onTextBoxSelect,
+    onCustomTextSelect,
+    onCustomImageSelect,
+    onExitGroup,
+    currentlyInsideGroup,
+  }
+  useEffect(() => {
+    if (!editable) return
+    const root = containerRef.current
+    if (!root) return
+    // Prefer the editor canvas region so off-the-card padding clicks deselect
+    // too; fall back to the SlidePreview root when rendered standalone.
+    const surface =
+      (root.closest('[data-testid="slide-canvas"]') as HTMLElement | null) ??
+      root
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      // Click landed on (or inside) a selectable element → that element's own
+      // handler owns the selection; do nothing.
+      if (target && target.closest('[data-selectable-element]')) return
+      // SEL-06 PITFALL-2.5 / CONTEXT D-04: a shift-held click is a NO-OP —
+      // it must preserve the existing selection (it is the additive-select
+      // modifier, not a deselect). Mirror the marquee handler's shift read.
+      if (e.shiftKey) return
+      const r = deselectRefs.current
+      if (r.currentlyInsideGroup != null) r.onExitGroup?.()
+      r.onCustomTextSelect?.(null)
+      r.onCustomImageSelect?.(null)
+      r.onSelectionChange?.({ ids: [], primary: null })
+      r.onTextBoxSelect?.(null)
+      // The caption card's resize chrome is gated on this LOCAL state — clear
+      // it here so the unified deselect also covers it (its own
+      // onPointerDownCapture only fires for in-card pointer-downs).
+      setCaptionCardSelected(false)
+    }
+    surface.addEventListener('pointerdown', handlePointerDown, true)
+    return () => {
+      surface.removeEventListener('pointerdown', handlePointerDown, true)
+    }
+    // `containerRef.current` is stable post-mount; callbacks are read through
+    // `deselectRefs` so the listener is attached exactly once.
+  }, [editable])
+
   // Live marquee rect for the overlay — memoized so identical start/end pairs
   // don't allocate per render. Coords are SCALED-CANVAS PIXELS (matches the
   // overlay's parent: the inner scaled wrapper), not %. Plan 61-02 converts
@@ -1601,23 +1675,18 @@ export function SlidePreview({
           const shiftHeld =
             modifiers.get().shift || (e as unknown as { shiftKey?: boolean }).shiftKey === true
 
-          // No-drag branch: Plan 60-05 click-empty-canvas-clears preserved.
-          // 2px threshold catches accidental micro-jitter on click. SEL-06
-          // PITFALL-2.5: shift+click without drag is a no-op (don't clear).
+          // No-drag branch: a click without a drag. The DESELECT for this
+          // gesture is now owned by the unified canvas-deselect listener
+          // (the capture-phase `pointerdown` handler installed in the
+          // useEffect above — quick-260518-htt feedback-fix). It fires on
+          // pointer-DOWN, covers the photo background + off-the-card region
+          // that this onPointerUp branch never could, and clears `selection`
+          // + `selectedTextBoxId` + custom selects + caption card + group in
+          // one place. Doing it here too would double-fire onExitGroup /
+          // onSelectionChange, so this branch now only resets the marquee
+          // state. SEL-06 PITFALL-2.5 (shift+click = no-op) is preserved by
+          // the listener's own shift guard. 2px threshold catches jitter.
           if (pixRect.w <= 2 && pixRect.h <= 2) {
-            if (!shiftHeld) {
-              // Phase 62 (GROUP-08): if the user is inside a group, exit it
-              // BEFORE clearing the selection. Single user gesture →
-              // single observable behavior (group ring collapses + selection
-              // clears in one render). The Esc-key handler in Plan 62-03 will
-              // mirror this two-step on keyboard escape.
-              if (currentlyInsideGroup !== null) {
-                onExitGroup?.()
-              }
-              onCustomTextSelect?.(null)
-              onCustomImageSelect?.(null)
-              onSelectionChange?.({ ids: [], primary: null })
-            }
             setMarqueeStart(null)
             setMarqueeEnd(null)
             return
@@ -1708,6 +1777,11 @@ export function SlidePreview({
           return (
             <Rnd
               data-testid="caption-card"
+              // quick-260518-htt feedback-fix: unified-deselect marker — a
+              // click ON the card must NOT deselect (its own onMouseDown
+              // selects it); the card already clears `captionCardSelected`
+              // for non-card clicks via its onPointerDownCapture.
+              data-selectable-element="true"
               position={{ x: ccXpx, y: ccYpx }}
               size={{ width: ccWpx, height: ccHpx }}
               scale={scale}
@@ -2132,7 +2206,16 @@ export function SlidePreview({
             ...(hookLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
           }}
           {...(hookLocked ? { 'data-locked': 'true' as const } : {})}
-          className={`hover:outline hover:outline-2 hover:outline-white/50 ${hookSelected ? selectionRingClass : ''}`}
+          // quick-260518-htt feedback-fix: every selectable <Rnd> carries
+          // this marker so the unified canvas deselect can distinguish a
+          // click ON an element from a click-off (see the canvas-root
+          // onPointerDownCapture below).
+          data-selectable-element="true"
+          // quick-260518-htt feedback-fix: the dashed selection RING is now
+          // gated on the SAME `hookRndSelected` signal the resize handles
+          // use (was `hookSelected`, keyed on the legacy selectedTextBoxId).
+          // This keeps the ring + handles from desyncing on a click-off.
+          className={`hover:outline hover:outline-2 hover:outline-white/50 ${hookRndSelected ? selectionRingClass : ''}`}
         >
           <div
             ref={hookRef}
@@ -2455,7 +2538,11 @@ export function SlidePreview({
               ...(bodyLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
             }}
             {...(bodyLocked ? { 'data-locked': 'true' as const } : {})}
-            className={`hover:outline hover:outline-2 hover:outline-white/50 ${bodySelected ? selectionRingClass : ''}`}
+            // quick-260518-htt feedback-fix: unified-deselect marker.
+            data-selectable-element="true"
+            // quick-260518-htt feedback-fix: ring gated on bodyRndSelected
+            // (the selection.ids-derived signal) so ring + handles agree.
+            className={`hover:outline hover:outline-2 hover:outline-white/50 ${bodyRndSelected ? selectionRingClass : ''}`}
           >
             <div
               ref={bodyRef}
@@ -2798,12 +2885,17 @@ export function SlidePreview({
                 ...(ctLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
               }}
               {...(ctLocked ? { 'data-locked': 'true' as const } : {})}
+              // quick-260518-htt feedback-fix: unified-deselect marker.
+              data-selectable-element="true"
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
-                // Phase 52 (T-02): unified dashed selection ring driven by
-                // selectedTextBoxId. Legacy blue ring (isSelected via
-                // selectedCustomTextId) preserved as fallback for callers that
-                // still wire only the legacy state (e.g. tests/storybook).
-                selectedTextBoxId === ct.id
+                // quick-260518-htt feedback-fix: the dashed selection ring is
+                // now gated on `ctRndSelected` (the selection.ids-derived
+                // signal the resize handles already use) instead of the
+                // legacy `selectedTextBoxId === ct.id` — so a click-off that
+                // clears selection.ids also drops the ring. The legacy blue
+                // ring (isSelected via selectedCustomTextId) is preserved as
+                // the no-`selection` fallback for tests/storybook.
+                ctRndSelected
                   ? selectionRingClass
                   : isSelected
                     ? 'outline outline-2 outline-blue-400'
@@ -3111,6 +3203,8 @@ export function SlidePreview({
                 ...(ciLocked && marqueeActive ? { pointerEvents: 'none' as const } : null),
               }}
               {...(ciLocked ? { 'data-locked': 'true' as const } : {})}
+              // quick-260518-htt feedback-fix: unified-deselect marker.
+              data-selectable-element="true"
               className={`hover:outline hover:outline-2 hover:outline-white/50 ${
                 isImageSelected ? 'outline outline-2 outline-blue-400' : ''
               }`}
@@ -3227,6 +3321,8 @@ export function SlidePreview({
                 <Rnd
                   key={`${d.id}-rnd`}
                   data-testid={`decoration-click-target-${d.id}`}
+                  // quick-260518-htt feedback-fix: unified-deselect marker.
+                  data-selectable-element="true"
                   position={{ x: dxPx, y: dyPx }}
                   size={{ width: dwPx, height: dhPx }}
                   scale={scale}
