@@ -54,9 +54,10 @@ export const newsCategory: CategoryModule = {
   label: 'News',
   tagline: 'Breaking-news headlines',
   ready: true,
-  // templateIds[0] is the News default template. news-cyan is a registered
-  // news-style template (polished toward the reference in Plan 04);
+  // templateIds[0] is the News default template. news-oracle is the
+  // picker-facing news keeper (quick task 260518-jhg — Oracle-style,
+  // center-aligned; replaced the now-picker-hidden news-cyan);
   // tr3nding-news is the secondary tabloid-kicker option.
-  templateIds: ['news-cyan', 'tr3nding-news'] as const,
+  templateIds: ['news-oracle', 'tr3nding-news'] as const,
   buildPrompt: () => NEWS_PROMPT,
 }
