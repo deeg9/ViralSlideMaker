@@ -164,6 +164,10 @@ describe('Phase 59 (RESIZE-04): Shift+corner = width-only escape', () => {
   it('Shift+TL corner: dispatched payload contains width, no font_size (integration; warn-skip on JSDOM flakiness)', () => {
     const { slide, template } = makeFixture()
     const onSizeChange = vi.fn()
+    // quick-260518-htt (HTT-01): resize handles now render ONLY on the
+    // selected element. Select the hook so its corner handles exist for the
+    // gesture below (legacy callers select via `selectedTextBoxId`).
+    const hookId = slide.text_boxes!.find((tb) => tb.role === 'hook')!.id
 
     const { container } = render(
       <SlidePreview
@@ -171,6 +175,7 @@ describe('Phase 59 (RESIZE-04): Shift+corner = width-only escape', () => {
         template={template}
         index={0}
         editable
+        selectedTextBoxId={hookId}
         onSizeChange={onSizeChange}
       />,
     )
@@ -205,6 +210,8 @@ describe('Phase 59 (RESIZE-04): Shift+corner = width-only escape', () => {
   it('Plain TL corner (no Shift): dispatched payload contains both width AND font_size (integration; warn-skip on JSDOM flakiness)', () => {
     const { slide, template } = makeFixture()
     const onSizeChange = vi.fn()
+    // quick-260518-htt (HTT-01): select the hook so its corner handles render.
+    const hookId = slide.text_boxes!.find((tb) => tb.role === 'hook')!.id
 
     const { container } = render(
       <SlidePreview
@@ -212,6 +219,7 @@ describe('Phase 59 (RESIZE-04): Shift+corner = width-only escape', () => {
         template={template}
         index={0}
         editable
+        selectedTextBoxId={hookId}
         onSizeChange={onSizeChange}
       />,
     )
