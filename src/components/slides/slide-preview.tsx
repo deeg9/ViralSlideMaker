@@ -73,6 +73,7 @@ import {
   renderTextBlock,
   renderTightHighlight,
   resolveCaptionBar,
+  captionCardBackgroundStyle,
   resolveNewsHeadlineFit,
   renderGrain,
   renderVignette,
@@ -234,7 +235,13 @@ function CaptionCardLayer({
         top: `${cc.y}%`,
         width: `${cc.width}%`,
         height: `${cc.heightPct}%`,
-        backgroundColor: cc.backgroundColor,
+        // quick-260518-ch8: shared helper — solid color when blend off,
+        // a position-aware linear-gradient when blend on (TPLREND-05 parity).
+        ...captionCardBackgroundStyle({
+          backgroundColor: cc.backgroundColor,
+          blendPct: cc.blendPct,
+          position: cc.position,
+        }),
         zIndex: 2,
       }}
     />
@@ -1762,7 +1769,13 @@ export function SlidePreview({
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  backgroundColor: cc.backgroundColor,
+                  // quick-260518-ch8: shared helper — keeps the editable card's
+                  // blend gradient identical to the non-editable layer + exports.
+                  ...captionCardBackgroundStyle({
+                    backgroundColor: cc.backgroundColor,
+                    blendPct: cc.blendPct,
+                    position: cc.position,
+                  }),
                   outline: captionCardSelected ? '2px solid #3d0000' : undefined,
                   outlineOffset: 2,
                 }}

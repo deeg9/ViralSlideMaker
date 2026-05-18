@@ -12,7 +12,12 @@ import { getHookFontSize, hasHookFit } from './hook-fit'
 import { resolvePerSlideTemplate } from './resolve-per-slide-template'
 // quick-260515-nhf: shared hook-typography resolver — single source of truth
 // for hook casing/font-family/italic precedence across all three render paths.
-import { resolveHookTypography, resolveCaptionBar, resolveNewsHeadlineFit } from './resolve-overlay'
+import {
+  resolveHookTypography,
+  resolveCaptionBar,
+  captionCardBackgroundStyle,
+  resolveNewsHeadlineFit,
+} from './resolve-overlay'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -318,8 +323,20 @@ export function buildSlideHtml(
   // slide-preview.tsx; hoisted above the resolveCaptionBar call.
   const isNewsLayoutSlide = template.backgroundMode == null && overrides.layout != null
   const captionCard = resolveCaptionBar(overrides, template, isNewsLayoutSlide)
+  // quick-260518-ch8: shared helper — emits `background-color` when blend is
+  // off (byte-identical to pre-change) or `background-image` (a linear-gradient)
+  // when blend is on, matching the canvas + Satori paths (TPLREND-05 / PARITY-01).
+  const captionCardBg = captionCardBackgroundStyle({
+    backgroundColor: captionCard.backgroundColor,
+    blendPct: captionCard.blendPct,
+    position: captionCard.position,
+  })
+  const captionCardBgCss =
+    'backgroundImage' in captionCardBg
+      ? `background-image:${captionCardBg.backgroundImage}`
+      : `background-color:${captionCardBg.backgroundColor}`
   const captionCardHtml = captionCard.enabled
-    ? `<div style="position:absolute; left:${captionCard.x}%; top:${captionCard.y}%; width:${captionCard.width}%; height:${captionCard.heightPct}%; background-color:${captionCard.backgroundColor}; z-index:2;"></div>`
+    ? `<div style="position:absolute; left:${captionCard.x}%; top:${captionCard.y}%; width:${captionCard.width}%; height:${captionCard.heightPct}%; ${captionCardBgCss}; z-index:2;"></div>`
     : ''
 
   // Phase 82 Gap D (render-wiring): re-fit the news headline to the
