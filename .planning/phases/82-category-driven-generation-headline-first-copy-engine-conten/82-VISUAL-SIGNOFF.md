@@ -194,3 +194,42 @@ render-architecture, freshly reworked by k2n) rather than an inline hot-patch.
 
 **Verdict:** ⛔ PENDING — R10 visual sign-off not approved; Gap F gap-closure
 in progress.
+
+## R10 round 3 — gap-closure resolution (Gap F, 2026-05-17)
+
+Gap F is fixed via gap-closure Plan 10 (commits `2938955`, `542bda4`).
+
+- **Gap F — FIXED (`82-10`).** Root cause confirmed by reading the code: the
+  editable `SlidePreview` headline branch renders the headline inside a
+  draggable `<Rnd>` whose inner `hook-text-wrapper` div applies
+  `padding: '4px 8px'`. The 8px horizontal padding each side narrowed the
+  headline's flex-wrap container by 16px vs the read-only branch's plain
+  `width: hookWidth%` div and the Satori export's `pxX(hookWidth)` box — same
+  font + words, a narrower container flipped a wrap point. (The padding predates
+  the k2n caption-card rework; it only became *visible* now because the R10
+  News-headline auto-fit in Plans 08-09 sizes the headline tightly, so the slack
+  that absorbed 16px is gone.) Fix: new `HOOK_WRAPPER_PAD_X` (= 8) constant — the
+  editable headline `<Rnd>` is widened by `2 * HOOK_WRAPPER_PAD_X` and its x
+  shifted left by `HOOK_WRAPPER_PAD_X`, so the inner wrapper's content box is
+  exactly `hookWidthPx` — identical flex-wrap container width to the read-only
+  div and the Satori box. All drag/resize commit math (`onDrag`/`onDragStop`
+  snap, `percentX`, `onResizeStop` `newWidthPx`/`position.x`) converts the
+  padded frame back, so persisted `hook_position`/`hook_width` are byte-identical
+  to a pre-fix gesture. The k2n caption-card `<Rnd>`
+  (`ccWpx`/`ccHpx`/`onCaptionBarUpdate`), the read-only headline div, and
+  `render-slide-satori.tsx` are untouched — they were already canonical; only
+  the editable branch was the outlier.
+
+Render-parity: no snapshot regeneration was needed — the Satori export and the
+read-only DOM are byte-identical to HEAD; only the editable-branch live DOM
+changed and no committed snapshot covers it. The render-parity suite holds at
+its 5-failure pre-existing `quick-260515-o75` baseline — zero new failures. A
+new regression test (`parity.thumbnail-vs-canvas-hook-wrap.test.tsx`) pins
+thumbnail == canvas == Satori headline-box width (revert-detection verified).
+All 112 SlidePreview component tests pass. Code review CLEAN.
+
+**Verdict:** ⛔ STILL PENDING USER VISUAL APPROVAL. Gap F is fixed in code with
+passing tests, but the R10 **visual** sign-off remains a human judgment: the
+user must re-test in the editor — generate a News carousel and confirm the
+headline now wraps IDENTICALLY in the left thumbnail strip and the main centre
+canvas. This autonomous run does NOT mark the visual sign-off approved.
