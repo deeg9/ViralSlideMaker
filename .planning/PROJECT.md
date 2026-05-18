@@ -10,12 +10,26 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.12 Shapes & Icons (Decoration Primitives) (2026-05-04)
-**Current Milestone:** v2.13 Style-from-Reference Generation
+**Latest Shipped:** v2.13 Style-from-Reference Generation (2026-05-14)
+**Current Milestone:** v2.14 Save as Template
 
 ---
 
-## Current Milestone: v2.13 Style-from-Reference Generation
+## Current Milestone: v2.14 Save as Template
+
+**Goal:** Admin-authored, DB-backed templates that capture a real carousel's full layout recipe — so the team can mint polished picker templates from real carousels with no code deploy, and new carousels generate pre-shaped to them.
+
+**Target features:**
+- DB-backed template storage + code/DB registry merge (Phase 83)
+- `LayoutRecipe` model + extraction from a carousel (Phase 84)
+- Recipe-driven generation — new carousels auto-shape to the template (Phase 85)
+- Admin Save-as-Template authoring flow + picker previews (Phase 86)
+
+**Key context:** Admin-only authoring (end-user/community templates deferred); V1 is save-new-only (no editing a saved template post-save); builds on the v2.13 template system, `style-spec-projector`, and the existing archetype machinery; closed-enum invariant + TPLREND-05 render parity preserved. Full spec: `.planning/SAVE-AS-TEMPLATE-SPEC.md`.
+
+---
+
+## Latest Shipped: v2.13 Style-from-Reference Generation
 
 **Goal:** Let users upload reference slideshow images and generate a new slideshow that mimics the reference's full design template (palette, type, layout, shape/decoration patterns) with their own content.
 
@@ -398,7 +412,9 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [ ] Live Gemini wiring for diversity gate — advisory only in v2.9; wire live if monoculture observed in production
 - [ ] Variable fonts — Satori issues #162/#712 unresolved as of 2026-05
 
-### Active (v2.13 — not yet defined; run /gsd-new-milestone to plan next)
+### Active (v2.14 Save as Template)
+
+See `.planning/REQUIREMENTS.md` for the scoped v2.14 requirements and `.planning/SAVE-AS-TEMPLATE-SPEC.md` for the feature spec.
 
 ### Validated (v2.12)
 
@@ -540,4 +556,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-10 — v2.13 Style-from-Reference Generation milestone started (style transfer wedge: vision LLM extracts template from uploaded slideshow images and applies to new content)*
+*Last updated: 2026-05-18 — v2.14 Save as Template milestone started (admin-authored, DB-backed templates that capture a carousel's full layout recipe; spec at .planning/SAVE-AS-TEMPLATE-SPEC.md)*

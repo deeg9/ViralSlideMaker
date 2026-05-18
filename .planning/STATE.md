@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.13
-milestone_name: Style-from-Reference Generation
-status: executing
-stopped_at: Phase 82 UI-SPEC approved
-last_updated: "2026-05-17T20:04:40.051Z"
-last_activity: 2026-05-17 -- Phase 82 execution started
+milestone: v2.14
+milestone_name: Save as Template
+status: planning
+last_updated: "2026-05-18T22:21:15.461Z"
+last_activity: 2026-05-18
 progress:
-  total_phases: 9
-  completed_phases: 8
-  total_plans: 39
-  completed_plans: 28
-  percent: 72
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -26,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-10 — v2.13 milestone started)
 
 ## Current Position
 
-Phase: 82 (category-driven-generation-headline-first-copy-engine-conten) — COMPLETE
+Phase: Not started (defining requirements)
 Plan: —
-Status: Phase 82 complete — all 10 requirements verified; R10 visual sign-off user-approved
-Last activity: 2026-05-17 -- Phase 82 complete (category-driven generation; R10 approved after perf-bug + Gap A-F fixes)
+Status: Defining requirements
+Last activity: 2026-05-18 — Milestone v2.14 started
 
 ## v2.13 Phase Map
 
