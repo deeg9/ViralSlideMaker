@@ -64,4 +64,14 @@ Prior-milestone requirements are archived at
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| _(filled by roadmapper)_ | | |
+| TSTORE-01 | Phase 83 | Pending |
+| TSTORE-02 | Phase 83 | Pending |
+| TSTORE-03 | Phase 83 | Pending |
+| TSTORE-04 | Phase 83 | Pending |
+| RECIPE-01 | Phase 84 | Pending |
+| RECIPE-02 | Phase 84 | Pending |
+| RECGEN-01 | Phase 85 | Pending |
+| ADMIN-01 | Phase 86 | Pending |
+| ADMIN-02 | Phase 86 | Pending |
+
+**Coverage:** 9/9 v2.14 requirements mapped to exactly one phase (100%). No orphans, no duplicates.
