@@ -89,6 +89,19 @@ import type { TemplateOverlay } from '@/lib/render/templates/index'
 const REF_WIDTH = 1080
 const REF_HEIGHT = 1920
 
+// GAP-F (82-10): the editable headline <Rnd>'s inner `hook-text-wrapper` div
+// applies `padding: '4px 8px'`. The 8px horizontal padding each side narrows
+// the headline's flex-wrap container relative to the read-only branch's plain
+// `width: hookWidth%` div and the Satori export's `pxX(hookWidth)` box — same
+// font + same words, a ~16px-narrower container flips a wrap point ("APPROVES
+// MASSIVE" lands on one line in the thumbnail, two on the canvas). Widening the
+// editable <Rnd> by 2× this value and offsetting its x by 1× this value makes
+// the inner wrapper's content box exactly `hookWidthPx`, restoring 3-way
+// (canvas / thumbnail / Satori) headline-wrap parity. The padding compensation
+// is invisible to persisted hook_position/hook_width — see the commit-math
+// corrections in the editable hook <Rnd> below.
+const HOOK_WRAPPER_PAD_X = 8
+
 // TikTok/Instagram safe zone defaults (percentage of canvas)
 const SAFE_ZONE = {
   x: 11,
@@ -1461,6 +1474,19 @@ export function SlidePreview({
   const hookWidthPx = (hookWidth / 100) * REF_WIDTH
   const bodyWidthPx = (bodyWidth / 100) * REF_WIDTH
 
+  // GAP-F (82-10): padded geometry for the editable headline <Rnd>. The <Rnd>
+  // box is widened by 2*HOOK_WRAPPER_PAD_X so the inner `hook-text-wrapper`'s
+  // content box (after its `4px 8px` padding) is exactly `hookWidthPx` — the
+  // same flex-wrap container width the read-only branch and the Satori export
+  // use. The box's x is shifted left by HOOK_WRAPPER_PAD_X so the *text* still
+  // starts at the same canvas x as the read-only branch (box grows symmetrically
+  // around the text). `hookWidthPx` itself stays the canonical UNPADDED text
+  // width — snap/bounds math keeps reading it. All drag/resize commit math
+  // below converts the padded frame back so persisted hook_position/hook_width
+  // are byte-identical to a pre-GAP-F drag.
+  const hookRndWidthPx = hookWidthPx + 2 * HOOK_WRAPPER_PAD_X
+  const hookRndPixels = { x: hookPixels.x - HOOK_WRAPPER_PAD_X, y: hookPixels.y }
+
   // phase-59-01: corners on, top/bottom off (auto-fit text design — RESIZE-01/02/03 per CONTEXT.md).
   const enableResizing = {
     left: true,
@@ -1776,8 +1802,11 @@ export function SlidePreview({
           const hookEditing = !!hookLockedBox && editingHookBodyId === hookLockedBox.id
           return (
         <Rnd
-          position={hookPixels}
-          size={{ width: hookWidthPx, height: 'auto' as unknown as number }}
+          // GAP-F (82-10): the <Rnd> renders at the PADDED geometry so the
+          // inner hook-text-wrapper's content box equals hookWidthPx (the
+          // canonical text width shared with the read-only branch + Satori).
+          position={hookRndPixels}
+          size={{ width: hookRndWidthPx, height: 'auto' as unknown as number }}
           scale={scale}
           bounds="parent"
           enableResizing={hookLocked || hookEditing ? false : enableResizing}
@@ -1825,7 +1854,12 @@ export function SlidePreview({
             const hookHeight = hookRef.current?.getBoundingClientRect().height
               ? hookRef.current.getBoundingClientRect().height / scale
               : 200
-            let queryX = data.x
+            // GAP-F (82-10): `data.x` is the PADDED <Rnd> left edge (8px left of
+            // the text). The snap rect must represent the headline's *text* box
+            // — its width is hookWidthPx (unpadded) and its left edge is
+            // data.x + HOOK_WRAPPER_PAD_X. Snapping in the text frame keeps the
+            // guides aligned to the visible headline edges.
+            let queryX = data.x + HOOK_WRAPPER_PAD_X
             let queryY = data.y
             let queryW = hookWidthPx
             let queryH = hookHeight
@@ -1866,8 +1900,12 @@ export function SlidePreview({
             const hookHeightForStop = hookRef.current?.getBoundingClientRect().height
               ? hookRef.current.getBoundingClientRect().height / scale
               : 200
-            const stopSnap = runSnapForDrag(data.x, data.y, hookWidthPx, hookHeightForStop)
-            data.x = stopSnap.x
+            // GAP-F (82-10): snap in the headline's TEXT frame (data.x is the
+            // padded <Rnd> left edge — shift right by HOOK_WRAPPER_PAD_X to get
+            // the text edge), then shift the snapped result back to the padded
+            // frame so the subsequent percentX conversion stays consistent.
+            const stopSnap = runSnapForDrag(data.x + HOOK_WRAPPER_PAD_X, data.y, hookWidthPx, hookHeightForStop)
+            data.x = stopSnap.x - HOOK_WRAPPER_PAD_X
             data.y = stopSnap.y
             // Phase 63 Plan 04: clear snap index, overlay, and per-axis
             // hysteresis state at gesture end.
@@ -1935,7 +1973,11 @@ export function SlidePreview({
               }
             }
             if (!onPositionChange) return
-            const percentX = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
+            // GAP-F (82-10): data.x is the PADDED <Rnd> left edge — add back
+            // HOOK_WRAPPER_PAD_X so the persisted hook_position.x is the text's
+            // canvas x, byte-identical to a pre-GAP-F drag and to what the
+            // read-only branch + Satori consume.
+            const percentX = Math.max(0, Math.min(100, ((data.x + HOOK_WRAPPER_PAD_X) / REF_WIDTH) * 100))
             const percentY = Math.max(0, Math.min(100, (data.y / REF_HEIGHT) * 100))
             onPositionChange('hook', { x: percentX, y: percentY })
           }}
@@ -1954,7 +1996,12 @@ export function SlidePreview({
             // is held during a corner gesture, skip the font_size dispatch and
             // behave like a side handle (matches Figma/Canva muscle memory).
             // TouchEvent has no shiftKey so this is no-op on touch.
-            const newWidthPx = parseInt(ref.style.width)
+            // GAP-F (82-10): ref.style.width is the PADDED <Rnd> box width.
+            // Subtract 2*HOOK_WRAPPER_PAD_X to recover the headline's text
+            // width — the canonical value that maps to persisted hook_width and
+            // that scaleFontSizeOnCorner ratios against the unpadded
+            // onResizeStart snapshot (hookResizeStartRef.widthPx = hookWidthPx).
+            const newWidthPx = parseInt(ref.style.width) - 2 * HOOK_WRAPPER_PAD_X
             const newWidthPct = Math.max(20, Math.min(100, (newWidthPx / REF_WIDTH) * 100))
             const isCorner = isCornerDir(dir as RndDir)
             let newFontSize: number | undefined = undefined
@@ -1976,7 +2023,10 @@ export function SlidePreview({
               onWidthChange?.('hook', Math.round(newWidthPct))
             }
             if (onPositionChange) {
-              const percentX = Math.max(0, Math.min(100, (position.x / REF_WIDTH) * 100))
+              // GAP-F (82-10): position.x is the PADDED <Rnd> left edge — add
+              // back HOOK_WRAPPER_PAD_X so persisted hook_position.x is the
+              // text's canvas x (consistent with onDragStop).
+              const percentX = Math.max(0, Math.min(100, ((position.x + HOOK_WRAPPER_PAD_X) / REF_WIDTH) * 100))
               const percentY = Math.max(0, Math.min(100, (position.y / REF_HEIGHT) * 100))
               onPositionChange('hook', { x: percentX, y: percentY })
             }
