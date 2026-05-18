@@ -473,6 +473,7 @@ export interface ResolvedCaptionBar {
   width: number              // width     percent 0..100
   backgroundColor: string    // rgba() string
   position: 'bottom' | 'top' // retained: the snap preset
+  blendPct: number           // quick-260518-ch8: 0..50, clamped; 0 = blend off
 }
 
 /**
@@ -528,6 +529,10 @@ export function resolveCaptionBar(
     o.caption_bar_enabled === true ||
     (o.caption_bar_enabled == null && isNewsLayoutSlide)
   const heightPct = clamp(o.caption_bar_height_pct ?? 38, 10, 90)
+  // quick-260518-ch8: edge-blend amount, clamped [0,50] (threat T-ch8-01 — a
+  // hand-edited payload cannot push an out-of-range gradient stop into any
+  // render path). Default 0 keeps every legacy slide byte-identical (TPLREND-05).
+  const blendPct = clamp(o.caption_bar_blend_pct ?? 0, 0, 50)
   const hasColor = o.caption_bar_color != null
   const hasOpacity = o.caption_bar_opacity != null
   const backgroundColor =
@@ -542,7 +547,46 @@ export function resolveCaptionBar(
   const width = clamp(o.caption_bar_width ?? 100, 0, 100)
   const positionY = position === 'top' ? 0 : 100 - heightPct
   const y = clamp(o.caption_bar_y ?? positionY, 0, 100)
-  return { enabled, heightPct, x, y, width, backgroundColor, position }
+  return { enabled, heightPct, x, y, width, backgroundColor, position, blendPct }
+}
+
+/**
+ * quick-260518-ch8: SINGLE source of truth for the caption card's background
+ * fill. All THREE render paths (slide-preview.tsx canvas, render-slide-satori
+ * PNG export, render-slide.ts HTML export) consume this so the edge-blend
+ * gradient cannot drift between them (PARITY-01 / TPLREND-05).
+ *
+ * When `blendPct <= 0` the card is a solid color and this returns a plain
+ * `{ backgroundColor }` — byte-identical to a pre-change slide.
+ *
+ * When `blendPct > 0` this returns a `{ backgroundImage }` CSS `linear-gradient`
+ * that fades the card edge touching the photo from transparent into the card
+ * color:
+ *   - `position: 'bottom'` (card snapped to bottom; its TOP edge touches the
+ *     photo) → transparent at 0%, full card color from `blendPct%` down.
+ *   - `position: 'top'` (card snapped to top; its BOTTOM edge touches the
+ *     photo) → full card color from the top through `100 - blendPct%`, fading
+ *     to transparent at 100%.
+ *
+ * The gradient uses CSS `linear-gradient` ONLY — NO `filter`, `mask`,
+ * `backdrop-filter` or `mix-blend-mode` (RESEARCH Pitfall #2 — Satori silently
+ * drops those; a `linear-gradient` backgroundImage IS Satori-supported). The
+ * `backgroundColor` passed in is the resolved rgba() string from
+ * resolveCaptionBar, so the gradient already carries the user's opacity.
+ */
+export function captionCardBackgroundStyle(cc: {
+  backgroundColor: string
+  blendPct: number
+  position: 'bottom' | 'top'
+}): { backgroundColor: string } | { backgroundImage: string } {
+  if (cc.blendPct <= 0) {
+    return { backgroundColor: cc.backgroundColor }
+  }
+  const grad =
+    cc.position === 'bottom'
+      ? `linear-gradient(to bottom, transparent 0%, ${cc.backgroundColor} ${cc.blendPct}%, ${cc.backgroundColor} 100%)`
+      : `linear-gradient(to bottom, ${cc.backgroundColor} 0%, ${cc.backgroundColor} ${100 - cc.blendPct}%, transparent 100%)`
+  return { backgroundImage: grad }
 }
 
 /**
