@@ -1,8 +1,9 @@
 ---
 phase: quick-260518-8o0
 verified: 2026-05-18T06:37:30Z
-status: human_needed
-score: 6/7 must-haves verified (7th requires human visual sign-off — Task 4 checkpoint)
+status: passed
+human_verified: 2026-05-18 — user approved the Task 4 checkpoint (visual sign-off)
+score: 7/7 must-haves verified (Task 4 human checkpoint approved by user 2026-05-18)
 overrides_applied: 0
 human_verification:
   - test: "Open an EXISTING saved news-layout carousel in the editor. Confirm the black headline backdrop still looks identical to before; open the Elements tab Caption card panel and confirm the toggle reads ON. Toggle OFF and confirm the black block disappears revealing the full-bleed photo. Toggle back ON, drag/resize the card on the canvas. Export PNG and confirm it matches the editor preview."
@@ -14,7 +15,7 @@ human_verification:
 
 **Phase Goal:** Unify news-layout black headline backdrop with the Caption card: news slides get a draggable caption card toggled ON by default seeded to the bottom region, photo becomes full-bleed, OFF removes the block.
 **Verified:** 2026-05-18T06:37:30Z
-**Status:** human_needed
+**Status:** passed (Task 4 human-verify checkpoint approved by user 2026-05-18)
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
