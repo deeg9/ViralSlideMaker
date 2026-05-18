@@ -175,3 +175,67 @@ describe('caption card — Satori px ↔ HTML percent agreement', () => {
     expect(html).toContain('height:30%')
   })
 })
+
+// ---------------------------------------------------------------------------
+// quick-260518-8o0 — news-layout photo is full-bleed + seeded caption card
+// ---------------------------------------------------------------------------
+
+describe('news-layout — full-bleed photo + seeded caption card', () => {
+  it('Test 1 (parity): a news-layout slide emits a full-bleed photo in both export paths', () => {
+    // News-layout slide: template has NO backgroundMode, overrides.layout set.
+    const newsSlide = makeSlide({ layout: 'cover' })
+    // HTML: full-bleed photo — folded into the CSS background-image branch
+    // (no constrained <img> zone). Identical mechanism to non-news photos.
+    const html = buildSlideHtml(newsSlide, template)
+    expect(html).toContain("background-image: url('https://example.com/photo.jpg')")
+    // The old constrained news <img> zone is gone.
+    expect(html).not.toContain('top:55%')
+    expect(html).not.toContain('height:55%; object-fit:cover; z-index:0')
+    // Satori: the background <img> is full-bleed (top:0, width:W, height:H).
+    const imgNodes = walk(buildSlideElement(newsSlide, template)).filter(
+      (n) => (n as { type?: string }).type === 'img',
+    )
+    const bgImg = imgNodes.find((n) => {
+      const s = styleOf(n)
+      return s != null && s.objectFit === 'cover'
+    })
+    expect(bgImg).toBeDefined()
+    const bgStyle = styleOf(bgImg)!
+    expect(bgStyle.top).toBe(0)
+    expect(bgStyle.width).toBe(1080)
+    expect(bgStyle.height).toBe(1920)
+  })
+
+  it('Test 2 (parity): the same news slide emits a seeded caption card in both paths', () => {
+    const newsSlide = makeSlide({ layout: 'cover' })
+    // HTML: seeded bottom-region card (x:0, width:100, height:38, y:62).
+    const html = buildSlideHtml(newsSlide, template)
+    expect(html).toContain('z-index:2;')
+    expect(html).toContain('left:0%')
+    expect(html).toContain('top:62%')
+    expect(html).toContain('width:100%; height:38%')
+    // Satori: a caption-card node exists at the seeded geometry.
+    const card = walk(buildSlideElement(newsSlide, template)).find(
+      (n) => keyOf(n) === 'caption-card',
+    )
+    expect(card).toBeDefined()
+    const style = styleOf(card)!
+    expect(style.left).toBe(0)
+    expect(style.top).toBe(Math.round((62 / 100) * 1920))
+    expect(style.width).toBe(1080)
+    expect(style.height).toBe(Math.round((38 / 100) * 1920))
+  })
+
+  it('Test 3 (byte-identity): a non-news slide emits a full-bleed photo and NO caption card', () => {
+    // No `layout` override → not a news slide.
+    const plainSlide = makeSlide()
+    const html = buildSlideHtml(plainSlide, template)
+    // Non-news photo path uses the CSS background-image (unchanged).
+    expect(html).toContain("background-image: url('https://example.com/photo.jpg')")
+    expect(html).not.toContain('z-index:2;')
+    const card = walk(buildSlideElement(plainSlide, template)).find(
+      (n) => keyOf(n) === 'caption-card',
+    )
+    expect(card).toBeUndefined()
+  })
+})
