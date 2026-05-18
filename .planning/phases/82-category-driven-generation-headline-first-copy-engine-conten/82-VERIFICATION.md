@@ -1,8 +1,34 @@
 ---
 phase: 82-category-driven-generation-headline-first-copy-engine-conten
-verified: 2026-05-17T16:10:00Z
-status: gaps_found
-score: 9/10 — R10 round 3: generation perf bug fixed (148s→2s); thumbnail/canvas headline-wrap parity gap (Gap F) open
+verified: 2026-05-17T21:15:00Z
+status: human_needed
+score: 9/10 — R10 round 3: Gap F (thumbnail/canvas headline-wrap parity) fixed in code (82-10); R10 visual sign-off remains human_needed
+
+> **Update 2026-05-17 (R10 round 3) — GAP-CLOSURE COMPLETE; visual sign-off
+> human_needed.** Gap F is fixed via gap-closure Plan 10 (commits `2938955`,
+> `542bda4`):
+> - **Gap F — FIXED (`82-10`).** The editable `SlidePreview` headline branch
+>   rendered the headline inside a draggable `<Rnd>` whose inner
+>   `hook-text-wrapper` div applies `padding: '4px 8px'` — the 8px horizontal
+>   padding each side narrowed the headline's flex-wrap container by 16px vs the
+>   read-only branch's plain `width: hookWidth%` div and the Satori export's
+>   `pxX(hookWidth)` box. Same font + words, narrower container → different
+>   flex-wrap break points. New `HOOK_WRAPPER_PAD_X` (= 8) constant: the
+>   editable headline `<Rnd>` is widened by `2 * HOOK_WRAPPER_PAD_X` and its x
+>   shifted left by `HOOK_WRAPPER_PAD_X`, so the inner wrapper's content box is
+>   exactly `hookWidthPx` — identical flex-wrap container width to the read-only
+>   div and the Satori box. All drag/resize commit math converts the padded
+>   frame back so persisted `hook_position`/`hook_width` are byte-identical to a
+>   pre-fix gesture. The k2n caption-card `<Rnd>`, the read-only headline div,
+>   and `render-slide-satori.tsx` are untouched — they were already canonical.
+> New regression test `parity.thumbnail-vs-canvas-hook-wrap.test.tsx` pins
+> thumbnail == canvas == Satori headline-box width (revert-detection verified).
+> Render-parity holds at the 5-failure pre-existing `quick-260515-o75` baseline
+> — zero new failures, no snapshot regeneration needed; all 112 SlidePreview
+> component tests pass. The R10 **visual** sign-off remains a human judgment:
+> the user must re-test in the editor and confirm the News headline now wraps
+> identically in the left thumbnail strip and the main canvas. Status is
+> `human_needed` on that single remaining item.
 
 > **Update 2026-05-17 (R10 round 3) — perf bug fixed; new parity gap.**
 > Browser re-test (Playwright): the 148s generation bug is FIXED (commit
