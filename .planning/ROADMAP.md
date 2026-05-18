@@ -230,14 +230,10 @@ Plans:
 - **W2 — Content-category picker:** category selector in the creation flow; wire category → prompt module and category → template filtering; decouple content-category from visual-template (today `templateId` is the only style signal Gemini gets).
 - **W3 — Template curation:** cull 12 templates → ~4–6 polished ones as the example gallery; handle the `premium-tier.ts` marker + saved-project fallbacks for removed templates.
 
-**Requirements**: TBD — run `/gsd-spec-phase 82` to lock scope, then discuss → plan
+**Requirements**: 10 locked — see `phases/82-.../82-SPEC.md`
 **Depends on:** Phase 81
-**References:** `~/Desktop/Screenshot 2026-05-17 at 11.14.48 AM.png` (ugly fallback output), `~/Desktop/Screenshot 2026-05-15 at 5.13.25/5.13.49/5.14.10 PM.png` (target news-headline style), `~/Desktop/Screenshot 2026-05-17 at 11.26.26 AM.png` (current creation flow). Caveat: W1 fixes the copy; matching the reference *visuals* (full-bleed photo, gradient, kicker label) lands in W3.
-**Plans:** 0 plans
+**Plans:** 10 plans (✅ all complete) — 01-05 initial build (optional `body_text` + `accessory_label` schema, content-category registry + News/Facts headline-first modules, generation wiring + category picker, template cull to 5 keepers, structural test suite), 06-10 R10 gap-closures (headline cap, pill highlights, headline size, overflow auto-fit + whole-word wrap, thumbnail/canvas wrap parity).
 
-Plans:
-- [ ] TBD (run /gsd-spec-phase 82 → discuss → /gsd-plan-phase 82 to break down)
-
-**Status:** 🚧 Added 2026-05-17 — post-v2.13 feature phase. `/gsd-spec-phase 82` pending (fuzzy WHAT: category taxonomy, which templates survive, headline-only schema shape).
+**Status:** ✅ COMPLETE 2026-05-17 — all 10 requirements verified; R10 visual sign-off user-approved. R10 testing surfaced and fixed a critical generation-perf bug (`template_id_override` open-string runaway, ~148s → ~2s, `fe5f173`) plus Gaps A-F. See `phases/82-.../82-VERIFICATION.md`.
 
 ---
