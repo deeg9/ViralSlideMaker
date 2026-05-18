@@ -417,6 +417,82 @@ describe('editorReducer — text-box write-through (Phase 50 BL-01)', () => {
     })
     expect(next.present[0].style_overrides?.hook_font_weight).toBe(700)
   })
+
+  // quick-260517-textbox-revert: REGRESSION — a property change must NEVER
+  // reset a custom text box's typed `text` back to the 'New Text' creation
+  // default.
+  //
+  // Bug: UPDATE_CUSTOM_TEXT used to mutate only the legacy `custom_texts`
+  // projection (NOT text_boxes, NOT applyDualWrite). Since applyDualWrite
+  // regenerates custom_texts FROM text_boxes on every UPDATE_TEXT_BOX, the
+  // stale 'New Text' in text_boxes overwrote the user's typed text on the
+  // very next property toggle (bold/italic/color/font/align/…).
+  test('UPDATE_CUSTOM_TEXT then UPDATE_TEXT_BOX preserves typed text (no revert to creation default)', () => {
+    // 1. Add a new custom text box — defaults to text 'New Text'.
+    let state = editorReducer(makeState([makeSlide({ text_boxes: [] })]), {
+      type: 'ADD_TEXT_BOX',
+      slideIndex: 0,
+      role: 'custom',
+      defaults: { id: 'cb1' },
+    })
+    expect(state.present[0].text_boxes![0].text).toBe('New Text')
+
+    // 2. Type new text (canvas inline-edit / CustomTextEditor blur commit).
+    state = editorReducer(state, {
+      type: 'UPDATE_CUSTOM_TEXT',
+      slideIndex: 0,
+      textId: 'cb1',
+      updates: { text: 'trending' },
+    })
+    // Typed text lands in BOTH the canonical store and the legacy projection.
+    expect(state.present[0].text_boxes![0].text).toBe('trending')
+    expect(state.present[0].custom_texts?.[0].text).toBe('trending')
+
+    // 3. Click a property control (Bold) — dispatches UPDATE_TEXT_BOX.
+    state = editorReducer(state, {
+      type: 'UPDATE_TEXT_BOX',
+      slideIndex: 0,
+      textBoxId: 'cb1',
+      updates: { font_weight: 700 },
+    })
+
+    // Typed text MUST survive the property change.
+    expect(state.present[0].text_boxes![0].text).toBe('trending')
+    expect(state.present[0].text_boxes![0].font_weight).toBe(700)
+    expect(state.present[0].custom_texts?.[0].text).toBe('trending')
+  })
+
+  // quick-260517-textbox-revert: UPDATE_CUSTOM_TEXT must also keep non-text
+  // CustomText fields in lock-step with text_boxes — including the
+  // shape-translated ones (`text_effects` → `effects`, `x/y/width` →
+  // `position.{x,y,width}`).
+  test('UPDATE_CUSTOM_TEXT translates CustomText fields onto the text_boxes shape', () => {
+    let state = editorReducer(makeState([makeSlide({ text_boxes: [] })]), {
+      type: 'ADD_TEXT_BOX',
+      slideIndex: 0,
+      role: 'custom',
+      defaults: { id: 'cb1' },
+    })
+    state = editorReducer(state, {
+      type: 'UPDATE_CUSTOM_TEXT',
+      slideIndex: 0,
+      textId: 'cb1',
+      updates: {
+        color: '#abcdef',
+        x: 12,
+        y: 34,
+        text_effects: { shadow: { enabled: true, color: '#00000099', size: 'md' } },
+      },
+    })
+    const box = state.present[0].text_boxes![0]
+    expect(box.color).toBe('#abcdef')
+    expect(box.position.x).toBe(12)
+    expect(box.position.y).toBe(34)
+    expect(box.effects?.shadow?.enabled).toBe(true)
+    // legacy projection mirrors it back
+    expect(state.present[0].custom_texts?.[0].color).toBe('#abcdef')
+    expect(state.present[0].custom_texts?.[0].x).toBe(12)
+  })
 })
 
 describe('editorReducer — DUPLICATE_SLIDE', () => {
