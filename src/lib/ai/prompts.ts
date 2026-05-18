@@ -13,8 +13,10 @@ import {
 
 // Templates that share the news-carousel prompt branch + skip-default-effects
 // behavior. News Cyan reuses the entire News Drop generation flow — only the
-// accent color (and a few visual tokens) differ.
-const NEWS_TEMPLATES = new Set(['news-drop', 'news-cyan'])
+// accent color (and a few visual tokens) differ. News Oracle (quick task
+// 260518-jhg) is the picker-facing news keeper and joins the branch so it
+// gets the news prompt addendum exactly like news-cyan.
+const NEWS_TEMPLATES = new Set(['news-drop', 'news-cyan', 'news-oracle'])
 
 export function buildSystemPrompt(templateId?: string, category?: string): string {
   // Phase 82 (R1): the CONTENT CATEGORY — not the templateId — drives the copy.
