@@ -11,9 +11,12 @@
  * this card. The user drags + resizes the card directly on the editor canvas.
  *
  * Controls:
- *   1. On/off Switch — `style_overrides.caption_bar_enabled`. The card renders
- *      iff this is true. OFF deletes the key (slide reverts to no card,
- *      byte-identical to pre-change).
+ *   1. On/off Switch — `style_overrides.caption_bar_enabled`. The toggle reads
+ *      the RESOLVED caption state (via `resolveCaptionBar`), so it reads ON for
+ *      an unedited news-layout slide (the quick-260518-8o0 resolver default
+ *      seeds a black caption card on news slides). OFF writes an EXPLICIT
+ *      `caption_bar_enabled: false` (not a deleted key) so the news resolver
+ *      default cannot silently re-enable the card.
  *   2. Color swatch row — `style_overrides.caption_bar_color` (hex, PCL12).
  *   3. Opacity slider — `style_overrides.caption_bar_opacity` (0..1). Lets the
  *      photo show through a semi-transparent card. Preview-on-change,
@@ -24,6 +27,10 @@
  *
  * There is NO Photo-height slider — the card never touches `news_image_height`.
  * The panel NEVER writes `layout` / `news_image_height` / `background_color`.
+ *
+ * quick-260518-8o0: the panel has news-layout awareness — the toggle reads ON
+ * for an unedited news-layout slide and OFF writes explicit false — but it
+ * still NEVER writes `layout` / `news_image_height` / `background_color`.
  *
  * The card is NOT gated on `backgroundMode` — every selected slide can enable
  * it (the parent mounts this card unconditionally).
@@ -39,6 +46,7 @@
 import { useEffect, useState } from 'react'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import { resolveCaptionBar } from '@/lib/render/resolve-overlay'
 import { Switch } from '@/components/ui/switch'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
 
@@ -81,8 +89,23 @@ export function SlideBackgroundControls({
   onSlideUpdate,
   onSlidePreview,
 }: SlideBackgroundControlsProps) {
-  // quick-260517-k2n: the card is ON iff `caption_bar_enabled === true`.
-  const captionPanelOn = slide.style_overrides?.caption_bar_enabled === true
+  // quick-260518-8o0: is this a news-layout slide? Mirrors the gate in
+  // render-slide.ts (~line 327) — a legacy template (no `backgroundMode`)
+  // with a `layout` override. The renderers compute the same boolean to feed
+  // `resolveCaptionBar`; the panel must use it too so the toggle agrees with
+  // what renders.
+  const isNewsLayoutSlide =
+    template.backgroundMode == null && slide.style_overrides?.layout != null
+
+  // quick-260518-8o0: the toggle reflects the RESOLVED caption state — calling
+  // the SAME `resolveCaptionBar` the three renderers use, so the panel cannot
+  // drift from the canvas/Satori/HTML output. For an unedited news-layout
+  // slide the resolver default fires => the toggle reads ON.
+  const captionPanelOn = resolveCaptionBar(
+    slide.style_overrides,
+    template,
+    isNewsLayoutSlide,
+  ).enabled
 
   // Effective (resolved) card color — same fallback chain the renderers use,
   // so the active swatch reflects what the slide actually renders.
@@ -114,14 +137,17 @@ export function SlideBackgroundControls({
     onSlideUpdate({ style_overrides: next })
   }
 
-  /** quick-260517-k2n: turn the caption card OFF. DELETES the
-   *  `caption_bar_enabled` key (does not set it to `undefined`) so the
-   *  resulting slide is byte-identical to one that never had a card —
-   *  resolveCaptionBar's gate is `=== true`. Sibling overrides are kept. */
+  /** quick-260518-8o0: turn the caption card OFF. Writes an EXPLICIT
+   *  `caption_bar_enabled: false` (uniform — same code path for news and
+   *  non-news slides). The explicit `false` is REQUIRED on news-layout slides:
+   *  resolveCaptionBar's news default fires on an ABSENT key, so a deleted key
+   *  would silently re-enable the card — `false` makes OFF stick (CONTEXT.md
+   *  "Toggle OFF behavior", locked). For non-news slides this is still
+   *  byte-identical at render time because the resolver gate is
+   *  `=== true || (== null && isNewsLayoutSlide)` — an explicit `false` and an
+   *  absent key both resolve `enabled: false`. Sibling overrides are kept. */
   function setCaptionOff() {
-    const next = { ...(slide.style_overrides ?? {}) }
-    delete next.caption_bar_enabled
-    onSlideUpdate({ style_overrides: next })
+    patch({ caption_bar_enabled: false })
   }
 
   /** Opacity-slider patch — `commit` picks the history-recording dispatch vs
@@ -160,8 +186,10 @@ export function SlideBackgroundControls({
         A colored card behind your captions — drag and resize it on the canvas.
       </p>
 
-      {/* quick-260517-k2n: on/off toggle — drives caption_bar_enabled.
-          ON → caption_bar_enabled: true; OFF → the key is deleted. */}
+      {/* quick-260518-8o0: on/off toggle — `checked` reads the RESOLVED caption
+          state (ON for an unedited news-layout slide). ON → caption_bar_enabled:
+          true; OFF → explicit caption_bar_enabled: false (so the news resolver
+          default cannot silently re-enable the card). */}
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold text-[#3d0000]">
           Caption card

@@ -193,13 +193,11 @@ export function buildSlideElement(
     !isTemplateBgMode && !isColorOnlyTemplate && overrides.layout
       ? NEWS_LAYOUT[overrides.layout]
       : null
-  // quick-260517-iiy: constrained news-photo height — `news_image_height`
-  // override ?? NEWS_LAYOUT preset, clamped to [20, 80] (threat T-iiy-01).
-  // Unset → byte-identical legacy rendering (TPLREND-05). Mirrors
-  // slide-preview.tsx + render-slide.ts.
-  const newsImageHeight = newsZone
-    ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
-    : null
+  // quick-260518-8o0: `newsImageHeight` retired. The news photo is now a
+  // full-bleed background <img> (top:0, width:W, height:H — see the JSX
+  // below), so it no longer has a movable photo/caption boundary;
+  // `news_image_height` is dead resolver wiring and is removed from all 3
+  // render paths.
 
   // Templates with a hook-fit registry entry auto-shrink hook size for long
   // headlines. quick-260510-export-overlap: in news layouts (where bodyY is
@@ -227,7 +225,10 @@ export function buildSlideElement(
   // dragged/resized. `newsZone != null` gates this to news-layout slides — every
   // non-news / no-caption-card slide gets `hookFontSize` back unchanged. `cc` is
   // resolved ONCE here and reused by the caption-card JSX below (PARITY-01).
-  const cc = resolveCaptionBar(overrides, template)
+  // quick-260518-8o0: `newsZone != null` is also the `isNewsLayoutSlide` flag
+  // passed to resolveCaptionBar — an unedited news slide resolves enabled:true
+  // with seeded bottom-region black geometry (the news migration).
+  const cc = resolveCaptionBar(overrides, template, newsZone != null)
   const newsHeadlineFontSize = resolveNewsHeadlineFit(
     cc, slide.hook_text, hookFontSize, newsZone != null,
   )
@@ -396,20 +397,21 @@ export function buildSlideElement(
       {/* Background image - use <img> with objectFit instead of CSS backgroundImage
           because Satori does not support backgroundSize/backgroundPosition properly,
           causing the image to tile instead of cover.
-          News layouts confine the image to a zone (top half / bottom half) instead of full-bleed.
-          Phase 45: when useBgMode is active, the same image renders full-bleed
-          (1080×1920 cover) — required NUMERIC pixel sizes per RESEARCH.md Pitfall 3. */}
+          quick-260518-8o0: news-layout slides now render the photo full-bleed
+          (1080×1920 cover) — the constrained `newsZone` top/height zone is
+          retired. The caption card owns the headline backdrop; the photo is a
+          permanent full-bleed background, identical to the non-news path.
+          Phase 45: when useBgMode is active, the same image renders full-bleed —
+          required NUMERIC pixel sizes per RESEARCH.md Pitfall 3. */}
       {slide.background_url && !isColorOnlyTemplate && (
         <img
           src={slide.background_url}
           style={{
             position: 'absolute',
-            top: newsZone ? pxY(newsZone.imageTop) : 0,
+            top: 0,
             left: 0,
             width: W,
-            // quick-260517-iiy: news_image_height override moves the photo /
-            // caption-panel boundary; falls back to the preset.
-            height: newsZone ? pxY(newsImageHeight ?? newsZone.imageHeight) : H,
+            height: H,
             objectFit: 'cover',
             objectPosition: 'center',
           }}

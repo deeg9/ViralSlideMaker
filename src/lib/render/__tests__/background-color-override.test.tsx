@@ -9,20 +9,27 @@ import type { Slide } from '@/lib/types/slide'
 /**
  * quick-260517-h8z — render-parity suite for the `background_color` override.
  *
- * The user's "yellow panel" is the slide background color — visible on a
- * news-carousel `cover` layout where the photo is a constrained <img> covering
- * only the top 55%. `template.backgroundColor` paints the bottom ~45%.
+ * quick-260518-8o0 UPDATE: the news-layout black headline backdrop is now a
+ * caption card, and the news photo is a full-bleed background (identical to the
+ * non-news path). `background_color` is KEPT but its role narrowed — it is now
+ * the RAW slide background, only visible when there is NO photo (a full-bleed
+ * photo paints over it). This suite therefore exercises `background_color` on a
+ * PHOTO-LESS news-layout slide (where the raw background is actually visible)
+ * and the OLD `news_image_height` suite is removed (the override is retired —
+ * the news photo no longer has a movable photo/caption boundary).
  *
  * `style_overrides.background_color` is an optional hex override resolved
  * IDENTICALLY in all three render paths (canvas / Satori PNG / HTML) via
  * `overrides.background_color ?? template.backgroundColor`. The TPLREND-05
- * byte-identity contract: a slide WITHOUT the override must render exactly
- * `template.backgroundColor` — unchanged from before. Mirrors the
- * `overlay_color` precedent (quick-260515-overlay-color-picker).
+ * byte-identity contract: a slide WITHOUT the override renders exactly
+ * `template.backgroundColor`. Mirrors the `overlay_color` precedent
+ * (quick-260515-overlay-color-picker).
  */
 
 // ---------------------------------------------------------------------------
-// Fixtures — a news-carousel `cover` slide (the exact production scenario).
+// Fixtures — a news-carousel `cover` slide with NO photo, so the raw slide
+// background_color is the visible backdrop (the production scenario for the
+// `background_color` control after the quick-260518-8o0 full-bleed change).
 // ---------------------------------------------------------------------------
 
 const newsTemplate: SlideTemplate = {
@@ -41,12 +48,13 @@ const newsTemplate: SlideTemplate = {
   hookStyle: 'uppercase',
 }
 
+// No background_url — the raw slide background is the visible backdrop.
 const coverSlideBase: Slide = {
   hook_text: 'NVIDIA CHIP SALES TO CHINA',
-  body_text: 'A constrained cover photo sits above a colored panel.',
+  body_text: 'A colored panel sits behind the headline.',
   image_query: '',
   is_cta: false,
-  background_url: 'https://example.com/circuit-board.jpg',
+  background_url: null,
   pexels_photo_id: null,
   style_overrides: { layout: 'cover' },
 }
@@ -56,22 +64,6 @@ const OVERRIDE_HEX = '#3D6BE5'
 const slideWithOverride: Slide = {
   ...coverSlideBase,
   style_overrides: { layout: 'cover', background_color: OVERRIDE_HEX },
-}
-
-// quick-260517-iiy — news_image_height fixtures. The `cover` preset photo
-// height is 55% (NEWS_LAYOUT.cover.imageHeight).
-const PRESET_IMAGE_HEIGHT = 55
-const NEWS_HEIGHT_OVERRIDE = 70 // a taller photo → shorter caption panel
-
-const slideWithNewsHeight: Slide = {
-  ...coverSlideBase,
-  style_overrides: { layout: 'cover', news_image_height: NEWS_HEIGHT_OVERRIDE },
-}
-
-// Out-of-range payload — clamp must bound it to [20, 80] (threat T-iiy-01).
-const slideWithOutOfRangeHeight: Slide = {
-  ...coverSlideBase,
-  style_overrides: { layout: 'cover', news_image_height: 999 },
 }
 
 // Recursive element-tree flatten (mirrors render-slide-satori.test.tsx walk()).
@@ -112,10 +104,10 @@ describe('background_color override — HTML render (render-slide.ts)', () => {
   it('byte-identity (TPLREND-05): no override → template.backgroundColor', () => {
     const html = buildSlideHtml(coverSlideBase, newsTemplate)
     expect(html).toContain(`background-color: ${newsTemplate.backgroundColor}`)
-    expect(html).not.toContain(OVERRIDE_HEX)
+    expect(html).not.toContain(`background-color: ${OVERRIDE_HEX}`)
   })
 
-  it('honors style_overrides.background_color on a news-cover slide', () => {
+  it('honors style_overrides.background_color on a photo-less news-cover slide', () => {
     const html = buildSlideHtml(slideWithOverride, newsTemplate)
     expect(html).toContain(`background-color: ${OVERRIDE_HEX}`)
     expect(html).not.toContain(`background-color: ${newsTemplate.backgroundColor}`)
@@ -139,7 +131,7 @@ describe('background_color override — Satori PNG render (render-slide-satori.t
     expect(rootStyle?.backgroundColor).toBe(newsTemplate.backgroundColor)
   })
 
-  it('honors style_overrides.background_color on a news-cover slide', () => {
+  it('honors style_overrides.background_color on a photo-less news-cover slide', () => {
     const element = buildSlideElement(
       slideWithOverride,
       newsTemplate,
@@ -171,7 +163,7 @@ describe('background_color override — editor canvas (slide-preview.tsx)', () =
     expect(inner.style.backgroundColor).toBe(hexToRgb(newsTemplate.backgroundColor))
   })
 
-  it('honors style_overrides.background_color on a news-cover slide', () => {
+  it('honors style_overrides.background_color on a photo-less news-cover slide', () => {
     render(
       <SlidePreview
         slide={slideWithOverride}
@@ -187,87 +179,63 @@ describe('background_color override — editor canvas (slide-preview.tsx)', () =
 })
 
 // ===========================================================================
-// quick-260517-iiy — render-parity suite for the `news_image_height` override.
+// quick-260518-8o0 — the news-layout photo is now FULL-BLEED.
 //
-// `news_image_height` is the percent height of the constrained news-carousel
-// photo (the `cover` preset is 55%). Moving it moves the photo / caption-panel
-// boundary. Resolved IDENTICALLY in all three render paths via
-// `overrides.news_image_height ?? newsZone.imageHeight`, clamped to [20, 80].
-// TPLREND-05: a slide WITHOUT the override renders exactly the preset 55%.
+// The old `news_image_height` override (quick-260517-iiy) is retired: the news
+// photo has no movable photo/caption boundary anymore — it is a permanent
+// full-bleed background. These cases pin the new behavior across all 3 paths.
 // ===========================================================================
 
-// Find the constrained news <img> node in the Satori element tree.
-function findNewsImg(element: unknown): { props?: { style?: Record<string, unknown> } } | null {
-  for (const n of walk(element)) {
-    const node = n as { type?: string; props?: { src?: string; style?: Record<string, unknown> } }
-    if (node.type === 'img' && node.props?.src === coverSlideBase.background_url) {
-      const s = node.props.style
-      // The constrained news photo has top:0 (imageTop) — distinguishes it from
-      // any full-bleed image. The cover layout's imageTop is 0.
-      if (s && (s.top === 0 || s.top === '0%' || s.top === '0')) return node
-    }
-  }
-  return null
+const coverSlideWithPhoto: Slide = {
+  ...coverSlideBase,
+  background_url: 'https://example.com/circuit-board.jpg',
 }
 
-describe('news_image_height override — HTML render (render-slide.ts)', () => {
-  it('byte-identity (TPLREND-05): no override → preset 55% photo height', () => {
-    const html = buildSlideHtml(coverSlideBase, newsTemplate)
-    expect(html).toContain(`height:${PRESET_IMAGE_HEIGHT}%`)
+describe('quick-260518-8o0 — news photo is full-bleed', () => {
+  it('HTML: a news-cover slide with a photo emits a full-bleed CSS background-image', () => {
+    const html = buildSlideHtml(coverSlideWithPhoto, newsTemplate)
+    expect(html).toContain(
+      "background-image: url('https://example.com/circuit-board.jpg')",
+    )
+    // No constrained news <img> zone any more.
+    expect(html).not.toContain('object-fit:cover; z-index:0;')
   })
 
-  it('honors style_overrides.news_image_height', () => {
-    const html = buildSlideHtml(slideWithNewsHeight, newsTemplate)
-    expect(html).toContain(`height:${NEWS_HEIGHT_OVERRIDE}%`)
-    expect(html).not.toContain(`height:${PRESET_IMAGE_HEIGHT}%`)
+  it('Satori: the news photo <img> is full-bleed (top:0, width 1080, height 1920)', () => {
+    const element = buildSlideElement(
+      coverSlideWithPhoto,
+      newsTemplate,
+      null,
+      'free',
+      'http://localhost',
+    )
+    const img = walk(element).find((n) => {
+      const node = n as { type?: string; props?: { src?: string } }
+      return node.type === 'img' && node.props?.src === coverSlideWithPhoto.background_url
+    })
+    expect(img).toBeDefined()
+    const s = styleOf(img)!
+    expect(s.top).toBe(0)
+    expect(s.width).toBe(1080)
+    expect(s.height).toBe(1920)
   })
 
-  it('clamps an out-of-range payload to <= 80% (threat T-iiy-01)', () => {
-    const html = buildSlideHtml(slideWithOutOfRangeHeight, newsTemplate)
-    expect(html).toContain('height:80%')
-    expect(html).not.toContain('height:999%')
-  })
-})
-
-describe('news_image_height override — Satori PNG render (render-slide-satori.tsx)', () => {
-  it('byte-identity (TPLREND-05): no override → preset photo height', () => {
-    const element = buildSlideElement(coverSlideBase, newsTemplate, null, 'free', 'http://localhost')
-    const img = findNewsImg(element)
-    // 1080x1920 canvas: pxY(55) = 1920 * 0.55 = 1056.
-    expect(img?.props?.style?.height).toBe(1920 * (PRESET_IMAGE_HEIGHT / 100))
-  })
-
-  it('honors style_overrides.news_image_height', () => {
-    const element = buildSlideElement(slideWithNewsHeight, newsTemplate, null, 'free', 'http://localhost')
-    const img = findNewsImg(element)
-    expect(img?.props?.style?.height).toBe(1920 * (NEWS_HEIGHT_OVERRIDE / 100))
-  })
-
-  it('clamps an out-of-range payload to <= 80% (threat T-iiy-01)', () => {
-    const element = buildSlideElement(slideWithOutOfRangeHeight, newsTemplate, null, 'free', 'http://localhost')
-    const img = findNewsImg(element)
-    expect(img?.props?.style?.height).toBe(1920 * 0.8)
-  })
-})
-
-describe('news_image_height override — editor canvas (slide-preview.tsx)', () => {
-  it('byte-identity (TPLREND-05): no override → preset photo height', () => {
+  it('editor canvas: a news-cover photo renders full-bleed via CSS backgroundImage (no <img>)', () => {
     const { container } = render(
-      <SlidePreview slide={coverSlideBase} template={newsTemplate} index={0} slideIndex={0} totalSlides={5} />,
+      <SlidePreview
+        slide={coverSlideWithPhoto}
+        template={newsTemplate}
+        index={0}
+        slideIndex={0}
+        totalSlides={5}
+      />,
     )
+    // The constrained news <img> is gone — the photo is the inner div's CSS background.
     const img = Array.from(container.querySelectorAll('img')).find(
-      (el) => el.getAttribute('src') === coverSlideBase.background_url,
+      (el) => el.getAttribute('src') === coverSlideWithPhoto.background_url,
     )
-    expect(img?.style.height).toBe(`${PRESET_IMAGE_HEIGHT}%`)
-  })
-
-  it('honors style_overrides.news_image_height', () => {
-    const { container } = render(
-      <SlidePreview slide={slideWithNewsHeight} template={newsTemplate} index={0} slideIndex={0} totalSlides={5} />,
-    )
-    const img = Array.from(container.querySelectorAll('img')).find(
-      (el) => el.getAttribute('src') === coverSlideBase.background_url,
-    )
-    expect(img?.style.height).toBe(`${NEWS_HEIGHT_OVERRIDE}%`)
+    expect(img).toBeUndefined()
+    const inner = screen.getByTestId('slide-preview').firstElementChild as HTMLElement
+    expect(inner.style.backgroundImage).toContain(coverSlideWithPhoto.background_url!)
   })
 })

@@ -261,27 +261,28 @@ export function buildSlideHtml(
   const overlayColor = overrides.overlay_color ?? template.overlayColor
   const newsZone =
     !isColorOnlyTemplate && overrides.layout ? NEWS_LAYOUT[overrides.layout] : null
-  // quick-260517-iiy: constrained news-photo height — `news_image_height`
-  // override ?? NEWS_LAYOUT preset, clamped to [20, 80] (threat T-iiy-01).
-  // Unset → byte-identical legacy rendering (TPLREND-05). Mirrors
-  // slide-preview.tsx + render-slide-satori.tsx.
-  const newsImageHeight = newsZone
-    ? Math.max(20, Math.min(80, overrides.news_image_height ?? newsZone.imageHeight))
-    : null
+  // quick-260518-8o0: `newsImageHeight` retired. The news photo is now a
+  // full-bleed background (folded into the `background-image` branch below),
+  // so it no longer has a movable photo/caption boundary — `news_image_height`
+  // is dead resolver wiring and is removed from all 3 render paths.
 
   // quick-260517-h8z: user-controlled slide background color. Falls back to
   // template default. TPLREND-05 mirror of slide-preview.tsx +
   // render-slide-satori.tsx via `overrides.background_color ?? template.backgroundColor`.
-  // The `background-image` branch (a full-bleed photo, no newsZone) is left
-  // untouched — there is no visible background color there.
+  // quick-260518-8o0: `background_color` is KEPT — it is the RAW slide
+  // background, only visible when the caption card is OFF and there is no
+  // photo (the news photo is now full-bleed, see the `background-image`
+  // branch below).
   const bgColor = overrides.background_color ?? template.backgroundColor
+  // quick-260518-8o0: news-layout slides now go through the SAME full-bleed
+  // `background-image` branch as non-news slides — the news photo is a
+  // permanent full-bleed background (the caption card owns the headline
+  // backdrop). `isColorOnlyTemplate` still suppresses any photo.
   const backgroundCss = isColorOnlyTemplate
     ? `background-color: ${bgColor};`
-    : newsZone
-      ? `background-color: ${bgColor};`
-      : slide.background_url
-        ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
-        : `background-color: ${bgColor};`
+    : slide.background_url
+      ? `background-image: url('${slide.background_url}'); background-size: cover; background-position: center;`
+      : `background-color: ${bgColor};`
 
   // Resolve text positions: news layouts override Y defaults; user-supplied positions still win.
   const posPreset = overrides.text_position ?? template.textPosition
@@ -297,34 +298,35 @@ export function buildSlideHtml(
   const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
-  // News-layout background image: rendered as a constrained <img> in the image zone
-  // (instead of full-bleed). Sits at z-index:0 so text/customs stack above.
-  // Suppressed entirely on color-only templates (newsZone is already null above
-  // for that case, but guarding here too makes the intent explicit).
-  const newsBgImageHtml = newsZone && slide.background_url && !isColorOnlyTemplate
-    ? `<img src="${slide.background_url}" style="position:absolute; left:0; top:${newsZone.imageTop}%; width:100%; height:${newsImageHeight ?? newsZone.imageHeight}%; object-fit:cover; z-index:0;" />`
-    : ''
+  // quick-260518-8o0: the constrained news-photo <img> (`newsBgImageHtml`) is
+  // retired — the news photo is now full-bleed via the `background-image`
+  // branch of `backgroundCss` above, the same path non-news photos use.
 
   // quick-260517-k2n: caption card — an independent draggable/resizable colored
   // rectangle. The HTML export path previously rendered NO caption card; this
   // adds it so all THREE paths (canvas / Satori PNG / HTML) render the same
   // rectangle for the same overrides (TPLREND-05 / PARITY-01). Resolved via the
-  // SAME shared resolveCaptionBar the canvas + Satori paths use. With zero
-  // caption_bar_* overrides the resolver returns enabled:false => no card
-  // (byte-identical to pre-change). z-index:2 sits above the photo (z-index:0)
-  // and below the hook/body text — matching the canvas zIndex discipline.
-  const captionCard = resolveCaptionBar(overrides, template)
+  // SAME shared resolveCaptionBar the canvas + Satori paths use.
+  // quick-260518-8o0: `isNewsLayoutSlide` is passed as the 3rd arg so an
+  // unedited news slide resolves enabled:true with seeded bottom-region black
+  // geometry (the news black-headline-backdrop migration). With zero
+  // caption_bar_* overrides AND a non-news slide the resolver still returns
+  // enabled:false => no card (byte-identical to pre-change). z-index:2 sits
+  // above the photo and below the hook/body text — matching the canvas
+  // zIndex discipline.
+  // `isNewsLayoutSlide` mirrors the gate in render-slide-satori.tsx +
+  // slide-preview.tsx; hoisted above the resolveCaptionBar call.
+  const isNewsLayoutSlide = template.backgroundMode == null && overrides.layout != null
+  const captionCard = resolveCaptionBar(overrides, template, isNewsLayoutSlide)
   const captionCardHtml = captionCard.enabled
     ? `<div style="position:absolute; left:${captionCard.x}%; top:${captionCard.y}%; width:${captionCard.width}%; height:${captionCard.heightPct}%; background-color:${captionCard.backgroundColor}; z-index:2;"></div>`
     : ''
 
   // Phase 82 Gap D (render-wiring): re-fit the news headline to the
   // quick-260517-k2n caption card when one is enabled, so the HTML export
-  // matches the canvas preview + Satori PNG. `isNewsLayoutSlide` mirrors the
-  // gate in render-slide-satori.tsx + slide-preview.tsx. `resolveNewsHeadlineFit`
+  // matches the canvas preview + Satori PNG. `resolveNewsHeadlineFit`
   // returns `hookFontSizePx` unchanged for every non-news / no-caption-card
   // slide, so the emitted CSS string stays byte-identical for those.
-  const isNewsLayoutSlide = template.backgroundMode == null && overrides.layout != null
   const newsHeadlineFontSizePx = resolveNewsHeadlineFit(
     captionCard, slide.hook_text, hookFontSizePx, isNewsLayoutSlide,
   )
@@ -427,7 +429,6 @@ export function buildSlideHtml(
   </style>
 </head>
 <body>
-  ${newsBgImageHtml}
   <div class="overlay"></div>
   ${captionCardHtml}
   <div class="hook">${(() => {
