@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.14
-milestone_name: Save as Template
-status: Awaiting next milestone
-stopped_at: Milestone v2.14 Save as Template completed and archived — ROADMAP/REQUIREMENTS/audit archived to .planning/milestones/, MILESTONES.md entry written, PROJECT.md evolution review done, RETROSPECTIVE.md created, git tag v2.14 created (local, not pushed).
-last_updated: "2026-05-19T06:28:20.622Z"
-last_activity: 2026-05-19 — Milestone v2.14 completed and archived
+milestone: v2.15
+milestone_name: DB-Backed Template Wiring
+status: planning
+last_updated: "2026-05-19T18:01:27.945Z"
+last_activity: 2026-05-19
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -26,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-19 — after v2.14 milestone)
 
 ## Current Position
 
-Phase: Milestone v2.14 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-19 — Milestone v2.14 completed and archived
+Status: Defining requirements
+Last activity: 2026-05-19 — Milestone v2.15 started
 
 ## Milestone History
 
