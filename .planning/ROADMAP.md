@@ -29,7 +29,7 @@
 - [x] **Phase 83: DB-Backed Template Storage + Registry Merge** — `templates` DB table + migration + merged code/DB registry; render parity for DB templates + byte-identity for 13 code templates and ~82 existing carousels. No recipe yet. (completed 2026-05-19)
 - [x] **Phase 84: LayoutRecipe Model + Extraction** — Typed role-keyed `LayoutRecipe` schema + deterministic extraction of a recipe + flat style from a source carousel's slide_data. (completed 2026-05-19)
 - [x] **Phase 85: Recipe-Driven Generation** — Generation pipeline applies a template's `LayoutRecipe` so new carousels come out pre-shaped. Highest blast radius. Absorbs the removed placeholder Phase 83. (completed 2026-05-19)
-- [ ] **Phase 86: Admin Save-as-Template Flow + Previews** — Admin-role-gated authoring flow that ties it together + faithful DB-template picker previews.
+- [x] **Phase 86: Admin Save-as-Template Flow + Previews** — Admin-role-gated authoring flow that ties it together + faithful DB-template picker previews. (completed 2026-05-19)
 
 ---
 
@@ -98,10 +98,12 @@ Plans:
   2. A non-admin cannot reach the Save-as-Template flow or its endpoint — gating is a real server-enforced role check, mirrored on every endpoint, not obscurity.
   3. A DB-backed template carries a picker preview (rendered snapshot in storage, or a `sample`-equivalent payload) so its picker tile is visually faithful to the source carousel.
   4. The saved template behaves as a normal picker template — selectable like any code template, and (because it carries a recipe) generating on it produces pre-shaped carousels.
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
-- [ ] 86-01: TBD
+- [x] 86-01: Admin auth helper + preview-render helper + template-previews storage bucket
+- [x] 86-02: Admin Save-as-Template flow — save endpoint + (admin) route group + authoring page
+- [x] 86-03: Template picker renders DB-template cover-snapshot preview PNGs
 
 **UI hint**: yes
 
@@ -119,7 +121,7 @@ Phases execute in numeric order: 83 → 84 → 85 → 86
 | 83. DB-Backed Template Storage + Registry Merge | 3/3 | Complete   | 2026-05-19 |
 | 84. LayoutRecipe Model + Extraction | 3/3 | Complete   | 2026-05-19 |
 | 85. Recipe-Driven Generation | 3/3 | Complete   | 2026-05-19 |
-| 86. Admin Save-as-Template Flow + Previews | 0/TBD | Not started | — |
+| 86. Admin Save-as-Template Flow + Previews | 3/3 | Complete   | 2026-05-19 |
 
 ---
 
