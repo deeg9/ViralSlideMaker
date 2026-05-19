@@ -5,6 +5,9 @@ import { generateImagePrompt, generateCarouselStyle } from '@/lib/imagen/generat
 import { generateImagenBackground } from '@/lib/imagen/generate-image'
 import { createProjectService, updateProjectService } from '@/lib/services/projects'
 import { autoPublishOnGenerate } from '@/lib/services/auto-publish-on-generate'
+// Phase 85 (RECGEN-01): deterministic recipe-driven slide shaping.
+import { applyLayoutRecipe } from '@/lib/ai/layout-recipe-apply'
+import { resolveLayoutRecipe } from '@/lib/ai/layout-recipe-resolve'
 import { getTemplate } from '@/lib/render/templates/index'
 import { getCategory, DEFAULT_CATEGORY } from '@/lib/ai/categories'
 import type { Slide } from '@/lib/types/slide'
@@ -217,6 +220,15 @@ export async function generateCarousel(
         },
       }))
     }
+
+    // 2d. Phase 85 (RECGEN-01): apply the resolved template's LayoutRecipe.
+    // Runs AFTER validateAndRepair (which runs inside generateSlideContent)
+    // and BEFORE the save + autoPublishOnGenerate. Deterministic, zero
+    // Gemini calls. No-op when the template carries no recipe — all 13 code
+    // templates do — so flat-style-only output is byte-identical to the
+    // pre-Phase-85 baseline (SC3).
+    const layoutRecipe = await resolveLayoutRecipe(supabase, effectiveTemplateId)
+    slides = applyLayoutRecipe(slides, layoutRecipe)
 
     // 3. Save to database
     await supabase
