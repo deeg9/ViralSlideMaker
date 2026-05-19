@@ -78,10 +78,12 @@ Plans:
   2. A News-category generation on the News Oracle template comes out shaped like the Oracle reference — full-bleed photo, cover caption card with edge-blend, big centered condensed headline, cyan pill-highlight keywords, a small "Trending" accessory label — verified against the Oracle reference look.
   3. A generation on a flat-style-only template (no `LayoutRecipe`) is unaffected — recipe application is additive and only fires when a recipe is present.
   4. Newly generated recipe-shaped carousels still default to Public — every touched generation path routes through `autoPublishOnGenerate`.
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
-- [ ] 85-01: TBD
+- [ ] 85-01: Recipe-apply core — applyLayoutRecipe projection module + recipe semantic-hint block in buildSystemPrompt
+- [ ] 85-02: Wire both generateCarousel paths through recipe resolution + applyLayoutRecipe before save
+- [ ] 85-03: SC2 Oracle-look, SC3 byte-identical, SC4 public-by-default verification tests
 
 **Risk framing**: Highest blast radius of the milestone — this touches the live generation pipeline (`prompts.ts`, `style-spec-projector.ts`, `style-spec-projector-constants.ts`, `validate-slides.ts`) and affects *every generated carousel for a category* on a recipe-carrying template. Needs heavy verification: a recipe-carrying generation must come out pre-shaped without regressing flat-style-only (no-recipe) generations, and the change must not breach generation-perf budgets (cf. v2.12 `template_id_override` open-string runaway). Absorbs the removed placeholder Phase 83 ("template-driven layout generation"). Recipe application is deterministic code; no new Gemini model tier.
 
