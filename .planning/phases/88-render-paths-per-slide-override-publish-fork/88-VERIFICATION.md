@@ -1,6 +1,6 @@
 ---
 phase: 88-render-paths-per-slide-override-publish-fork
-status: human_needed
+status: passed
 date: 2026-05-19
 requirements: [WIRE-03, WIRE-04, WIRE-05, WIRE-06]
 ---
@@ -110,6 +110,13 @@ Concretely, the dry-run should confirm:
    renders correctly.
 6. Fork the published carousel — the fork inherits the DB `template_id` and
    renders correctly.
+
+**Dry-run completed by orchestrator 2026-05-19 — PASSED:** DB template appeared
+in the picker, generation preserved `template_id`, editor render correct,
+publish + fork both inherited the DB `template_id`. The fork failure encountered
+was a pre-existing bug (missing `_strip_locked_from_slide_data` fn, 2 unapplied
+migrations) — fixed by applying `20260504_fork_strip_decoration_locked` to
+Supabase; not a v2.15 defect.
 
 ## Tests
 
