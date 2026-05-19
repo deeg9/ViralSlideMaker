@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.14
 milestone_name: Save as Template
-status: in_progress
-last_updated: "2026-05-19T00:00:00.000Z"
-last_activity: 2026-05-19
+status: Awaiting next milestone
+stopped_at: Milestone v2.14 Save as Template completed and archived — ROADMAP/REQUIREMENTS/audit archived to .planning/milestones/, MILESTONES.md entry written, PROJECT.md evolution review done, RETROSPECTIVE.md created, git tag v2.14 created (local, not pushed).
+last_updated: "2026-05-19T06:28:20.622Z"
+last_activity: 2026-05-19 — Milestone v2.14 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -17,96 +18,53 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-18 — v2.14 milestone started)
-Feature spec: .planning/SAVE-AS-TEMPLATE-SPEC.md (authoritative)
+See: .planning/PROJECT.md (updated 2026-05-19 — after v2.14 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** v2.14 complete — all 4 phases shipped. Next: `/gsd-complete-milestone`.
-**Milestone goal (v2.14):** Admin-authored, DB-backed templates that capture a real carousel's full layout recipe — so the team can mint polished picker templates from real carousels with no code deploy, and new carousels generate pre-shaped to them.
+**Current focus:** Planning next milestone — v2.14 Save as Template shipped and archived. Run `/gsd-new-milestone`.
+**Latest shipped:** v2.14 Save as Template (2026-05-19) — admin-authored, DB-backed templates capturing a carousel's full `LayoutRecipe`; recipe-driven pre-shaped generation.
 
 ## Current Position
 
-Phase: 86 of 4 (Admin Save-as-Template Flow + Previews) — COMPLETE
-Plan: 86-03 (last plan of the milestone)
-Status: Phases 83, 84, 85, 86 all complete (12/12 plans) — milestone v2.14 done
-Last activity: 2026-05-19 — Phase 86 shipped to `main` (UI-SPEC → 3 plans → execute → review clean → UI 24/24 → verification passed); tracking trued up
+Phase: Milestone v2.14 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-19 — Milestone v2.14 completed and archived
 
-Progress: [██████████] 100%
+## Milestone History
 
-## v2.14 Phase Map
+14 milestones shipped (v1.0–v2.14, Phases 1–86). Latest:
 
-| Phase | Name | Reqs | Depends | Status |
-|-------|------|------|---------|--------|
-| 83 | DB-Backed Template Storage + Registry Merge | TSTORE-01..04 | — | ✅ Complete (2026-05-19) |
-| 84 | LayoutRecipe Model + Extraction | RECIPE-01, RECIPE-02 | 83 | ✅ Complete (2026-05-19) |
-| 85 | Recipe-Driven Generation | RECGEN-01 | 84 | ✅ Complete (2026-05-19) |
-| 86 | Admin Save-as-Template Flow + Previews | ADMIN-01, ADMIN-02 | 83 (storage); benefits from 84/85 | ✅ Complete (2026-05-19) |
+| Milestone | Phases | Shipped | Notes |
+|-----------|--------|---------|-------|
+| v2.14 Save as Template | 83–86 | 2026-05-19 | DB-backed templates + LayoutRecipe + recipe-driven generation + admin Save-as-Template flow. tech_debt audit (9/9 reqs, non-critical debt only). |
+| v2.13 Style-from-Reference Generation | 73–82 | 2026-05-14 | Vision-LLM style extraction + recipe preview + remix/fork. |
+| v2.12 Shapes & Icons | 67–72 | 2026-05-04 | Lucide icons + Canva-style shapes. |
 
-**Total:** 9 reqs across 4 categories (TSTORE / RECIPE / RECGEN / ADMIN). 100% coverage; no orphans, no duplicates.
-**Execution order:** 83 → 84 → 85 → 86. **Progress:** 4 of 4 phases complete (12/12 plans) — milestone v2.14 done.
-
-## Cross-Phase Constraints (carry-forward — every plan must honor)
-
-| Constraint | Notes |
-|------------|-------|
-| Closed-enum invariant | `LayoutRecipe` fields are closed enums wherever feasible — defends schema + injection surface. Phase 84 owns. |
-| TPLREND-05 / render-parity | 13 code templates stay byte-identical; DB templates + recipe-shaped slides render identical across all 3 render paths (canvas / Satori PNG / HTML). |
-| Additive, reversible migrations | Shared prod Supabase project — migration changes how *no* existing carousel renders; follow project migration discipline. |
-| No new Gemini tier | Recipe extraction is deterministic code, no new AI call/vendor. |
-| Admin gating is real auth | Server-enforced role check, mirrored on every Save-as-Template endpoint (model on `src/app/api/admin/seed-explore/route.ts`). |
-| Public-by-default | Any touched generation path routes new carousels through `autoPublishOnGenerate` (this helper has regressed 6× — verify). |
-| V1 save-new-only | No edit/delete of a DB template after save; a re-save mints a new one. |
-| Code templates stay in code | The 13 code templates are NOT migrated into the DB — DB storage is additive (back-compat for ~82 existing carousels). |
+Full history: `.planning/MILESTONES.md`. Archives: `.planning/milestones/`.
 
 ## Performance Metrics
 
-**Velocity (through v2.13):**
-- Milestones shipped: v1.0–v2.13. Latest: v2.13 Style-from-Reference Generation (Phases 73–82, shipped 2026-05-14).
-- Tests trajectory: v2.12 ended ~960; v2.13 added substantial coverage across phases 73–82.
+**Velocity (through v2.14):**
 
-**v2.14 Progress:** 4/4 phases complete; 12 plans complete; 9/9 reqs satisfied (TSTORE-01..04, RECIPE-01/02, RECGEN-01, ADMIN-01/02). Milestone done.
-
-**By Phase:**
-
-| Phase | Plans | Status |
-|-------|-------|--------|
-| 83. DB-Backed Template Storage + Registry Merge | 3/3 | Complete — verification passed, review clean |
-| 84. LayoutRecipe Model + Extraction | 3/3 | Complete — verification passed (4/4 SC), review clean |
-| 85. Recipe-Driven Generation | 3/3 | Complete — verification passed, review clean |
-| 86. Admin Save-as-Template Flow + Previews | 3/3 | Complete — verification passed, review clean, UI 24/24 |
-
-**Recent Trend:** All 4 v2.14 phases executed and shipped to `main`. Phase 86 closed the milestone — admin Save-as-Template authoring flow + faithful picker previews; ADMIN-01 gate enforced at both the page and the endpoint.
-
-*Updated after each plan completion.*
+- 14 milestones shipped (v1.0–v2.14, Phases 1–86).
+- v2.14: 4 phases, 12 plans, ~107 phase tests added, 53 commits, single-day execution (2026-05-18).
+- Full suite: ~3238 passing / 41 failing (baseline — includes 6 pre-existing fixture-regen failures from quick task `260518-jhg`, not a v2.14 regression).
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions logged in PROJECT.md Key Decisions table. Milestone-level decisions (from SAVE-AS-TEMPLATE-SPEC.md, locked 2026-05-18):
-
-- [v2.14 / spec]: Admin-only authoring; saved templates go global to every user's picker. End-user and community/publishable templates explicitly deferred.
-- [v2.14 / spec]: Saved templates capture the full layout recipe (per-slide caption-card geometry, hook positions/sizes, accent/highlight rhythm, accessory labels), not just flat style — this is what makes new carousels generate pre-shaped.
-- [v2.14 / spec]: Templates are DB-backed; the code registry + DB rows merge into one picker list; no code deploy to add a template. The 13 code templates stay in code (back-compat).
-- [v2.14 / spec]: V1 is save-new-only — no editing or deleting a saved DB template; a re-save mints a new one.
-- [v2.14 / roadmap]: 4 phases (83–86), the spec's user-approved breakdown. 9 reqs mapped 1:1 — 83=TSTORE-01..04, 84=RECIPE-01/02, 85=RECGEN-01, 86=ADMIN-01/02. Dependencies 83→84→85; 86 depends on 83 (storage), benefits from 84/85.
-- [v2.14 / roadmap]: Phase 85 (recipe-driven generation) absorbs the removed placeholder Phase 83 ("template-driven layout generation").
-
-### Pending Todos
-
-- v2.14: Run `/gsd-complete-milestone` — all 4 phases (83–86) shipped, 9/9 reqs satisfied.
-- v2.14: User setup before the admin flow is usable — set `ADMIN_USER_IDS` (comma-separated Supabase user ids) in `.env.local` + Vercel, and apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql`. Until then the admin surface is fail-safe-closed.
+Decisions logged in PROJECT.md Key Decisions table (v2.14 decisions added at milestone close). Per-milestone decision logs live in the milestone archives.
 
 ### Blockers/Concerns
 
-- [Phase 85] Highest blast radius of the milestone — recipe-driven generation touches the live generation pipeline (`prompts.ts`, `style-spec-projector.ts`, `style-spec-projector-constants.ts`, `validate-slides.ts`) and affects every generated carousel for a category on a recipe-carrying template. Needs heavy verification: recipe-carrying generations must come out pre-shaped without regressing flat-style-only (no-recipe) generations, and within generation-perf budgets (cf. v2.12 `template_id_override` open-string runaway, ~148s → ~2s fix).
-- [Phase 83] Migration hits the shared prod Supabase project — must be additive + reversible; byte-identity for 13 code templates + ~82 existing carousels (TSTORE-04 / TPLREND-05) is the ship gate.
+No open milestone blockers. The two v2.14 phase-risk concerns (Phase 85 generation blast radius, Phase 83 prod-Supabase migration) were resolved at ship — verified by phase VERIFICATION.md + the milestone audit.
 
-### Open Questions (from spec — to resolve during plan-phase)
+### Open Items (carried forward)
 
-- Recipe extraction: fully deterministic code (preferred — no new AI call) vs. Gemini-assisted classification. Roadmap assumes deterministic per the no-new-Gemini-tier constraint.
-- DB-template preview images: new Supabase storage bucket (`template-previews`?) vs. regenerable live `sample` payload — decide in Phase 86.
-- Save-as-Template MCP surface: spec leans web admin UI (MCP is for building source carousels, not saving) — confirm in Phase 86 planning.
+- **v2.14 operational user-setup (feature is fail-safe-closed until done):** set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`); apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project.
+- **Pre-existing test debt:** 6 fixture-regen failures (`legacy-templates-byte-identical` / `-regression` / `new-templates-parity`) from quick task `260518-jhg` adding the 13th code template — needs a fixture-regen fix, not a v2.14 regression.
 
 ## Deferred Items
 
@@ -121,5 +79,11 @@ Decisions logged in PROJECT.md Key Decisions table. Milestone-level decisions (f
 ## Session Continuity
 
 Last session: 2026-05-19
-Stopped at: Phase 86 complete and shipped to `main` — UI-SPEC → 3 plans → execute (12 commits) → code review clean (0 crit / 0 warn / 2 info) → UI audit 24/24 → verification passed. All 4 v2.14 phases (83–86) done, 12/12 plans, 9/9 reqs. Tracking trued up — Phase 86's 3 per-plan SUMMARY files written, ROADMAP checkbox + Plans sub-list + progress table corrected, STATE.md synced to 100%.
-Resume file: None — next step is `/gsd-complete-milestone`.
+Stopped at: Milestone v2.14 Save as Template completed via `/gsd-complete-milestone` — archives created, ROADMAP reorganized, REQUIREMENTS.md removed, PROJECT.md evolved, RETROSPECTIVE.md created, STATE.md updated, annotated git tag `v2.14` created locally (not pushed).
+Resume file: None — next step is `/gsd-new-milestone`.
+
+## Operator Next Steps
+
+- Start the next milestone with `/gsd-new-milestone`.
+- Before the v2.14 admin Save-as-Template feature is operationally usable: set `ADMIN_USER_IDS` + apply the `template-previews` bucket migration.
+- Push when ready: `git push` (branch `main`) and `git push origin v2.14` (the tag).

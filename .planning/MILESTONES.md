@@ -1,10 +1,31 @@
 # Milestones
 
+## v2.14 Save as Template (Shipped: 2026-05-19)
+
+**Phases completed:** 4 phases (83-86), 12 plans
+
+**Key accomplishments:**
+
+- Phase 83 — DB-Backed Template Storage + Registry Merge: additive, reversible `public.templates` migration (text-PK, flat-style + nullable `layout_recipe`/`preview`, `created_by` FK, public-read RLS deny-by-default writes) applied live to the shared Supabase project; async hybrid registry (`resolveTemplate` / `getPickerTemplates` / `isKnownTemplateId`, ~60s TTL cache, code-wins collision rule, fetcher test seam) merging the 13 code templates with DB rows — `index.ts` byte-identical, no fixture regen; DB-template render parity across canvas/Satori/HTML + sync-vs-async byte-identity guard. 4 reqs (TSTORE-01..04), 3 plans, +18 tests.
+- Phase 84 — LayoutRecipe Model + Extraction: typed role-keyed `LayoutRecipe` contract (cover/body/cta archetypes, 7 `as const` closed-enum tuples, `schema_version: 1`, `layout_mode` reuses the 8-value `SlideArchetype` enum, scales to 1–10 slides); `parseLayoutRecipeSafe` two-phase zod firewall mirroring `parseStyleSpecSafe` (closed-enum silent-drop, numeric range-clamp, unknown-key stripping — prompt-injection defense); pure deterministic `extractLayoutRecipe` (no Gemini, no new AI tier) turning a source carousel's `slide_data` into a validated recipe + flat style, with an Oracle-pattern reproduction proof. 2 reqs (RECIPE-01/02), 3 plans, +41 tests.
+- Phase 85 — Recipe-Driven Generation (highest blast radius): pure `applyLayoutRecipe` projection module mapping recipe fields into `SlideStyleOverrides` (caption-card geometry 1:1, hook position/font-size bands → numeric, role-by-position) + recipe semantic-hint block in `buildSystemPrompt`; `resolveLayoutRecipe` + recipe-apply wired into BOTH `generateCarousel` paths (API service + dashboard server action) before save; SC3 byte-identical no-recipe back-compat + SC4 public-by-default (`autoPublishOnGenerate`) hard gates verified. 1 req (RECGEN-01), 3 plans, +24 tests.
+- Phase 86 — Admin Save-as-Template Flow + Previews: single reusable server-side admin gate (`src/lib/auth/admin.ts` — `isAdminUser` / `requireAdmin`, fail-safe-closed on unset `ADMIN_USER_IDS`); `renderCoverPreviewPng` reusable Satori single-slide pipeline + `template-previews` storage bucket migration; `POST /api/admin/templates` Save-as-Template endpoint (admin-gated, extracts recipe + flat style, renders + uploads cover preview, mints a `templates` row) + `(admin)` route group + authoring page; template picker renders DB-template cover-snapshot preview PNGs via `TemplateTilePreview`. ADMIN-01 dual gate (page + endpoint). 2 reqs (ADMIN-01/02), 3 plans, +24 tests, UI review 24/24.
+
+**Stats:** ~107 phase tests added, 53 commits, 282 files changed (+12,185 / −656), single-day execution (2026-05-18); full suite 3238 passing / 41 failing (baseline-matched — the 41 pre-date the milestone)
+**Status:** tech_debt (audit doc: `.planning/milestones/v2.14-MILESTONE-AUDIT.md` — 9/9 reqs satisfied, 4/4 phases passed, 5/5 integration, 3/3 flows; all 4 phase REVIEWs clean; not `passed` only due to non-critical debt below)
+**Built on:** v2.13 template system + `style-spec-projector` + existing archetype machinery (`slideArchetype`, `caption-bar-bottom`, Phase 80 archetype classification)
+**Constraints held:** closed-enum invariant, TPLREND-05 render parity, byte-identity back-compat for 13 code templates + ~82 existing carousels, additive/reversible migrations, no new Gemini tier, real server-enforced admin auth, public-by-default
+**Nyquist:** all 4 phases have `*-VALIDATION.md`, nyquist_compliant (backfilled before milestone close)
+**Known deferred / tech debt:** (1) operational user-setup — set `ADMIN_USER_IDS` env var + apply `20260519_phase86_template_previews_bucket.sql` to the shared Supabase project; admin surface is fail-safe-closed until both are done; (2) 6 pre-existing fixture failures (`legacy-templates-byte-identical` / `-regression` / `new-templates-parity`) from quick task `260518-jhg` adding the 13th code template — NOT a v2.14 regression, needs fixture regen; (3) two Info-level Phase 86 REVIEW notes (best-effort orphan-preview cleanup, picker-list-sourcing follow-up). End-user/community templates, edit/delete of a saved template, and migrating code templates into the DB are explicitly deferred to a future milestone.
+
+---
+
 ## v2.12 Shapes & Icons (Decoration Primitives) (Shipped: 2026-05-04)
 
 **Phases completed:** 6 phases (67-72), 19 plans
 
 **Key accomplishments:**
+
 - Phase 67 — Schema Foundation: `decorations?: Decoration[]` discriminated-union schema + Zod validator + lucide-react v1.14 upgrade (−169 bytes gz) + PTF16 idempotent-absence baseline (73 tests / 48 snapshots across 12 templates) locked before any feature work. 8 reqs, 2 plans, 93 tests.
 - Phase 68 — Reducer Extensions: `decorations` as 4th `AddressableScope`; 3 new + 10 extended multi-select reducer cases; canonical `addressable-element-walkers.ts`; PRA1..PRA13 CI-enforced source-grep symmetry gate; PRS7..PRS14 cross-scope isolation suite. 16 reqs, 3 plans, 187 tests.
 - Phase 69 — Renderers + Parity Proof: Shared `decoration-renderer.tsx` consumed by BOTH renderers (TPLREND-05 invariant); 118-icon registry + LRU cache (currentColor → hex); 8 shape SVG assets in `public/shapes/`; PTF13/14/18 byte-identity fingerprints (10 icons + 16 shapes + non-uniform scale); PCL12/13 grep gates. 12 reqs, 3 plans, ~157 tests.

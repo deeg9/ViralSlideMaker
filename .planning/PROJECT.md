@@ -10,22 +10,28 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.13 Style-from-Reference Generation (2026-05-14)
-**Current Milestone:** v2.14 Save as Template
+**Latest Shipped:** v2.14 Save as Template (2026-05-19)
+**Current Milestone:** None — planning next milestone
 
 ---
 
-## Current Milestone: v2.14 Save as Template
+## Latest Shipped: v2.14 Save as Template (2026-05-19)
 
 **Goal:** Admin-authored, DB-backed templates that capture a real carousel's full layout recipe — so the team can mint polished picker templates from real carousels with no code deploy, and new carousels generate pre-shaped to them.
 
-**Target features:**
-- DB-backed template storage + code/DB registry merge (Phase 83)
-- `LayoutRecipe` model + extraction from a carousel (Phase 84)
-- Recipe-driven generation — new carousels auto-shape to the template (Phase 85)
-- Admin Save-as-Template authoring flow + picker previews (Phase 86)
+**Delivered:**
+- **Phase 83 — DB-Backed Template Storage + Registry Merge:** additive, reversible `public.templates` migration (text-PK, flat-style + nullable `layout_recipe`/`preview`, `created_by` FK, public-read RLS deny-by-default writes) applied live to the shared Supabase project; async hybrid registry (`resolveTemplate` / `getPickerTemplates` / `isKnownTemplateId`, ~60s TTL cache, code-wins collision rule, fetcher test seam) merging the 13 code templates with DB rows — `index.ts` byte-identical, no fixture regen; DB-template render parity across canvas/Satori/HTML + sync-vs-async byte-identity guard. 4 reqs (TSTORE-01..04), 3 plans, +18 tests.
+- **Phase 84 — LayoutRecipe Model + Extraction:** typed role-keyed `LayoutRecipe` contract (cover/body/cta archetypes, 7 `as const` closed-enum tuples, `schema_version: 1`, `layout_mode` reuses the 8-value `SlideArchetype` enum, scales to 1–10 slides); `parseLayoutRecipeSafe` two-phase zod firewall mirroring `parseStyleSpecSafe` (closed-enum silent-drop, numeric range-clamp, unknown-key stripping); pure deterministic `extractLayoutRecipe` (no Gemini, no new AI tier) turning a source carousel's `slide_data` into a validated recipe + flat style, with an Oracle-pattern reproduction proof. 2 reqs (RECIPE-01/02), 3 plans, +41 tests.
+- **Phase 85 — Recipe-Driven Generation:** pure `applyLayoutRecipe` projection module mapping recipe fields into `SlideStyleOverrides` (caption-card geometry 1:1, hook position/font-size bands → numeric, role-by-position) + recipe semantic-hint block in `buildSystemPrompt`; `resolveLayoutRecipe` + recipe-apply wired into BOTH `generateCarousel` paths (API service + dashboard server action) before save; SC3 byte-identical no-recipe back-compat + SC4 public-by-default (`autoPublishOnGenerate`) hard gates verified. 1 req (RECGEN-01), 3 plans, +24 tests.
+- **Phase 86 — Admin Save-as-Template Flow + Previews:** single reusable server-side admin gate (`src/lib/auth/admin.ts` — `isAdminUser` / `requireAdmin`, fail-safe-closed on unset `ADMIN_USER_IDS`); `renderCoverPreviewPng` reusable Satori single-slide pipeline + `template-previews` storage bucket migration; `POST /api/admin/templates` Save-as-Template endpoint (admin-gated, extracts recipe + flat style, renders + uploads cover preview, mints a `templates` row) + `(admin)` route group + authoring page; template picker renders DB-template cover-snapshot preview PNGs via `TemplateTilePreview`. ADMIN-01 dual gate (page + endpoint). 2 reqs (ADMIN-01/02), 3 plans, +24 tests, UI review 24/24.
 
-**Key context:** Admin-only authoring (end-user/community templates deferred); V1 is save-new-only (no editing a saved template post-save); builds on the v2.13 template system, `style-spec-projector`, and the existing archetype machinery; closed-enum invariant + TPLREND-05 render parity preserved. Full spec: `.planning/SAVE-AS-TEMPLATE-SPEC.md`.
+**Stats:** ~107 phase tests added, 53 commits, 282 files changed (+12,185 / −656), single-day execution. Full suite 3238 passing / 41 failing (baseline-matched).
+
+**Constraints held:** closed-enum invariant, TPLREND-05 render parity, byte-identity back-compat for 13 code templates + ~82 existing carousels, additive/reversible migrations, no new Gemini tier, real server-enforced admin auth, public-by-default.
+
+**Archive:** `.planning/milestones/v2.14-ROADMAP.md`. Audit: `.planning/milestones/v2.14-MILESTONE-AUDIT.md` (status: tech_debt — 9/9 reqs satisfied, 4/4 phases passed; non-critical debt only). Requirements: `.planning/milestones/v2.14-REQUIREMENTS.md`.
+
+**Awaiting user (operational setup — feature is fail-safe-closed until done):** set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`); apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project. Also carried: 6 pre-existing fixture-regen failures from quick task `260518-jhg` (13th code template added) — not a v2.14 regression.
 
 ---
 
@@ -412,9 +418,28 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - [ ] Live Gemini wiring for diversity gate — advisory only in v2.9; wire live if monoculture observed in production
 - [ ] Variable fonts — Satori issues #162/#712 unresolved as of 2026-05
 
-### Active (v2.14 Save as Template)
+### Validated (v2.14)
 
-See `.planning/REQUIREMENTS.md` for the scoped v2.14 requirements and `.planning/SAVE-AS-TEMPLATE-SPEC.md` for the feature spec.
+**Template Storage (TSTORE)**
+- ✓ TSTORE-01: DB-backed template storage — additive `public.templates` migration (id, name, category, flat-style fields, `layout_recipe` JSON, preview ref, `created_by`, timestamps) — v2.14 Phase 83
+- ✓ TSTORE-02: Merged code/DB template registry — `resolveTemplate` / `getPickerTemplates` / `isKnownTemplateId` resolve both; a DB row appears in the picker with no code deploy — v2.14 Phase 83
+- ✓ TSTORE-03: DB-backed template renders identically across all 3 render paths (canvas / Satori PNG / HTML) — v2.14 Phase 83
+- ✓ TSTORE-04: 13 code templates + ~82 existing carousels render byte-identically after the storage change (TPLREND-05 preserved) — v2.14 Phase 83
+
+**Layout Recipe (RECIPE)**
+- ✓ RECIPE-01: Typed role-keyed `LayoutRecipe` model — cover/body/cta archetypes, closed-enum fields, scales 1–10 slides; `parseLayoutRecipeSafe` zod firewall — v2.14 Phase 84
+- ✓ RECIPE-02: Deterministic extraction of a `LayoutRecipe` + flat style from a source carousel's `slide_data` — no new AI call — v2.14 Phase 84
+
+**Recipe-Driven Generation (RECGEN)**
+- ✓ RECGEN-01: Generation on a recipe-carrying template applies the recipe so output is pre-shaped (caption-card geometry, hook positions, accent placement, accessory labels) — v2.14 Phase 85
+
+**Admin Authoring (ADMIN)**
+- ✓ ADMIN-01: Admin-role-gated Save-as-Template flow (name + category) — non-admin blocked at both page and endpoint via real server-enforced auth — v2.14 Phase 86
+- ✓ ADMIN-02: DB-backed template carries a faithful picker preview (rendered cover-snapshot PNG) — v2.14 Phase 86
+
+### Active (next milestone)
+
+No active milestone. Run `/gsd-new-milestone` to scope the next cycle. Candidate directions in deferred lists below — end-user/community template authoring is the natural extension of v2.14.
 
 ### Validated (v2.12)
 
@@ -491,6 +516,11 @@ See `.planning/REQUIREMENTS.md` for the scoped v2.14 requirements and `.planning
 - Native iOS app — web first, Expo/React Native port planned for v2
 - Watermarks on free tier — use usage limits instead
 - Notifications — not needed yet
+- End-user (non-admin) template saving — v2.14 locked admin-only authoring; revisit as a growth feature post-PMF
+- Community / publishable / marketplace templates + moderation — a later growth feature; not needed to mint curated templates now
+- Editing / deleting a saved DB template — v2.14 V1 is save-new-only; a re-save mints a new template
+- Migrating the 13 code templates into the DB — code templates stay in code for back-compat; DB storage is additive
+- A new Gemini model/vendor for recipe extraction — extraction is deterministic code; stay on the cheapest viable model
 
 ## Context
 
@@ -499,6 +529,8 @@ See `.planning/REQUIREMENTS.md` for the scoped v2.14 requirements and `.planning
 - **Output format**: Individual 9:16 images (1080x1920) that users upload as TikTok/Instagram carousels. Not video.
 - **Key insight**: TikTok is penalizing low-quality slideshow spam. Quality AI-generated content with compelling hooks stands out. This validates the "smart hooks" differentiator.
 - **Architecture insight**: Server-side image rendering means the same API serves both web and future iOS app — the mobile client just calls endpoints.
+- **Current state (post-v2.14, 2026-05-19)**: 14 milestones shipped (v1.0–v2.14, Phases 1–86). Full suite ~3238 tests passing (41 failing, baseline — including 6 pre-existing fixture-regen failures from quick task `260518-jhg`). Stack: Next.js, Supabase (shared prod project), Gemini 2.5 Flash (text), Imagen 4 Fast (images), Pexels, Stripe, Satori PNG rendering. ~73 organic users; marketing push underway. Templates: 13 code templates + DB-backed `public.templates` (additive registry merge as of v2.14).
+- **Template system insight (v2.14)**: Templates can now be authored from real carousels by an admin with no code deploy — a saved template carries a full `LayoutRecipe` so new carousels generate pre-shaped to it. The v2.14 admin feature is code-complete but operationally dark until `ADMIN_USER_IDS` is set and the `template-previews` bucket migration is applied.
 
 ## Constraints
 
@@ -537,6 +569,13 @@ See `.planning/REQUIREMENTS.md` for the scoped v2.14 requirements and `.planning
 | `lucide-static` for Satori SVG strings (v2.12) | Satori cannot dynamically import React components; pre-resolved SVG strings are the only byte-identity-safe path | ✓ Good |
 | Pre-baked SVG assets in `public/shapes/` via `scripts/build-shapes.ts` (v2.12) | Inline `<svg>` JSX unsupported by Satori (`presets.ts` shape list); pre-baked = same asset in both renderers = TPLREND-05 preserved | ✓ Good |
 | Advisory monoculture gate does NOT fail CI in v2.12 | Mirror v2.9 `hookOpeningTrigram` pattern; promote to fail-CI + retry-once in v3.0+ if production data shows monoculture | ✓ Good |
+| DB-backed templates as an additive layer, code templates stay in code (v2.14) | A merged registry resolving both means a new template needs no code deploy, while the 13 code templates + ~82 existing carousels keep rendering byte-identically (back-compat) | ✓ Good |
+| Admin-only template authoring for v2.14 | Pre-PMF, the team mints curated templates; per-user/community authoring + moderation is a later growth feature, not needed to ship the wedge | — Pending (validate via template adoption) |
+| Templates capture a full `LayoutRecipe`, not just flat style (v2.14) | Per-slide structure (caption-card geometry, hook bands, accent rhythm, accessory slots) is what makes new carousels generate pre-shaped like the source — flat style alone wouldn't | — Pending |
+| Deterministic recipe extraction — no new Gemini call (v2.14) | `extractLayoutRecipe` is pure code built on existing archetype machinery; honors the cheapest-viable-model cost constraint and keeps the schema/injection surface closed | ✓ Good |
+| Closed-enum `LayoutRecipe` + two-phase zod firewall (v2.14) | Closed enums wherever feasible + silent-drop / range-clamp / unknown-key strip mirror `parseStyleSpecSafe` — defends schema and prompt-injection surface | ✓ Good |
+| V1 Save-as-Template is save-new-only (v2.14) | No edit/delete of a saved DB template — a re-save mints a new one; keeps the first cut small, edit/delete deferred | — Pending |
+| Real server-enforced admin gate, fail-safe-closed (v2.14) | `requireAdmin` mirrored on page + endpoint; unset `ADMIN_USER_IDS` closes the whole admin surface — never accidentally open, not security-by-obscurity | ✓ Good |
 
 ## Evolution
 
@@ -556,4 +595,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-18 — v2.14 Save as Template milestone started (admin-authored, DB-backed templates that capture a carousel's full layout recipe; spec at .planning/SAVE-AS-TEMPLATE-SPEC.md)*
+*Last updated: 2026-05-19 after v2.14 Save as Template milestone — 4 phases (83–86), 12 plans, 9/9 requirements validated. Admin-authored DB-backed templates capturing a carousel's full `LayoutRecipe`; recipe-driven pre-shaped generation. No active milestone — run /gsd-new-milestone for the next cycle.*
