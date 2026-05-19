@@ -5,6 +5,9 @@ import { AI_HOOK_VARIETY_ADDENDUM, AI_SLOP_AVOID_ADDENDUM } from './slop-guardra
 import type { SlideTemplate } from '@/lib/render/templates'
 import type { StyleSpec } from '@/lib/types/style-spec'
 import type { SlideArchetype } from '@/lib/types/style-spec-archetypes'
+// Phase 85 (RECGEN-01): LayoutRecipe carries the recipe semantic-hint
+// payload (accent cadence + accessory-label intent) injected below.
+import type { LayoutRecipe, AccentCadence } from '@/lib/types/layout-recipe'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 import {
   CAPTION_BAR_BOTTOM_HOOK_Y_RANGE,
@@ -18,7 +21,29 @@ import {
 // gets the news prompt addendum exactly like news-cyan.
 const NEWS_TEMPLATES = new Set(['news-drop', 'news-cyan', 'news-oracle'])
 
-export function buildSystemPrompt(templateId?: string, category?: string): string {
+// Phase 85 (RECGEN-01): accent-cadence → prompt guidance. Deterministic
+// Record over the closed ACCENT_CADENCES enum — a new cadence value is a
+// compile error. Geometry is NOT restated here; it is applied
+// deterministically by applyLayoutRecipe (src/lib/ai/layout-recipe-apply.ts).
+const ACCENT_CADENCE_GUIDANCE: Record<AccentCadence, string> = {
+  none: 'Do NOT highlight any keywords — leave hook_segments without accent/pill highlights.',
+  sparse:
+    'Use accent-highlighted keywords sparingly — highlight keywords on roughly 1 in 3 slides only.',
+  'every-other':
+    'Highlight accent keywords on every other slide — alternate highlighted and plain slides.',
+  frequent:
+    'Highlight 1-3 accent keywords (highlightStyle: "pill") on most slides — a frequent, punchy highlight rhythm.',
+}
+
+export function buildSystemPrompt(
+  templateId?: string,
+  category?: string,
+  // Phase 85 (RECGEN-01): optional resolved LayoutRecipe. When supplied,
+  // a semantic-hint block (accent cadence + accessory-label intent) is
+  // injected after the category block, before the template addendum.
+  // When undefined, the returned prompt is byte-identical to pre-Phase-85.
+  recipe?: LayoutRecipe,
+): string {
   // Phase 82 (R1): the CONTENT CATEGORY — not the templateId — drives the copy.
   // When a category resolves, its headline-first prompt module is the authority
   // on how Gemini writes; it takes precedence over the base SLIDE STRUCTURE
@@ -38,6 +63,32 @@ slides), the CONTENT CATEGORY rules WIN — write headline-first, omit body text
 ================================================================
 `
     : ''
+
+  // Phase 85 (RECGEN-01): recipe semantic-hint block. Empty string when no
+  // recipe is supplied → every existing caller is byte-identically
+  // unaffected (prompts.test.ts regression suite stays green). When a
+  // recipe is present, this conveys SEMANTIC hints only — accent cadence
+  // and accessory-label intent. Geometry (caption-card / hook placement)
+  // is applied deterministically by applyLayoutRecipe, never restated here.
+  let recipeHintBlock = ''
+  if (recipe) {
+    const cadenceLine = ACCENT_CADENCE_GUIDANCE[recipe.accent_cadence]
+    const wantsAccessoryLabel = Object.values(recipe.roles).some(
+      (role) => role?.accessory_label?.enabled === true,
+    )
+    const accessoryLine = wantsAccessoryLabel
+      ? '\n- ACCESSORY LABEL: populate a short `accessory_label` kicker (1-2 words, e.g. "Trending") on the relevant slides — a small top-anchored label above the headline.'
+      : ''
+    recipeHintBlock = `
+
+================================================================
+TEMPLATE LAYOUT RECIPE (active) — shape the copy to this rhythm:
+- ACCENT RHYTHM: ${cadenceLine}${accessoryLine}
+The recipe controls layout GEOMETRY deterministically — you only need to
+match the accent rhythm and accessory-label intent described above.
+================================================================
+`
+  }
 
   const newsDropAddendum = templateId && NEWS_TEMPLATES.has(templateId) ? `
 
@@ -104,7 +155,7 @@ PER-ROLE COPY GUIDANCE — every slide has a role; write each accordingly:
 - close (last slide): action / CTA / bookmark prompt — tell the viewer what to do next
 `
 
-  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${categoryBlock}${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}${perRoleGuidance}
+  return `You are an expert TikTok carousel content creator. You generate slide content for vertical carousel posts (1080x1920 images).${categoryBlock}${recipeHintBlock}${newsDropAddendum}${voiceNoteBlock}${premiumAddendum}${perRoleGuidance}
 HOOK PATTERNS — proven 2025-26 viral carousel formulas. Pick whichever fits the slide's role and the active TEMPLATE VOICE NOTE; vary across slides:
 - Insider / gatekept knowledge: "the strategy viral creators don't tell you" — implies hidden value.
 - Simplicity promise: "the only 3 things you need to [outcome]" — cuts through noise with a small number.
