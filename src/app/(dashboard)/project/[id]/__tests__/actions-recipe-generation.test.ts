@@ -13,7 +13,7 @@
 // is mocked deterministically. Auth / credits / rate-limit / Supabase are
 // all mocked — no live services.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('pexels', () => ({
   createClient: () => ({
@@ -85,6 +85,30 @@ vi.mock('next/cache', () => ({
 // Import AFTER mocks.
 import { generateCarousel } from '../actions'
 import type { LayoutRecipe } from '@/lib/types/layout-recipe'
+// Phase 87 (WIRE-02): the registry is NOT mocked — isKnownTemplateId /
+// templateCategory run REAL against injected fixture rows.
+import {
+  __setDbTemplateFetcher,
+  __resetDbTemplateRegistry,
+} from '@/lib/render/templates/registry'
+import type { DbTemplateRow } from '@/lib/render/templates/db-template-row'
+import { getCategory } from '@/lib/ai/categories'
+
+/** A DB template row fixture for the registry seam. */
+function makeDbRow(id: string, overrides: Partial<DbTemplateRow> = {}): DbTemplateRow {
+  return {
+    id,
+    name: `DB ${id}`,
+    category: 'news',
+    flat_style: { textColor: '#111111', backgroundColor: '#eeeeee' },
+    layout_recipe: null,
+    preview: null,
+    created_by: null,
+    created_at: '2026-05-19T00:00:00Z',
+    updated_at: '2026-05-19T00:00:00Z',
+    ...overrides,
+  }
+}
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -124,9 +148,10 @@ function makeRecipe(): LayoutRecipe {
 
 /** Server Supabase client mock: auth.getUser + projects update capture. */
 function makeServerClient() {
-  const captured: { slideData?: unknown } = {}
+  const captured: { slideData?: unknown; templateId?: unknown } = {}
   const projectsUpdate = vi.fn((payload: Record<string, unknown>) => {
     if ('slide_data' in payload) captured.slideData = payload.slide_data
+    if ('template_id' in payload) captured.templateId = payload.template_id
     return { eq: vi.fn().mockResolvedValue({ error: null }) }
   })
   const fromMock = vi.fn((table: string) => {
@@ -157,6 +182,12 @@ beforeEach(() => {
   mockEnsureSubscription.mockReset().mockResolvedValue(undefined)
   mockRateLimit.mockReset().mockReturnValue({ ok: true })
   mockRevalidatePath.mockReset()
+})
+
+// Phase 87 (WIRE-02): clear the registry TTL cache + restore the default
+// fetcher after every test so injected DB rows never leak across cases.
+afterEach(() => {
+  __resetDbTemplateRegistry()
 })
 
 describe('Phase 85 (RECGEN-01): generateCarousel — dashboard server action', () => {
@@ -226,5 +257,67 @@ describe('Phase 85 (RECGEN-01): generateCarousel — dashboard server action', (
       expect(coverSO.caption_bar_blend_pct).toBeUndefined()
       expect(coverSO.hook_font_size).not.toBe(176)
     })
+  })
+})
+
+// Phase 87 Plan 02 Task 8 (WIRE-02): the dashboard server-action
+// generateCarousel preserves a selected DB template id — it persists
+// template_id = the DB id when its row category matches, and still routes
+// through autoPublishOnGenerate (public-by-default).
+describe('WIRE-02 — DB templateId preserved (server action)', () => {
+  it('persists a category-matching DB templateId as projects.template_id (not snapped)', async () => {
+    __setDbTemplateFetcher(async () => [makeDbRow('db-news-act', { category: 'news' })])
+    const { client, captured } = makeServerClient()
+    mockCreateClient.mockResolvedValue(client)
+
+    const result = await generateCarousel(
+      'project-1',
+      'Breaking news',
+      'db-news-act',
+      'stock',
+      3,
+      undefined,
+      'news',
+    )
+
+    expect(result).toEqual({ success: true, slideCount: 3 })
+    expect(captured.templateId).toBe('db-news-act')
+  })
+
+  it('snaps a cross-category DB id to the News category default', async () => {
+    __setDbTemplateFetcher(async () => [makeDbRow('db-facts-act', { category: 'facts' })])
+    const { client, captured } = makeServerClient()
+    mockCreateClient.mockResolvedValue(client)
+
+    await generateCarousel(
+      'project-1',
+      'Breaking news',
+      'db-facts-act',
+      'stock',
+      3,
+      undefined,
+      'news',
+    )
+
+    expect(captured.templateId).not.toBe('db-facts-act')
+    expect(captured.templateId).toBe(getCategory('news')!.templateIds[0])
+  })
+
+  it('still routes a DB-template generation through autoPublishOnGenerate', async () => {
+    __setDbTemplateFetcher(async () => [makeDbRow('db-news-act', { category: 'news' })])
+    const { client } = makeServerClient()
+    mockCreateClient.mockResolvedValue(client)
+
+    await generateCarousel(
+      'project-1',
+      'Breaking news',
+      'db-news-act',
+      'stock',
+      3,
+      undefined,
+      'news',
+    )
+
+    expect(mockAutoPublishOnGenerate).toHaveBeenCalled()
   })
 })
