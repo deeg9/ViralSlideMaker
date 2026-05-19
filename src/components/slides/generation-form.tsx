@@ -58,6 +58,16 @@ export function GenerationForm({
   acceptTosAction,
   dbTemplates = [],
 }: GenerationFormProps) {
+  // Phase 87 (WIRE-02): an id belongs to a category if it is a code template
+  // in that category's curated templateIds OR a DB template (from dbTemplates)
+  // whose row category matches. Used by both snap sites so they stay in sync —
+  // a DB template id of the matching category is no longer discarded.
+  function idBelongsToCategory(id: string, categoryId: string): boolean {
+    const mod = getCategory(categoryId)
+    if (mod && mod.templateIds.includes(id)) return true
+    return dbTemplates.some((d) => d.template.id === id && d.category === categoryId)
+  }
+
   const [topic, setTopic] = useState(currentTopic ?? '')
   // Phase 82 (R6): the selected content category drives Gemini's copy.
   // Defaults to News (the reported pain point + primary deliverable).
@@ -65,14 +75,16 @@ export function GenerationForm({
     currentCategory && getCategory(currentCategory) ? currentCategory : DEFAULT_CATEGORY,
   )
   // Phase 82 (R7): seed the template from the category's curated set so the
-  // picker never starts on the legacy 'highlight-bar' fallback. If a saved
-  // project's templateId is in the category's templateIds, keep it; else snap
-  // to the category default.
+  // picker never starts on the legacy 'highlight-bar' fallback.
+  // Phase 87 (WIRE-02): keep a saved project's templateId when it belongs to
+  // the effective category — a code template in the category OR a DB template
+  // (from dbTemplates) whose row category matches. Else snap to the category
+  // default. A selected DB template id is no longer silently discarded.
   const [templateId, setTemplateId] = useState(() => {
-    const mod = getCategory(
-      currentCategory && getCategory(currentCategory) ? currentCategory : DEFAULT_CATEGORY,
-    )!
-    return currentTemplateId && mod.templateIds.includes(currentTemplateId)
+    const effectiveCategory =
+      currentCategory && getCategory(currentCategory) ? currentCategory : DEFAULT_CATEGORY
+    const mod = getCategory(effectiveCategory)!
+    return currentTemplateId && idBelongsToCategory(currentTemplateId, effectiveCategory)
       ? currentTemplateId
       : mod.templateIds[0]
   })
@@ -156,13 +168,15 @@ export function GenerationForm({
   }
 
   // Phase 82 (R6, R7): switching the category re-aligns the template picker.
-  // When the currently-selected templateId is not in the new category's
-  // curated templateIds list, snap to the category's default (templateIds[0])
-  // so the picker never sits on a template the category does not allow.
+  // Phase 87 (WIRE-02): snap to the category default ONLY when the current
+  // templateId does not belong to the new category — a code template in the
+  // category OR a DB template whose row category matches. A DB id of the
+  // newly-selected category is kept (the snap fires only for genuinely
+  // cross-category ids).
   function handleCategoryChange(id: string) {
     setCategory(id)
     const mod = getCategory(id)
-    if (mod && !mod.templateIds.includes(templateId)) {
+    if (mod && !idBelongsToCategory(templateId, id)) {
       setTemplateId(mod.templateIds[0])
     }
   }

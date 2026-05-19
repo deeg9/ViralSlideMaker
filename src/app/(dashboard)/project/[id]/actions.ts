@@ -18,6 +18,8 @@ import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
 import { getTemplate } from '@/lib/render/templates'
+// Phase 87 (WIRE-02): DB-aware template-id validation for the generation snap.
+import { isKnownTemplateId, templateCategory } from '@/lib/render/templates/registry'
 import { treatPhoto, type TreatmentPreset } from '@/lib/photo-treatment/treat'
 import { extractPalette } from '@/lib/photo-treatment/palette'
 
@@ -46,10 +48,17 @@ export async function generateCarousel(
   // curated, category-appropriate template.
   const resolvedCategory = category && getCategory(category) ? category : DEFAULT_CATEGORY
   const categoryModule = getCategory(resolvedCategory)!
-  const effectiveTemplateId =
-    templateId && categoryModule.templateIds.includes(templateId)
-      ? templateId
-      : categoryModule.templateIds[0]
+  // Phase 87 (WIRE-02): keep the submitted id when it belongs to the resolved
+  // category — a code template in the category's curated list, OR a known DB
+  // template whose row category matches. Otherwise snap to the category
+  // default. This stops a selected DB id being silently discarded.
+  let effectiveTemplateId = categoryModule.templateIds[0]
+  if (templateId && categoryModule.templateIds.includes(templateId)) {
+    effectiveTemplateId = templateId
+  } else if (templateId && (await isKnownTemplateId(templateId))) {
+    const cat = await templateCategory(templateId)
+    if (cat === resolvedCategory) effectiveTemplateId = templateId
+  }
 
   try {
     // Get authenticated user
