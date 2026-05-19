@@ -11,7 +11,22 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.14 Save as Template (2026-05-19)
-**Current Milestone:** None — planning next milestone
+**Current Milestone:** v2.15 DB-Backed Template Wiring
+
+---
+
+## Current Milestone: v2.15 DB-Backed Template Wiring
+
+**Goal:** Make a v2.14 DB-backed template actually usable end-to-end — it appears in the generation picker, survives selection through generation, renders faithfully across all three render paths, and is preserved through publish/fork. Closes v2.14's TSTORE-02 / TSTORE-03, which passed only as isolated unit tests because Phase 83's merged registry (`getPickerTemplates` / `resolveTemplate` / `isKnownTemplateId`) was built but never wired into the app's picker, generation, and render paths.
+
+**Target features:**
+- DB templates appear in the generation picker (category-filtered, with preview tiles)
+- Generation preserves a selected DB template id (no snap-away to the category default)
+- All three render paths (canvas preview / Satori PNG / HTML export) resolve a DB `template_id`
+- Per-slide `template_id_override` accepts DB ids
+- Publish + fork preserve a DB `template_id`
+
+**Origin:** v2.14 post-ship dry-run (2026-05-19) found Save-as-Template non-functional end-to-end. **Spec:** `.planning/DB-TEMPLATE-WIRING-SPEC.md` (verified file-level blast radius + recommended 2-phase breakdown).
 
 ---
 
