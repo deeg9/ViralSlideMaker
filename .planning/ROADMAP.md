@@ -61,7 +61,7 @@ sets and no shared schema work; honored as-is.
 ## Phases
 
 - [x] **Phase 87: Picker + Generation Wiring** — DB templates appear in the category-filtered picker and survive selection through generation (WIRE-01, WIRE-02) (completed 2026-05-19)
-- [ ] **Phase 88: Render Paths + Per-Slide Override + Publish/Fork** — all three render paths, per-slide override, and publish/fork resolve a DB `template_id`; parity re-verified (WIRE-03, WIRE-04, WIRE-05, WIRE-06)
+- [x] **Phase 88: Render Paths + Per-Slide Override + Publish/Fork** — all three render paths, per-slide override, and publish/fork resolve a DB `template_id`; parity re-verified (WIRE-03, WIRE-04, WIRE-05, WIRE-06) (completed 2026-05-19)
 
 ## Phase Details
 
@@ -131,14 +131,24 @@ phase makes that saved id render and survive publish/fork).
   5. End-to-end dry-run passes: an admin saves a template → it appears in the
      picker → a carousel generated on it comes out recipe-shaped, renders
      correctly in all three paths, and survives publish + fork.
-**Plans**: TBD
+**Plans**:
+  - [x] 88-01: Render-path sync→async conversion — `getTemplate` →
+    `resolveTemplate` at the 5 render call sites, `prompts.ts` /
+    `generate-slides.ts`, `actions.ts`, and the editor canvas (WIRE-03)
+  - [x] 88-02: Per-slide DB-aware override — `getDbTemplatesMap` +
+    `resolvePerSlideTemplate` optional sync map threaded through the builders;
+    fork route inherits the source `template_id` (WIRE-04, WIRE-05)
+  - [x] 88-03: WIRE-06 verification — sync-vs-async byte-identity guard,
+    per-slide DB-override parity, fork-inheritance test; fixture suites 45/45
+    (WIRE-06)
+**UI hint**: no
 
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
-| 87. Picker + Generation Wiring | v2.15 | 0/? | Not started | - |
-| 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 0/? | Not started | - |
+| 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
+| 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
 
 _Phases 14–86 (v2.0–v2.14) complete — see milestone archives under `.planning/milestones/`._
 
