@@ -7,6 +7,7 @@ import type { BrandKit } from '@/lib/types/brand-kit'
 import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { makeSampleSlide } from '@/lib/render/sample-slide'
 import { SlidePreview } from './slide-preview'
+import { TemplateTilePreview } from './template-tile-preview'
 
 interface TemplatePickerProps {
   selectedId: string
@@ -131,14 +132,10 @@ export function TemplatePicker({ selectedId, onSelect, brandKit, category }: Tem
               }`}
             >
               <div className="absolute inset-0 group-hover:scale-105 transition-transform duration-500 pointer-events-none">
-                <SlidePreview
-                  slide={makeSampleSlide(template)}
-                  template={template}
-                  index={0}
-                  slideIndex={0}
-                  totalSlides={1}
-                  editable={false}
-                />
+                {/* Phase 86 (ADMIN-02): DB templates with a saved cover-snapshot
+                    PNG render the PNG; code templates fall back to the live
+                    <SlidePreview> path (byte-identical to before). */}
+                <TemplateTilePreview template={template} />
               </div>
             </div>
             <span className="block text-sm font-semibold text-[#3d0000]">
