@@ -12,6 +12,8 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
   resolveTemplate,
   getPickerTemplates,
+  getPickerDbTemplates,
+  templateCategory,
   isKnownTemplateId,
   __setDbTemplateFetcher,
   __resetDbTemplateRegistry,
@@ -127,5 +129,83 @@ describe('Phase 83 registry merge (TSTORE-02)', () => {
     // isKnownTemplateId still answers without throwing.
     expect(await isKnownTemplateId(codeId)).toBe(true)
     expect(await isKnownTemplateId('unknown')).toBe(false)
+  })
+})
+
+// Phase 87 Plan 01 Task 2 (WIRE-01): getPickerDbTemplates pairs each DB
+// template with the row category + created_at the picker needs.
+describe('getPickerDbTemplates', () => {
+  it('returns each DB template paired with template, category, and createdAt', async () => {
+    __setDbTemplateFetcher(async () => [
+      makeRow('db-a', { category: 'news', created_at: '2026-05-19T00:00:00Z' }),
+      makeRow('db-b', { category: 'facts', created_at: '2026-05-18T00:00:00Z' }),
+    ])
+    const result = await getPickerDbTemplates()
+    expect(result).toHaveLength(2)
+    for (const entry of result) {
+      expect(entry).toHaveProperty('template')
+      expect(entry).toHaveProperty('category')
+      expect(entry).toHaveProperty('createdAt')
+    }
+    expect(result[0].category).toBe('news')
+    expect(result[0].createdAt).toBe('2026-05-19T00:00:00Z')
+    expect(result[0].template.id).toBe('db-a')
+  })
+
+  it('preserves the fetcher order (newest-first)', async () => {
+    __setDbTemplateFetcher(async () => [
+      makeRow('db-a', { created_at: '2026-05-19T00:00:00Z' }),
+      makeRow('db-b', { created_at: '2026-05-18T00:00:00Z' }),
+    ])
+    const result = await getPickerDbTemplates()
+    expect(result.map((r) => r.template.id)).toEqual(['db-a', 'db-b'])
+  })
+
+  it('drops a DB row whose id collides with a code template id', async () => {
+    const codeId = TEMPLATE_IDS[0]
+    __setDbTemplateFetcher(async () => [makeRow(codeId), makeRow('db-unique')])
+    const result = await getPickerDbTemplates()
+    const ids = result.map((r) => r.template.id)
+    expect(ids).not.toContain(codeId)
+    expect(ids).toContain('db-unique')
+  })
+
+  it('degrades to an empty array when the DB fetch fails — never throws', async () => {
+    __resetDbTemplateRegistry()
+    __setDbTemplateFetcher(async () => {
+      throw new Error('boom')
+    })
+    const result = await getPickerDbTemplates()
+    expect(result).toEqual([])
+  })
+
+  it('keeps a row whose category is null (the picker, not this helper, filters)', async () => {
+    __setDbTemplateFetcher(async () => [makeRow('db-nullcat', { category: null })])
+    const result = await getPickerDbTemplates()
+    expect(result).toHaveLength(1)
+    expect(result[0].category).toBeNull()
+  })
+})
+
+// Phase 87 Plan 02 Task 2 (WIRE-02): templateCategory resolves a DB
+// template's category (null for code/unknown ids).
+describe('templateCategory', () => {
+  it('returns null for a code-template id', async () => {
+    expect(await templateCategory(TEMPLATE_IDS[0])).toBeNull()
+  })
+
+  it('returns the DB row category for a DB id', async () => {
+    __setDbTemplateFetcher(async () => [makeRow('db-x', { category: 'news' })])
+    expect(await templateCategory('db-x')).toBe('news')
+  })
+
+  it('returns null for an unknown id', async () => {
+    __setDbTemplateFetcher(async () => [])
+    expect(await templateCategory('unknown-id-zzz')).toBeNull()
+  })
+
+  it('returns null for a DB row whose category column is null', async () => {
+    __setDbTemplateFetcher(async () => [makeRow('db-nullcat', { category: null })])
+    expect(await templateCategory('db-nullcat')).toBeNull()
   })
 })
