@@ -326,6 +326,15 @@ export function fitHeadlineToBox(headline: string, box: HeadlineBox): number {
 export const CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT = 38
 
 /**
+ * Symmetric padding (px on the 1080x1920 frame) between the caption card's
+ * edges and the headline fit box. The headline never touches the card edge.
+ * Single source of truth — `captionCardBox` (the fit box) AND
+ * `captionCardHeadlineLayout` (the text-box placement) both use it, so the
+ * box the headline is SIZED against is exactly the box it is POSITIONED into.
+ */
+export const CAPTION_CARD_INSET_PX = 80
+
+/**
  * Derive a headline-fit box from a resolved (quick-260517-k2n) caption card.
  *
  * `widthPx` is coupled to the card's `width` — the Phase 82 overflow safety:
@@ -339,14 +348,13 @@ export const CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT = 38
  * the card's height is purely the card's own visual property. At the default
  * caption height the box is byte-identical to the pre-fix box.
  *
- * Both percents map onto the 1080x1920 frame; `inset` (default 80 — the old
- * bottom-card padding) is subtracted symmetrically so the headline does not
- * touch the card edges. Dimensions are floored at 1 so a tiny card never
- * yields a negative box.
+ * Both percents map onto the 1080x1920 frame; `CAPTION_CARD_INSET_PX` is
+ * subtracted symmetrically so the headline does not touch the card edges.
+ * Dimensions are floored at 1 so a tiny card never yields a negative box.
  */
 export function captionCardBox(
   resolved: ResolvedCaptionBar,
-  inset = 80,
+  inset = CAPTION_CARD_INSET_PX,
 ): HeadlineBox {
   const widthPx = (resolved.width / 100) * CANVAS_W - 2 * inset
   // quick-260518-ch8: heightPx uses the FIXED reference height, NOT
@@ -356,5 +364,63 @@ export function captionCardBox(
   return {
     widthPx: Math.max(1, widthPx),
     heightPx: Math.max(1, heightPx),
+  }
+}
+
+/** Placement of a headline text box INSIDE a caption card. All values are
+ *  percent of the 1080x1920 frame. */
+export interface CaptionCardHeadlineBox {
+  /** Text-box LEFT edge. */
+  xPct: number
+  /** Text-box width. Equals the `captionCardBox` fit-box width, so the
+   *  rendered wrap matches what the headline auto-fit assumed. */
+  widthPct: number
+  /** The card's vertical CENTER. The renderers place the headline box's top
+   *  edge here and apply `transform: translateY(-50%)`, so the (variable-
+   *  height) wrapped headline ends up vertically centered in the card —
+   *  exactly, with no line-count estimate. */
+  yCenterPct: number
+}
+
+/** Caption-card geometry `captionCardHeadlineBox` needs — the structural
+ *  subset of `ResolvedCaptionBar` (so the generation-side snap can call it
+ *  with a derived object, not just the renderer's resolved bar). */
+export interface CaptionCardGeometry {
+  /** Card left edge, percent. */
+  x: number
+  /** Card top edge, percent. */
+  y: number
+  /** Card width, percent. */
+  width: number
+  /** Card height, percent. */
+  heightPct: number
+}
+
+/**
+ * quick-260519-hym — deterministic placement of a news / code-template
+ * headline inside its caption card. The SINGLE source of truth shared by all
+ * three render paths (canvas preview, Satori PNG, HTML export) AND the
+ * generation-side snap, so the headline box is identical everywhere
+ * (TPLREND-05).
+ *
+ * - `xPct` / `widthPct` inset the headline by `CAPTION_CARD_INSET_PX` on each
+ *   side. `widthPct` equals `captionCardBox().widthPx` so the headline renders
+ *   exactly as wide as the box its font size was fit against — without this the
+ *   headline wraps to extra lines and overflows the card.
+ * - `yCenterPct` is the card's vertical midpoint; the renderer pairs it with
+ *   `translateY(-50%)` for exact vertical centering regardless of line count.
+ *
+ * Pure / deterministic — no DOM, never throws.
+ */
+export function captionCardHeadlineBox(
+  card: CaptionCardGeometry,
+): CaptionCardHeadlineBox {
+  const round1 = (n: number) => Math.round(n * 10) / 10
+  const xPx = (card.x / 100) * CANVAS_W + CAPTION_CARD_INSET_PX
+  const widthPx = Math.max(1, (card.width / 100) * CANVAS_W - 2 * CAPTION_CARD_INSET_PX)
+  return {
+    xPct: round1((xPx / CANVAS_W) * 100),
+    widthPct: round1((widthPx / CANVAS_W) * 100),
+    yCenterPct: round1(card.y + card.heightPct / 2),
   }
 }

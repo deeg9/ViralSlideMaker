@@ -5,7 +5,7 @@ import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
-import { getHookFontSize, hasHookFit, clampManualHookSize } from './hook-fit'
+import { getHookFontSize, hasHookFit, clampManualHookSize, captionCardHeadlineBox } from './hook-fit'
 // quick-260515-epn: re-resolve slide.template_id_override INTERNALLY so all
 // server callers (single-slide /api/render + ZIP download loop) benefit
 // without each having to call the helper at the call site. TPLREND-05 byte-
@@ -270,13 +270,23 @@ export function buildSlideElement(
   // + render-slide.ts.
   const overlayColor = overrides.overlay_color ?? template.overlayColor
 
-  const hookX = overrides.hook_position?.x ?? defaultX
-  const hookY = overrides.hook_position?.y ?? defaults.hookY
+  // quick-260519-hym: a news-layout caption-card headline is positioned by the
+  // card geometry — inset to the card's fit-box width, vertically centered in
+  // the card (`hookY` is the card centre; the translateY(-50%) on hookStyle
+  // below does the centering). Same gate + helper as slide-preview.tsx /
+  // render-slide.ts (TPLREND-05). Null for every non-caption-card slide.
+  const captionCardHeadline =
+    cc.enabled && newsZone != null ? captionCardHeadlineBox(cc) : null
+
+  const hookX = captionCardHeadline?.xPct ?? overrides.hook_position?.x ?? defaultX
+  const hookY = captionCardHeadline?.yCenterPct ?? overrides.hook_position?.y ?? defaults.hookY
   const bodyX = overrides.body_position?.x ?? defaultX
   const bodyY = overrides.body_position?.y ?? defaults.bodyY
 
-  // Width: override wins, fall back to symmetric calc, min 20%
-  const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
+  // Width: caption-card headline uses the card's fit-box width; otherwise
+  // override wins, fall back to symmetric calc, min 20%.
+  const hookWidth = captionCardHeadline?.widthPct
+    ?? Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidthPct = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
   const hookTextWidth = pxX(hookWidth)
   const bodyTextWidth = pxX(bodyWidthPct)
@@ -339,6 +349,13 @@ export function buildSlideElement(
     // quick-260515-nhf: honors overrides.hook_font_family — was the
     // hardcoded `template.headingFontFamily ?? template.fontFamily` here.
     fontFamily: hookTypography.fontFamily,
+  }
+
+  // quick-260519-hym: a caption-card headline's `top` is the card CENTRE —
+  // translateY(-50%) centers the wrapped block vertically in the card. Only
+  // SET when needed so non-caption slides stay SVG-byte-identical (TPLREND-05).
+  if (captionCardHeadline) {
+    hookStyle.transform = 'translateY(-50%)'
   }
 
   // quick-260515-nhf: only SET textTransform when 'uppercase' — emitting
