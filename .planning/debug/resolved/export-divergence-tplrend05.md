@@ -1,8 +1,10 @@
 ---
-status: fixing
+status: resolved
 trigger: "Diagnose and fix a TPLREND-05 invariant breach: exported PNG diverges visibly from the live web UI preview. Hook text wraps wider in PNG; body overlaps hook in PNG."
 created: 2026-05-03T00:00:00Z
-updated: 2026-05-03T00:00:00Z
+updated: 2026-05-19T00:00:00Z
+resolved_at: 2026-05-19T00:00:00Z
+resolution_note: "Resolution section was fully completed on 2026-05-03 (root cause = PARITY-04 fixture coverage gap; fix = longHookCover fixture + PTL fingerprint suite; no JSX-layer production change). The front-matter status was simply never flipped from `fixing`. Retroactively closed at v2.14 milestone close: fix artifacts (longHookCover fixture in parity-fingerprint-fixtures.ts, PTL suite in parity.template-fingerprint.test.tsx) confirmed present in the codebase, and all render-parity suites verified GREEN — parity.template-fingerprint + db-template-parity + new-templates-parity + parity.regression-sweep = 76/76 passing; legacy-templates-byte-identical + legacy-templates-regression + legacy-byte-identity-after-storage = 14/14 passing."
 ---
 
 ## Current Focus
