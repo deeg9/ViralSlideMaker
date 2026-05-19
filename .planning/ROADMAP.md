@@ -27,8 +27,8 @@
 ## Phases
 
 - [x] **Phase 83: DB-Backed Template Storage + Registry Merge** — `templates` DB table + migration + merged code/DB registry; render parity for DB templates + byte-identity for 13 code templates and ~82 existing carousels. No recipe yet. (completed 2026-05-19)
-- [ ] **Phase 84: LayoutRecipe Model + Extraction** — Typed role-keyed `LayoutRecipe` schema + deterministic extraction of a recipe + flat style from a source carousel's slide_data.
-- [ ] **Phase 85: Recipe-Driven Generation** — Generation pipeline applies a template's `LayoutRecipe` so new carousels come out pre-shaped. Highest blast radius. Absorbs the removed placeholder Phase 83.
+- [x] **Phase 84: LayoutRecipe Model + Extraction** — Typed role-keyed `LayoutRecipe` schema + deterministic extraction of a recipe + flat style from a source carousel's slide_data. (completed 2026-05-19)
+- [x] **Phase 85: Recipe-Driven Generation** — Generation pipeline applies a template's `LayoutRecipe` so new carousels come out pre-shaped. Highest blast radius. Absorbs the removed placeholder Phase 83. (completed 2026-05-19)
 - [ ] **Phase 86: Admin Save-as-Template Flow + Previews** — Admin-role-gated authoring flow that ties it together + faithful DB-template picker previews.
 
 ---
@@ -62,10 +62,12 @@ Plans:
   2. A `LayoutRecipe` scales to variable slide counts (1–10) and fully expresses the Oracle carousel's per-slide pattern (cover = blended caption card; middle = full-bleed photo, no card; cta = caption card + follow CTA).
   3. Running extraction on a source carousel classifies each slide into a role/archetype and extracts representative geometry / hook placement / accent rhythm per archetype, deterministically — no new Gemini call.
   4. Extraction run on the Oracle project produces a `LayoutRecipe` + flat style that, when applied to a fresh generation, reproduces the Oracle look.
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
-- [ ] 84-01: TBD
+- [x] 84-01: LayoutRecipe type model + closed-enum tuples — role-keyed cover/body/cta contract, 7 `as const` tuples, `schema_version: 1`, `layout_mode` reuses the 8-value `SlideArchetype` enum (RECIPE-01)
+- [x] 84-02: parseLayoutRecipeSafe zod validator — two-phase firewall mirroring parseStyleSpecSafe; closed-enum silent-drop, numeric geometry range-clamp, unknown-key stripping (RECIPE-01)
+- [x] 84-03: Deterministic LayoutRecipe extraction + flat style + Oracle proof — pure `extractLayoutRecipe` (no Gemini), slide→role + median/mode geometry, SC4 Oracle-pattern reproduction (RECIPE-02)
 
 **Risk framing**: The closed-enum invariant applies to `LayoutRecipe` fields wherever feasible — it defends the schema and injection surface. Extraction is deterministic code built on existing archetype machinery (`slideArchetype`, `caption-bar-bottom`, `computeCaptionBarBottomPositions`, Phase 80 archetype classification, `style-spec-projector`) — build on it, do not reinvent. No new Gemini model tier; no new AI call.
 
@@ -115,8 +117,8 @@ Phases execute in numeric order: 83 → 84 → 85 → 86
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 83. DB-Backed Template Storage + Registry Merge | 3/3 | Complete   | 2026-05-19 |
-| 84. LayoutRecipe Model + Extraction | 0/TBD | Not started | — |
-| 85. Recipe-Driven Generation | 0/TBD | Not started | — |
+| 84. LayoutRecipe Model + Extraction | 3/3 | Complete   | 2026-05-19 |
+| 85. Recipe-Driven Generation | 3/3 | Complete   | 2026-05-19 |
 | 86. Admin Save-as-Template Flow + Previews | 0/TBD | Not started | — |
 
 ---

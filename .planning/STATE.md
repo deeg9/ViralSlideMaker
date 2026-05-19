@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.14
 milestone_name: Save as Template
-status: roadmapped
-last_updated: "2026-05-18T22:30:00.000Z"
-last_activity: 2026-05-18
+status: in_progress
+last_updated: "2026-05-19T00:00:00.000Z"
+last_activity: 2026-05-19
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 3
+  total_plans: 9
+  completed_plans: 9
+  percent: 75
 ---
 
 # Project State
@@ -21,29 +21,29 @@ See: .planning/PROJECT.md (updated 2026-05-18 — v2.14 milestone started)
 Feature spec: .planning/SAVE-AS-TEMPLATE-SPEC.md (authoritative)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** Phase 83 — DB-Backed Template Storage + Registry Merge
+**Current focus:** Phase 86 — Admin Save-as-Template Flow + Previews (last remaining phase)
 **Milestone goal (v2.14):** Admin-authored, DB-backed templates that capture a real carousel's full layout recipe — so the team can mint polished picker templates from real carousels with no code deploy, and new carousels generate pre-shaped to them.
 
 ## Current Position
 
-Phase: 83 of 4 (DB-Backed Template Storage + Registry Merge)
+Phase: 86 of 4 (Admin Save-as-Template Flow + Previews)
 Plan: — (not yet planned)
-Status: Roadmap complete — ready to plan Phase 83
-Last activity: 2026-05-18 — v2.14 roadmap created (4 phases, 83–86; 9/9 reqs mapped)
+Status: Phases 83, 84, 85 complete (9/9 plans) — ready to plan Phase 86
+Last activity: 2026-05-19 — Phases 83/84/85 shipped to `main`; tracking trued up (84 summaries + roadmap + state)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███████░░░] 75%
 
 ## v2.14 Phase Map
 
-| Phase | Name | Reqs | Depends |
-|-------|------|------|---------|
-| 83 | DB-Backed Template Storage + Registry Merge | TSTORE-01..04 | — |
-| 84 | LayoutRecipe Model + Extraction | RECIPE-01, RECIPE-02 | 83 |
-| 85 | Recipe-Driven Generation | RECGEN-01 | 84 |
-| 86 | Admin Save-as-Template Flow + Previews | ADMIN-01, ADMIN-02 | 83 (storage); benefits from 84/85 |
+| Phase | Name | Reqs | Depends | Status |
+|-------|------|------|---------|--------|
+| 83 | DB-Backed Template Storage + Registry Merge | TSTORE-01..04 | — | ✅ Complete (2026-05-19) |
+| 84 | LayoutRecipe Model + Extraction | RECIPE-01, RECIPE-02 | 83 | ✅ Complete (2026-05-19) |
+| 85 | Recipe-Driven Generation | RECGEN-01 | 84 | ✅ Complete (2026-05-19) |
+| 86 | Admin Save-as-Template Flow + Previews | ADMIN-01, ADMIN-02 | 83 (storage); benefits from 84/85 | ⬜ Not started |
 
 **Total:** 9 reqs across 4 categories (TSTORE / RECIPE / RECGEN / ADMIN). 100% coverage; no orphans, no duplicates.
-**Execution order:** 83 → 84 → 85 → 86.
+**Execution order:** 83 → 84 → 85 → 86. **Progress:** 3 of 4 phases complete (9/9 plans); Phase 86 remaining.
 
 ## Cross-Phase Constraints (carry-forward — every plan must honor)
 
@@ -64,15 +64,18 @@ Progress: [░░░░░░░░░░] 0%
 - Milestones shipped: v1.0–v2.13. Latest: v2.13 Style-from-Reference Generation (Phases 73–82, shipped 2026-05-14).
 - Tests trajectory: v2.12 ended ~960; v2.13 added substantial coverage across phases 73–82.
 
-**v2.14 Progress:** 0/4 phases complete; 0 plans complete; 0/9 reqs satisfied.
+**v2.14 Progress:** 3/4 phases complete; 9 plans complete; 7/9 reqs satisfied (TSTORE-01..04, RECIPE-01/02, RECGEN-01) — ADMIN-01/02 remain in Phase 86.
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 83. DB-Backed Template Storage + Registry Merge | 3/3 | Complete — verification passed, review clean |
+| 84. LayoutRecipe Model + Extraction | 3/3 | Complete — verification passed (4/4 SC), review clean |
+| 85. Recipe-Driven Generation | 3/3 | Complete — verification passed, review clean |
+| 86. Admin Save-as-Template Flow + Previews | 0/TBD | Not started |
 
-**Recent Trend:** No v2.14 plans executed yet.
+**Recent Trend:** Phases 83–85 executed and shipped to `main`; recipe-driven generation pipeline complete. Only the admin Save-as-Template flow + previews (Phase 86) remains.
 
 *Updated after each plan completion.*
 
@@ -91,7 +94,7 @@ Decisions logged in PROJECT.md Key Decisions table. Milestone-level decisions (f
 
 ### Pending Todos
 
-- v2.14: Run `/gsd-plan-phase 83` to begin the DB-backed template storage foundation.
+- v2.14: Run `/gsd-plan-phase 86` to plan the admin Save-as-Template flow + picker previews (last phase of the milestone).
 
 ### Blockers/Concerns
 
@@ -116,6 +119,6 @@ Decisions logged in PROJECT.md Key Decisions table. Milestone-level decisions (f
 
 ## Session Continuity
 
-Last session: 2026-05-18 22:30
-Stopped at: v2.14 ROADMAP.md created (4 phases 83–86); STATE.md reset to v2.14; REQUIREMENTS.md traceability table filled.
-Resume file: None — next step is `/gsd-plan-phase 83`.
+Last session: 2026-05-19 00:00
+Stopped at: Phases 83, 84, 85 complete and shipped to `main` (9/9 plans; all VERIFICATION passed, REVIEW clean). Tracking trued up — Phase 84's 3 per-plan SUMMARY files written, ROADMAP checkboxes + Plans sub-lists corrected, STATE.md synced to 75%.
+Resume file: None — next step is `/gsd-plan-phase 86`.
