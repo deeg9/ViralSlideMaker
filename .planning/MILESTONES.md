@@ -1,5 +1,46 @@
 # Milestones
 
+## v2.15 DB-Backed Template Wiring (Shipped: 2026-05-19)
+
+**Phases completed:** 2 phases (87-88), 5 plans
+
+**Delivered:** A v2.14 DB-backed template is now usable end-to-end — pickable in
+the generation picker, preserved through generation, rendered identically across
+all three render paths, and preserved through publish/fork. This closes v2.14's
+TSTORE-02 / TSTORE-03, which previously passed only as isolated unit tests
+because Phase 83's merged code+DB registry was built but never wired into the app.
+
+**Key accomplishments:**
+
+- Phase 87 — Picker + Generation Wiring: `getPickerDbTemplates()` registry
+  helper pairs each DB template with its row `category` + `created_at`;
+  `TemplatePicker` merges category-matching DB templates DB-first after the
+  Brand Kit tile; the project-page server component fetches them and threads
+  them through `GenerationForm` (no new API route, no client fetch). DB-aware
+  category-snap on all three sites (`generation-form.tsx`, `actions.ts`,
+  `carousel.ts`) keeps a matching-category DB id instead of snapping to the
+  category default; `/api/v1/carousel` rejects an unknown id via DB-aware
+  `isKnownTemplateId`. WIRE-01/02, 2 plans, +22 tests.
+- Phase 88 — Render Paths + Per-Slide Override + Publish/Fork: all five render
+  call sites (`/api/render`, `projects/[id]/download`, `publish-actions.ts`
+  `renderHero`/`renderMinimalHero`, `publish.ts` `renderHeroBuffer`) converted
+  `getTemplate` → async `resolveTemplate` — no more silent `highlight-bar`
+  fallback for a DB id; editor canvas resolves a DB project template via
+  server-passed DB templates; `prompts.ts`/`generate-slides.ts` pre-resolve
+  DB-aware. `getDbTemplatesMap()` + optional sync DB map threaded through
+  `resolvePerSlideTemplate` and the builders for per-slide DB overrides; fork
+  route inherits the source `template_id` (no `highlight-bar` hardcode).
+  Byte-identity guard for all 13 code ids; 3 fixture suites green at 45/45.
+  WIRE-03/04/05/06, 3 plans, +15 tests.
+- Verified by a live end-to-end Playwright dry-run (admin save → picker →
+  generate → render → publish → fork) — all WIRE-01..06 confirmed working.
+- Milestone audit: **passed** — 6/6 requirements satisfied, 2/2 phases verified,
+  both code reviews `clean`, Nyquist COMPLIANT (87 + 88 VALIDATION.md backfilled).
+  Only non-critical tech debt (4 items: Info-level code notes, a documented
+  per-slide-canvas v1 boundary, and the inherited project test baseline).
+
+---
+
 ## v2.14 Save as Template (Shipped: 2026-05-19)
 
 **Phases completed:** 4 phases (83-86), 12 plans

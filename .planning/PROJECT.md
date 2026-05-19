@@ -10,23 +10,24 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.14 Save as Template (2026-05-19)
-**Current Milestone:** v2.15 DB-Backed Template Wiring
+**Latest Shipped:** v2.15 DB-Backed Template Wiring (2026-05-19)
+**Current Milestone:** None — run `/gsd-new-milestone` to scope the next cycle.
 
 ---
 
-## Current Milestone: v2.15 DB-Backed Template Wiring
+## Latest Shipped: v2.15 DB-Backed Template Wiring (2026-05-19)
 
-**Goal:** Make a v2.14 DB-backed template actually usable end-to-end — it appears in the generation picker, survives selection through generation, renders faithfully across all three render paths, and is preserved through publish/fork. Closes v2.14's TSTORE-02 / TSTORE-03, which passed only as isolated unit tests because Phase 83's merged registry (`getPickerTemplates` / `resolveTemplate` / `isKnownTemplateId`) was built but never wired into the app's picker, generation, and render paths.
+**Goal achieved:** A v2.14 DB-backed template is now usable end-to-end — it appears in the generation picker (category-filtered, with preview tiles), survives selection through generation, renders faithfully across all three render paths, and is preserved through publish/fork. This closed v2.14's TSTORE-02 / TSTORE-03, which previously passed only as isolated unit tests because Phase 83's merged registry (`getPickerTemplates` / `resolveTemplate` / `isKnownTemplateId`) was built but never wired into the app's picker, generation, and render paths.
 
-**Target features:**
-- DB templates appear in the generation picker (category-filtered, with preview tiles)
-- Generation preserves a selected DB template id (no snap-away to the category default)
-- All three render paths (canvas preview / Satori PNG / HTML export) resolve a DB `template_id`
-- Per-slide `template_id_override` accepts DB ids
-- Publish + fork preserve a DB `template_id`
+**Shipped:**
+- Phase 87 — Picker + Generation Wiring: `getPickerDbTemplates()` registry helper; `TemplatePicker` DB-first category merge; project-page server component fetches + threads DB templates; DB-aware category-snap on all three sites; `/api/v1/carousel` rejects unknown ids via DB-aware `isKnownTemplateId`.
+- Phase 88 — Render Paths + Per-Slide Override + Publish/Fork: all five render call sites converted `getTemplate` → async `resolveTemplate` (no `highlight-bar` fallback); editor canvas resolves a DB project template; `getDbTemplatesMap()` + optional sync DB map for per-slide DB overrides; fork route inherits the source `template_id`; byte-identity guard for all 13 code ids; 3 fixture suites green at 45/45.
 
-**Origin:** v2.14 post-ship dry-run (2026-05-19) found Save-as-Template non-functional end-to-end. **Spec:** `.planning/DB-TEMPLATE-WIRING-SPEC.md` (verified file-level blast radius + recommended 2-phase breakdown).
+**Verification:** live end-to-end Playwright dry-run (admin save → picker → generate → render → publish → fork) — all WIRE-01..06 confirmed. App-layer wiring only — no schema migration.
+
+**Archive:** `.planning/milestones/v2.15-ROADMAP.md`. Audit: `.planning/milestones/v2.15-MILESTONE-AUDIT.md` (status: passed — 6/6 reqs satisfied, 2/2 phases verified, both code reviews `clean`, Nyquist COMPLIANT; only non-critical tech debt). Requirements: `.planning/milestones/v2.15-REQUIREMENTS.md`.
+
+**Carried tech debt (non-critical):** Phase 87 INFO-01 (`actions.ts` keeps two sync `getTemplate` calls for photoTreatment/paletteMode + backgroundMode — a DB id reads the code template[0] for those two fields); per-slide DB override not wired into the live editor canvas preview (consumable exports do resolve it — "acceptable for v1"); the inherited project-baseline 41-failure (CI 47) full-suite fixture-regen debt — v2.15 added 37 new passing tests and zero new failures.
 
 ---
 
@@ -452,9 +453,19 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 - ✓ ADMIN-01: Admin-role-gated Save-as-Template flow (name + category) — non-admin blocked at both page and endpoint via real server-enforced auth — v2.14 Phase 86
 - ✓ ADMIN-02: DB-backed template carries a faithful picker preview (rendered cover-snapshot PNG) — v2.14 Phase 86
 
+### Validated (v2.15)
+
+**DB-Backed Template Wiring (WIRE)**
+- ✓ WIRE-01: DB templates appear in the category-filtered generation picker with preview tiles — fetched server-side, merged DB-first — v2.15 Phase 87
+- ✓ WIRE-02: Generation preserves a selected DB template id — the category-snap keeps a matching-category DB id; `/api/v1/carousel` rejects unknown ids — v2.15 Phase 87
+- ✓ WIRE-03: All three render paths (canvas preview / Satori PNG / HTML export) resolve a DB `template_id` via async `resolveTemplate` — no `highlight-bar` fallback — v2.15 Phase 88
+- ✓ WIRE-04: A per-slide `template_id_override` accepts a DB template id (consumable exports resolve it via the sync DB-template map) — v2.15 Phase 88
+- ✓ WIRE-05: Publish and fork preserve a DB `template_id` — the fork route inherits the source id (no `highlight-bar` hardcode) — v2.15 Phase 88
+- ✓ WIRE-06: 13 code templates + ~82 existing carousels stay byte-identical after the sync→async conversions — fixture suites green at 45/45 — v2.15 Phase 88
+
 ### Active (next milestone)
 
-No active milestone. Run `/gsd-new-milestone` to scope the next cycle. Candidate directions in deferred lists below — end-user/community template authoring is the natural extension of v2.14.
+No active milestone. Run `/gsd-new-milestone` to scope the next cycle. Candidate directions in deferred lists below — end-user/community template authoring is the natural extension of v2.14/v2.15.
 
 ### Validated (v2.12)
 
@@ -610,4 +621,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-19 after v2.14 Save as Template milestone — 4 phases (83–86), 12 plans, 9/9 requirements validated. Admin-authored DB-backed templates capturing a carousel's full `LayoutRecipe`; recipe-driven pre-shaped generation. No active milestone — run /gsd-new-milestone for the next cycle.*
+*Last updated: 2026-05-19 after v2.15 DB-Backed Template Wiring milestone — 2 phases (87–88), 5 plans, 6/6 requirements validated. v2.14's DB-backed templates are now wired through the picker, generation, all three render paths, per-slide override, and publish/fork; verified by a live end-to-end Playwright dry-run. No active milestone — run /gsd-new-milestone for the next cycle.*
