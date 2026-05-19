@@ -184,13 +184,18 @@ export function buildSlideHtml(
   templateParam: SlideTemplate,
   brandKit?: BrandKit | null,
   tier?: ForcedWatermarkTier | null,
+  // Phase 88 (WIRE-04): optional DB-template lookup forwarded to
+  // resolvePerSlideTemplate so a per-slide DB template_id_override resolves
+  // in the HTML export. Omitted by every test / client caller —
+  // byte-identical to pre-Phase-88 when absent.
+  dbTemplates?: ReadonlyMap<string, SlideTemplate>,
 ): string {
   const overrides = slide.style_overrides ?? {}
   // quick-260515-epn: per-slide template_id_override re-resolution. Mirrors
   // the buildSlideElement (Satori) re-bind pattern so both renderers honor
   // the per-slide override identically. TPLREND-05 byte-identity preserved
   // — every legacy slide gets the exact templateParam reference back.
-  const template = resolvePerSlideTemplate(slide, templateParam)
+  const template = resolvePerSlideTemplate(slide, templateParam, dbTemplates)
   const resolved = resolveSlideStyles(slide, template)
 
   // Color-only kill-switch (mirrors resolve-styles.ts and slide-preview.tsx):

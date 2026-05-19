@@ -152,6 +152,27 @@ export async function getPickerDbTemplates(): Promise<PickerDbTemplate[]> {
 }
 
 /**
+ * Phase 88 (WIRE-04): every DB template as a synchronous-lookup
+ * `Map<id, SlideTemplate>`. Server render routes pre-fetch this once per
+ * request so the synchronous `resolvePerSlideTemplate` can resolve a per-slide
+ * `template_id_override` that points at a DB template — without the helper or
+ * the sync builders (`buildSlideElement` / `buildSlideHtml`) having to become
+ * async. Code-collision rows are dropped (a code id always wins, resolved
+ * separately via the sync `getTemplate`). Never throws — a DB read failure
+ * degrades to an empty map (per-slide DB overrides then fall back to the
+ * project template, exactly the pre-Phase-88 behavior).
+ */
+export async function getDbTemplatesMap(): Promise<Map<string, SlideTemplate>> {
+  const rows = await getDbRows()
+  const map = new Map<string, SlideTemplate>()
+  for (const r of rows) {
+    if (CODE_TEMPLATE_ID_SET.has(r.id)) continue
+    map.set(r.id, dbRowToSlideTemplate(r))
+  }
+  return map
+}
+
+/**
  * The content category of a template id, or `null` when the id is a code
  * template (code templates have no category) or unknown. DB rows carry a
  * `category` column. Used by the generation snap logic to decide whether a

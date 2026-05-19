@@ -4,7 +4,7 @@ import * as React from 'react'
 import { ImageResponse } from 'next/og'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { resolveTemplate } from '@/lib/render/templates/registry'
+import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import {
   mergeWithBrandKit,
@@ -53,7 +53,9 @@ async function renderHero(
   // counter resolves to '1/1' (per CONTEXT.md graceful-fallback path); topic
   // comes from the project for slide-field overlays.
   const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx)
+  // Phase 88 (WIRE-04): per-slide DB override resolution for the publish hero.
+  const dbTemplates = await getDbTemplatesMap()
+  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx, dbTemplates)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {
