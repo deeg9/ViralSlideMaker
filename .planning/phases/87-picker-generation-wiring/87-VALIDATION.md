@@ -1,10 +1,11 @@
 ---
 phase: 87
 slug: picker-generation-wiring
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-19
+validated: 2026-05-19
 ---
 
 # Phase 87 — Validation Strategy
@@ -39,8 +40,8 @@ created: 2026-05-19
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 87-01-* | 01 | 1 | WIRE-01 | — | Picker shows DB templates of the matching category, DB-first | component | `npx vitest run src/__tests__/components/template-picker.test.tsx` | ✅ | ⬜ pending |
-| 87-02-* | 02 | 2 | WIRE-02 | — | Snap keeps a DB id whose category matches; unknown id → 400 | unit | `npx vitest run src/lib/services/__tests__ src/app/(dashboard)/project/[id]/__tests__` | ✅ | ⬜ pending |
+| 87-01-* | 01 | 1 | WIRE-01 | — | Picker shows DB templates of the matching category, DB-first | component | `npx vitest run src/__tests__/components/template-picker.test.tsx src/lib/render/templates/__tests__/registry-merge.test.ts` | ✅ | ✅ green |
+| 87-02-* | 02 | 2 | WIRE-02 | — | Snap keeps a DB id whose category matches; unknown id → 400 | unit | `npx vitest run src/app/api/v1/carousel/__tests__/route.test.ts src/lib/render/templates/__tests__/registry-merge.test.ts` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -75,4 +76,31 @@ manual check is gated only on outstanding v2.14 operational setup.*
 - [ ] Feedback latency < 120s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-05-19 — both requirements have green automated
+coverage; nyquist-compliant.
+
+---
+
+## Validation Audit 2026-05-19
+
+State A audit (VALIDATION.md already present, `draft`). Cross-referenced the
+two requirements against the committed Phase 87 test suites and re-ran them.
+
+| Metric | Count |
+|--------|-------|
+| Requirements audited | 2 (WIRE-01, WIRE-02) |
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+- WIRE-01 — COVERED. `template-picker.test.tsx` (WIRE-01 DB-template-merge
+  block) + `registry-merge.test.ts` (`getPickerDbTemplates`, `templateCategory`).
+- WIRE-02 — COVERED. `route.test.ts` (unknown id → 400; code/DB id accepted) +
+  `carousel-recipe-generation.test.ts` / `actions-recipe-generation.test.ts`
+  WIRE-02 blocks (snap preserves matching-category DB id) + `registry-merge`.
+- Re-run result: 28 passed / 1 failed across the 3 audited files. The single
+  failure is the pre-existing Phase 56 `editorial-serif`/`notes-app-chic`
+  template-name baseline test (`260518-jhg` fixture-regen debt) — verified red
+  with Phase 87 stashed; NOT a Phase 87 regression and NOT a coverage gap.
+- No new tests generated — coverage was already complete; statuses promoted
+  `⬜ pending → ✅ green`.
