@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
-import { resolveTemplate } from '@/lib/render/templates/registry'
+import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit, synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
@@ -92,6 +92,9 @@ export async function GET(request: Request) {
       : await resolveTemplate(p.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
+  // Phase 88 (WIRE-04): pre-fetch DB templates so a per-slide DB
+  // template_id_override resolves inside buildSlideElement. Never throws.
+  const dbTemplates = await getDbTemplatesMap()
   // Forced free-tier watermark: read project owner's tier (server is source of truth)
   const ownerTier = await getUserTier(p.user_id)
   const origin = new URL(request.url).origin
@@ -103,7 +106,7 @@ export async function GET(request: Request) {
   // internally via resolvePerSlideTemplate; `effectiveTemplate` is the
   // project-level fallback the helper returns when no per-slide override is
   // set (TPLREND-05 byte-identity reference).
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx)
+  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx, dbTemplates)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

@@ -133,6 +133,11 @@ export function buildSlideElement(
   tier?: ForcedWatermarkTier | null,
   origin?: string,
   ctx?: { slideIndex: number; totalSlides: number; topic?: string },
+  // Phase 88 (WIRE-04): optional DB-template lookup forwarded to
+  // resolvePerSlideTemplate so a per-slide DB template_id_override resolves
+  // in the Satori PNG export. Omitted by every test / client caller —
+  // byte-identical to pre-Phase-88 when absent.
+  dbTemplates?: ReadonlyMap<string, SlideTemplate>,
 ): React.ReactElement {
   const overrides = slide.style_overrides ?? {}
   // quick-260515-epn: per-slide template_id_override re-resolution. When the
@@ -141,7 +146,7 @@ export function buildSlideElement(
   // template for that id; otherwise it returns `templateParam` BY REFERENCE,
   // preserving TPLREND-05 byte-identity for every legacy slide. All downstream
   // `template.*` reads use this rebound `template` variable unchanged.
-  const template = resolvePerSlideTemplate(slide, templateParam)
+  const template = resolvePerSlideTemplate(slide, templateParam, dbTemplates)
   const resolved = resolveSlideStyles(slide, template)
 
   // Phase 45: graceful-fallback render context for the shared overlay resolver.

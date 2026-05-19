@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { randomBytes } from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { resolveTemplate } from '@/lib/render/templates/registry'
+import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import {
   mergeWithBrandKit,
@@ -59,7 +59,9 @@ export async function renderHeroBuffer(
   // Phase 45: same shape as publish-actions — hero render is slide 0 of a
   // single-slide payload; topic from project flows into slide-field overlays.
   const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx)
+  // Phase 88 (WIRE-04): per-slide DB override resolution for the publish hero.
+  const dbTemplates = await getDbTemplatesMap()
+  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx, dbTemplates)
   const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
 
   const imageResponse = new ImageResponse(element, {

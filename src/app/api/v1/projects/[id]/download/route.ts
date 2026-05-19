@@ -4,7 +4,7 @@ import JSZip from 'jszip'
 import { withApiAuth } from '@/lib/api/with-api-auth'
 import { apiError } from '@/lib/api/errors'
 import { getProject } from '@/lib/services/projects'
-import { resolveTemplate } from '@/lib/render/templates/registry'
+import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit, synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
@@ -63,6 +63,9 @@ export const GET = withApiAuth(async (req, ctx) => {
       : await resolveTemplate(project.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, resolvedBrandKit)
+  // Phase 88 (WIRE-04): pre-fetch DB templates ONCE for the whole ZIP so
+  // every slide's per-slide DB template_id_override resolves. Never throws.
+  const dbTemplates = await getDbTemplatesMap()
 
   // Forced free-tier watermark: ctx.userId is the owner (getProject enforces ownership)
   const ownerTier = await getUserTier(ctx.userId)
@@ -81,7 +84,7 @@ export const GET = withApiAuth(async (req, ctx) => {
     // project-level fallback (no change to the ZIP-loop's own template
     // resolution — the helper short-circuits to the same reference when no
     // per-slide override is set, preserving TPLREND-05 byte-identity).
-    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin, renderCtx)
+    const element = buildSlideElement(slide, effectiveTemplate, resolvedBrandKit, ownerTier, origin, renderCtx, dbTemplates)
     const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
     const imgRes = new ImageResponse(element, {
       width: 1080,

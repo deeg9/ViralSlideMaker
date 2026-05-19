@@ -16,7 +16,7 @@ export const POST = withApiAuth(async (req, ctx) => {
 
   const { data: published } = await ctx.supabase
     .from('published_carousels')
-    .select('id, title, description, slide_data, remix_count')
+    .select('id, title, description, slide_data, remix_count, template_id')
     .eq('slug', slug)
     .is('unpublished_at', null)
     .eq('is_hidden', false)
@@ -24,9 +24,11 @@ export const POST = withApiAuth(async (req, ctx) => {
 
   if (!published) return apiError('NOT_FOUND', 'Carousel not found', 404)
 
-  // Mirrors fork_published_carousel RPC behavior: deep-copy slide_data,
-  // create a new private project owned by the caller, default to highlight-bar
-  // template (forker's brand kit re-resolves at render time).
+  // Mirrors fork_published_carousel RPC: deep-copy slide_data, create a new
+  // private project owned by the caller, and inherit the source carousel's
+  // template_id (COALESCE fallback 'bold-minimal' for legacy rows where the
+  // snapshot column is NULL). Phase 88 WIRE-05 — was previously hardcoded to
+  // 'highlight-bar', which broke DB-template (and any non-default) forks.
   const { data: newProject, error: insertErr } = await ctx.supabase
     .from('projects')
     .insert({
@@ -34,7 +36,7 @@ export const POST = withApiAuth(async (req, ctx) => {
       title: `Remix of ${published.title as string}`,
       description: (published.description as string | null) ?? null,
       slide_data: published.slide_data,
-      template_id: 'highlight-bar',
+      template_id: (published.template_id as string | null) ?? 'bold-minimal',
       topic: null,
       generation_status: 'complete',
     })
