@@ -9,6 +9,8 @@ import {
 } from '@/lib/credits/check-credits'
 import { generateCarousel } from '@/lib/services/carousel'
 import { getCategory } from '@/lib/ai/categories'
+// Phase 87 (WIRE-02): DB-aware template-id validation at the API boundary.
+import { isKnownTemplateId } from '@/lib/render/templates/registry'
 
 export const maxDuration = 60
 
@@ -35,6 +37,12 @@ export const POST = withApiAuth(async (req, ctx) => {
   }
   if (typeof templateId !== 'string' || templateId.length === 0) {
     return apiError('VALIDATION_ERROR', 'templateId is required and must be a non-empty string', 400)
+  }
+  // Phase 87 (WIRE-02): the templateId must be a KNOWN template — a code
+  // template id or a DB template id. An unknown id is a hard 400 (no silent
+  // snap at the API boundary). isKnownTemplateId is DB-aware and never throws.
+  if (!(await isKnownTemplateId(templateId))) {
+    return apiError('VALIDATION_ERROR', 'templateId is not a known template', 400)
   }
   // Phase 82 (R1): category is optional, but when supplied it MUST be a known
   // content category. An absent category lets generateCarousel resolve the
