@@ -14,7 +14,7 @@
 // is mocked so the recipe input is deterministic (no live DB). All Supabase /
 // Pexels / project-service surfaces are mocked.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Pexels client crashes at module load without PEXELS_API_KEY — carousel.ts
 // imports searchPhotos transitively. Mock the raw module before import.
@@ -63,6 +63,30 @@ vi.mock('@/lib/ai/layout-recipe-resolve', () => ({
 // Import AFTER mocks.
 import { generateCarousel } from '../carousel'
 import type { LayoutRecipe } from '@/lib/types/layout-recipe'
+// Phase 87 (WIRE-02): the registry is NOT mocked here — resolveTemplate /
+// isKnownTemplateId / templateCategory run REAL against injected fixture rows.
+import {
+  __setDbTemplateFetcher,
+  __resetDbTemplateRegistry,
+} from '@/lib/render/templates/registry'
+import type { DbTemplateRow } from '@/lib/render/templates/db-template-row'
+import { getCategory } from '@/lib/ai/categories'
+
+/** A DB template row fixture for the registry seam. */
+function makeDbRow(id: string, overrides: Partial<DbTemplateRow> = {}): DbTemplateRow {
+  return {
+    id,
+    name: `DB ${id}`,
+    category: 'news',
+    flat_style: { textColor: '#111111', backgroundColor: '#eeeeee' },
+    layout_recipe: null,
+    preview: null,
+    created_by: null,
+    created_at: '2026-05-19T00:00:00Z',
+    updated_at: '2026-05-19T00:00:00Z',
+    ...overrides,
+  }
+}
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -154,9 +178,10 @@ function makeOracleRecipe(): LayoutRecipe {
  * exercised here. Captures the slide_data written to `projects`.
  */
 function makeSupabase() {
-  const captured: { slideData?: unknown } = {}
+  const captured: { slideData?: unknown; templateId?: unknown } = {}
   const projectsUpdate = vi.fn((payload: Record<string, unknown>) => {
     if ('slide_data' in payload) captured.slideData = payload.slide_data
+    if ('template_id' in payload) captured.templateId = payload.template_id
     return { eq: vi.fn().mockResolvedValue({ error: null }) }
   })
   const fromMock = vi.fn((table: string) => {
@@ -180,6 +205,12 @@ beforeEach(() => {
   mockUpdateProjectService.mockReset().mockResolvedValue(undefined)
   mockAutoPublishOnGenerate.mockReset().mockResolvedValue(undefined)
   mockResolveLayoutRecipe.mockReset().mockResolvedValue(null)
+})
+
+// Phase 87 (WIRE-02): clear the registry TTL cache + restore the default
+// fetcher after every test so injected DB rows never leak across cases.
+afterEach(() => {
+  __resetDbTemplateRegistry()
 })
 
 describe('Phase 85 (RECGEN-01): generateCarousel — API service path', () => {
@@ -324,5 +355,57 @@ describe('Phase 85 (RECGEN-01): generateCarousel — API service path', () => {
       const slides = captured.slideData as Array<Record<string, unknown>>
       expect((slides[0].style_overrides as Record<string, unknown>).caption_bar_x).toBe(11)
     })
+  })
+})
+
+// Phase 87 Plan 02 Task 7 (WIRE-02): generation preserves a selected DB
+// template id — the API-service generateCarousel persists template_id = the
+// DB id when its row category matches, and still routes through
+// autoPublishOnGenerate (public-by-default).
+describe('WIRE-02 — DB templateId preserved (API service)', () => {
+  it('persists a category-matching DB templateId as projects.template_id (not snapped)', async () => {
+    __setDbTemplateFetcher(async () => [makeDbRow('db-news-tpl', { category: 'news' })])
+    const { client, captured } = makeSupabase()
+
+    await generateCarousel(client, 'user-1', {
+      topic: 'Breaking news',
+      templateId: 'db-news-tpl',
+      slideCount: 4,
+      category: 'news',
+    })
+
+    // The DB id survives the snap into the saved carousel.
+    expect(captured.templateId).toBe('db-news-tpl')
+  })
+
+  it('snaps a cross-category DB id to the category default', async () => {
+    __setDbTemplateFetcher(async () => [makeDbRow('db-facts-tpl', { category: 'facts' })])
+    const { client, captured } = makeSupabase()
+
+    await generateCarousel(client, 'user-1', {
+      topic: 'Breaking news',
+      templateId: 'db-facts-tpl',
+      slideCount: 4,
+      category: 'news',
+    })
+
+    // A facts-category DB id submitted under News is genuinely cross-category
+    // — it snaps to the News default, not preserved.
+    expect(captured.templateId).not.toBe('db-facts-tpl')
+    expect(captured.templateId).toBe(getCategory('news')!.templateIds[0])
+  })
+
+  it('still routes a DB-template generation through autoPublishOnGenerate', async () => {
+    __setDbTemplateFetcher(async () => [makeDbRow('db-news-tpl', { category: 'news' })])
+    const { client } = makeSupabase()
+
+    await generateCarousel(client, 'user-1', {
+      topic: 'Breaking news',
+      templateId: 'db-news-tpl',
+      slideCount: 4,
+      category: 'news',
+    })
+
+    expect(mockAutoPublishOnGenerate).toHaveBeenCalled()
   })
 })
