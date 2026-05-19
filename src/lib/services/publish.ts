@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { randomBytes } from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getTemplate } from '@/lib/render/templates/index'
+import { resolveTemplate } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import {
   mergeWithBrandKit,
@@ -52,7 +52,7 @@ export async function renderHeroBuffer(
   const template =
     project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
       ? synthesizeBrandKitTemplate(brandKit)
-      : getTemplate(project.template_id ?? 'highlight-bar')
+      : await resolveTemplate(project.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   const ownerTier = await getUserTier(project.user_id)

@@ -20,6 +20,7 @@ import {
 export { DecorationSchema, parseDecorationsArraySafe }
 export type { DecorationContent }
 import { buildSystemPrompt } from './prompts'
+import { resolveTemplate } from '@/lib/render/templates/registry'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 import { promoteNewsHeadline } from './categories/promote-news-headline'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
@@ -204,7 +205,14 @@ export async function generateSlideContent(
     ? `\n\nWhen generating image_query values, incorporate this visual preference: "${imageStyleHint}"`
     : ''
   const baseContents = `Create a TikTok carousel about: ${topic}\n\nGenerate exactly ${slideCount} slides (including the opening hook and closing CTA).${imageHintText}`
-  const systemInstruction = buildSystemPrompt(templateId, category)
+  // Phase 88 (WIRE-03): resolve the template DB-aware so a DB template's
+  // aiVoiceNote / accentColor reach the system prompt. resolveTemplate is
+  // code-first (byte-identical to getTemplate for the 13 code ids) and never
+  // throws. Only resolve when a templateId is present.
+  const resolvedTemplate = templateId
+    ? await resolveTemplate(templateId)
+    : undefined
+  const systemInstruction = buildSystemPrompt(templateId, category, undefined, resolvedTemplate)
 
   async function callGemini(contents: string): Promise<unknown> {
     const response = await ai.models.generateContent({
