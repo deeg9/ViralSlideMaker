@@ -41,6 +41,8 @@ export type SilentDropReason =
   | 'schema_version_rejected'   // parseStyleSpecSafe early-reject on schema_version != STYLE_SPEC_VERSION
   | 'archetype_fallback'         // slideArchetype absent/unrecognized; defaulted to DEFAULT_FALLBACK_ARCHETYPE
   | 'archetype_slot_mismatch'    // slot param (caption, split, …) supplied for an archetype that does not declare it
+  // Phase 84 reason (LayoutRecipe validator — Plan 84-02 firewall):
+  | 'range_clamp'                // numeric geometry field clamped to its validated range
 
 export interface SilentDropEvent {
   /** Dotted path, e.g. "typography.hookFontCategory" or
