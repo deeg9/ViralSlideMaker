@@ -15,6 +15,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import React from 'react'
 import {
   resolveTemplate,
+  getDbTemplatesMap,
   __setDbTemplateFetcher,
   __resetDbTemplateRegistry,
 } from '@/lib/render/templates/registry'
@@ -145,5 +146,62 @@ describe('Phase 83: DB-backed template render parity (TSTORE-03)', () => {
     expect(typeof html).toBe('string')
     // tpl is not a code template (it is a DB-resolved object).
     expect(templates.some((t) => t === tpl)).toBe(false)
+  })
+})
+
+// -----------------------------------------------------------------------------
+// Phase 88 (WIRE-04): per-slide template_id_override pointing at a DB template
+// id. The DB fixture's flat_style is copied from 'bold-yellow' (backgroundColor
+// #FFD600); the project template is 'news-cyan' (backgroundColor #0a0a0a). A
+// slide carrying template_id_override = the DB id must render the DB fixture's
+// #FFD600 when the builders are given the DB-template map, and fall back to the
+// project template's #0a0a0a when the map is omitted (STYLESPEC-10).
+// -----------------------------------------------------------------------------
+describe('Phase 88 WIRE-04: per-slide DB template_id_override parity', () => {
+  const DB_BG = '#FFD600' // bold-yellow — the DB fixture's backgroundColor
+  const PROJECT_BG = '#0a0a0a' // news-cyan — the project template's backgroundColor
+
+  function makeOverrideSlide(): Slide {
+    return {
+      ...makeMinimalSlide(),
+      template_id_override: DB_FIXTURE_ID,
+    }
+  }
+
+  it('buildSlideHtml resolves a per-slide DB override when the DB-template map is supplied', async () => {
+    __setDbTemplateFetcher(async () => [makeFixtureRow()])
+    const dbMap = await getDbTemplatesMap()
+    const projectTemplate = getTemplate('news-cyan')
+    const overrideSlide = makeOverrideSlide()
+
+    const html = buildSlideHtml(overrideSlide, projectTemplate, undefined, undefined, dbMap)
+    // The DB fixture's backgroundColor renders — the override resolved.
+    expect(html).toContain(DB_BG)
+    expect(html).not.toContain(PROJECT_BG)
+  })
+
+  it('buildSlideElement resolves a per-slide DB override when the DB-template map is supplied', async () => {
+    __setDbTemplateFetcher(async () => [makeFixtureRow()])
+    const dbMap = await getDbTemplatesMap()
+    const projectTemplate = getTemplate('news-cyan')
+    const overrideSlide = makeOverrideSlide()
+
+    const markup = renderToStaticMarkup(
+      buildSlideElement(overrideSlide, projectTemplate, undefined, undefined, undefined, undefined, dbMap),
+    )
+    expect(markup).toContain(DB_BG)
+    expect(markup).not.toContain(PROJECT_BG)
+  })
+
+  it('falls back to the project template when no DB-template map is passed (STYLESPEC-10)', async () => {
+    __setDbTemplateFetcher(async () => [makeFixtureRow()])
+    const projectTemplate = getTemplate('news-cyan')
+    const overrideSlide = makeOverrideSlide()
+
+    // No map → the DB-id override is unresolvable → silent fallback to the
+    // project template. The project template's backgroundColor renders.
+    const html = buildSlideHtml(overrideSlide, projectTemplate)
+    expect(html).toContain(PROJECT_BG)
+    expect(html).not.toContain(DB_BG)
   })
 })
