@@ -155,3 +155,63 @@ describe('resolvePerSlideTemplate', () => {
     expect(result.id).toBe('magazine-bold')
   })
 })
+
+// -----------------------------------------------------------------------------
+// Phase 88 (WIRE-04): the optional 3rd `dbTemplates` map parameter — a per-slide
+// template_id_override pointing at a DB template id resolves when the server
+// render route supplies the DB-template map. STYLESPEC-10 silent-fallback and
+// the TPLREND-05 reference-identity gate must hold with the new param present.
+// -----------------------------------------------------------------------------
+describe('resolvePerSlideTemplate — Phase 88 WIRE-04 DB-aware override', () => {
+  // A DB template fixture: a code template's fields under a non-code id.
+  const dbTemplate: SlideTemplate = {
+    ...getTemplate('bold-yellow'),
+    id: 'db-per-slide-fixture',
+    name: 'DB Per-Slide Fixture',
+  }
+  const dbMap = new Map<string, SlideTemplate>([[dbTemplate.id, dbTemplate]])
+
+  it('resolves a DB-id override from the supplied dbTemplates map', () => {
+    const projectTemplate = getTemplate('news-cyan')
+    const slide = makeSlide({ template_id_override: 'db-per-slide-fixture' })
+    const result = resolvePerSlideTemplate(slide, projectTemplate, dbMap)
+    expect(result.id).toBe('db-per-slide-fixture')
+    expect(result).toBe(dbTemplate)
+  })
+
+  it('falls back to projectTemplate for a DB-id override when NO map is supplied (STYLESPEC-10)', () => {
+    const projectTemplate = getTemplate('news-cyan')
+    const slide = makeSlide({ template_id_override: 'db-per-slide-fixture' })
+    const result = resolvePerSlideTemplate(slide, projectTemplate)
+    expect(result).toBe(projectTemplate)
+  })
+
+  it('falls back to projectTemplate when the override id is not a key of the supplied map', () => {
+    const projectTemplate = getTemplate('news-cyan')
+    const slide = makeSlide({ template_id_override: 'db-not-in-the-map' })
+    const result = resolvePerSlideTemplate(slide, projectTemplate, dbMap)
+    expect(result).toBe(projectTemplate)
+  })
+
+  it('still resolves a code-id override via getTemplate even when a map is supplied', () => {
+    const projectTemplate = getTemplate('news-cyan')
+    const slide = makeSlide({ template_id_override: 'magazine-bold' })
+    const result = resolvePerSlideTemplate(slide, projectTemplate, dbMap)
+    expect(result.id).toBe('magazine-bold')
+    expect(result).toEqual(getTemplate('magazine-bold'))
+  })
+
+  it('returns the exact projectTemplate reference for no-override even with a map supplied (TPLREND-05)', () => {
+    const projectTemplate = getTemplate('news-cyan')
+    const slide = makeSlide()
+    const result = resolvePerSlideTemplate(slide, projectTemplate, dbMap)
+    expect(result).toBe(projectTemplate)
+  })
+
+  it('falls back to projectTemplate for a genuinely-unknown override id with a map supplied (STYLESPEC-10)', () => {
+    const projectTemplate = getTemplate('news-cyan')
+    const slide = makeSlide({ template_id_override: 'not-a-template-anywhere' })
+    const result = resolvePerSlideTemplate(slide, projectTemplate, dbMap)
+    expect(result).toBe(projectTemplate)
+  })
+})
