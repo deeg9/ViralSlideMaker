@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.15
 milestone_name: DB-Backed Template Wiring
-status: roadmap_complete
+status: in_progress
 last_updated: "2026-05-19T18:01:27.945Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 2
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — after v2.14 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** v2.15 DB-Backed Template Wiring — roadmap created (2 phases, 87–88). Next: `/gsd-plan-phase 87`.
+**Current focus:** v2.15 DB-Backed Template Wiring — Phase 87 complete (1 of 2). Next: `/gsd-plan-phase 88`.
 **Latest shipped:** v2.14 Save as Template (2026-05-19) — admin-authored, DB-backed templates capturing a carousel's full `LayoutRecipe`; recipe-driven pre-shaped generation. Registry functions built but never wired into the app — v2.15 closes that gap.
 
 ## Current Position
 
-Phase: 87 — Picker + Generation Wiring (not started)
-Plan: —
-Status: Roadmap complete — ready to plan Phase 87
-Last activity: 2026-05-19 — Milestone v2.15 roadmap created (2 phases)
+Phase: 87 — Picker + Generation Wiring (complete, verified passed)
+Plan: 87-01 + 87-02 complete
+Status: Phase 87 complete (1 of 2) — ready to plan Phase 88
+Last activity: 2026-05-19 — Phase 87 executed: DB templates wired into the picker + generation snap (WIRE-01, WIRE-02)
 
 ## Roadmap — v2.15 (Phases 87–88)
 
 | Phase | Goal | Requirements | Status |
 |-------|------|--------------|--------|
-| 87. Picker + Generation Wiring | DB templates appear in the category-filtered picker and survive selection through generation | WIRE-01, WIRE-02 | Not started |
+| 87. Picker + Generation Wiring | DB templates appear in the category-filtered picker and survive selection through generation | WIRE-01, WIRE-02 | ✅ Complete (2026-05-19) |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | All three render paths, per-slide override, and publish/fork resolve a DB `template_id`; parity re-verified | WIRE-03, WIRE-04, WIRE-05, WIRE-06 | Not started |
 
 **Coverage:** 6/6 v2.15 requirements mapped (no orphans, no duplicates).
@@ -57,7 +57,8 @@ Full history: `.planning/MILESTONES.md`. Archives: `.planning/milestones/`.
 
 - 14 milestones shipped (v1.0–v2.14, Phases 1–86).
 - v2.14: 4 phases, 12 plans, ~107 phase tests added, 53 commits, single-day execution (2026-05-18).
-- Full suite: ~3238 passing / 41 failing (baseline — includes 6 pre-existing fixture-regen failures from quick task `260518-jhg`, not a v2.14 regression).
+- v2.15 Phase 87: 2 plans, 22 new tests added (WIRE-01 + WIRE-02 coverage on both generation paths + the API guard).
+- Full suite: 3265 passing / 41 failing — the 41-failure count is unchanged from the v2.14 baseline (zero new failures; the 41 are pre-existing fixture-regen / regression debt from quick task `260518-jhg` and earlier phases).
 
 ## Accumulated Context
 
@@ -92,11 +93,11 @@ No open milestone blockers. Phase-risk to watch (carried into planning):
 ## Session Continuity
 
 Last session: 2026-05-19
-Stopped at: Milestone v2.15 roadmap created — `.planning/ROADMAP.md` updated with the Active Milestone block + 2-phase detail (87–88), `.planning/REQUIREMENTS.md` traceability table filled with real phase assignments, `.planning/STATE.md` updated.
-Resume file: None — next step is `/gsd-plan-phase 87`.
+Stopped at: Phase 87 (Picker + Generation Wiring) executed and verified — plan → execute → code-review chain complete. DB templates now appear in the category-filtered picker (WIRE-01) and a selected DB template id survives generation into the saved carousel's `template_id` (WIRE-02). Verification status `passed`; code review `clean`; full suite at the 41-failure baseline (zero new failures).
+Resume file: None — next step is `/gsd-plan-phase 88`.
 
 ## Operator Next Steps
 
-- Plan the first phase with `/gsd-plan-phase 87`.
+- Plan the next phase with `/gsd-plan-phase 88`.
 - Before the Phase 88 end-to-end dry-run: complete the v2.14 operational setup (set `ADMIN_USER_IDS` + apply the `template-previews` bucket migration) so the admin Save-as-Template path is reachable.
 - Push when ready: `git push` (branch `main`) and `git push origin v2.14` (the v2.14 tag, still local).
