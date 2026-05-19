@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TemplatePicker } from '@/components/slides/template-picker'
 import { pickerTemplates } from '@/lib/render/templates/index'
+import { dbRowToSlideTemplate } from '@/lib/render/templates/db-template-row'
+import type { PickerDbTemplate } from '@/lib/render/templates/registry'
 import type { BrandKit } from '@/lib/types/brand-kit'
 
 /**
@@ -106,5 +108,91 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     for (const tpl of visiblePhase56Templates) {
       expect(screen.getByText(tpl.name)).toBeInTheDocument()
     }
+  })
+})
+
+/**
+ * Phase 87 Plan 01 Task 6 — WIRE-01 DB-template merge.
+ *
+ * Proves a DB-backed template of the matching category appears in the
+ * category-filtered picker, ordered DB-first before the category's code
+ * templates, and is excluded from a non-matching category.
+ */
+describe('<TemplatePicker> WIRE-01 DB-template merge', () => {
+  const dbNewsTemplate: PickerDbTemplate = {
+    template: dbRowToSlideTemplate({
+      id: 'db-news-87',
+      name: 'DB News Template',
+      category: 'news',
+      flat_style: { textColor: '#111111', backgroundColor: '#eeeeee' },
+      layout_recipe: null,
+      preview: null,
+      created_by: null,
+      created_at: '2026-05-19T00:00:00Z',
+      updated_at: '2026-05-19T00:00:00Z',
+    }),
+    category: 'news',
+    createdAt: '2026-05-19T00:00:00Z',
+  }
+
+  it('shows a category=news DB template in the News picker', () => {
+    render(
+      <TemplatePicker
+        selectedId="news-oracle"
+        onSelect={vi.fn()}
+        brandKit={null}
+        category="news"
+        dbTemplates={[dbNewsTemplate]}
+      />,
+    )
+    expect(screen.getByText('DB News Template')).toBeInTheDocument()
+  })
+
+  it('orders the DB template DB-first, before the News code templates', () => {
+    const { container } = render(
+      <TemplatePicker
+        selectedId="news-oracle"
+        onSelect={vi.fn()}
+        brandKit={null}
+        category="news"
+        dbTemplates={[dbNewsTemplate]}
+      />,
+    )
+    // Tile name labels — the bold span inside each tile button.
+    const names = Array.from(
+      container.querySelectorAll('span.text-sm.font-semibold'),
+    ).map((el) => el.textContent)
+    const dbIdx = names.indexOf('DB News Template')
+    const oracleIdx = names.indexOf('News Oracle')
+    expect(dbIdx).toBeGreaterThanOrEqual(0)
+    expect(oracleIdx).toBeGreaterThanOrEqual(0)
+    // The DB tile precedes the first News code template.
+    expect(dbIdx).toBeLessThan(oracleIdx)
+  })
+
+  it('excludes a DB template from a non-matching category', () => {
+    render(
+      <TemplatePicker
+        selectedId="news-oracle"
+        onSelect={vi.fn()}
+        brandKit={null}
+        category="facts"
+        dbTemplates={[dbNewsTemplate]}
+      />,
+    )
+    expect(screen.queryByText('DB News Template')).not.toBeInTheDocument()
+  })
+
+  it('defaults dbTemplates to [] — a render without the prop is unchanged', () => {
+    render(
+      <TemplatePicker
+        selectedId="news-oracle"
+        onSelect={vi.fn()}
+        brandKit={null}
+        category="news"
+      />,
+    )
+    expect(screen.queryByText('DB News Template')).not.toBeInTheDocument()
+    expect(screen.getByText('News Oracle')).toBeInTheDocument()
   })
 })
