@@ -75,3 +75,45 @@ export function dbRowToSlideTemplate(row: DbTemplateRow): SlideTemplate {
     preview: row.preview ?? undefined,
   } as SlideTemplate
 }
+
+// SlideTemplate keys that identify the template or are picker assets — NOT
+// flat style. They are owned by the DB template's own row columns (id, name,
+// preview) or are source-specific assets, so they are stripped from a saved
+// flat_style blob.
+const NON_FLAT_STYLE_KEYS: ReadonlySet<string> = new Set([
+  'id',
+  'name',
+  'thumbnail',
+  'sample',
+  'preview',
+])
+
+/**
+ * Project a resolved SlideTemplate down to a `flat_style` blob — the
+ * write-side inverse of `dbRowToSlideTemplate`.
+ *
+ * The admin Save-as-Template flow uses this so a DB template carries the
+ * source carousel's RESOLVED-TEMPLATE flat style (fonts, colors, accent,
+ * treatments). The blob must be SlideTemplate-shaped (camelCase) — exactly
+ * what `dbRowToSlideTemplate` reads back — and a resolved SlideTemplate
+ * already is that shape; this only strips the identity + picker-asset keys
+ * and omits `undefined`-valued fields (skip-emit) so the stored blob is
+ * minimal.
+ *
+ * Note: this deliberately does NOT use `extractLayoutRecipe`'s `flatStyle`
+ * output — that is `SlideStyleOverrides`-shaped (snake_case), keys
+ * `dbRowToSlideTemplate` never reads, and is empty whenever a carousel's look
+ * lives in its code template rather than in per-slide overrides. The resolved
+ * template is the faithful flat-style base.
+ *
+ * Pure — no I/O, no mutation of the input.
+ */
+export function templateFlatStyle(template: SlideTemplate): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(template)) {
+    if (NON_FLAT_STYLE_KEYS.has(key)) continue
+    if (value === undefined) continue
+    out[key] = value
+  }
+  return out
+}
