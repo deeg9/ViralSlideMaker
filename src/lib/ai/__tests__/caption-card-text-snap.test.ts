@@ -1,164 +1,79 @@
-// quick-260519-hym — coverage for the caption-card text-snap helper +
-// the generate-slides snap-pass wiring.
+// quick-260519-hym — coverage for the caption-card headline snap.
 //
-// Task 1 (Tests 1-6): the pure `computeCaptionCardTextPositions` geometry helper.
-// Task 2 (Tests 7-12 + adapter integration): `snapHeadlineToCaptionCard` slide pass.
+// The snap derives the headline text box ENTIRELY from the caption card:
+// x/width inset by CAPTION_CARD_INSET_PX, y = the card's vertical centre
+// (the renderers pair it with translateY(-50%)). `captionCardHeadlineBox`
+// (hook-fit.ts) is the shared geometry helper.
 
 import { describe, it, expect } from 'vitest'
-import {
-  computeCaptionCardTextPositions,
-  snapHeadlineToCaptionCard,
-} from '../caption-card-text-snap'
-import {
-  computeCaptionBarBottomPositions,
-  CAPTION_BAR_BOTTOM_X,
-  CAPTION_BAR_BOTTOM_WIDTH,
-} from '../style-spec-projector-constants'
+import { snapHeadlineToCaptionCard } from '../caption-card-text-snap'
+import { captionCardHeadlineBox } from '@/lib/render/hook-fit'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
 import type { Slide } from '@/lib/types/slide'
 
-describe('computeCaptionCardTextPositions', () => {
-  it('Test 1 — bottom card, default 38% height: hook 25% / body 60% into the card', () => {
-    const r = computeCaptionCardTextPositions({
-      heightPct: 38,
-      cardTopY: 62,
-      position: 'bottom',
-    })
-    // 62 + 38*0.25 = 71.5 ; 62 + 38*0.60 = 84.8
-    expect(r.hook.y).toBe(71.5)
-    expect(r.body.y).toBe(84.8)
-    expect(r.hook.x).toBe(CAPTION_BAR_BOTTOM_X)
-    expect(r.body.x).toBe(CAPTION_BAR_BOTTOM_X)
-    expect(r.hook.x).toBe(11)
-    expect(r.hook.width).toBe(CAPTION_BAR_BOTTOM_WIDTH)
-    expect(r.body.width).toBe(CAPTION_BAR_BOTTOM_WIDTH)
-    expect(r.hook.width).toBe(78)
+/** style_overrides of a returned slide. */
+function so(slide: { style_overrides?: Record<string, unknown> }): Record<string, unknown> {
+  return (slide.style_overrides ?? {}) as Record<string, unknown>
+}
+/** Read a TextPosition-shaped override without over-narrowing the object. */
+function pos(o: Record<string, unknown>, key: string): { x: number; y: number } | undefined {
+  return o[key] as { x: number; y: number } | undefined
+}
+
+describe('captionCardHeadlineBox', () => {
+  it('default bottom card → inset x/width, card-centre y', () => {
+    const b = captionCardHeadlineBox({ x: 0, y: 62, width: 100, heightPct: 38 })
+    expect(b.xPct).toBe(7.4) // 80px inset / 1080
+    expect(b.widthPct).toBe(85.2) // (1080 - 160) / 1080
+    expect(b.yCenterPct).toBe(81) // 62 + 38/2
   })
 
-  it('Test 2 — parity with the existing projector positioner (bottom card)', () => {
-    for (const heightPct of [38, 40]) {
-      const cardTopY = 100 - heightPct
-      const helper = computeCaptionCardTextPositions({
-        heightPct,
-        cardTopY,
-        position: 'bottom',
-      })
-      const projector = computeCaptionBarBottomPositions(heightPct / 100)
-      expect(helper).toEqual(projector)
-    }
+  it('top card → centre y in the upper region', () => {
+    const b = captionCardHeadlineBox({ x: 0, y: 0, width: 100, heightPct: 38 })
+    expect(b.yCenterPct).toBe(19) // 0 + 38/2
   })
 
-  it('Test 3 — top card mirrors the hook-top / body-below relationship', () => {
-    const r = computeCaptionCardTextPositions({
-      heightPct: 38,
-      cardTopY: 0,
-      position: 'top',
-    })
-    // 0 + 38*0.25 = 9.5 ; 0 + 38*0.60 = 22.8
-    expect(r.hook.y).toBe(9.5)
-    expect(r.body.y).toBe(22.8)
-    expect(r.hook.y).toBeLessThan(r.body.y)
+  it('shifted / narrower card → x and width track the card edges', () => {
+    const b = captionCardHeadlineBox({ x: 10, y: 55, width: 80, heightPct: 30 })
+    // xPx = 10%*1080 + 80 = 188 → 17.4% ; widthPx = 80%*1080 - 160 = 704 → 65.2%
+    expect(b.xPct).toBe(17.4)
+    expect(b.widthPct).toBe(65.2)
+    expect(b.yCenterPct).toBe(70) // 55 + 30/2
   })
 
-  it('Test 4 — explicit caption_bar_y drives the in-card offsets', () => {
-    const r = computeCaptionCardTextPositions({
-      heightPct: 40,
-      cardTopY: 50,
-      position: 'bottom',
-    })
-    // 50 + 40*0.25 = 60
-    expect(r.hook.y).toBe(60)
-    // 50 + 40*0.60 = 74
-    expect(r.body.y).toBe(74)
-  })
-
-  it('Test 5 — output y values land inside the card span', () => {
-    const cases: Array<{ heightPct: number; cardTopY: number; position: 'bottom' | 'top' }> = [
-      { heightPct: 38, cardTopY: 62, position: 'bottom' },
-      { heightPct: 38, cardTopY: 0, position: 'top' },
-      { heightPct: 90, cardTopY: 10, position: 'bottom' },
-      { heightPct: 10, cardTopY: 0, position: 'top' },
-      { heightPct: 40, cardTopY: 50, position: 'bottom' },
-    ]
-    for (const geom of cases) {
-      const r = computeCaptionCardTextPositions(geom)
-      const lo = geom.cardTopY
-      const hi = geom.cardTopY + geom.heightPct
-      expect(r.hook.y).toBeGreaterThanOrEqual(lo)
-      expect(r.hook.y).toBeLessThanOrEqual(hi)
-      expect(r.body.y).toBeGreaterThanOrEqual(lo)
-      expect(r.body.y).toBeLessThanOrEqual(hi)
-    }
-  })
-
-  it('Test 6 — pure / deterministic, does not mutate its argument', () => {
-    const geom = { heightPct: 38, cardTopY: 62, position: 'bottom' as const }
-    const snapshot = { ...geom }
-    const a = computeCaptionCardTextPositions(geom)
-    const b = computeCaptionCardTextPositions(geom)
-    expect(a).toEqual(b)
-    expect(geom).toEqual(snapshot)
+  it('headline box width equals the auto-fit box width (no overflow)', () => {
+    // The headline must render exactly as wide as the box its font was fit to.
+    const b = captionCardHeadlineBox({ x: 0, y: 62, width: 100, heightPct: 38 })
+    // captionCardBox width for a full-width card is 1080-160 = 920px = 85.19%.
+    expect(b.widthPct).toBeCloseTo((920 / 1080) * 100, 1)
   })
 })
 
-/** Read a TextPosition-shaped style-override field without over-narrowing the
- *  whole overrides object (it also carries booleans/numbers). */
-function pos(
-  so: Record<string, unknown> | undefined,
-  key: string,
-): { x: number; y: number } | undefined {
-  return so?.[key] as { x: number; y: number } | undefined
-}
-
 describe('snapHeadlineToCaptionCard', () => {
-  it('Test 7 — enabled bottom card: headline + body snapped into the card', () => {
-    const slides = [
+  it('enabled default card → headline box derived from the card geometry', () => {
+    const out = snapHeadlineToCaptionCard([
       { style_overrides: { caption_bar_enabled: true, caption_bar_height_pct: 38 } },
-    ]
-    const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, unknown>
-    expect(pos(so, 'hook_position')!.y).toBe(71.5)
-    expect(pos(so, 'body_position')!.y).toBe(84.8)
-    expect(pos(so, 'hook_position')!.x).toBe(11)
-    expect(pos(so, 'body_position')!.x).toBe(11)
+    ])
+    const o = so(out[0])
+    expect(pos(o, 'hook_position')).toEqual({ x: 7.4, y: 81 })
+    expect(o.hook_width).toBe(85.2)
   })
 
-  it('Test 8 — no caption card: slide untouched, no positions injected', () => {
-    const slides = [{ style_overrides: { hook_font_size: 200 } }]
-    const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, unknown>
-    expect(so.hook_position).toBeUndefined()
-    expect(so.body_position).toBeUndefined()
-    expect(so.hook_font_size).toBe(200)
+  it('no caption card → slide untouched, no positions injected', () => {
+    const out = snapHeadlineToCaptionCard([{ style_overrides: { hook_font_size: 200 } }])
+    const o = so(out[0])
+    expect(o.hook_position).toBeUndefined()
+    expect(o.hook_width).toBeUndefined()
+    expect(o.hook_font_size).toBe(200)
   })
 
-  it('Test 9 — explicit caption_bar_enabled:false: no hook_position injected', () => {
-    const slides = [{ style_overrides: { caption_bar_enabled: false } }]
-    const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, unknown>
-    expect(so.hook_position).toBeUndefined()
-    expect(so.body_position).toBeUndefined()
+  it('explicit caption_bar_enabled:false → no snap', () => {
+    const out = snapHeadlineToCaptionCard([{ style_overrides: { caption_bar_enabled: false } }])
+    expect(so(out[0]).hook_position).toBeUndefined()
   })
 
-  it('Test 10 — top card: hook above body, both inside the top card span', () => {
-    const slides = [
-      {
-        style_overrides: {
-          caption_bar_enabled: true,
-          caption_bar_position: 'top' as const,
-          caption_bar_height_pct: 38,
-        },
-      },
-    ]
-    const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, unknown>
-    expect(pos(so, 'hook_position')!.y).toBeLessThan(pos(so, 'body_position')!.y)
-    expect(pos(so, 'hook_position')!.y).toBeGreaterThanOrEqual(0)
-    expect(pos(so, 'body_position')!.y).toBeLessThanOrEqual(38)
-  })
-
-  it('Test 11 — explicit caption_bar_y wins over the position default', () => {
-    const slides = [
+  it('explicit caption_bar_y + height drive the vertical centre', () => {
+    const out = snapHeadlineToCaptionCard([
       {
         style_overrides: {
           caption_bar_enabled: true,
@@ -166,14 +81,25 @@ describe('snapHeadlineToCaptionCard', () => {
           caption_bar_height_pct: 40,
         },
       },
-    ]
-    const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, unknown>
-    // 50 + 40*0.25 = 60
-    expect(pos(so, 'hook_position')!.y).toBe(60)
+    ])
+    // centre = caption_bar_y + height/2 = 50 + 20 = 70
+    expect(pos(so(out[0]), 'hook_position')!.y).toBe(70)
   })
 
-  it('Test 12 — idempotent + non-mutating', () => {
+  it('top card → headline centred in the upper region', () => {
+    const out = snapHeadlineToCaptionCard([
+      {
+        style_overrides: {
+          caption_bar_enabled: true,
+          caption_bar_position: 'top' as const,
+          caption_bar_height_pct: 38,
+        },
+      },
+    ])
+    expect(pos(so(out[0]), 'hook_position')!.y).toBe(19)
+  })
+
+  it('idempotent + non-mutating', () => {
     const input = [
       { style_overrides: { caption_bar_enabled: true, caption_bar_height_pct: 38 } },
     ]
@@ -181,18 +107,19 @@ describe('snapHeadlineToCaptionCard', () => {
     const once = snapHeadlineToCaptionCard(input)
     const twice = snapHeadlineToCaptionCard(once)
     expect(twice).toEqual(once)
-    // The original input array's slide objects are not mutated.
     expect(input).toEqual(inputSnapshot)
   })
 
-  it('news-stamp — stampNewsDefault enables the card on news slides without an explicit flag', () => {
-    const slides = [
-      { style_overrides: { hook_font_size: 200 } },
-      { style_overrides: { caption_bar_enabled: false } },
-    ]
-    const out = snapHeadlineToCaptionCard(slides, { stampNewsDefault: true })
-    const a = out[0].style_overrides as Record<string, unknown>
-    const b = out[1].style_overrides as Record<string, unknown>
+  it('stampNewsDefault enables the card on news slides without an explicit flag', () => {
+    const out = snapHeadlineToCaptionCard(
+      [
+        { style_overrides: { hook_font_size: 200 } },
+        { style_overrides: { caption_bar_enabled: false } },
+      ],
+      { stampNewsDefault: true },
+    )
+    const a = so(out[0])
+    const b = so(out[1])
     // Slide 0 — no explicit flag → stamped true → snapped.
     expect(a.caption_bar_enabled).toBe(true)
     expect(a.hook_position).toBeDefined()
@@ -201,10 +128,9 @@ describe('snapHeadlineToCaptionCard', () => {
     expect(b.hook_position).toBeUndefined()
   })
 
-  it('adapter integration — snapped hook_position survives legacyToTextBoxes into text_boxes', () => {
+  it('adapter integration — snapped hook_position survives legacyToTextBoxes', () => {
     const newsSlide = {
       hook_text: 'Breaking news headline',
-      body_text: 'Supporting detail line',
       style_overrides: { caption_bar_enabled: true, caption_bar_height_pct: 38 },
     }
     const [snapped] = snapHeadlineToCaptionCard([newsSlide])
@@ -213,8 +139,8 @@ describe('snapHeadlineToCaptionCard', () => {
     expect(hookBox).toBeDefined()
     expect(hookBox!.position.anchor).toBe('custom')
     if (hookBox!.position.anchor === 'custom') {
-      expect(hookBox!.position.x).toBe(11)
-      expect(hookBox!.position.y).toBe(71.5)
+      expect(hookBox!.position.x).toBe(7.4)
+      expect(hookBox!.position.y).toBe(81)
     }
   })
 })

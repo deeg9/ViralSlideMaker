@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react'
 import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition, CustomText, TextSegment, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
@@ -24,7 +24,7 @@ import {
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from '@/lib/render/resolve-styles'
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
-import { getHookFontSize, hasHookFit, clampManualHookSize } from '@/lib/render/hook-fit'
+import { getHookFontSize, hasHookFit, clampManualHookSize, captionCardHeadlineBox } from '@/lib/render/hook-fit'
 // Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
 // decoration → DOM markup. BOTH renderers (render-slide-satori.tsx + this
 // React preview path) import renderDecoration from this exact module path.
@@ -598,6 +598,12 @@ export function SlidePreview({
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  // quick-260519-hym: measured top-edge (% of frame) that vertically centers
+  // the editable caption-card headline <Rnd> on the card centre. The export
+  // renderers use translateY(-50%); the editor's <Rnd> is top-anchored, so it
+  // measures the rendered headline height and positions the box at
+  // centre − height/2. `null` until the first layout-effect measure pass.
+  const [hookCenteredTopPct, setHookCenteredTopPct] = useState<number | null>(null)
   const customTextRefs = useRef<Record<string, HTMLDivElement | null>>({})
   // phase-59-01: capture pre-drag width+fontSize on resize start so 59-02 can
   // compute widthRatio = newWidthPx / oldWidthPx in onResizeStop. Per-role
@@ -857,6 +863,16 @@ export function SlidePreview({
   const newsHeadlineFontSize = resolveNewsHeadlineFit(
     captionBarForFit, slide.hook_text, hookFontSize, isNewsLayoutSlide,
   )
+  // quick-260519-hym: when an enabled caption card backs a news-layout slide,
+  // the headline text box is OWNED by the card geometry — inset to the card's
+  // fit-box width and vertically centered in the card. Derived (not read from
+  // persisted hook_position) so it stays correct if the card is resized and so
+  // older slides re-center on load. `null` for every non-caption-card slide.
+  // Same gate + helper as render-slide-satori.tsx / render-slide.ts (TPLREND-05).
+  const captionCardHeadline =
+    captionBarForFit.enabled && isNewsLayoutSlide
+      ? captionCardHeadlineBox(captionBarForFit)
+      : null
   const bodyFontSize = overrides.body_font_size ?? parseInt(template.bodyFontSize)
 
   // Font family overrides (Phase 12)
@@ -941,13 +957,17 @@ export function SlidePreview({
   const defaults = newsZone ?? SAFE_ZONE[positionPreset] ?? SAFE_ZONE.center
   const defaultX = SAFE_ZONE.x
 
-  const resolvedHookX = hookPos?.x ?? defaultX
-  const resolvedHookY = hookPos?.y ?? defaults.hookY
+  // quick-260519-hym: a caption-card headline's x/y are derived from the card,
+  // overriding any persisted hook_position (the card owns the geometry).
+  const resolvedHookX = captionCardHeadline?.xPct ?? hookPos?.x ?? defaultX
+  const resolvedHookY = captionCardHeadline?.yCenterPct ?? hookPos?.y ?? defaults.hookY
   const resolvedBodyX = bodyPos?.x ?? defaultX
   const resolvedBodyY = bodyPos?.y ?? defaults.bodyY
 
-  // Width: use override or symmetric calc, min 20%
-  const hookWidth = Math.max(20, overrides.hook_width ?? (100 - resolvedHookX * 2))
+  // Width: caption-card headline uses the card's fit-box width; otherwise
+  // override or symmetric calc, min 20%.
+  const hookWidth = captionCardHeadline?.widthPct
+    ?? Math.max(20, overrides.hook_width ?? (100 - resolvedHookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - resolvedBodyX * 2))
 
   // Phase 20: Resolve text effects via resolveSlideStyles
@@ -1035,6 +1055,27 @@ export function SlidePreview({
     sel?.removeAllRanges()
     sel?.addRange(range)
   }, [editingHookBodyId, slide.text_boxes])
+
+  // quick-260519-hym: vertically center the editable caption-card headline
+  // <Rnd> on the card centre. The export renderers use translateY(-50%); the
+  // editor's <Rnd> is top-anchored, so it measures the rendered headline's
+  // height and parks the box top at centre − height/2. Runs after every render
+  // (caption headline only); the functional-setState guard makes it converge
+  // in ~1 extra render and never loop.
+  useLayoutEffect(() => {
+    if (!editable || !captionCardHeadline) {
+      setHookCenteredTopPct((prev) => (prev === null ? prev : null))
+      return
+    }
+    const el = hookRef.current
+    if (!el || !scale) return
+    const heightPct =
+      (el.getBoundingClientRect().height / scale / REF_HEIGHT) * 100
+    const top = captionCardHeadline.yCenterPct - heightPct / 2
+    setHookCenteredTopPct((prev) =>
+      prev !== null && Math.abs(prev - top) < 0.05 ? prev : top,
+    )
+  })
 
   const hookTextStyle: React.CSSProperties = {
     // Phase 82 Gap D: caption-card-aware re-fit (= hookFontSize when no card).
@@ -1327,6 +1368,10 @@ export function SlidePreview({
             width: `${hookWidth}%`,
             zIndex: 10,
             textAlign: hookTextAlign,
+            // quick-260519-hym: a caption-card headline's `top` is the card
+            // CENTER — translateY(-50%) centers the (variable-height) block
+            // vertically in the card with no line-count estimate.
+            ...(captionCardHeadline ? { transform: 'translateY(-50%)' } : {}),
             ...(resolved.hookEffects.highlight?.enabled && resolved.hookEffects.highlight.style === 'full'
               ? { backgroundColor: resolved.hookEffects.highlight.color, padding: `${resolved.hookEffects.highlight.padding}px` }
               : {}),
@@ -1533,9 +1578,16 @@ export function SlidePreview({
   const hookSelected = !!selectedTextBoxId && hookBoxId === selectedTextBoxId
   const bodySelected = !!selectedTextBoxId && bodyBoxId === selectedTextBoxId
 
+  // quick-260519-hym: a caption-card headline's <Rnd> top edge is the measured
+  // centred top (centre − height/2). Until the first measure pass it falls back
+  // to the card centre; the layout effect corrects it within one frame.
+  const editableHookYPct =
+    captionCardHeadline && hookCenteredTopPct != null
+      ? hookCenteredTopPct
+      : resolvedHookY
   const hookPixels = {
     x: (resolvedHookX / 100) * REF_WIDTH,
-    y: (resolvedHookY / 100) * REF_HEIGHT,
+    y: (editableHookYPct / 100) * REF_HEIGHT,
   }
   const bodyPixels = {
     x: (resolvedBodyX / 100) * REF_WIDTH,
@@ -1896,8 +1948,11 @@ export function SlidePreview({
           scale={scale}
           bounds="parent"
           // quick-260518-htt (HTT-01): chrome shows only when selected.
-          enableResizing={hookLocked || hookEditing || !hookRndSelected ? false : enableResizing}
-          disableDragging={hookLocked || hookEditing}
+          // quick-260519-hym: a caption-card headline is card-managed (auto
+          // centered + auto-fit) — not independently draggable/resizable. The
+          // user moves/resizes the CARD; the headline follows.
+          enableResizing={hookLocked || hookEditing || !hookRndSelected || !!captionCardHeadline ? false : enableResizing}
+          disableDragging={hookLocked || hookEditing || !!captionCardHeadline}
           resizeHandleStyles={resizeHandleStyles}
           onDragStart={(_e, data) => {
             // Phase 61 Plan 02 (KBD-07): snapshot drag-start position for

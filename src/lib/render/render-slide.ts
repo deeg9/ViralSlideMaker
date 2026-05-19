@@ -4,7 +4,7 @@ import type { BrandKit } from '../types/brand-kit'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
-import { getHookFontSize, hasHookFit } from './hook-fit'
+import { getHookFontSize, hasHookFit, captionCardHeadlineBox } from './hook-fit'
 // quick-260515-epn: per-slide template_id_override resolved INTERNALLY so
 // callers can keep passing the project-level template unchanged. TPLREND-05
 // byte-identity preserved when no override is set (helper returns the EXACT
@@ -299,13 +299,27 @@ export function buildSlideHtml(
   const defaults = newsZone ?? SAFE[posPreset] ?? SAFE.center
   const defaultX = SAFE.x
 
-  const hookX = overrides.hook_position?.x ?? defaultX
-  const hookY = overrides.hook_position?.y ?? defaults.hookY
+  // quick-260519-hym: caption-card resolution is hoisted above hookX/hookY so a
+  // news-layout caption-card headline can be positioned by the card geometry.
+  // `isNewsLayoutSlide` mirrors the gate in render-slide-satori.tsx +
+  // slide-preview.tsx; `captionCard` is re-used by the captionCardHtml layer.
+  const isNewsLayoutSlide = template.backgroundMode == null && overrides.layout != null
+  const captionCard = resolveCaptionBar(overrides, template, isNewsLayoutSlide)
+  // A news-layout caption-card headline is owned by the card geometry — inset
+  // to the card's fit-box width, vertically centered (hookY = card centre, with
+  // translateY(-50%) in the emitted .hook CSS). Null for non-caption slides.
+  const captionCardHeadline =
+    captionCard.enabled && isNewsLayoutSlide ? captionCardHeadlineBox(captionCard) : null
+
+  const hookX = captionCardHeadline?.xPct ?? overrides.hook_position?.x ?? defaultX
+  const hookY = captionCardHeadline?.yCenterPct ?? overrides.hook_position?.y ?? defaults.hookY
   const bodyX = overrides.body_position?.x ?? defaultX
   const bodyY = overrides.body_position?.y ?? defaults.bodyY
 
-  // Width: override wins, fall back to symmetric calc, min 20%
-  const hookWidth = Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
+  // Width: caption-card headline uses the card's fit-box width; otherwise
+  // override wins, fall back to symmetric calc, min 20%.
+  const hookWidth = captionCardHeadline?.widthPct
+    ?? Math.max(20, overrides.hook_width ?? (100 - hookX * 2))
   const bodyWidth = Math.max(20, overrides.body_width ?? (100 - bodyX * 2))
 
   // quick-260518-8o0: the constrained news-photo <img> (`newsBgImageHtml`) is
@@ -324,10 +338,8 @@ export function buildSlideHtml(
   // enabled:false => no card (byte-identical to pre-change). z-index:2 sits
   // above the photo and below the hook/body text — matching the canvas
   // zIndex discipline.
-  // `isNewsLayoutSlide` mirrors the gate in render-slide-satori.tsx +
-  // slide-preview.tsx; hoisted above the resolveCaptionBar call.
-  const isNewsLayoutSlide = template.backgroundMode == null && overrides.layout != null
-  const captionCard = resolveCaptionBar(overrides, template, isNewsLayoutSlide)
+  // `isNewsLayoutSlide` + `captionCard` are resolved above (hoisted so the
+  // headline geometry can derive from the card).
   // quick-260518-ch8: shared helper — emits `background-color` when blend is
   // off (byte-identical to pre-change) or `background-image` (a linear-gradient)
   // when blend is on, matching the canvas + Satori paths (TPLREND-05 / PARITY-01).
@@ -423,6 +435,7 @@ export function buildSlideHtml(
       left: ${hookX}%;
       top: ${hookY}%;
       width: ${hookWidth}%;
+      ${captionCardHeadline ? 'transform: translateY(-50%);' : ''}
       text-align: ${hookTextAlign};
       z-index: 1;
       font-size: ${newsHeadlineFontSizePx}px;
