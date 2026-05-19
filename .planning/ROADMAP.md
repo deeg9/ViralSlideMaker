@@ -81,9 +81,9 @@ Plans:
 **Plans**: 3
 
 Plans:
-- [ ] 85-01: Recipe-apply core — applyLayoutRecipe projection module + recipe semantic-hint block in buildSystemPrompt
-- [ ] 85-02: Wire both generateCarousel paths through recipe resolution + applyLayoutRecipe before save
-- [ ] 85-03: SC2 Oracle-look, SC3 byte-identical, SC4 public-by-default verification tests
+- [x] 85-01: Recipe-apply core — applyLayoutRecipe projection module + recipe semantic-hint block in buildSystemPrompt
+- [x] 85-02: Wire both generateCarousel paths through recipe resolution + applyLayoutRecipe before save
+- [x] 85-03: SC2 Oracle-look, SC3 byte-identical, SC4 public-by-default verification tests
 
 **Risk framing**: Highest blast radius of the milestone — this touches the live generation pipeline (`prompts.ts`, `style-spec-projector.ts`, `style-spec-projector-constants.ts`, `validate-slides.ts`) and affects *every generated carousel for a category* on a recipe-carrying template. Needs heavy verification: a recipe-carrying generation must come out pre-shaped without regressing flat-style-only (no-recipe) generations, and the change must not breach generation-perf budgets (cf. v2.12 `template_id_override` open-string runaway). Absorbs the removed placeholder Phase 83 ("template-driven layout generation"). Recipe application is deterministic code; no new Gemini model tier.
 
