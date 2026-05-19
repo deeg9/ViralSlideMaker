@@ -4,8 +4,8 @@ milestone: v2.15
 milestone_name: DB-Backed Template Wiring
 status: Awaiting next milestone
 stopped_at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
-last_updated: "2026-05-19T19:38:35.239Z"
-last_activity: 2026-05-19 — Milestone v2.15 completed and archived
+last_updated: "2026-05-19T19:55:57.195Z"
+last_activity: 2026-05-19 — Completed quick task 260519-hym: Snap generated headline text into caption-card geometry
 progress:
   total_phases: 2
   completed_phases: 2
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 Phase: Milestone v2.15 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-05-19 — Milestone v2.15 completed and archived
+Last activity: 2026-05-19 — Completed quick task 260519-hym: Snap generated headline text into caption-card geometry
 
 ## Roadmap — v2.15 (Phases 87–88)
 
@@ -77,6 +77,12 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 
 - **Sync→async conversion in Phase 88** — RESOLVED. All 5 render-path `getTemplate`→`resolveTemplate` sites verified in async contexts; `resolvePerSlideTemplate` and `buildSystemPrompt` kept SYNC via optional params (a literal asyncification would cascade into 7 client components + 40+ test files). Byte-identity guard proves the conversion is behavior-neutral for the 13 code templates.
 - **`autoPublishOnGenerate` regression risk in Phase 87** — RESOLVED (Phase 87 verified).
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260519-hym | Snap generated headline text into caption-card geometry | 2026-05-19 | 0db74ab | [260519-hym-snap-generated-headline-text-into-captio](./quick/260519-hym-snap-generated-headline-text-into-captio/) |
 
 ### Open Items (carried forward)
 
