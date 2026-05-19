@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Phase 87 Plan 02 Task 9 (WIRE-02): contract tests for the POST
 // /api/v1/carousel templateId validation. The handler now rejects an unknown
@@ -12,8 +12,8 @@ import { NextResponse } from 'next/server'
 // ---- Stub withApiAuth: pass through to the inner handler with a fake ctx ----
 vi.mock('@/lib/api/with-api-auth', () => ({
   withApiAuth:
-    (fn: (req: Request, ctx: unknown) => Promise<NextResponse>) =>
-    (req: Request) =>
+    (fn: (req: NextRequest, ctx: unknown) => Promise<NextResponse>) =>
+    (req: NextRequest) =>
       fn(req, {
         userId: 'u1',
         keyId: 'k1',
@@ -71,8 +71,8 @@ function makeDbRow(id: string): DbTemplateRow {
   }
 }
 
-function makeRequest(body: Record<string, unknown>): Request {
-  return new Request('https://example.com/api/v1/carousel', {
+function makeRequest(body: Record<string, unknown>): NextRequest {
+  return new NextRequest('https://example.com/api/v1/carousel', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
