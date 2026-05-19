@@ -22,6 +22,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
 import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
 import { acceptStyleFromReferenceTosCurrentVersionAction } from '@/app/(dashboard)/style-from-reference/actions'
+// Phase 87 (WIRE-01): server-side DB-backed template fetch for the picker.
+import { getPickerDbTemplates } from '@/lib/render/templates/registry'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -114,6 +116,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     )
   }
 
+  // Phase 87 (WIRE-01): fetch DB-backed templates server-side and thread
+  // them into the generation form so the picker can show them merged under
+  // their category. getPickerDbTemplates never throws — a DB read failure
+  // degrades to a code-templates-only picker. Fetched here (after the
+  // hasSlides editor branch) so it runs only on the generation-form path.
+  const dbTemplates = await getPickerDbTemplates()
+
   return (
     <div className="max-w-3xl mx-auto pt-4 px-4 pb-32 md:pb-12">
       {/* Generating state */}
@@ -145,6 +154,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         brandKit={brandKit}
         tosAlreadyAccepted={tosAlreadyAccepted}
         acceptTosAction={acceptStyleFromReferenceTosCurrentVersionAction}
+        dbTemplates={dbTemplates}
       />
 
       {/* quick-260510-modal-on-prompt-page: invisible until ?naming=1 is in

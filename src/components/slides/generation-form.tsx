@@ -16,6 +16,7 @@ import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
 import { StyleFromReferenceShell } from '@/components/style-from-reference/style-from-reference-shell'
 import type { SpecPreviewState } from '@/components/style-from-reference/state-machine'
 import type { BrandKit } from '@/lib/types/brand-kit'
+import type { PickerDbTemplate } from '@/lib/render/templates/registry'
 
 export type ImageSource = 'stock' | 'ai' | 'none'
 
@@ -39,6 +40,10 @@ interface GenerationFormProps {
    *  contexts, tests) don't accidentally surface the modal. */
   tosAlreadyAccepted?: boolean
   acceptTosAction?: () => Promise<{ ok: true } | { ok: false; error: string }>
+  /** Phase 87 (WIRE-01): DB-backed templates fetched server-side by the
+   *  project page and threaded into the picker. Defaults to [] so callers
+   *  that don't pass it (tests, legacy contexts) are unaffected. */
+  dbTemplates?: PickerDbTemplate[]
 }
 
 export function GenerationForm({
@@ -51,6 +56,7 @@ export function GenerationForm({
   brandKit,
   tosAlreadyAccepted,
   acceptTosAction,
+  dbTemplates = [],
 }: GenerationFormProps) {
   const [topic, setTopic] = useState(currentTopic ?? '')
   // Phase 82 (R6): the selected content category drives Gemini's copy.
@@ -509,6 +515,7 @@ export function GenerationForm({
               onSelect={setTemplateId}
               brandKit={brandKit}
               category={category}
+              dbTemplates={dbTemplates}
             />
           </div>
         )}
