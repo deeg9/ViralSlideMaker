@@ -82,7 +82,25 @@ vi.mock('@/lib/render/preview-render', () => ({
   renderCoverPreviewPng: (...args: unknown[]) => mockRender(...args),
 }))
 vi.mock('@/lib/render/templates/registry', () => ({
-  resolveTemplate: vi.fn().mockResolvedValue({ id: 'highlight-bar', name: 'Highlight Bar' }),
+  // A resolved SlideTemplate with real flat-style fields — the route derives
+  // the saved flat_style blob from this (templateFlatStyle), not from
+  // extractLayoutRecipe's output.
+  resolveTemplate: vi.fn().mockResolvedValue({
+    id: 'news-cyan',
+    name: 'News Cyan',
+    thumbnail: '/templates/news-cyan.png',
+    fontFamily: 'Anton',
+    hookFontSize: '120px',
+    bodyFontSize: '28px',
+    textColor: '#ffffff',
+    backgroundColor: '#0a0a0a',
+    overlayColor: '#000000',
+    overlayOpacity: 0.45,
+    accentColor: '#00e5ff',
+    textAlign: 'center',
+    textPosition: 'bottom',
+    hookStyle: 'uppercase',
+  }),
 }))
 
 import { POST } from '@/app/api/admin/templates/route'
@@ -151,11 +169,31 @@ describe('POST /api/admin/templates', () => {
     expect(mockInsert).toHaveBeenCalledTimes(1)
     const inserted = mockInsert.mock.calls[0][0] as Record<string, unknown>
     expect(inserted.layout_recipe).toEqual({ schema_version: 1, roles: {} })
-    expect(inserted.flat_style).toEqual({ text_align: 'left' })
     expect(inserted.created_by).toBe(ADMIN_ID)
     expect(inserted.category).toBe('news')
     expect(typeof inserted.preview).toBe('string')
     expect((inserted.preview as string).length).toBeGreaterThan(0)
+  })
+
+  it('flat_style is derived from the resolved source template, not extraction', async () => {
+    const res = await POST(postRequest({ projectId: 'p1', name: 'Bold News', category: 'news' }))
+    expect(res.status).toBe(201)
+    const inserted = mockInsert.mock.calls[0][0] as Record<string, unknown>
+    const flat = inserted.flat_style as Record<string, unknown>
+    // carries the resolved template's flat-style fields (SlideTemplate shape)
+    expect(flat).toMatchObject({
+      fontFamily: 'Anton',
+      textColor: '#ffffff',
+      backgroundColor: '#0a0a0a',
+      accentColor: '#00e5ff',
+      overlayOpacity: 0.45,
+    })
+    // identity / picker-asset keys are stripped from the blob
+    expect(flat).not.toHaveProperty('id')
+    expect(flat).not.toHaveProperty('name')
+    expect(flat).not.toHaveProperty('thumbnail')
+    // NOT extractLayoutRecipe's snake_case output
+    expect(flat).not.toHaveProperty('text_align')
   })
 
   it('appends a suffix when the slug id collides with an existing DB row', async () => {

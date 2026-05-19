@@ -20,6 +20,7 @@ import { getProject } from '@/lib/services/projects'
 import { extractLayoutRecipe } from '@/lib/ai/layout-recipe-extract'
 import { renderCoverPreviewPng } from '@/lib/render/preview-render'
 import { resolveTemplate } from '@/lib/render/templates/registry'
+import { templateFlatStyle } from '@/lib/render/templates/db-template-row'
 import { TEMPLATE_IDS } from '@/lib/render/templates/index'
 import { CONTENT_CATEGORIES } from '@/lib/ai/categories'
 import { templateSlug, withSuffix } from '@/lib/templates/slug'
@@ -79,11 +80,17 @@ export async function POST(request: Request) {
   // 4. Resolve the source template (used for the cover render).
   const sourceTemplate = await resolveTemplate(project.template_id ?? 'highlight-bar')
 
-  // 5. Extract the recipe + flat style (Phase 84). extractLayoutRecipe never
-  //    throws. The optional 2nd arg is a Partial<SlideStyleOverrides> style
-  //    fallback — the source carousel's slides already carry their own
-  //    style_overrides, so the recipe is extracted from the slides directly.
-  const { recipe, flatStyle } = extractLayoutRecipe(slides)
+  // 5. Extract the layout recipe (Phase 84). extractLayoutRecipe never throws.
+  const { recipe } = extractLayoutRecipe(slides)
+
+  // 5b. flat_style — the resolved source template's flat-style fields, in
+  //     SlideTemplate shape (camelCase) so dbRowToSlideTemplate reads it back
+  //     faithfully. extractLayoutRecipe's own `flatStyle` is intentionally NOT
+  //     used here: it is SlideStyleOverrides-shaped (snake_case) — keys
+  //     dbRowToSlideTemplate never reads — and comes back empty whenever a
+  //     carousel's look lives in its code template rather than in per-slide
+  //     overrides. The resolved template is the faithful flat-style base.
+  const flatStyle = templateFlatStyle(sourceTemplate)
 
   // 6. Render the cover preview PNG (ADMIN-02).
   let previewBuffer: Buffer
