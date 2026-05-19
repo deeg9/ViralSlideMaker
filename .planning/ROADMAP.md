@@ -60,7 +60,7 @@ sets and no shared schema work; honored as-is.
 
 ## Phases
 
-- [ ] **Phase 87: Picker + Generation Wiring** — DB templates appear in the category-filtered picker and survive selection through generation (WIRE-01, WIRE-02)
+- [x] **Phase 87: Picker + Generation Wiring** — DB templates appear in the category-filtered picker and survive selection through generation (WIRE-01, WIRE-02) (completed 2026-05-19)
 - [ ] **Phase 88: Render Paths + Per-Slide Override + Publish/Fork** — all three render paths, per-slide override, and publish/fork resolve a DB `template_id`; parity re-verified (WIRE-03, WIRE-04, WIRE-05, WIRE-06)
 
 ## Phase Details
@@ -91,7 +91,13 @@ silently snapped to the category default.
      for genuinely cross-category ids).
   5. A newly generated carousel still defaults to Public — every touched
      generation path still routes through `autoPublishOnGenerate`.
-**Plans**: TBD
+**Plans**:
+  - [x] 87-01: Picker wiring — `getPickerDbTemplates` registry helper, the
+    `TemplatePicker` DB-first category merge, server-side fetch threaded
+    through `GenerationForm` (WIRE-01)
+  - [x] 87-02: Generation snap fix — DB-aware snap in `generation-form.tsx` /
+    `actions.ts` / `carousel.ts`, `isKnownTemplateId` guard on
+    `/api/v1/carousel`, async `resolveTemplate` backgroundMode read (WIRE-02)
 **UI hint**: yes
 
 ### Phase 88: Render Paths + Per-Slide Override + Publish/Fork
