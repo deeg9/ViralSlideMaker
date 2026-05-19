@@ -124,3 +124,42 @@ export async function isKnownTemplateId(id: string): Promise<boolean> {
   const rows = await getDbRows()
   return rows.some((r) => r.id === id)
 }
+
+/** A DB template resolved for the picker, paired with the row metadata the
+ *  picker needs to category-filter and order it. */
+export interface PickerDbTemplate {
+  template: SlideTemplate
+  category: string | null
+  createdAt: string
+}
+
+/**
+ * DB templates for the generation picker, each paired with its row `category`
+ * and `created_at`. Code-collision rows are dropped (a code id always wins).
+ * Rows arrive newest-first from the fetcher (`created_at` descending); that
+ * order is preserved. Never throws — a DB read failure degrades to an empty
+ * list (code-templates-only picker).
+ */
+export async function getPickerDbTemplates(): Promise<PickerDbTemplate[]> {
+  const rows = await getDbRows()
+  return rows
+    .filter((r) => !CODE_TEMPLATE_ID_SET.has(r.id))
+    .map((r) => ({
+      template: dbRowToSlideTemplate(r),
+      category: r.category,
+      createdAt: r.created_at,
+    }))
+}
+
+/**
+ * The content category of a template id, or `null` when the id is a code
+ * template (code templates have no category) or unknown. DB rows carry a
+ * `category` column. Used by the generation snap logic to decide whether a
+ * submitted DB id belongs to the selected category. Never throws.
+ */
+export async function templateCategory(id: string): Promise<string | null> {
+  if (CODE_TEMPLATE_ID_SET.has(id)) return null
+  const rows = await getDbRows()
+  const row = rows.find((r) => r.id === id)
+  return row?.category ?? null
+}
