@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.15
 milestone_name: DB-Backed Template Wiring
-status: planning
+status: roadmap_complete
 last_updated: "2026-05-19T18:01:27.945Z"
 last_activity: 2026-05-19
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,15 +20,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — after v2.14 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** Planning next milestone — v2.14 Save as Template shipped and archived. Run `/gsd-new-milestone`.
-**Latest shipped:** v2.14 Save as Template (2026-05-19) — admin-authored, DB-backed templates capturing a carousel's full `LayoutRecipe`; recipe-driven pre-shaped generation.
+**Current focus:** v2.15 DB-Backed Template Wiring — roadmap created (2 phases, 87–88). Next: `/gsd-plan-phase 87`.
+**Latest shipped:** v2.14 Save as Template (2026-05-19) — admin-authored, DB-backed templates capturing a carousel's full `LayoutRecipe`; recipe-driven pre-shaped generation. Registry functions built but never wired into the app — v2.15 closes that gap.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 87 — Picker + Generation Wiring (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-19 — Milestone v2.15 started
+Status: Roadmap complete — ready to plan Phase 87
+Last activity: 2026-05-19 — Milestone v2.15 roadmap created (2 phases)
+
+## Roadmap — v2.15 (Phases 87–88)
+
+| Phase | Goal | Requirements | Status |
+|-------|------|--------------|--------|
+| 87. Picker + Generation Wiring | DB templates appear in the category-filtered picker and survive selection through generation | WIRE-01, WIRE-02 | Not started |
+| 88. Render Paths + Per-Slide Override + Publish/Fork | All three render paths, per-slide override, and publish/fork resolve a DB `template_id`; parity re-verified | WIRE-03, WIRE-04, WIRE-05, WIRE-06 | Not started |
+
+**Coverage:** 6/6 v2.15 requirements mapped (no orphans, no duplicates).
 
 ## Milestone History
 
@@ -54,35 +63,40 @@ Full history: `.planning/MILESTONES.md`. Archives: `.planning/milestones/`.
 
 ### Decisions
 
+- **2-phase split honored from the spec** — `.planning/DB-TEMPLATE-WIRING-SPEC.md` verified the file-level blast radius and recommended a tight 2-phase breakdown; the file sets are disjoint and there is no shared schema work, so the roadmap honors it as-is. Config granularity (`coarse`) favors the same shape.
+- **No schema migration in v2.15** — the `templates` table + `category` column already exist (Phase 83); this milestone is app-layer wiring only.
+
 Decisions logged in PROJECT.md Key Decisions table (v2.14 decisions added at milestone close). Per-milestone decision logs live in the milestone archives.
 
 ### Blockers/Concerns
 
-No open milestone blockers. The two v2.14 phase-risk concerns (Phase 85 generation blast radius, Phase 83 prod-Supabase migration) were resolved at ship — verified by phase VERIFICATION.md + the milestone audit.
+No open milestone blockers. Phase-risk to watch (carried into planning):
+- **Sync→async conversion in Phase 88** — every `getTemplate` → `resolveTemplate` call-site conversion touches a render path; each converted site must be individually verified to be in an async context (route handler / server action) and to not break rendering.
+- **`autoPublishOnGenerate` regression risk in Phase 87** — public-by-default has regressed 6× historically; every touched generation path must still route through the helper.
 
 ### Open Items (carried forward)
 
-- **v2.14 operational user-setup (feature is fail-safe-closed until done):** set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`); apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project.
-- **Pre-existing test debt:** 6 fixture-regen failures (`legacy-templates-byte-identical` / `-regression` / `new-templates-parity`) from quick task `260518-jhg` adding the 13th code template — needs a fixture-regen fix, not a v2.14 regression.
+- **v2.14 operational user-setup (feature is fail-safe-closed until done):** set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`); apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project. **Note:** v2.15's end-to-end dry-run (Phase 88 SC5) depends on the admin Save-as-Template path being reachable — this setup must be done before that dry-run can run.
+- **Pre-existing test debt:** 6 fixture-regen failures (`legacy-templates-byte-identical` / `-regression` / `new-templates-parity`) from quick task `260518-jhg` adding the 13th code template — WIRE-06 holds these suites at the existing baseline; v2.15 must introduce no new parity regression but is not required to fix the pre-existing 6.
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| Templates | End-user (non-admin) template saving | Deferred to future milestone | v2.14 spec |
-| Templates | Community / publishable / marketplace templates + moderation | Deferred to future milestone | v2.14 spec |
-| Templates | Editing/deleting a saved DB template | V1 is save-new-only | v2.14 spec |
+| Templates | End-user / community template authoring + picker surfacing community templates | Deferred to future milestone | v2.15 requirements |
+| Templates | Editing or deleting a saved DB template | V1 is save-new-only | v2.15 requirements |
+| Templates | Explicit registry cache invalidation on template write | v1 accepts the ≤60s TTL | v2.15 requirements |
 | Templates | Migrating the 13 code templates into the DB | Stay in code (back-compat) | v2.14 spec |
 | QA | Carry-over manual QA from v2.10/v2.12/v2.13 (iPhone Safari touch, Lucide picker perf, template visual fidelity) | Carried forward | prior milestones |
 
 ## Session Continuity
 
 Last session: 2026-05-19
-Stopped at: Milestone v2.14 Save as Template completed via `/gsd-complete-milestone` — archives created, ROADMAP reorganized, REQUIREMENTS.md removed, PROJECT.md evolved, RETROSPECTIVE.md created, STATE.md updated, annotated git tag `v2.14` created locally (not pushed).
-Resume file: None — next step is `/gsd-new-milestone`.
+Stopped at: Milestone v2.15 roadmap created — `.planning/ROADMAP.md` updated with the Active Milestone block + 2-phase detail (87–88), `.planning/REQUIREMENTS.md` traceability table filled with real phase assignments, `.planning/STATE.md` updated.
+Resume file: None — next step is `/gsd-plan-phase 87`.
 
 ## Operator Next Steps
 
-- Start the next milestone with `/gsd-new-milestone`.
-- Before the v2.14 admin Save-as-Template feature is operationally usable: set `ADMIN_USER_IDS` + apply the `template-previews` bucket migration.
-- Push when ready: `git push` (branch `main`) and `git push origin v2.14` (the tag).
+- Plan the first phase with `/gsd-plan-phase 87`.
+- Before the Phase 88 end-to-end dry-run: complete the v2.14 operational setup (set `ADMIN_USER_IDS` + apply the `template-previews` bucket migration) so the admin Save-as-Template path is reachable.
+- Push when ready: `git push` (branch `main`) and `git push origin v2.14` (the v2.14 tag, still local).
