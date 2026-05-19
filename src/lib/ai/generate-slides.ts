@@ -23,6 +23,7 @@ import { buildSystemPrompt } from './prompts'
 import { resolveTemplate } from '@/lib/render/templates/registry'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 import { promoteNewsHeadline } from './categories/promote-news-headline'
+import { snapHeadlineToCaptionCard } from './caption-card-text-snap'
 import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
 import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
@@ -303,6 +304,29 @@ export async function generateSlideContent(
       newsTemplate.accentColor ?? getTemplate('news-cyan').accentColor ?? '#00E5FF'
     promoteNewsHeadline(parsedCarousel, accentHex)
   }
+
+  // quick-260519-hym: deterministic caption-card text snap. Runs AFTER
+  // promoteNewsHeadline and BEFORE the decorations / legacyToTextBoxes mapping
+  // so the computed hook_position / body_position flow into BOTH the legacy
+  // slide fields and the derived text_boxes (the adapter turns hook_position
+  // into a `position.anchor: 'custom'` TextBox).
+  //
+  // The snap fires only on `caption_bar_enabled === true` (template-agnostic).
+  // The renderer's resolveCaptionBar (resolve-overlay.ts) AUTO-SEEDS an enabled
+  // caption card for news-layout slides at render time even when no
+  // `caption_bar_*` keys are persisted (the quick-260518-8o0 news black-
+  // headline-backdrop migration). For a NEW news generation to be snapped,
+  // generation must STAMP that flag — `stampNewsDefault` makes the auto-seeded
+  // news card explicit (only when the key is absent; an explicit `false` is
+  // preserved). Non-news categories are not stamped — those slides have no
+  // caption card unless one was explicitly enabled.
+  //
+  // applyLayoutRecipe / the style-spec-projector path are intentionally NOT
+  // touched (CONTEXT.md locked: a DB recipe already carries caption-card
+  // geometry).
+  parsedCarousel.slides = snapHeadlineToCaptionCard(parsedCarousel.slides, {
+    stampNewsDefault: category === 'news',
+  })
 
   // Phase 71 (AI-01..04): server-side decorations ingest. AI emits named
   // tokens + semantic anchors via DecorationEmitSchema; we resolve to

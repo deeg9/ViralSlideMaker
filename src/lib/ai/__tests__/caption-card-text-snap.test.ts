@@ -101,17 +101,26 @@ describe('computeCaptionCardTextPositions', () => {
   })
 })
 
+/** Read a TextPosition-shaped style-override field without over-narrowing the
+ *  whole overrides object (it also carries booleans/numbers). */
+function pos(
+  so: Record<string, unknown> | undefined,
+  key: string,
+): { x: number; y: number } | undefined {
+  return so?.[key] as { x: number; y: number } | undefined
+}
+
 describe('snapHeadlineToCaptionCard', () => {
   it('Test 7 — enabled bottom card: headline + body snapped into the card', () => {
     const slides = [
       { style_overrides: { caption_bar_enabled: true, caption_bar_height_pct: 38 } },
     ]
     const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, { x: number; y: number }>
-    expect(so.hook_position.y).toBe(71.5)
-    expect(so.body_position.y).toBe(84.8)
-    expect(so.hook_position.x).toBe(11)
-    expect(so.body_position.x).toBe(11)
+    const so = out[0].style_overrides as Record<string, unknown>
+    expect(pos(so, 'hook_position')!.y).toBe(71.5)
+    expect(pos(so, 'body_position')!.y).toBe(84.8)
+    expect(pos(so, 'hook_position')!.x).toBe(11)
+    expect(pos(so, 'body_position')!.x).toBe(11)
   })
 
   it('Test 8 — no caption card: slide untouched, no positions injected', () => {
@@ -142,10 +151,10 @@ describe('snapHeadlineToCaptionCard', () => {
       },
     ]
     const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, { x: number; y: number }>
-    expect(so.hook_position.y).toBeLessThan(so.body_position.y)
-    expect(so.hook_position.y).toBeGreaterThanOrEqual(0)
-    expect(so.body_position.y).toBeLessThanOrEqual(38)
+    const so = out[0].style_overrides as Record<string, unknown>
+    expect(pos(so, 'hook_position')!.y).toBeLessThan(pos(so, 'body_position')!.y)
+    expect(pos(so, 'hook_position')!.y).toBeGreaterThanOrEqual(0)
+    expect(pos(so, 'body_position')!.y).toBeLessThanOrEqual(38)
   })
 
   it('Test 11 — explicit caption_bar_y wins over the position default', () => {
@@ -159,9 +168,9 @@ describe('snapHeadlineToCaptionCard', () => {
       },
     ]
     const out = snapHeadlineToCaptionCard(slides)
-    const so = out[0].style_overrides as Record<string, { x: number; y: number }>
+    const so = out[0].style_overrides as Record<string, unknown>
     // 50 + 40*0.25 = 60
-    expect(so.hook_position.y).toBe(60)
+    expect(pos(so, 'hook_position')!.y).toBe(60)
   })
 
   it('Test 12 — idempotent + non-mutating', () => {
