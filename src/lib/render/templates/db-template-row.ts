@@ -49,6 +49,7 @@ const REQUIRED_FIELD_DEFAULTS = {
  * defaults so the mapper never returns a structurally-invalid template.
  *
  * `layout_recipe` is deliberately NOT read — it is reserved for Phase 84.
+ * Phase 86: the `preview` column IS carried onto `SlideTemplate.preview`.
  */
 export function dbRowToSlideTemplate(row: DbTemplateRow): SlideTemplate {
   const blob = row.flat_style ?? {}
@@ -68,5 +69,9 @@ export function dbRowToSlideTemplate(row: DbTemplateRow): SlideTemplate {
     // ...then the canonical columns win over anything in the blob.
     id: row.id,
     name: row.name,
+    // Phase 86 (ADMIN-02): carry the row's preview column onto
+    // SlideTemplate.preview so a DB template's saved cover-snapshot URL
+    // reaches the picker. `null` → `undefined` to match the optional field.
+    preview: row.preview ?? undefined,
   } as SlideTemplate
 }

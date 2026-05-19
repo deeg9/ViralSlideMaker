@@ -88,6 +88,11 @@ export interface SlideTemplate {
   // Optional accent color used by two-color news headlines (TextSegment.accent).
   // Falls back to textColor when not set.
   accentColor?: string
+  // Phase 86 (ADMIN-02): optional public URL of a rendered cover-snapshot PNG.
+  // Set by the admin Save-as-Template flow for DB templates; the 13 code
+  // templates leave it undefined and render via <SlidePreview> (no behavior
+  // change — render parity preserved).
+  preview?: string
   // Optional preview sample used by the template picker to render a real
   // mini SlidePreview tile instead of a synthetic swatch.
   sample?: {
