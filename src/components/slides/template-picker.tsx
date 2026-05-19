@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { pickerTemplates } from '@/lib/render/templates/index'
+import type { SlideTemplate } from '@/lib/render/templates/index'
+import type { PickerDbTemplate } from '@/lib/render/templates/registry'
 import { getCategory } from '@/lib/ai/categories'
 import type { BrandKit } from '@/lib/types/brand-kit'
 import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
@@ -17,6 +19,12 @@ interface TemplatePickerProps {
    *  the keeper set (pickerTemplates) and this category's curated templateIds,
    *  ordered by the category's templateIds. Absent → all keepers shown. */
   category?: string
+  /** Phase 87 (WIRE-01): DB-backed templates resolved server-side, each
+   *  paired with its row category + created_at. The picker shows the ones
+   *  whose category matches the selected category FIRST (newest-first), then
+   *  that category's code templates. Defaults to [] so existing callers/tests
+   *  are unchanged. */
+  dbTemplates?: PickerDbTemplate[]
 }
 
 /**
@@ -31,7 +39,7 @@ function isBrandKitConfigured(bk: BrandKit | null | undefined): bk is BrandKit {
   return hasColors || hasFont
 }
 
-export function TemplatePicker({ selectedId, onSelect, brandKit, category }: TemplatePickerProps) {
+export function TemplatePicker({ selectedId, onSelect, brandKit, category, dbTemplates = [] }: TemplatePickerProps) {
   const configured = isBrandKitConfigured(brandKit)
   const brandKitTemplate = configured ? synthesizeBrandKitTemplate(brandKit) : null
   const isBrandKitSelected = selectedId === BRAND_KIT_TEMPLATE_ID
@@ -41,11 +49,23 @@ export function TemplatePicker({ selectedId, onSelect, brandKit, category }: Tem
   // allows, in the category's templateIds order. Absent/unresolved category
   // falls back to the full keeper set (current behavior — no regression).
   const categoryModule = category ? getCategory(category) : undefined
-  const visibleTemplates = categoryModule
+  const categoryCodeTemplates: SlideTemplate[] = categoryModule
     ? categoryModule.templateIds
         .map((id) => pickerTemplates.find((t) => t.id === id))
-        .filter((t): t is (typeof pickerTemplates)[number] => t !== undefined)
+        .filter((t): t is SlideTemplate => t !== undefined)
     : pickerTemplates
+  // Phase 87 (WIRE-01): DB templates whose category matches the selected
+  // category, DB-first then the category's code templates. dbTemplates
+  // arrives newest-first (created_at desc) from getPickerDbTemplates().
+  const categoryDbTemplates: SlideTemplate[] = categoryModule
+    ? dbTemplates
+        .filter((d) => d.category === category)
+        .map((d) => d.template)
+    : []
+  const visibleTemplates: SlideTemplate[] = [
+    ...categoryDbTemplates,
+    ...categoryCodeTemplates,
+  ]
 
   return (
     <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-4 px-4">
