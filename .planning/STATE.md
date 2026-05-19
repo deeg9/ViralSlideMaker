@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.15
 milestone_name: DB-Backed Template Wiring
-status: in_progress
-last_updated: "2026-05-19T19:30:00.000Z"
-last_activity: 2026-05-19
+status: Awaiting next milestone
+stopped_at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
+last_updated: "2026-05-19T19:38:35.239Z"
+last_activity: 2026-05-19 — Milestone v2.15 completed and archived
 progress:
   total_phases: 2
   completed_phases: 2
@@ -17,18 +18,18 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-19 — after v2.14 milestone)
+See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** v2.15 DB-Backed Template Wiring — all phases complete (2 of 2). Next: `/gsd-complete-milestone` after the Phase 88 end-to-end dry-run.
-**Latest shipped:** v2.14 Save as Template (2026-05-19) — admin-authored, DB-backed templates capturing a carousel's full `LayoutRecipe`; recipe-driven pre-shaped generation. v2.15 wires those DB templates through the picker, generation, render paths, per-slide override, and publish/fork.
+**Current focus:** None — v2.15 shipped. Next: `/gsd-new-milestone` to scope the next cycle.
+**Latest shipped:** v2.15 DB-Backed Template Wiring (2026-05-19) — wires v2.14's DB-backed templates through the picker, generation, all three render paths, per-slide override, and publish/fork; verified by a live end-to-end Playwright dry-run.
 
 ## Current Position
 
-Phase: 88 — Render Paths + Per-Slide Override + Publish/Fork (complete; verification human_needed)
-Plan: 88-01 + 88-02 + 88-03 complete
-Status: v2.15 complete (2 of 2 phases) — Phase 88 verification is `human_needed` (the end-to-end dry-run). Code review `clean`.
-Last activity: 2026-05-19 — Phase 88 executed: render-path getTemplate→resolveTemplate conversion (WIRE-03), per-slide DB-aware override (WIRE-04), fork inherits template_id (WIRE-05), parity re-verified (WIRE-06)
+Phase: Milestone v2.15 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-19 — Milestone v2.15 completed and archived
 
 ## Roadmap — v2.15 (Phases 87–88)
 
@@ -41,13 +42,13 @@ Last activity: 2026-05-19 — Phase 88 executed: render-path getTemplate→resol
 
 ## Milestone History
 
-14 milestones shipped (v1.0–v2.14, Phases 1–86). Latest:
+15 milestones shipped (v1.0–v2.15, Phases 1–88). Latest:
 
 | Milestone | Phases | Shipped | Notes |
 |-----------|--------|---------|-------|
+| v2.15 DB-Backed Template Wiring | 87–88 | 2026-05-19 | Wires v2.14 DB templates through picker / generation / render paths / per-slide override / publish-fork. passed audit (6/6 reqs, Nyquist COMPLIANT, non-critical debt only); live e2e Playwright dry-run. |
 | v2.14 Save as Template | 83–86 | 2026-05-19 | DB-backed templates + LayoutRecipe + recipe-driven generation + admin Save-as-Template flow. tech_debt audit (9/9 reqs, non-critical debt only). |
 | v2.13 Style-from-Reference Generation | 73–82 | 2026-05-14 | Vision-LLM style extraction + recipe preview + remix/fork. |
-| v2.12 Shapes & Icons | 67–72 | 2026-05-04 | Lucide icons + Canva-style shapes. |
 
 Full history: `.planning/MILESTONES.md`. Archives: `.planning/milestones/`.
 
@@ -73,14 +74,15 @@ Decisions logged in PROJECT.md Key Decisions table (v2.14 decisions added at mil
 ### Blockers/Concerns
 
 No open milestone blockers. All v2.15 phase-risks resolved:
+
 - **Sync→async conversion in Phase 88** — RESOLVED. All 5 render-path `getTemplate`→`resolveTemplate` sites verified in async contexts; `resolvePerSlideTemplate` and `buildSystemPrompt` kept SYNC via optional params (a literal asyncification would cascade into 7 client components + 40+ test files). Byte-identity guard proves the conversion is behavior-neutral for the 13 code templates.
 - **`autoPublishOnGenerate` regression risk in Phase 87** — RESOLVED (Phase 87 verified).
 
 ### Open Items (carried forward)
 
-- **v2.14 operational user-setup (feature is fail-safe-closed until done):** set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`); apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project. **Note:** the Phase 88 end-to-end dry-run (SC5, `human_needed`) depends on the admin Save-as-Template path being reachable — this setup must be done before that dry-run can run.
-- **Phase 88 verification — end-to-end dry-run (`human_needed`):** admin saves a template → it appears in the picker → generated carousel is recipe-shaped → renders across all 3 paths → survives publish + fork. Driven via Playwright by the orchestrator. See `.planning/phases/88-render-paths-per-slide-override-publish-fork/88-VERIFICATION.md`.
-- **Pre-existing test debt (CORRECTED):** the 3 fixture suites `legacy-templates-byte-identical` / `-regression` / `new-templates-parity` are GREEN at 45/45 (the old STATE note of "6 fixture-regen failures" was STALE — fixed in v2.14 commit `e525c99`). The real failing baseline is unrelated tests (auth / stripe / legal / api-keys / editorial-serif-name); Phase 88 introduced ZERO new failures (failing-file set byte-identical to clean HEAD).
+- **Phase 88 end-to-end dry-run — DONE (PASSED 2026-05-19).** The orchestrator drove the live Playwright dry-run: admin save → picker → generate → render → publish → fork — all WIRE-01..06 confirmed. The one fork failure encountered was a pre-existing prod bug (missing `_strip_locked_from_slide_data` fn + 2 unapplied migrations) — fixed by applying `20260504_fork_strip_decoration_locked` to Supabase; not a v2.15 defect. See `88-VERIFICATION.md`.
+- **Pre-existing test debt:** the 3 fixture suites `legacy-templates-byte-identical` / `-regression` / `new-templates-parity` are GREEN at 45/45. The failing baseline is unrelated tests (auth / stripe / legal / api-keys / editorial-serif-name fixture-regen); v2.15 introduced ZERO new failures and added 37 new passing tests.
+- **v2.14 operational user-setup:** if not already applied — set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`) and apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project.
 
 ## Deferred Items
 
@@ -100,7 +102,4 @@ Resume file: None — next step is the Phase 88 end-to-end dry-run, then `/gsd-c
 
 ## Operator Next Steps
 
-- Run the Phase 88 end-to-end dry-run (orchestrator via Playwright): admin save → picker → generate → render (3 paths) → publish + fork. Requires the v2.14 operational setup below.
-- Before that dry-run: complete the v2.14 operational setup (set `ADMIN_USER_IDS` + apply the `template-previews` bucket migration) so the admin Save-as-Template path is reachable.
-- After the dry-run passes: `/gsd-complete-milestone` to archive v2.15.
-- Push when ready: `git push` (branch `main`) and `git push origin v2.14` (the v2.14 tag, still local).
+- Start the next milestone with /gsd-new-milestone
