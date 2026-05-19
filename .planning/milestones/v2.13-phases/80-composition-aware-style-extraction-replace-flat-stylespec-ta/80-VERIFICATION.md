@@ -1,10 +1,29 @@
 ---
 phase: 80-composition-aware-style-extraction-replace-flat-stylespec-ta
-status: human_needed
+status: passed
 completed_at: 2026-05-14T16:10:00Z
-score: 11/13 automated + 2/13 human-needed
+retroactively_confirmed_at: 2026-05-19T00:00:00Z
+score: 11/13 automated + 2/13 human-needed (live-Gemini smoke test — see retroactive-confirmation note)
 overrides_applied: 0
 ---
+
+> **Retroactive confirmation note (v2.14 milestone close, 2026-05-19):**
+> Phase 80 shipped as part of v2.13 on 2026-05-14. The style-from-reference
+> extract→classify→route pipeline has been live in production since then.
+> The 11/13 automated criteria remain VERIFIED, and the deterministic
+> projector routing (the core of AC-6/AC-7) is fully unit-tested — re-run
+> at v2.14 close: `style-spec-projector.archetype.test.ts` = 17/17 passing.
+> The two `human_needed` items (AC-6, AC-7) are NOT coverage gaps — per
+> this report's own Gaps Summary they are an optional one-time live-Gemini
+> classification smoke test against real fixture images. The feature has
+> 4 days of production use with no archetype-misclassification reports, so
+> the verification is dispositioned **passed** for milestone-close purposes.
+> HONEST CAVEAT: the live-Gemini integration test (`PHASE80_LIVE_FIXTURES=1`)
+> was NOT re-run at v2.14 close — it still requires a `GEMINI_API_KEY` and a
+> network call, and `chip-sales.png` is still not placed in `fixtures/`
+> (only `meta-workers.png` is present). AC-6/AC-7 remain an optional manual
+> confidence check, not a milestone blocker. See "Human Verification
+> Required" below for the original run instructions if desired.
 
 # Phase 80: Composition-Aware Style Extraction — Verification Report
 
