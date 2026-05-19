@@ -44,6 +44,43 @@
 
 ---
 
+## Milestone: v2.15 — DB-Backed Template Wiring
+
+**Shipped:** 2026-05-19
+**Phases:** 2 (87–88) | **Plans:** 5 | **Sessions:** 1
+
+### What Was Built
+- Picker + generation wiring — `getPickerDbTemplates()` pairs each DB template with its row `category` + `created_at`; `TemplatePicker` merges category-matching DB templates DB-first; the project-page server component fetches them and threads them through `GenerationForm` (no new API route). DB-aware category-snap on all three sites keeps a matching-category DB id instead of snapping to the default; `/api/v1/carousel` rejects unknown ids via DB-aware `isKnownTemplateId`.
+- Render paths + per-slide override + publish/fork — all five render call sites converted `getTemplate` → async `resolveTemplate` (no `highlight-bar` fallback for a DB id); editor canvas resolves a DB project template via server-passed DB templates; `getDbTemplatesMap()` + an optional sync DB map thread per-slide DB overrides through the builders; fork route inherits the source `template_id`. Byte-identity guard for all 13 code ids; 3 fixture suites green at 45/45.
+- Closed v2.14's TSTORE-02 / TSTORE-03, which previously passed only as isolated unit tests because Phase 83's merged registry was built but never wired into the app.
+
+### What Worked
+- A precise pre-milestone spec (`DB-TEMPLATE-WIRING-SPEC.md`) verified the file-level blast radius and recommended the exact 2-phase split — the roadmap honored it as-is and the file sets stayed disjoint, so the two phases never collided.
+- The sync→async conversion risk was retired by NOT literally asyncifying `resolvePerSlideTemplate` / `buildSystemPrompt` — instead the async caller pre-resolves and passes a DB-aware value through optional params. A literal asyncification would have cascaded into ~40 sync test callers + 7 `'use client'` render-body callers; the optional-param approach kept blast radius near-zero with identical end behavior.
+- A byte-identity guard test (sync `getTemplate` vs async `resolveTemplate` for all 13 code ids) gave hard, mechanical proof the conversion is behavior-neutral — no judgment call needed at verification.
+- The live end-to-end Playwright dry-run caught a real (pre-existing) production fork bug that all the unit tests missed — confirming the value of a true full-loop exercise over layered unit coverage alone.
+
+### What Was Inefficient
+- `gsd-sdk query milestone.complete` again produced an empty accomplishments list and did not reorganize ROADMAP.md or delete the original REQUIREMENTS.md — all three had to be done by hand. Same `summary-extract --pick one_liner` gap as v2.14: SUMMARY files carry a `# Plan NN-NN Summary —` heading, not a `one_liner` frontmatter field.
+- REQUIREMENTS.md traceability checkboxes again stayed `[ ]`/Pending for all 6 requirements despite every phase verifying PASS — the same cosmetic checkbox-lag the v2.14 retro flagged; the milestone audit had to call it out explicitly again.
+- Phase 88 verification shipped as `status: human_needed` and sat stale until the orchestrator completed the dry-run and hand-corrected it — the verification status had no path to auto-promote once the human item passed.
+- The Nyquist `*-VALIDATION.md` files were missing for both phases at milestone-audit time (Phase 87 had only a `draft`) and had to be backfilled retroactively — validation should be produced during execute-phase, not reconstructed at close.
+
+### Patterns Established
+- Optional-param DB-awareness over asyncification: when a sync helper must become DB-aware but is called from many sync/client/test sites, add an optional pre-resolved parameter and have the async caller fill it — avoids a cascading async refactor while delivering identical behavior in the consumable output.
+- Byte-identity guard tests for behavior-neutral refactors: when converting a call across a sync→async (or any equivalent) boundary, assert the two code paths produce identical output for every known input — turns "did the refactor change anything?" into a mechanical pass/fail.
+
+### Key Lessons
+- A live end-to-end dry-run is worth more than its weight in unit tests for integration milestones — it exercised the real wiring and surfaced a production bug the 37 new unit tests could not.
+- Wiring milestones (making already-built code reachable) are low-risk and fast when the prior milestone left a clean seam — v2.15 shipped 6 requirements in 2 phases / 5 plans because v2.14's registry was already built and tested, just unwired.
+
+### Cost Observations
+- Model mix: not separately instrumented this milestone.
+- Sessions: 1.
+- Notable: 2 phases / 5 plans / 37 new passing tests, zero new full-suite failures. A tightly-scoped pre-milestone spec was the dominant efficiency driver.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -51,14 +88,18 @@
 | Milestone | Sessions | Phases | Key Change |
 |-----------|----------|--------|------------|
 | v2.14 | 1 | 4 | First retrospective; single-day milestone execution; pattern-mirroring as the primary risk-reduction strategy |
+| v2.15 | 1 | 2 | Tightly-scoped pre-milestone spec drove a clean 2-phase split; optional-param DB-awareness retired the async-refactor risk; live e2e dry-run as the final gate |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Coverage | Zero-Dep Additions |
 |-----------|-------|----------|--------------------|
 | v2.14 | ~3238 passing (41 baseline-failing) | not separately measured | yes — recipe extraction is pure deterministic code, no new AI vendor/tier |
+| v2.15 | ~3275 passing (41 baseline-failing) | not separately measured | yes — app-layer wiring only, no schema migration, no new dependency |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Additive-only changes that merge a new construct alongside the old (rather than replacing it) preserve byte-identity back-compat — proven by v2.14's DB registry merge and consistent with the project's long-standing TPLREND-05 discipline.
 2. Mirroring an existing, verified pattern beats novel design for both speed and risk — the StyleSpec → LayoutRecipe lineage shipped a hardened model in a single day.
+3. Byte-identity / behavior-neutral guard tests turn risky refactors (DB registry merge, sync→async conversion) into mechanical pass/fail checks — used in both v2.14 and v2.15.
+4. The `milestone.complete` CLI consistently under-delivers on accomplishments extraction and roadmap/requirements reorganization — budget for manual finishing at every milestone close until the `one_liner` SUMMARY-frontmatter gap is fixed.
