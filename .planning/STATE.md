@@ -4,8 +4,8 @@ milestone: v2.15
 milestone_name: DB-Backed Template Wiring
 status: Awaiting next milestone
 stopped_at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
-last_updated: "2026-05-19T19:55:57.195Z"
-last_activity: 2026-05-19 — Completed quick task 260519-hym: Snap generated headline text into caption-card geometry
+last_updated: "2026-05-19T21:25:20.153Z"
+last_activity: 2026-05-19 — Completed quick task 260519-k14: Add Photo overlay panel to slide background controls
 progress:
   total_phases: 2
   completed_phases: 2
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 Phase: Milestone v2.15 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-05-19 — Completed quick task 260519-hym: Snap generated headline text into caption-card geometry
+Last activity: 2026-05-19 — Completed quick task 260519-k14: Add Photo overlay panel to slide background controls
 
 ## Roadmap — v2.15 (Phases 87–88)
 
@@ -83,6 +83,7 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260519-hym | Snap generated headline text into caption-card geometry | 2026-05-19 | 0db74ab | [260519-hym-snap-generated-headline-text-into-captio](./quick/260519-hym-snap-generated-headline-text-into-captio/) |
+| 260519-k14 | Add Photo overlay panel to slide background controls | 2026-05-19 | 51ac805 | [260519-k14-add-photo-overlay-panel-to-slide-backgro](./quick/260519-k14-add-photo-overlay-panel-to-slide-backgro/) |
 
 ### Open Items (carried forward)
 
