@@ -43,6 +43,12 @@ export function buildSystemPrompt(
   // injected after the category block, before the template addendum.
   // When undefined, the returned prompt is byte-identical to pre-Phase-85.
   recipe?: LayoutRecipe,
+  // Phase 88 (WIRE-03): a pre-resolved SlideTemplate. The generation path
+  // (generate-slides.ts) resolves the template via async resolveTemplate so
+  // a DB template id contributes the RIGHT aiVoiceNote / accentColor here.
+  // When omitted, falls back to the sync code-only getTemplate(templateId)
+  // lookup — byte-identical to pre-Phase-88 for every existing caller/test.
+  resolvedTemplate?: SlideTemplate,
 ): string {
   // Phase 82 (R1): the CONTENT CATEGORY — not the templateId — drives the copy.
   // When a category resolves, its headline-first prompt module is the authority
@@ -109,7 +115,7 @@ You are writing in the style of a serious news Instagram carousel (think soverei
   // aiVoiceNote field. Existing 5 legacy templates leave aiVoiceNote undefined
   // → block is empty string → prompt unchanged. NEWS_TEMPLATES newsDropAddendum
   // stays as-is — the two systems coexist.
-  const template = templateId ? getTemplate(templateId) : undefined
+  const template = resolvedTemplate ?? (templateId ? getTemplate(templateId) : undefined)
   const voiceNoteBlock = template?.aiVoiceNote
     ? `
 

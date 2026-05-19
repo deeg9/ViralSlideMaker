@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback, useTransition } from 'react'
 import Link from 'next/link'
 import { useSlideEditor } from '@/lib/editor/use-slide-editor'
-import { getTemplate } from '@/lib/render/templates/index'
+import { getTemplate, TEMPLATE_IDS } from '@/lib/render/templates/index'
+import type { PickerDbTemplate } from '@/lib/render/templates/registry'
 import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { SlideList } from '@/components/editor/slide-list'
 import { SlideCanvas } from '@/components/editor/slide-canvas'
@@ -86,6 +87,11 @@ interface SlideEditorProps {
   userTier?: 'free' | 'pro' | 'plus'
   brandKit?: BrandKit | null
   initialPublishedState?: InitialPublishedState | null
+  /** Phase 88 (WIRE-03): DB-backed templates fetched server-side by the
+   *  project page. The editor resolves a DB project template_id from this
+   *  list (code templates still resolve via the sync getTemplate registry).
+   *  Defaults to [] so existing callers / tests are unaffected. */
+  dbTemplates?: PickerDbTemplate[]
 }
 
 export function SlideEditor({
@@ -97,6 +103,7 @@ export function SlideEditor({
   userTier,
   brandKit,
   initialPublishedState,
+  dbTemplates = [],
 }: SlideEditorProps) {
   const {
     slides,
@@ -111,13 +118,20 @@ export function SlideEditor({
     removeTextBox,
   } = useSlideEditor(initialSlides)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
-  // Brand-kit template synthesizes from the user's brand_kit row at render time.
-  // Other template ids hit the static templates registry. Falls back to the first
-  // registry entry when brand-kit is selected but the brand kit was deleted.
+  // Phase 88 (WIRE-03): resolve currentTemplateId. Brand-kit synthesizes from
+  // the user's brand_kit row at render time. A code template id resolves via
+  // the sync getTemplate registry. A DB template id (not in TEMPLATE_IDS)
+  // resolves from the server-fetched dbTemplates list; if not found there
+  // either, getTemplate's templates[0] fallback applies (graceful — STYLESPEC
+  // discipline). Falls back to the first registry entry when brand-kit is
+  // selected but the brand kit was deleted.
+  const dbMatch = dbTemplates.find((d) => d.template.id === currentTemplateId)
   const template =
     currentTemplateId === BRAND_KIT_TEMPLATE_ID && brandKit
       ? synthesizeBrandKitTemplate(brandKit)
-      : getTemplate(currentTemplateId)
+      : TEMPLATE_IDS.includes(currentTemplateId)
+        ? getTemplate(currentTemplateId)
+        : (dbMatch?.template ?? getTemplate(currentTemplateId))
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [activeTab, setActiveTab] = useState<'text' | 'elements' | 'images'>('text')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')

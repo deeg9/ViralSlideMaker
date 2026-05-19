@@ -4,7 +4,7 @@ import * as React from 'react'
 import { ImageResponse } from 'next/og'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { getTemplate } from '@/lib/render/templates/index'
+import { resolveTemplate } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import {
   mergeWithBrandKit,
@@ -45,7 +45,7 @@ async function renderHero(
   const template =
     project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
       ? synthesizeBrandKitTemplate(brandKit)
-      : getTemplate(project.template_id ?? 'highlight-bar')
+      : await resolveTemplate(project.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   const ownerTier = await getUserTier(project.user_id)
@@ -83,7 +83,7 @@ async function renderMinimalHero(
   const template =
     project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
       ? synthesizeBrandKitTemplate(brandKit)
-      : getTemplate(project.template_id ?? 'highlight-bar')
+      : await resolveTemplate(project.template_id ?? 'highlight-bar')
   const effectiveTemplate = mergeWithBrandKit(template, brandKit)
 
   const hookText = slide.hook_text?.trim() ?? ''

@@ -89,6 +89,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   if (hasSlides) {
     const hasReferences =
       Array.isArray(p.reference_assets) && p.reference_assets.length > 0
+    // Phase 88 (WIRE-03): fetch DB-backed templates server-side so the editor
+    // canvas can resolve a DB project template_id. SlideEditor is a client
+    // component and cannot async-resolve in its render body — the resolved
+    // list is threaded down as a prop. getPickerDbTemplates never throws.
+    const editorDbTemplates = await getPickerDbTemplates()
     return (
       <>
         {hasReferences && (
@@ -111,6 +116,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           userTier={tier}
           brandKit={brandKit}
           initialPublishedState={initialPublishedState}
+          dbTemplates={editorDbTemplates}
         />
       </>
     )

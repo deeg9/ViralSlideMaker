@@ -17,9 +17,9 @@ import { ensureSubscription } from '@/lib/credits/ensure-subscription'
 import { rateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
 import type { Slide } from '@/lib/types/slide'
-import { getTemplate } from '@/lib/render/templates'
 // Phase 87 (WIRE-02): DB-aware template-id validation for the generation snap.
-import { isKnownTemplateId, templateCategory } from '@/lib/render/templates/registry'
+// Phase 88 (WIRE-03): resolveTemplate — DB-aware project-template resolution.
+import { isKnownTemplateId, templateCategory, resolveTemplate } from '@/lib/render/templates/registry'
 import { treatPhoto, type TreatmentPreset } from '@/lib/photo-treatment/treat'
 import { extractPalette } from '@/lib/photo-treatment/palette'
 
@@ -239,7 +239,7 @@ export async function generateCarousel(
     //                              re-treatment in editor never compounds
     //   slide.style_overrides.treatment_applied → preset descriptor
     {
-      const template = getTemplate(effectiveTemplateId)
+      const template = await resolveTemplate(effectiveTemplateId)
       if (template.photoTreatment) {
         const presetKind = template.photoTreatment
         const spec: TreatmentPreset =
@@ -326,7 +326,8 @@ export async function generateCarousel(
     // "No Photos" / color-only templates also skip these defaults — black drop
     // shadows + 45% darkening overlay are pure photo-readability artifacts and
     // look gross on a flat-color canvas.
-    const isColorOnlyTemplate = getTemplate(effectiveTemplateId).backgroundMode === 'color'
+    const isColorOnlyTemplate =
+      (await resolveTemplate(effectiveTemplateId)).backgroundMode === 'color'
     if (!NEWS_TEMPLATES.has(effectiveTemplateId) && !wantsNoPhotos && !isColorOnlyTemplate) {
       slides = slides.map(slide => ({
         ...slide,

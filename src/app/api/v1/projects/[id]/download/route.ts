@@ -4,7 +4,7 @@ import JSZip from 'jszip'
 import { withApiAuth } from '@/lib/api/with-api-auth'
 import { apiError } from '@/lib/api/errors'
 import { getProject } from '@/lib/services/projects'
-import { getTemplate } from '@/lib/render/templates/index'
+import { resolveTemplate } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { mergeWithBrandKit, synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
@@ -60,7 +60,7 @@ export const GET = withApiAuth(async (req, ctx) => {
   const template =
     project.template_id === BRAND_KIT_TEMPLATE_ID && resolvedBrandKit
       ? synthesizeBrandKitTemplate(resolvedBrandKit)
-      : getTemplate(project.template_id ?? 'highlight-bar')
+      : await resolveTemplate(project.template_id ?? 'highlight-bar')
 
   const effectiveTemplate = mergeWithBrandKit(template, resolvedBrandKit)
 
