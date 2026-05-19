@@ -26,7 +26,7 @@
 
 ## Phases
 
-- [ ] **Phase 83: DB-Backed Template Storage + Registry Merge** — `templates` DB table + migration + merged code/DB registry; render parity for DB templates + byte-identity for 13 code templates and ~82 existing carousels. No recipe yet.
+- [x] **Phase 83: DB-Backed Template Storage + Registry Merge** — `templates` DB table + migration + merged code/DB registry; render parity for DB templates + byte-identity for 13 code templates and ~82 existing carousels. No recipe yet. (completed 2026-05-19)
 - [ ] **Phase 84: LayoutRecipe Model + Extraction** — Typed role-keyed `LayoutRecipe` schema + deterministic extraction of a recipe + flat style from a source carousel's slide_data.
 - [ ] **Phase 85: Recipe-Driven Generation** — Generation pipeline applies a template's `LayoutRecipe` so new carousels come out pre-shaped. Highest blast radius. Absorbs the removed placeholder Phase 83.
 - [ ] **Phase 86: Admin Save-as-Template Flow + Previews** — Admin-role-gated authoring flow that ties it together + faithful DB-template picker previews.
@@ -47,9 +47,9 @@
 **Plans**: 3
 
 Plans:
-- [ ] 83-01: Additive `templates` table migration — text PK, flat_style + nullable layout_recipe/preview, created_by FK, public-read RLS deny-by-default writes (TSTORE-01)
-- [ ] 83-02: Async hybrid registry merge — resolveTemplate / getPickerTemplates / isKnownTemplateId, ~60s TTL cache, code-wins collision rule, fetcher test seam (TSTORE-02)
-- [ ] 83-03: DB-template render parity across canvas/Satori/HTML + sync/async byte-identity guard; legacy + new-parity suites green, no fixture regen (TSTORE-03, TSTORE-04)
+- [x] 83-01: Additive `templates` table migration — text PK, flat_style + nullable layout_recipe/preview, created_by FK, public-read RLS deny-by-default writes (TSTORE-01)
+- [x] 83-02: Async hybrid registry merge — resolveTemplate / getPickerTemplates / isKnownTemplateId, ~60s TTL cache, code-wins collision rule, fetcher test seam (TSTORE-02)
+- [x] 83-03: DB-template render parity across canvas/Satori/HTML + sync/async byte-identity guard; legacy + new-parity suites green, no fixture regen (TSTORE-03, TSTORE-04)
 
 **Risk framing**: The migration hits the shared prod Supabase project — must be additive and reversible per the project's migration discipline. The registry merge changes how *no* existing carousel renders; byte-identity (TSTORE-04 / TPLREND-05) is the gate, not a nice-to-have. The 13 code templates stay in code for back-compat — DB storage is additive, not a migration of existing templates.
 
@@ -112,7 +112,7 @@ Phases execute in numeric order: 83 → 84 → 85 → 86
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 83. DB-Backed Template Storage + Registry Merge | 0/TBD | Not started | — |
+| 83. DB-Backed Template Storage + Registry Merge | 3/3 | Complete   | 2026-05-19 |
 | 84. LayoutRecipe Model + Extraction | 0/TBD | Not started | — |
 | 85. Recipe-Driven Generation | 0/TBD | Not started | — |
 | 86. Admin Save-as-Template Flow + Previews | 0/TBD | Not started | — |
