@@ -8,7 +8,14 @@ import { autoPublishOnGenerate } from '@/lib/services/auto-publish-on-generate'
 // Phase 85 (RECGEN-01): deterministic recipe-driven slide shaping.
 import { applyLayoutRecipe } from '@/lib/ai/layout-recipe-apply'
 import { resolveLayoutRecipe } from '@/lib/ai/layout-recipe-resolve'
-import { getTemplate } from '@/lib/render/templates/index'
+// Phase 87 (WIRE-02): DB-aware registry — isKnownTemplateId + templateCategory
+// drive the snap; resolveTemplate replaces the sync getTemplate backgroundMode
+// read (a DB effectiveTemplateId must report its OWN backgroundMode).
+import {
+  isKnownTemplateId,
+  templateCategory,
+  resolveTemplate,
+} from '@/lib/render/templates/registry'
 import { getCategory, DEFAULT_CATEGORY } from '@/lib/ai/categories'
 import type { Slide } from '@/lib/types/slide'
 // Phase 77 Plan 02 Task 4 (EMIT-02): sibling orchestrator that consumes
@@ -64,10 +71,17 @@ export async function generateCarousel(
   // fallback path remains.
   const resolvedCategory = category && getCategory(category) ? category : DEFAULT_CATEGORY
   const categoryModule = getCategory(resolvedCategory)!
-  const effectiveTemplateId =
-    templateId && categoryModule.templateIds.includes(templateId)
-      ? templateId
-      : categoryModule.templateIds[0]
+  // Phase 87 (WIRE-02): keep the submitted id when it belongs to the resolved
+  // category — a code template in the category's curated list, OR a known DB
+  // template whose row category matches. Otherwise snap to the category
+  // default. A selected DB id is no longer silently discarded.
+  let effectiveTemplateId = categoryModule.templateIds[0]
+  if (templateId && categoryModule.templateIds.includes(templateId)) {
+    effectiveTemplateId = templateId
+  } else if (templateId && (await isKnownTemplateId(templateId))) {
+    const cat = await templateCategory(templateId)
+    if (cat === resolvedCategory) effectiveTemplateId = templateId
+  }
 
   // Create project first
   const { id: projectId } = await createProjectService(supabase, userId, {
@@ -115,8 +129,12 @@ export async function generateCarousel(
     // to suppress later. The same "no photos" outcome can also be opted into
     // explicitly via imageSource === 'none' on any template — the user picks
     // text-only output regardless of template's photoMode design.
-    const isColorOnlyTemplate =
-      getTemplate(effectiveTemplateId).backgroundMode === 'color'
+    // Phase 87 (WIRE-02): resolveTemplate is DB-aware — a DB effectiveTemplateId
+    // reports its OWN backgroundMode, not templates[0]'s. The snap fix newly
+    // lets a DB id reach here; the sync code-only getTemplate would read the
+    // wrong template. The function is already async, so the await is free.
+    const resolvedTemplate = await resolveTemplate(effectiveTemplateId)
+    const isColorOnlyTemplate = resolvedTemplate.backgroundMode === 'color'
     const wantsNoPhotos = imageSource === 'none' || isColorOnlyTemplate
 
     if (wantsNoPhotos) {
