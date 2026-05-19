@@ -69,13 +69,14 @@ Prior-milestone requirements are archived at
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| WIRE-01 | TBD | Pending |
-| WIRE-02 | TBD | Pending |
-| WIRE-03 | TBD | Pending |
-| WIRE-04 | TBD | Pending |
-| WIRE-05 | TBD | Pending |
-| WIRE-06 | TBD | Pending |
+| WIRE-01 | Phase 87 — Picker + Generation Wiring | Pending |
+| WIRE-02 | Phase 87 — Picker + Generation Wiring | Pending |
+| WIRE-03 | Phase 88 — Render Paths + Per-Slide Override + Publish/Fork | Pending |
+| WIRE-04 | Phase 88 — Render Paths + Per-Slide Override + Publish/Fork | Pending |
+| WIRE-05 | Phase 88 — Render Paths + Per-Slide Override + Publish/Fork | Pending |
+| WIRE-06 | Phase 88 — Render Paths + Per-Slide Override + Publish/Fork | Pending |
 
-**Coverage:** 6/6 v2.15 requirements — phase assignments finalized by the
-roadmapper (recommended split per the spec: WIRE-01/02 in the first phase;
-WIRE-03/04/05/06 in the second).
+**Coverage:** 6/6 v2.15 requirements mapped — no orphans, no duplicates. Phase
+split honors the spec's recommended 2-phase breakdown: WIRE-01/02 in Phase 87
+(picker + generation wiring); WIRE-03/04/05/06 in Phase 88 (render paths +
+per-slide override + publish/fork + parity re-verification).
