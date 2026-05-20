@@ -251,7 +251,7 @@ export function TextEffectsControls({ effects, onChange }: TextEffectsControlsPr
 
             {/* Highlight Style */}
             <div className="flex gap-2">
-              {(['tight', 'full'] as const).map((style) => (
+              {(['tight', 'full', 'ruled'] as const).map((style) => (
                 <button
                   key={style}
                   onClick={() =>
@@ -266,7 +266,7 @@ export function TextEffectsControls({ effects, onChange }: TextEffectsControlsPr
                       : 'bg-[#fff0f0] text-[#7d6161] hover:bg-[#fadbdb]'
                   }`}
                 >
-                  {style === 'tight' ? 'Tight' : 'Full'}
+                  {style === 'tight' ? 'Tight' : style === 'full' ? 'Full' : 'Ruled'}
                 </button>
               ))}
             </div>

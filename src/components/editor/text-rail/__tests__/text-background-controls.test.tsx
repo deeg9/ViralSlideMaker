@@ -67,4 +67,20 @@ describe('quick-260517-fu9 — TextBackgroundControls', () => {
       container.querySelector('[data-testid="highlight-padding"]'),
     ).toBeNull()
   })
+
+  it('renders all three style buttons (tight / full / ruled) and ruled fires onChange with style: ruled', () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <TextBackgroundControls highlight={baseHighlight} onChange={onChange} />,
+    )
+    const tight = container.querySelector('[data-testid="highlight-style-tight"]')
+    const full = container.querySelector('[data-testid="highlight-style-full"]')
+    const ruled = container.querySelector('[data-testid="highlight-style-ruled"]') as HTMLButtonElement
+    expect(tight).toBeTruthy()
+    expect(full).toBeTruthy()
+    expect(ruled).toBeTruthy()
+    expect(ruled.textContent).toBe('Ruled')
+    fireEvent.click(ruled)
+    expect(onChange).toHaveBeenCalledWith({ style: 'ruled' })
+  })
 })
