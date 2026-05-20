@@ -48,11 +48,17 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Redirect unauthenticated users to login
-  // Exclude: /, /login, /signup, /auth routes
+  // Exclude: /, /login, /signup, /forgot-password, /reset-password, /auth routes
+  // (/reset-password is reached via /auth/callback which sets a recovery session;
+  // the page itself re-asserts the session and bounces with a friendly error if
+  // it's missing or expired — letting it through here means the in-page error
+  // copy gets a chance to render instead of a silent middleware redirect.)
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/signup') &&
+    !request.nextUrl.pathname.startsWith('/forgot-password') &&
+    !request.nextUrl.pathname.startsWith('/reset-password') &&
     !request.nextUrl.pathname.startsWith('/privacy') &&
     !request.nextUrl.pathname.startsWith('/terms') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
