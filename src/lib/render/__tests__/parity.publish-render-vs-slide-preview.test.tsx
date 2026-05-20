@@ -111,8 +111,10 @@ const PUBLISH_CTX = { slideIndex: 0, totalSlides: 1, topic: 'hero-publish-fixtur
 
 describe('quick-260513-rerender-hero: publish-path call-shape brand-kit independence (Layer 3 of TPLREND-05)', () => {
   // Registry sanity gate (same floor as PTF74 and uk1 Task 4).
-  it('templates registry holds the v2.13 trailing-edge count (12)', () => {
-    expect(templates).toHaveLength(12)
+  // quick-260519-t3x bumps 13 → 16; per-template matrices below iterate the
+  // new ids automatically, so this floor moves with the registry.
+  it('templates registry holds the v2.13 trailing-edge count (16)', () => {
+    expect(templates).toHaveLength(16)
   })
 
   describe('buildSlideElement publish-path shape is brandKit-independent for every built-in template', () => {
