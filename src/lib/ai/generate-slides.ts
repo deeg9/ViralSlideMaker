@@ -352,8 +352,13 @@ export async function generateSlideContent(
   // applyLayoutRecipe / the style-spec-projector path are intentionally NOT
   // touched (CONTEXT.md locked: a DB recipe already carries caption-card
   // geometry).
+  // Pass the resolved template so the snap honors per-template
+  // captionCardDefaults.heightPct (news-oracle / chrome-pulse ship 42%).
+  // Without this the snap centers the headline against a hard-coded 38% card
+  // while the renderer paints a 42% card → hook lands ~2% below card center.
   parsedCarousel.slides = snapHeadlineToCaptionCard(parsedCarousel.slides, {
     stampNewsDefault: category === 'news',
+    template: resolvedTemplate ?? undefined,
   })
 
   // R3 (quick-260520-064): coerce overly-long news-oracle cover accessory_labels

@@ -128,6 +128,43 @@ describe('snapHeadlineToCaptionCard', () => {
     expect(b.hook_position).toBeUndefined()
   })
 
+  it('template captionCardDefaults.heightPct drives the centre when the per-slide override is absent', () => {
+    // news-oracle / chrome-pulse ship heightPct: 42. The snap MUST consult
+    // this so the hook lands at the actual card centre the renderer paints
+    // (without it, the snap centred against a 38% card → hook 2% below the
+    // 42% card centre, ~38px low on the 1920 reference frame). vy2-class fix.
+    const out = snapHeadlineToCaptionCard(
+      [{ style_overrides: { caption_bar_enabled: true } }],
+      { template: { captionCardDefaults: { heightPct: 42 } } },
+    )
+    // cardTop = 100 - 42 = 58 ; centre = 58 + 42/2 = 79 (was 81 before fix)
+    expect(pos(so(out[0]), 'hook_position')!.y).toBe(79)
+  })
+
+  it('per-slide caption_bar_height_pct still wins over template default', () => {
+    const out = snapHeadlineToCaptionCard(
+      [
+        {
+          style_overrides: {
+            caption_bar_enabled: true,
+            caption_bar_height_pct: 50,
+          },
+        },
+      ],
+      { template: { captionCardDefaults: { heightPct: 42 } } },
+    )
+    // Per-slide 50 wins → centre = 75
+    expect(pos(so(out[0]), 'hook_position')!.y).toBe(75)
+  })
+
+  it('omitted template → behavior byte-identical to pre-fix (falls back to 38)', () => {
+    const out = snapHeadlineToCaptionCard([
+      { style_overrides: { caption_bar_enabled: true } },
+    ])
+    // No template, no per-slide override → 38 default → centre = 81
+    expect(pos(so(out[0]), 'hook_position')!.y).toBe(81)
+  })
+
   it('adapter integration — snapped hook_position survives legacyToTextBoxes', () => {
     const newsSlide = {
       hook_text: 'Breaking news headline',
