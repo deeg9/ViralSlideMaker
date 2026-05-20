@@ -127,32 +127,13 @@ const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
   // stamps the headline size. The previous registry curve produced
   // ~56px for a 43-char hook, which read visibly smaller than the
   // news-oracle reference (~100-130px for similar hooks).
-  // sunset-tabloid — Bebas Neue (condensed, single-weight 400), 128px base.
-  // No-photo color-block. textPosition: 'center' so hook + body share the
-  // middle band. Forgiving headroom but still need fit for 50+ char hooks.
-  'sunset-tabloid': {
-    baseSize: 128,
-    steps: [
-      { maxChars: 14, scale: 1 },
-      { maxChars: 24, scale: 0.78 },
-      { maxChars: 36, scale: 0.62 },
-      { maxChars: 52, scale: 0.5 },
-      { maxChars: Infinity, scale: 0.42 },
-    ],
-  },
-  // soft-sage — DM Serif Display italic (proportional, weight 400), 108px
-  // base. No-photo cream canvas, centered. Italic serif is wider per char
-  // than Anton, so tighten thresholds vs sibling chrome-pulse.
-  'soft-sage': {
-    baseSize: 108,
-    steps: [
-      { maxChars: 12, scale: 1 },
-      { maxChars: 20, scale: 0.78 },
-      { maxChars: 32, scale: 0.62 },
-      { maxChars: 46, scale: 0.5 },
-      { maxChars: Infinity, scale: 0.42 },
-    ],
-  },
+  // sunset-tabloid + soft-sage — quick-260519-bgr (2026-05-19): registry
+  // entries removed to match chrome-pulse's oracle-scale fix. No-photo
+  // color-block templates default to template.hookFontSize directly
+  // (128px Bebas / 108px DM Serif italic) — same convention as
+  // bold-yellow + y2k-pop, which also stay out of the registry. Long
+  // AI-emitted hooks (50+ chars) may wrap to 3+ lines instead of
+  // auto-shrinking, which is the deliberate trade-off for visual punch.
 }
 
 export function getHookFontSize(
