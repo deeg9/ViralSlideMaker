@@ -18,6 +18,9 @@ export const y2kPop: SlideTemplate = {
   textAlign: 'center',
   textPosition: 'center',
   hookStyle: 'uppercase',
+  // quick-260519-pbg: color-block kill-switch — suppress any persisted
+  // slide.background_url so the hot-pink canvas stays the canvas.
+  backgroundMode: 'color',
   sample: {
     hook_text: 'TOTALLY ICONIC',
     body_text: '5 Y2K trends back in 2026.',

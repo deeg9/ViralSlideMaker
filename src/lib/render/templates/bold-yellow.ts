@@ -16,6 +16,11 @@ export const boldYellow: SlideTemplate = {
   textAlign: 'left',
   textPosition: 'center',
   hookStyle: 'uppercase',
+  // quick-260519-pbg: color-block kill-switch — suppress any persisted
+  // slide.background_url so the solid yellow canvas stays the canvas.
+  // Without this, enabling Stock Photos painted a Pexels image over the
+  // yellow and broke the Brittany-Broski color-block identity.
+  backgroundMode: 'color',
   sample: {
     hook_text: 'STOP SCROLLING',
     body_text: 'This will change how you post forever.',
