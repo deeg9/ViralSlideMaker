@@ -25,6 +25,14 @@ import { resolveSlideStyles, type ResolvedTextEffectStyles } from '@/lib/render/
 import { resolveWatermark } from '@/lib/render/resolve-watermark'
 import { resolveForcedWatermark } from '@/lib/render/resolve-forced-watermark'
 import { getHookFontSize, hasHookFit, clampManualHookSize, captionCardHeadlineBox } from '@/lib/render/hook-fit'
+// quick-260519-bkn: shared breaking-news-badge spec (TPLREND-05 — same module
+// consumed by slide-preview.tsx, render-slide-satori.tsx, render-slide.ts).
+import {
+  BREAKING_NEWS_BADGE,
+  BREAKING_NEWS_CANVAS_H,
+  breakingNewsBadgeTopPct,
+  shouldShowBreakingNewsBadge,
+} from '@/lib/render/breaking-news-badge'
 // Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
 // decoration → DOM markup. BOTH renderers (render-slide-satori.tsx + this
 // React preview path) import renderDecoration from this exact module path.
@@ -245,6 +253,80 @@ function CaptionCardLayer({
         zIndex: 2,
       }}
     />
+  )
+}
+
+/**
+ * quick-260519-bkn: BREAKING NEWS badge above the caption card on news-oracle
+ * cover slides. Always on (gated by `shouldShowBreakingNewsBadge`); never
+ * rendered for other templates or non-cover slides. Geometry is sourced from
+ * the shared `BREAKING_NEWS_BADGE` constant so render-slide-satori.tsx and
+ * render-slide.ts paint the same pixels (PARITY-01 / TPLREND-05).
+ *
+ * z-index 3 puts it above the caption card (z-2) and the photo overlay (z-1)
+ * but below the headline (z-10) — the headline shouldn't be obscured by the
+ * badge if the user resizes the card up.
+ */
+function BreakingNewsBadgeLayer({
+  template,
+  slide,
+  isNewsLayoutSlide,
+}: {
+  template: SlideTemplate
+  slide: Slide
+  isNewsLayoutSlide: boolean
+}) {
+  if (!shouldShowBreakingNewsBadge(template.id, slide.role)) return null
+  const cc = resolveCaptionBar(slide.style_overrides, template, isNewsLayoutSlide)
+  if (!cc.enabled) return null
+  const topPct = breakingNewsBadgeTopPct(cc.y)
+  const heightPct = (BREAKING_NEWS_BADGE.totalHeightPx / BREAKING_NEWS_CANVAS_H) * 100
+  return (
+    <div
+      data-testid="breaking-news-badge"
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: `${topPct}%`,
+        width: '100%',
+        height: `${heightPct}%`,
+        zIndex: 3,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: `${BREAKING_NEWS_BADGE.lineGapPx}px`,
+        pointerEvents: 'none',
+      }}
+    >
+      <div
+        style={{
+          width: `${BREAKING_NEWS_BADGE.lineLengthPx}px`,
+          height: `${BREAKING_NEWS_BADGE.lineThicknessPx}px`,
+          backgroundColor: template.textColor,
+        }}
+      />
+      <div
+        style={{
+          fontFamily: template.headingFontFamily ?? template.fontFamily,
+          fontWeight: template.hookFontWeight ?? 400,
+          fontSize: `${BREAKING_NEWS_BADGE.fontSizePx}px`,
+          letterSpacing: `${BREAKING_NEWS_BADGE.letterSpacingPx}px`,
+          color: template.textColor,
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          lineHeight: 1,
+        }}
+      >
+        {BREAKING_NEWS_BADGE.text}
+      </div>
+      <div
+        style={{
+          width: `${BREAKING_NEWS_BADGE.lineLengthPx}px`,
+          height: `${BREAKING_NEWS_BADGE.lineThicknessPx}px`,
+          backgroundColor: template.textColor,
+        }}
+      />
+    </div>
   )
 }
 
@@ -1354,6 +1436,9 @@ export function SlidePreview({
               Non-editable branch => plain div. */}
           <CaptionCardLayer template={template} slide={slide} isNewsLayoutSlide={isNewsLayoutSlide} />
 
+          {/* quick-260519-bkn: BREAKING NEWS badge — news-oracle cover only. */}
+          <BreakingNewsBadgeLayer template={template} slide={slide} isNewsLayoutSlide={isNewsLayoutSlide} />
+
           {/* Phase 45 layer 4: overlay zones (chip, counter, mid pill).
               Above tint+card per CONTEXT.md Area 1; below hook so headline
               pills stay top-most. */}
@@ -1909,6 +1994,11 @@ export function SlidePreview({
             </Rnd>
           )
         })()}
+
+        {/* quick-260519-bkn: BREAKING NEWS badge — same gate + geometry as
+            non-editable branch. Sibling of the caption-card Rnd so its
+            position is unaffected by the card drag. */}
+        <BreakingNewsBadgeLayer template={template} slide={slide} isNewsLayoutSlide={isNewsLayoutSlide} />
 
         {/* Phase 45 layer 4: overlay zones — same DOM order as non-editable branch. */}
         <OverlayLayers template={template} ctx={resolveCtx} />

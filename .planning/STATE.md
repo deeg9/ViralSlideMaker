@@ -89,6 +89,7 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 | 260519-d7g | Hook drag forwards to caption-card drag | 2026-05-19 | 9a1b4fe | [260519-d7g-hook-drag-forwards-to-caption-card](./quick/260519-d7g-hook-drag-forwards-to-caption-card/) |
 | 260519-hnp | Inline hint pill component + caption-card drag hint | 2026-05-19 | 6726c60 | [260519-hnp-inline-hint-pill-component](./quick/260519-hnp-inline-hint-pill-component/) |
 | 260519-cdf | news-oracle caption-card defaults (height 42% / blend 15% / opacity 80%) | 2026-05-19 | 85cdfb7 | [260519-cdf-news-oracle-caption-card-defaults](./quick/260519-cdf-news-oracle-caption-card-defaults/) |
+| 260519-bkn | BREAKING NEWS badge on news-oracle cover (3-surface) | 2026-05-19 | _pending_ | [260519-bkn-breaking-news-badge](./quick/260519-bkn-breaking-news-badge/) |
 
 ### Open Items (carried forward)
 
