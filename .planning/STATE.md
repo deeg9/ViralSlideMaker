@@ -5,7 +5,7 @@ milestone_name: DB-Backed Template Wiring
 status: Awaiting next milestone
 stopped_at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
 last_updated: "2026-05-20T07:05:00.000Z"
-last_activity: 2026-05-20 — Completed quick task 260520-064: Convert BREAKING NEWS chrome → editable 'ruled' kicker (Task 6 manual smoke pending)
+last_activity: 2026-05-20 — Completed quick task 260520-hp1: Forgot-password reset flow (Supabase email-template config + manual email-click smoke pending)
 progress:
   total_phases: 2
   completed_phases: 2
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 Phase: Milestone v2.15 complete
 Plan: —
 Status: Awaiting next milestone (Task 6 manual smoke for quick-260520-064 pending)
-Last activity: 2026-05-20 — Completed quick task 260520-ft0: Fix tr3nding-news headline scale (pivot to newsZone path)
+Last activity: 2026-05-20 — Completed quick task 260520-hp1: Forgot-password reset flow (Supabase email-template config + manual email-click smoke pending)
 
 ## Roadmap — v2.15 (Phases 87–88)
 
@@ -94,6 +94,7 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 | 260520-064 | Convert BREAKING NEWS chrome → editable 'ruled' kicker (D1 adapter fallback + D2 'ruled' highlight style + D3 AI prompt + D4 live-Y pixel parity + R3 post-validator + R4 recipe-extract regression). Replaces 75-line per-renderer chrome with editable Layers-panel kicker. 5 atomic commits; Task 6 manual smoke verdict pending. | 2026-05-20 | 7e57ad3 | [260520-064-convert-breaking-news-chrome-to-accessor](./quick/260520-064-convert-breaking-news-chrome-to-accessor/) |
 | 260520-ft0 | Fix tr3nding-news headline scale: pivot off Phase 45 `backgroundMode='image-with-bottom-card'` to the classic newsZone path (mirrors chrome-pulse quick-260519-bgr). Drop backgroundMode + bump hookFontSize 120→130 + add `captionCardDefaults { heightPct:42, blendPct:15, opacity:0.80 }` + remove HOOK_FIT_REGISTRY entry + add `layout:'cover'` to sample. Generated headlines now stamp at oracle-scale ~130px (was ~66px from registry's 0.55 scale on 42-char hooks). | 2026-05-20 | dc4aa05 | [260520-ft0-fix-tr3nding-news-headline-scale](./quick/260520-ft0-fix-tr3nding-news-headline-scale/) |
 | 260520-gr3 | Onboarding polish: (1) blank username field + "username" placeholder (was leaking email-derived suggestion). (2) Welcome dialog: rename "TikTok Slideshow Creator" → "Viral Slide Maker", drop the references slide (pivoting away), swap the publish placeholder card+arrow+check composition for a clean globe. (3) Take-Me-There made step-aware: tries DOM scrollIntoView, else routes to user's most recent project, else auto-completes; checklist's onStepClick now DOM-aware so publish-toggle spotlights in place on /project/[id]. Drops the reference-upload step from ONBOARDING_STEPS. 4 atomic commits. | 2026-05-20 | d4735b1 | [260520-gr3-fix-onboarding-username-placeholder-welc](./quick/260520-gr3-fix-onboarding-username-placeholder-welc/) |
+| 260520-hp1 | Forgot-password reset flow: `/forgot-password` request page (Supabase `resetPasswordForEmail`, generic non-enumerating success) + `/reset-password` recovery-session page (`updateUser({ password })` with mismatch + min-length guards) + "Forgot password?" link on `/login` + middleware allowlist for both routes + `reset-password` reserved username + Playwright smoke (link visible + form submit shows generic success). **Operator follow-up:** set Supabase Reset Password email template URL to `{{ .SiteURL }}/auth/callback?next=/reset-password`; manual email-click smoke pending. | 2026-05-20 | 1ab9608 | [260520-hp1-add-forgot-password-reset-flow](./quick/260520-hp1-add-forgot-password-reset-flow/) |
 
 ### Open Items (carried forward)
 
