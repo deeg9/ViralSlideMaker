@@ -151,6 +151,14 @@ export function legacyToTextBoxes(slide: Slide): TextBox[] {
   // uppercase, top-anchored role='custom' TextBox — the reference kicker
   // label ("NEWS", "TRENDING NEWS"). It is NOT merged into the headline
   // hook_text box. Read defensively — accessory_label is optional.
+  //
+  // quick-260519-pbg: switched from anchor 'top' (which resolved to
+  // left:0%/top:0%/width:60%/text-align:left — visually a top-LEFT label
+  // with no background, low contrast on photos, and collides with the
+  // tr3nding-news kicker pill which also lives top-left). New default:
+  // top-CENTER custom anchor + tight black highlight pill + white text
+  // so the kicker reads as a kicker on any background. User-dragged
+  // positions still win — this only changes the at-AI-ingest default.
   if (typeof slide.accessory_label === 'string' && slide.accessory_label.length > 0) {
     boxes.push({
       id: crypto.randomUUID(),
@@ -158,7 +166,17 @@ export function legacyToTextBoxes(slide: Slide): TextBox[] {
       text: slide.accessory_label.toUpperCase(),
       font_size: ACCESSORY_LABEL_FONT_SIZE,
       text_transform: 'uppercase',
-      position: { anchor: 'top' },
+      text_align: 'center',
+      color: '#FFFFFF',
+      effects: {
+        highlight: {
+          enabled: true,
+          color: '#000000CC',
+          style: 'tight',
+          padding: 8,
+        },
+      },
+      position: { anchor: 'custom', x: 20, y: 3, width: 60 },
     })
   }
 
