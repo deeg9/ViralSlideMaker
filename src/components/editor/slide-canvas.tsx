@@ -1,6 +1,7 @@
 'use client'
 
 import { Icon } from '@/components/ui/icon'
+import { HintPill } from '@/components/ui/hint-pill'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide, TextPosition, CustomText, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
@@ -160,6 +161,18 @@ export function SlideCanvas({
   // from the control panel — see slide-editor.tsx comment at TextEditorPanel).
   const perSlideTemplate = resolvePerSlideTemplate(currentSlide, template)
 
+  // quick-260519-hnp: surface the new card-bound headline drag affordance.
+  // Mirror the captionCardHeadline predicate from slide-preview so the hint
+  // only shows on slides where the headline is actually card-managed (and
+  // therefore where the d7g drag-forwarding behaviour applies).
+  const overrides = currentSlide?.style_overrides ?? {}
+  const isNewsLayoutSlide =
+    perSlideTemplate.backgroundMode == null && overrides.layout != null
+  const captionCardActive =
+    overrides.caption_bar_enabled === true ||
+    (overrides.caption_bar_enabled == null && isNewsLayoutSlide)
+  const showCaptionCardDragHint = !!(isNewsLayoutSlide && captionCardActive)
+
   return (
     <div
       className="bg-[#fff8f7] flex flex-col items-center justify-center p-3 lg:p-8 overflow-hidden"
@@ -172,6 +185,14 @@ export function SlideCanvas({
           Slide {selectedIndex + 1} / {slides.length}
         </span>
       </div>
+
+      {/* quick-260519-hnp: contextual hint for the d7g card-headline drag
+          affordance. Shows once per device until the user dismisses it. */}
+      {showCaptionCardDragHint && (
+        <HintPill hintKey="caption-card-drag-headline-v1" className="mb-3">
+          Drag the headline to move the card
+        </HintPill>
+      )}
 
       <div className="w-full max-w-md relative">
         <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
