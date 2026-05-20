@@ -71,7 +71,7 @@ export function TextBackgroundControls({
         </label>
       </div>
       <div className="flex gap-2">
-        {(['tight', 'full'] as const).map((style) => (
+        {(['tight', 'full', 'ruled'] as const).map((style) => (
           <button
             key={style}
             type="button"
@@ -85,7 +85,7 @@ export function TextBackgroundControls({
             aria-label={`Highlight style ${style}`}
             aria-pressed={highlight.style === style}
           >
-            {style === 'tight' ? 'Tight' : 'Full'}
+            {style === 'tight' ? 'Tight' : style === 'full' ? 'Full' : 'Ruled'}
           </button>
         ))}
       </div>
