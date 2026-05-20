@@ -58,6 +58,8 @@ export const newsCategory: CategoryModule = {
   // picker-facing news keeper (quick task 260518-jhg — Oracle-style,
   // center-aligned; replaced the now-picker-hidden news-cyan);
   // tr3nding-news is the secondary tabloid-kicker option.
-  templateIds: ['news-oracle', 'tr3nding-news'] as const,
+  // quick task 260519-t3x adds chrome-pulse (cyber-Y2K breaking energy,
+  // image-bleed + acid-lime accent) as a third news option.
+  templateIds: ['news-oracle', 'tr3nding-news', 'chrome-pulse'] as const,
   buildPrompt: () => NEWS_PROMPT,
 }
