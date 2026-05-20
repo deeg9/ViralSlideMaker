@@ -105,6 +105,16 @@ export function SlideEditor({
   initialPublishedState,
   dbTemplates = [],
 }: SlideEditorProps) {
+  // quick-260520-064: resolve the initial template once at mount and thread
+  // it into useSlideEditor so the adapter's D1 fallback (inject a 'BREAKING
+  // NEWS' 'ruled' kicker on news-oracle covers with an unset accessory_label)
+  // fires at slide-load time, not only after the first edit. The template
+  // re-resolved further below (line ~129) tracks user template switches
+  // post-mount; this mount-time resolution is purely for the migration path.
+  const initialTemplateForMigration = TEMPLATE_IDS.includes(templateId)
+    ? getTemplate(templateId)
+    : (dbTemplates.find((d) => d.template.id === templateId)?.template
+        ?? getTemplate(templateId))
   const {
     slides,
     dispatch,
@@ -116,7 +126,7 @@ export function SlideEditor({
     selectedTextBoxId,
     setSelectedTextBoxId,
     removeTextBox,
-  } = useSlideEditor(initialSlides)
+  } = useSlideEditor(initialSlides, initialTemplateForMigration)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
   // Phase 88 (WIRE-03): resolve currentTemplateId. Brand-kit synthesizes from
   // the user's brand_kit row at render time. A code template id resolves via

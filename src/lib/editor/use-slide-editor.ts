@@ -2,9 +2,10 @@
 
 import { useReducer, useCallback, useMemo, useState } from 'react'
 import type { Slide } from '@/lib/types/slide'
+import type { SlideTemplate } from '@/lib/render/templates'
 import type { EditorAction } from '@/lib/editor/editor-actions'
 import { editorReducer, type EditorHistory } from '@/lib/editor/editor-reducer'
-import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import { legacyToTextBoxes, textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { legacyWatermarkToElement } from '@/lib/editor/watermark-adapter'
 
 /**
@@ -20,11 +21,31 @@ import { legacyWatermarkToElement } from '@/lib/editor/watermark-adapter'
  * handling) continues to work unchanged. Both paths coexist for one milestone
  * (sunset target: v2.12+ post-PMF).
  */
-function migrateLegacySlides(slides: Slide[]): Slide[] {
+// quick-260520-064: `template` threads through so legacyToTextBoxes can apply
+// the D1 fallback (inject a 'BREAKING NEWS' 'ruled' kicker on news-oracle
+// covers with an unset accessory_label). Optional — existing callers without
+// a template in scope continue to compile and behave byte-identically.
+function migrateLegacySlides(slides: Slide[], template?: SlideTemplate): Slide[] {
   return slides.map((slide, slideIndex) => {
-    let next: Slide = slide.text_boxes
-      ? slide
-      : { ...slide, text_boxes: legacyToTextBoxes(slide) }
+    let next: Slide
+    if (slide.text_boxes) {
+      // text_boxes already populated (server-side AI-ingest path) — pass
+      // through unchanged. The custom_texts mirror was already produced at
+      // ingest time (or by a prior edit's applyDualWrite).
+      next = slide
+    } else {
+      const nextTextBoxes = legacyToTextBoxes(slide, template)
+      next = { ...slide, text_boxes: nextTextBoxes }
+      // quick-260520-064: dual-write text_boxes → custom_texts at migration
+      // time so the adapter-injected D1 kicker (a role='custom' box) is
+      // visible to the renderers on first load. Without this, the renderers'
+      // `slide.custom_texts.map(...)` iteration would not see the kicker
+      // until the first edit fires applyDualWrite in the reducer.
+      const slice = textBoxesToLegacy(nextTextBoxes)
+      if (slice.custom_texts !== undefined && slice.custom_texts.length > 0) {
+        next = { ...next, custom_texts: slice.custom_texts }
+      }
+    }
     if (!next.watermark) {
       const wm = legacyWatermarkToElement(next, slideIndex)
       if (wm) {
@@ -39,12 +60,25 @@ function migrateLegacySlides(slides: Slide[]): Slide[] {
   })
 }
 
-function createInitialState(slides: Slide[]): EditorHistory {
-  return { past: [], present: migrateLegacySlides(slides), future: [] }
+function createInitialState(
+  init: { slides: Slide[]; template?: SlideTemplate },
+): EditorHistory {
+  return {
+    past: [],
+    present: migrateLegacySlides(init.slides, init.template),
+    future: [],
+  }
 }
 
-export function useSlideEditor(initialSlides: Slide[]) {
-  const [state, dispatch] = useReducer(editorReducer, initialSlides, createInitialState)
+export function useSlideEditor(initialSlides: Slide[], template?: SlideTemplate) {
+  // quick-260520-064: bundle slides + template into the reducer-init arg so
+  // createInitialState can thread template into migrateLegacySlides without
+  // changing useReducer's "init function" shape.
+  const [state, dispatch] = useReducer(
+    editorReducer,
+    { slides: initialSlides, template },
+    createInitialState,
+  )
 
   // Phase 49: selection state for the new TextBox-driven right rail (Phase 50 consumes this).
   // Stored OUTSIDE the editor history — selection changes never push undo/redo.
