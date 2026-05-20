@@ -98,8 +98,9 @@ describe('Phase 74 Plan 04 (STYLESPEC-11, STYLESPEC-12, PARITY-01): PTF74 style-
   // past 12 in a future milestone, the matrix below will iterate the new
   // templates automatically — but THIS gate flags the addition explicitly
   // so the new template gets a deliberate snapshot review.
+  // quick-260519-t3x bumps 13 → 16; new PTF entries land below automatically.
   it('PTF74 (registry sanity): templates registry holds the v2.12 trailing-edge count', () => {
-    expect(templates).toHaveLength(12)
+    expect(templates).toHaveLength(16)
   })
 
   // ===== Project-shape sanity: legacy fixture accepts null / null =====

@@ -99,8 +99,9 @@ describe('quick-260511-uk1: render-time brand-kit-merge parity pin (Option B)', 
   // renderer matrices below iterate the new template automatically — but
   // this gate flags the addition so the new template gets a deliberate
   // Option-B review.
-  it('templates registry holds the v2.13 trailing-edge count (12)', () => {
-    expect(templates).toHaveLength(12)
+  // quick-260519-t3x bumps 13 → 16; new ids get fresh PTL entries below.
+  it('templates registry holds the v2.13 trailing-edge count (16)', () => {
+    expect(templates).toHaveLength(16)
   })
 
   describe('SlidePreview is brandKit-independent for every built-in template', () => {

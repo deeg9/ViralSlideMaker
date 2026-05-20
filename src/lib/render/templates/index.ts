@@ -15,6 +15,14 @@ import { editorialSerif } from './editorial-serif'
 import { notesAppChic } from './notes-app-chic'
 import { brutalistGrid } from './brutalist-grid'
 import { paperEssay } from './paper-essay'
+// quick task 260519-t3x: 3 trending-style additions for the marketing-push
+// picker (sunset-tabloid, soft-sage, chrome-pulse). Picker keepers expand
+// from 5 → 8; templates total 13 → 16. Appended at the end so existing
+// templates keep their indices (registry-driven fingerprint test assigns
+// these PTF14/PTF15/PTF16).
+import { sunsetTabloid } from './sunset-tabloid'
+import { softSage } from './soft-sage'
+import { chromePulse } from './chrome-pulse'
 import { validateTemplateRegistry } from './validate'
 
 // Phase 44: overlay-zone schema. Named-slot positions map to fixed CSS layout in
@@ -191,6 +199,10 @@ export const templates: SlideTemplate[] = [
   // quick task 260518-jhg: appended at the END so existing templates keep
   // their indices (registry-driven fingerprint test assigns this PTF13).
   newsOracle,
+  // quick task 260519-t3x: 3 trending-style additions (PTF14/PTF15/PTF16).
+  sunsetTabloid,
+  softSage,
+  chromePulse,
 ]
 
 // Phase 44: fail fast at module load if any registered template is misconfigured.

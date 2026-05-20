@@ -23,12 +23,18 @@ import { CATEGORIES } from '@/lib/ai/categories'
 // The user-approved keeper list (82-KEEPER-SIGNOFF.md, signed off 2026-05-17).
 // quick task 260518-jhg: news-cyan retired from the picker, replaced by the
 // Oracle-style news-oracle keeper — still 5 keepers (a swap, not an addition).
+// quick task 260519-t3x: 3 trending-style additions (sunset-tabloid / soft-sage
+// / chrome-pulse) appended to the picker — 5 keepers → 8 (verbally approved
+// 2026-05-19 for the marketing-push expansion).
 const APPROVED_KEEPERS = [
   'news-oracle',
   'tr3nding-news',
   'bold-yellow',
   'editorial-serif',
   'y2k-pop',
+  'sunset-tabloid',
+  'soft-sage',
+  'chrome-pulse',
 ] as const
 
 // The user-approved cull list (hidden from picker, renderers retained).
@@ -45,7 +51,7 @@ const CULLED_IDS = [
 ] as const
 
 describe('Phase 82 — keeper-list curation (R8/R9 hide-not-delete)', () => {
-  it('pickerTemplates is exactly the 5 approved keepers', () => {
+  it('pickerTemplates is exactly the approved keepers (5 + 3 from quick-260519-t3x = 8)', () => {
     const pickerIds = pickerTemplates.map((t) => t.id).sort()
     expect(pickerIds).toEqual([...APPROVED_KEEPERS].sort())
   })
@@ -73,12 +79,12 @@ describe('Phase 82 — keeper-list curation (R8/R9 hide-not-delete)', () => {
     expect(tpl.name).toBe('Highlight Bar')
   })
 
-  it('the registry still holds all 13 templates (no deletions — hide-not-delete; +news-oracle per quick task 260518-jhg)', () => {
+  it('the registry holds all 16 templates (no deletions — hide-not-delete; +news-oracle per quick task 260518-jhg; +3 trending per quick task 260519-t3x)', () => {
     const registryIds = new Set(templates.map((t) => t.id))
     for (const id of [...APPROVED_KEEPERS, ...CULLED_IDS]) {
       expect(registryIds.has(id), `template '${id}' must remain registered`).toBe(true)
     }
-    expect(templates.length).toBe(13)
+    expect(templates.length).toBe(16)
   })
 
   it('every category templateIds entry is a picker-visible keeper (no category resolves to a hidden template — SPEC R7)', () => {
