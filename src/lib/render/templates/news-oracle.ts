@@ -61,4 +61,14 @@ export const newsOracle: SlideTemplate = {
     ],
     layout: 'cover',
   },
+  // quick-260519-cdf: tuned caption-card baseline for the Oracle look. taller
+  // card (42%), softer top edge (15% edge-blend), and slightly more photo
+  // visibility (opacity 0.80 vs the global 0.85). Applies to every slide using
+  // news-oracle unless the user explicitly overrides the matching caption_bar_*
+  // key on a per-slide basis.
+  captionCardDefaults: {
+    heightPct: 42,
+    blendPct: 15,
+    opacity: 0.80,
+  },
 }
