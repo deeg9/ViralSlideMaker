@@ -37,9 +37,14 @@ ACCENT THE NEWSWORTHY KEYWORDS:
   behind the word), so choose words that genuinely deserve that emphasis.
 
 OPTIONAL KICKER LABEL:
-- You MAY emit an optional \`accessory_label\` — a small kicker like "TRENDING NEWS",
-  "BREAKING", or "DEVELOPING". Use it SPARINGLY — at most roughly every 2nd-3rd slide,
-  never on every slide. The headline always stays the dominant element.
+- You MAY emit an optional \`accessory_label\` — a small kicker like
+  "TRENDING NEWS", "BREAKING NEWS", "ALERT", "EXCLUSIVE", or "DEVELOPING".
+  Use it SPARINGLY on non-cover slides — at most roughly every 2nd-3rd slide.
+- ON THE COVER SLIDE for the news-oracle template, ALWAYS emit a short,
+  contextual kicker (1-3 words, ≤24 characters). Prefer the most newsworthy
+  frame: "BREAKING NEWS", "ALERT", "EXCLUSIVE", "DEVELOPING", "URGENT", or
+  a topic-specific kicker if it fits the limit. The headline always stays
+  the dominant element.
 
 IMAGERY:
 - \`image_query\` values are photojournalism-style: real subjects, news events,

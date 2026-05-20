@@ -19,6 +19,34 @@ import {
 // registers the schema — there is no consumer yet.
 export { DecorationSchema, parseDecorationsArraySafe }
 export type { DecorationContent }
+
+/**
+ * R3 (quick-260520-064): news-oracle cover guard. Gemini is asked to emit a
+ * short contextual kicker on news-oracle cover slides (D3), but generation is
+ * probabilistic — if it emits something too long (>3 words OR >24 chars), we
+ * coerce to the safe 'BREAKING NEWS' fallback so the 'ruled' kicker stays
+ * visually balanced. Cover-only; news-oracle-only. Runs BEFORE legacyToTextBoxes
+ * maps slides to TextBox[] so the coerced label flows into both the legacy
+ * field AND the derived text_boxes.
+ *
+ * Pure — mutates the carousel in place. Reads `role` and `accessory_label`
+ * defensively; never throws.
+ */
+export function applyNewsCoverAccessoryLabelGuard(
+  carousel: { slides: Array<{ role?: string; accessory_label?: string }> },
+  templateId: string | undefined,
+): void {
+  if (templateId !== 'news-oracle') return
+  for (const slide of carousel.slides) {
+    if (slide.role !== 'cover') continue
+    const label = slide.accessory_label
+    if (typeof label !== 'string' || label.length === 0) continue
+    const wordCount = label.trim().split(/\s+/).filter(Boolean).length
+    if (wordCount > 3 || label.length > 24) {
+      slide.accessory_label = 'BREAKING NEWS'
+    }
+  }
+}
 import { buildSystemPrompt } from './prompts'
 import { resolveTemplate } from '@/lib/render/templates/registry'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
@@ -327,6 +355,11 @@ export async function generateSlideContent(
   parsedCarousel.slides = snapHeadlineToCaptionCard(parsedCarousel.slides, {
     stampNewsDefault: category === 'news',
   })
+
+  // R3 (quick-260520-064): coerce overly-long news-oracle cover accessory_labels
+  // to the safe 'BREAKING NEWS' fallback BEFORE legacyToTextBoxes maps slides
+  // to text_boxes. Cover-only; news-oracle-only; never throws.
+  applyNewsCoverAccessoryLabelGuard(parsedCarousel, templateId)
 
   // Phase 71 (AI-01..04): server-side decorations ingest. AI emits named
   // tokens + semantic anchors via DecorationEmitSchema; we resolve to
