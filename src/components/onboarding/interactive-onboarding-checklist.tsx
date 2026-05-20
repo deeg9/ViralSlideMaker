@@ -62,7 +62,16 @@ export function InteractiveOnboardingChecklist() {
         activeStepId={activeStepId}
         onStepClick={(step) => {
           startStep(step.id)
-          if (pathname !== step.route) {
+          // quick-260520-gr3: don't yank the user off the current page if
+          // the target is already in the DOM here. The static step.route
+          // says /dashboard for every step, but publish-toggle (and the
+          // generation-form steps mid-creation) actually render inside
+          // /project/[id]. Re-checking the DOM keeps the spotlight on the
+          // page the user is already looking at.
+          const targetAlreadyHere =
+            typeof document !== 'undefined' &&
+            document.querySelector(step.targetSelector) instanceof HTMLElement
+          if (!targetAlreadyHere && pathname !== step.route) {
             router.push(step.route)
           }
         }}
@@ -102,39 +111,42 @@ export function InteractiveOnboardingChecklist() {
             }}
             onSkip={skipTour}
             onDismiss={dismissActiveStep}
-            // quick-260520-gr3: "Take me there" is now step-aware.
-            //   1. If the target IS in the DOM (just scrolled out of view),
-            //      scroll it into view so the spotlight can take over on the
-            //      next measure() pass.
-            //   2. publish-toggle's target only renders inside the project
-            //      editor — resolve the user's most recent project id and
-            //      route there. No project yet? Auto-complete the step.
-            //   3. Fallback: router.push(step.route) as before.
+            // quick-260520-gr3: "Take me there" is now step-aware. Every
+            // remaining target (topic-input, generate-button, publish-toggle)
+            // lives inside the project editor at /project/[id], not on
+            // /dashboard — the previous router.push(step.route) was a no-op
+            // when the user was already on /dashboard.
+            //   1. If the target IS in the DOM (e.g. user is already in the
+            //      editor but scrolled past it), scrollIntoView so the
+            //      coachmark re-measures and the spotlight takes over.
+            //   2. Otherwise resolve the user's most recent project and
+            //      route to /project/<id>; the target renders there.
+            //   3. No project yet? Auto-complete the step — there is
+            //      nothing to spotlight; the user can hit "Create New Slide"
+            //      themselves and pick the tour back up after generation.
             onTakeMeThere={async (step) => {
               if (typeof document !== 'undefined') {
                 const el = document.querySelector(step.targetSelector)
                 if (el && el instanceof HTMLElement) {
                   el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  // The CoachmarkOverlay re-measures on scroll, so the
-                  // spotlight will replace this centered fallback once
-                  // the target rect is non-zero.
                   return
                 }
               }
-              if (step.id === 'publish-toggle') {
-                const latestId = await getLatestProjectId()
-                if (latestId) {
-                  router.push(`/project/${latestId}`)
-                  return
-                }
-                // No projects yet — nothing to spotlight. Mark the step
-                // complete so the checklist progresses; finishTour cascades
-                // if this was the last remaining step.
-                completeStep('publish-toggle')
-                dismissActiveStep()
+              const latestId = await getLatestProjectId()
+              // Loop guard: if we're already on the latest-project route
+              // and the target STILL is not in the DOM, the target genuinely
+              // does not render on this user's editor state (e.g. slides are
+              // already generated so topic-input/generate-button are gone).
+              // Auto-complete rather than re-routing to the same page.
+              const alreadyOnLatest = Boolean(
+                latestId && pathname.startsWith(`/project/${latestId}`),
+              )
+              if (latestId && !alreadyOnLatest) {
+                router.push(`/project/${latestId}`)
                 return
               }
-              router.push(step.route)
+              completeStep(step.id)
+              dismissActiveStep()
             }}
           />
         )}
