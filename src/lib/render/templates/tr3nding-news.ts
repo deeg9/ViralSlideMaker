@@ -53,7 +53,12 @@ export const tr3ndingNews: SlideTemplate = {
       },
     },
     {
-      position: 'mid',
+      // quick-260519-pbg: moved from 'mid' (top:55% center) to 'top-left'.
+      // The mid slot landed dead-center on the photo subject's face on
+      // most stock photography — turning the kicker into an occluder.
+      // Top-left is the magazine-kicker convention (above the headline,
+      // out of the photo's central focus zone).
+      position: 'top-left',
       content: { type: 'literal', text: 'TR3NDING' },
       style: {
         background: '#000000',
