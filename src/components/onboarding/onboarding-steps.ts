@@ -7,29 +7,21 @@
 // are not contracts — `data-onboarding-id` is.
 //
 // D-08 locked IDs (changing or adding requires editing 81-SPEC.md first):
-//   reference-upload, topic-input, generate-button, publish-toggle
+//   topic-input, generate-button, publish-toggle
 //
-// Route choice: the reference-upload, topic-input, and generate-button
-// surfaces all live inline on `/dashboard` today — GenerationForm embeds
-// <StyleFromReferenceShell> via a collapsible "Copy style" section, and the
-// large "Generate Carousel" submit is on the same form. CONTEXT.md D-11
-// described `/style-from-reference` as a separate route; the codebase moved
-// that flow inline. If a dedicated route returns later, only this file
-// changes (single source of truth for tour routing).
+// quick-260520-gr3 (2026-05-20): removed the `reference-upload` step. We are
+// pivoting away from references-first messaging in the post-signup tour
+// (welcome dialog dropped the matching slide). If references-first returns
+// later the step can be reintroduced here in a single place.
 //
-// The publish-toggle lives inside the project editor (/project/[id]). When
-// the user is on /dashboard and activates that step, the coachmark falls
-// back to its centered "Take me there" panel per D-09 — acceptable v1
-// behavior.
+// Route choice: the topic-input and generate-button surfaces live inline on
+// `/dashboard` (GenerationForm is mounted there). The publish-toggle lives
+// inside the project editor (/project/[id]); when the user activates that
+// step from /dashboard, the checklist's "Take me there" fallback resolves
+// the user's most recent project id via getLatestProjectId() and routes
+// to /project/<id>. If they have no projects yet, the step is auto-completed.
 
 export const ONBOARDING_STEPS = [
-  {
-    id: 'reference-upload',
-    title: 'Upload a reference image',
-    description: 'Pick a slideshow you like — we will mimic its visual style.',
-    route: '/dashboard',
-    targetSelector: '[data-onboarding-id="reference-upload"]',
-  },
   {
     id: 'topic-input',
     title: 'Type your topic',
@@ -48,6 +40,8 @@ export const ONBOARDING_STEPS = [
     id: 'publish-toggle',
     title: 'Publish to share',
     description: 'Your carousel is public by default — open a project to flip visibility.',
+    // route is /dashboard for the case where no project exists yet; the
+    // "Take me there" handler resolves a real /project/<id> at click time.
     route: '/dashboard',
     targetSelector: '[data-onboarding-id="publish-toggle"]',
   },

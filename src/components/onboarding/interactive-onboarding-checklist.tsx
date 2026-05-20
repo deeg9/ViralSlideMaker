@@ -29,6 +29,7 @@ import {
 
 import { cn } from '@/lib/utils'
 
+import { getLatestProjectId } from './get-latest-project-id'
 import { useOnboarding } from './onboarding-provider'
 import type { OnboardingStepDef, OnboardingStepId } from './onboarding-steps'
 
@@ -101,7 +102,40 @@ export function InteractiveOnboardingChecklist() {
             }}
             onSkip={skipTour}
             onDismiss={dismissActiveStep}
-            onNavigateToRoute={(route) => router.push(route)}
+            // quick-260520-gr3: "Take me there" is now step-aware.
+            //   1. If the target IS in the DOM (just scrolled out of view),
+            //      scroll it into view so the spotlight can take over on the
+            //      next measure() pass.
+            //   2. publish-toggle's target only renders inside the project
+            //      editor — resolve the user's most recent project id and
+            //      route there. No project yet? Auto-complete the step.
+            //   3. Fallback: router.push(step.route) as before.
+            onTakeMeThere={async (step) => {
+              if (typeof document !== 'undefined') {
+                const el = document.querySelector(step.targetSelector)
+                if (el && el instanceof HTMLElement) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  // The CoachmarkOverlay re-measures on scroll, so the
+                  // spotlight will replace this centered fallback once
+                  // the target rect is non-zero.
+                  return
+                }
+              }
+              if (step.id === 'publish-toggle') {
+                const latestId = await getLatestProjectId()
+                if (latestId) {
+                  router.push(`/project/${latestId}`)
+                  return
+                }
+                // No projects yet — nothing to spotlight. Mark the step
+                // complete so the checklist progresses; finishTour cascades
+                // if this was the last remaining step.
+                completeStep('publish-toggle')
+                dismissActiveStep()
+                return
+              }
+              router.push(step.route)
+            }}
           />
         )}
       </AnimatePresence>
@@ -235,7 +269,9 @@ interface CoachmarkOverlayProps {
   onPrev: (stepId: OnboardingStepId) => void
   onSkip: () => void
   onDismiss: () => void
-  onNavigateToRoute: (route: string) => void
+  // quick-260520-gr3: step-aware (replaces onNavigateToRoute). The handler
+  // decides whether to scroll, route to a resolved project, or auto-complete.
+  onTakeMeThere: (step: OnboardingStepDef) => void | Promise<void>
 }
 
 interface TargetRect {
@@ -254,7 +290,7 @@ function CoachmarkOverlay({
   onPrev,
   onSkip,
   onDismiss,
-  onNavigateToRoute,
+  onTakeMeThere,
 }: CoachmarkOverlayProps) {
   const step = useMemo(() => steps.find((s) => s.id === stepId), [steps, stepId])
   const stepIndex = useMemo(() => steps.findIndex((s) => s.id === stepId), [steps, stepId])
@@ -372,7 +408,7 @@ function CoachmarkOverlay({
           totalSteps={steps.length}
           isFirst={isFirst}
           isLast={isLast}
-          onTakeMeThere={() => onNavigateToRoute(step.route)}
+          onTakeMeThere={() => onTakeMeThere(step)}
           onNext={() => onNext(stepId)}
           onPrev={() => onPrev(stepId)}
           onSkip={onSkip}
