@@ -41,7 +41,13 @@ export const chromePulse: SlideTemplate = {
   textAlign: 'left',
   textPosition: 'bottom',
   hookStyle: 'uppercase',
-  accentColor: '#FF2DAA',
+  // Acid lime matches the picker preview's highlight on "ACID" and the brand's
+  // primary accent — generation derives highlight pill color from accentColor
+  // (prompts.ts), so this MUST match the sample's highlightColor to keep the
+  // generated slide visually aligned with the picker. Hot magenta survives in
+  // the page-counter overlay below (hardcoded), preserving the dual-color
+  // Y2K-acid identity.
+  accentColor: '#C7FF3C',
   // backgroundMode left undefined — engages the classic newsZone path
   // (same as news-oracle), giving promoteNewsHeadline + the cover-layout
   // caption-card the room they need to render an oracle-scale headline.
