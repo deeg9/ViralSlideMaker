@@ -104,7 +104,8 @@ export interface TextOutlineEffect {
 export interface TextHighlightEffect {
   enabled: boolean
   color: string          // 8-digit hex with alpha e.g. '#000000CC'
-  style: 'tight' | 'full'
+  // 'ruled' (quick-260520-064): flanking horizontal rules, no fill — see ruled-highlight.ts
+  style: 'tight' | 'full' | 'ruled'
   padding: number        // 4-24 px
 }
 
