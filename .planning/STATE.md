@@ -85,7 +85,7 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 | 260519-hym | Snap generated headline text into caption-card geometry | 2026-05-19 | 0db74ab | [260519-hym-snap-generated-headline-text-into-captio](./quick/260519-hym-snap-generated-headline-text-into-captio/) |
 | 260519-k14 | Add Photo overlay panel to slide background controls | 2026-05-19 | 51ac805 | [260519-k14-add-photo-overlay-panel-to-slide-backgro](./quick/260519-k14-add-photo-overlay-panel-to-slide-backgro/) |
 | 260519-o55 | Extract Photo overlay into its own portlet | 2026-05-19 | b090df2 | [260519-o55-extract-photo-overlay-into-its-own-portl](./quick/260519-o55-extract-photo-overlay-into-its-own-portl/) |
-| 260519-pkt | Pin right-rail actions portlet + remove SAVE CHANGES button | 2026-05-19 | _pending_ | [260519-pkt-pin-actions-portlet-remove-save-button](./quick/260519-pkt-pin-actions-portlet-remove-save-button/) |
+| 260519-pkt | Pin right-rail actions portlet + remove SAVE CHANGES button | 2026-05-19 | 5df6ce9 | [260519-pkt-pin-actions-portlet-remove-save-button](./quick/260519-pkt-pin-actions-portlet-remove-save-button/) |
 
 ### Open Items (carried forward)
 
