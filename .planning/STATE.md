@@ -4,8 +4,8 @@ milestone: v2.15
 milestone_name: DB-Backed Template Wiring
 status: Awaiting next milestone
 stopped_at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
-last_updated: "2026-05-20T00:22:58.776Z"
-last_activity: 2026-05-19 — Completed quick task 260519-o55: Extract Photo overlay into its own portlet
+last_updated: "2026-05-20T06:15:00.000Z"
+last_activity: 2026-05-19 — Completed quick task 260519-vy2: Mirror resolveCaptionBar in right-panel controls (drift fix)
 progress:
   total_phases: 2
   completed_phases: 2
@@ -90,6 +90,7 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 | 260519-hnp | Inline hint pill component + caption-card drag hint | 2026-05-19 | 6726c60 | [260519-hnp-inline-hint-pill-component](./quick/260519-hnp-inline-hint-pill-component/) |
 | 260519-cdf | news-oracle caption-card defaults (height 42% / blend 15% / opacity 80%) | 2026-05-19 | 85cdfb7 | [260519-cdf-news-oracle-caption-card-defaults](./quick/260519-cdf-news-oracle-caption-card-defaults/) |
 | 260519-bkn | BREAKING NEWS badge on news-oracle cover (3-surface) | 2026-05-19 | 202fe66 | [260519-bkn-breaking-news-badge](./quick/260519-bkn-breaking-news-badge/) |
+| 260519-vy2 | Mirror resolveCaptionBar in right-panel controls (Height / Opacity / Edge blend drift on captionCardDefaults templates) | 2026-05-19 | 2c15db1 | [260519-vy2-fix-three-caption-card-control-drifts-ed](./quick/260519-vy2-fix-three-caption-card-control-drifts-ed/) |
 
 ### Open Items (carried forward)
 
@@ -110,8 +111,8 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 ## Session Continuity
 
 Last session: 2026-05-19
-Stopped at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
-Resume file: None — next step is the Phase 88 end-to-end dry-run, then `/gsd-complete-milestone`.
+Stopped at: Quick task 260519-vy2 complete — right-panel caption-card controls (Height, Opacity, Edge blend) now route through `resolveCaptionBar` + `template.captionCardDefaults?.opacity` so they agree with the canvas/Satori/HTML output on news-oracle and chrome-pulse (the toggle previously read OFF while the rendered card was blending). +7 Vitest cases; renderer untouched (PARITY-01 preserved).
+Resume file: None — next step is `/gsd-complete-milestone` for v2.15.
 
 ## Operator Next Steps
 
