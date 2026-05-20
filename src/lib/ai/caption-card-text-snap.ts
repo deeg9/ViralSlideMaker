@@ -26,14 +26,15 @@
 // =====================================================================
 
 import {
+  CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT,
   captionCardHeadlineBox,
   type CaptionCardGeometry,
 } from '@/lib/render/hook-fit'
 
 /** Default caption-card height, percent of the 1920 frame. Mirrors the
- *  renderer's `resolveCaptionBar` default
- *  (`CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT` = 38). */
-const DEFAULT_CAPTION_HEIGHT_PCT = 38
+ *  renderer's `resolveCaptionBar` final fallback when no template default
+ *  is supplied (`CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT` = 38). */
+const DEFAULT_CAPTION_HEIGHT_PCT = CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT
 
 /** Loose style-overrides shape the snap reads/writes. Kept structural so the
  *  helper composes with both the Zod-inferred `SlideContent` shape and the
@@ -48,16 +49,38 @@ interface LooseStyleOverrides {
   [k: string]: unknown
 }
 
+/** Structural subset of `SlideTemplate` the snap reads — the
+ *  `captionCardDefaults` block carries the per-template caption-card height
+ *  baseline (news-oracle / chrome-pulse ship `heightPct: 42`). When omitted,
+ *  the snap falls back to the global default and behavior matches pre-fix. */
+interface LooseTemplateForSnap {
+  captionCardDefaults?: {
+    heightPct?: number
+    [k: string]: unknown
+  }
+}
+
 /**
  * Derive the caption card's geometry from a slide's `style_overrides`,
  * EXACTLY as the renderer's `resolveCaptionBar` does — so the snap targets the
  * same card the renderer draws.
+ *
+ * The fallback chain for `heightPct` mirrors `resolveCaptionBar`
+ * (`resolve-overlay.ts:543-547`): explicit per-slide override → template
+ * default → global reference. When `template` is omitted, the template-default
+ * step is skipped — preserving the original snap behavior so existing test
+ * callers stay byte-identical.
  */
-function deriveCaptionCardGeometry(o: LooseStyleOverrides): CaptionCardGeometry {
+function deriveCaptionCardGeometry(
+  o: LooseStyleOverrides,
+  template?: LooseTemplateForSnap,
+): CaptionCardGeometry {
   const heightPct =
     typeof o.caption_bar_height_pct === 'number'
       ? o.caption_bar_height_pct
-      : DEFAULT_CAPTION_HEIGHT_PCT
+      : typeof template?.captionCardDefaults?.heightPct === 'number'
+        ? template.captionCardDefaults.heightPct
+        : DEFAULT_CAPTION_HEIGHT_PCT
   const position: 'bottom' | 'top' =
     o.caption_bar_position === 'top' ? 'top' : 'bottom'
   const y =
@@ -91,6 +114,17 @@ export interface SnapHeadlineOptions {
    * card unless one was explicitly enabled.
    */
   stampNewsDefault?: boolean
+
+  /**
+   * Optional template — when supplied, the snap reads
+   * `template.captionCardDefaults?.heightPct` as the per-template fallback
+   * before the global 38. This fixes the Y drift between snap and renderer
+   * on templates that ship a non-default card height (news-oracle and
+   * chrome-pulse ship `heightPct: 42` — without this, the hook center
+   * lands ~2% below the actual card center). When omitted, behavior is
+   * byte-identical to the pre-fix snap.
+   */
+  template?: LooseTemplateForSnap
 }
 
 /**
@@ -135,7 +169,7 @@ export function snapHeadlineToCaptionCard<
       return { ...slide, style_overrides: overrides as Record<string, unknown> }
     }
 
-    const card = deriveCaptionCardGeometry(overrides)
+    const card = deriveCaptionCardGeometry(overrides, options?.template)
     const box = captionCardHeadlineBox(card)
 
     return {
