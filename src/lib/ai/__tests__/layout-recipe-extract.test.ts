@@ -170,3 +170,38 @@ describe('Phase 84 extractLayoutRecipe', () => {
     expect(typeof result.recipe).toBe('object')
   })
 })
+
+describe('quick-260520-064 — R4 regression (news-oracle cover accessory_label)', () => {
+  it('enables roles.cover.accessory_label when a news-oracle cover carries "BREAKING NEWS"', () => {
+    // Mirrors the production shape after the adapter D1 fallback fires:
+    // the cover slide's legacy accessory_label string is populated (the
+    // recipe extractor reads slide.accessory_label, NOT the derived text_boxes).
+    const cover = makeSlide({
+      accessory_label: 'BREAKING NEWS',
+      style_overrides: { caption_bar_enabled: true },
+    })
+    const { recipe } = extractLayoutRecipe([
+      cover,
+      makeSlide(),
+      makeSlide({ is_cta: true }),
+    ])
+    expect(recipe.roles.cover?.accessory_label?.enabled).toBe(true)
+    expect(recipe.roles.cover?.accessory_label?.position_band).toBe('top')
+  })
+
+  it('does NOT enable roles.cover.accessory_label when the cover carries "" (user opted out)', () => {
+    // The extractor filters on .trim().length > 0 — an explicit empty string
+    // must NOT enable the slot. This preserves user opt-out through the
+    // recipe → saved-template re-apply path.
+    const cover = makeSlide({
+      accessory_label: '',
+      style_overrides: { caption_bar_enabled: true },
+    })
+    const { recipe } = extractLayoutRecipe([
+      cover,
+      makeSlide(),
+      makeSlide({ is_cta: true }),
+    ])
+    expect(recipe.roles.cover?.accessory_label).toBeUndefined()
+  })
+})
