@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.15
-milestone_name: DB-Backed Template Wiring
-status: Awaiting next milestone
-stopped_at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
-last_updated: "2026-05-20T07:05:00.000Z"
-last_activity: 2026-05-20 — Completed quick task 260520-hp1: Forgot-password reset flow (Supabase email-template config + manual email-click smoke pending)
+milestone: v2.16
+milestone_name: Picker Polish & Brand-Kit Shelving
+status: planning
+last_updated: "2026-05-20T23:35:19.150Z"
+last_activity: 2026-05-20
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -26,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 
 ## Current Position
 
-Phase: Milestone v2.15 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone (Task 6 manual smoke for quick-260520-064 pending)
-Last activity: 2026-05-20 — Completed quick task 260520-hp1: Forgot-password reset flow (Supabase email-template config + manual email-click smoke pending)
+Status: Defining requirements
+Last activity: 2026-05-20 — Milestone v2.16 started
 
 ## Roadmap — v2.15 (Phases 87–88)
 

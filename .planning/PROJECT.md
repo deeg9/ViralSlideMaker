@@ -11,7 +11,21 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.15 DB-Backed Template Wiring (2026-05-19)
-**Current Milestone:** None — run `/gsd-new-milestone` to scope the next cycle.
+**Current Milestone:** v2.16 Picker Polish & Brand-Kit Shelving (started 2026-05-20)
+
+---
+
+## Current Milestone: v2.16 Picker Polish & Brand-Kit Shelving
+
+**Goal:** Make the template picker visually represent what users will actually generate (real photo backgrounds, not text-on-solid-color), and shelve the brand-kit feature that's no longer part of the near-term direction.
+
+**Target features:**
+- **Brand-Kit Shelving (Full Removal)** — Delete the brand-kit picker tile (configured + empty-state CTA), Settings → Brand Kit page, `/api/v1/me/brand-kit/*` routes, `src/lib/brand-kit/`, `src/lib/types/brand-kit.ts`, AI prompts merge logic (`style-spec-brand-kit-merge.ts`), and brand-kit conditionals in render/publish/download/style-from-reference paths. The `20260427_brand_kit_template.sql` migration is marked shelved (not rolled back — `brand_kit` row may stay dormant on existing user accounts). ~79 files touched.
+- **Pre-Rendered Template Preview Pipeline** — One-off `scripts/render-template-previews.ts` that renders each of the 15 code-template covers with curated sample text + a real photo background (per-template stock photo or a shared photo library), uploads PNGs to the existing Supabase `template-previews` bucket, and writes the resulting URLs back onto each code-template's `preview` field in `src/lib/render/templates/*.ts`. Picker drops the `<SlidePreview>` live-render fallback entirely.
+
+**Key context:** Picker tiles currently render via the live `<SlidePreview>` fallback (text on solid colors — looks wrong because most templates are designed against a photo background). The `template-previews` Supabase Storage bucket already exists from v2.14 phase 86 (admin Save-as-Template). Brand-kit removal must NOT regress v2.13 style-from-reference, v2.14 DB-backed templates, or v2.15 render parity — byte-identity check on all 13 code templates + DB templates required.
+
+**Phase numbering:** Continues from v2.15 (last phase 88) → phases 89 and 90.
 
 ---
 
