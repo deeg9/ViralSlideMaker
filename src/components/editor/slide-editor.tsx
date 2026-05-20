@@ -1887,74 +1887,68 @@ export function SlideEditor({
               />
             )}
 
-            {/* Footer: undo/redo, export, save — inside scroll area.
-                quick-260514-portlet-bottom-and-regen: wrapped in the
-                watermark-style white card with brown border so it reads as
-                a sibling portlet to the section cards above. */}
-            <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mt-4 mx-4 mb-4">
-              {/* quick-260514-footer-stack: Private + Export were sharing a row
-                  with Undo/Redo and the Export pill was bleeding past the card's
-                  right edge. Stacked into two rows instead: Undo/Redo on top,
-                  Private + Export below taking equal flex-1 widths so they
-                  always fit no matter the rail width. */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={undo}
-                  disabled={!canUndo}
-                  className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
-                  title="Undo"
-                >
-                  <Icon name="undo" size="sm" />
-                </button>
-                <button
-                  onClick={redo}
-                  disabled={!canRedo}
-                  className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
-                  title="Redo"
-                >
-                  <Icon name="redo" size="sm" />
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <VisibilityDropdown
-                  projectId={projectId}
-                  title={title ?? 'Untitled Carousel'}
-                  isPublic={!!initialPublishedState}
-                  tags={initialPublishedState?.tags ?? []}
-                />
-                <button
-                  onClick={async () => {
-                    setExporting(true)
-                    try {
-                      await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
-                    } catch { /* silently handle */ }
-                    finally { setExporting(false) }
-                  }}
-                  disabled={exporting}
-                  className="flex-1 min-w-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
-                >
-                  <Icon name="download" size="sm" />
-                  <span className="truncate">{exporting ? 'Exporting...' : 'Export'}</span>
-                </button>
-              </div>
-              {(userTier ?? 'free') === 'free' && (
-                <p className="text-[11px] text-[#7d6161] leading-snug">
-                  Slides include a ViralSlideMaker watermark.{' '}
-                  <Link
-                    href="/settings/subscription"
-                    className="font-semibold text-[#3d0000] hover:underline"
-                  >
-                    Upgrade to remove
-                  </Link>
-                </p>
-              )}
+          </div>
+
+          {/* quick-260519-pkt: pinned actions portlet. Lives OUTSIDE the
+              overflow-auto scroll area so Undo/Redo + Public + Export stay
+              parked at the bottom of the right rail regardless of how far
+              the user has scrolled the panel content. The aside is
+              `flex flex-col overflow-hidden`, so a non-flex-1 sibling after
+              the scroll area naturally pins to the bottom.
+              SAVE CHANGES button removed — autosave already fires 2s after
+              the last edit via the isDirty debounce on doSave. */}
+          <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mx-4 mt-2 mb-4">
+            <div className="flex items-center gap-1">
               <button
-                onClick={doSave}
-                className="w-full py-3 bg-[#3d0000] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 active:scale-95 transition-all"
+                onClick={undo}
+                disabled={!canUndo}
+                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                title="Undo"
               >
-                Save Changes
+                <Icon name="undo" size="sm" />
+              </button>
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                title="Redo"
+              >
+                <Icon name="redo" size="sm" />
               </button>
             </div>
+            <div className="flex items-center gap-2">
+              <VisibilityDropdown
+                projectId={projectId}
+                title={title ?? 'Untitled Carousel'}
+                isPublic={!!initialPublishedState}
+                tags={initialPublishedState?.tags ?? []}
+              />
+              <button
+                onClick={async () => {
+                  setExporting(true)
+                  try {
+                    await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
+                  } catch { /* silently handle */ }
+                  finally { setExporting(false) }
+                }}
+                disabled={exporting}
+                className="flex-1 min-w-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
+              >
+                <Icon name="download" size="sm" />
+                <span className="truncate">{exporting ? 'Exporting...' : 'Export'}</span>
+              </button>
+            </div>
+            {(userTier ?? 'free') === 'free' && (
+              <p className="text-[11px] text-[#7d6161] leading-snug">
+                Slides include a ViralSlideMaker watermark.{' '}
+                <Link
+                  href="/settings/subscription"
+                  className="font-semibold text-[#3d0000] hover:underline"
+                >
+                  Upgrade to remove
+                </Link>
+              </p>
+            )}
           </div>
         </aside>
       </div>
