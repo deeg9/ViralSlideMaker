@@ -269,7 +269,7 @@ exports[`Phase 46 premium templates — Satori snapshots > magazine-bold: render
 </div>
 `;
 
-exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: renders image-with-bottom-card + top-right counter + mid-pill TR3NDING + mint pill segments > tr3nding-news-bottom-card-with-mid-pill 1`] = `
+exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: renders newsZone caption-card + top-right counter + mid-pill TR3NDING + mint pill segments > tr3nding-news-newsZone-caption-card-with-mid-pill 1`] = `
 <div
   style={
     {
@@ -313,13 +313,13 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
   <div
     style={
       {
-        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "backgroundImage": "linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.8) 15%, rgba(0, 0, 0, 0.8) 100%)",
         "display": "flex",
         "flexDirection": "column",
-        "height": 730,
+        "height": 806,
         "left": 0,
         "position": "absolute",
-        "top": 1190,
+        "top": 1114,
         "width": 1080,
       }
     }
@@ -351,7 +351,7 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         "display": "flex",
         "flexWrap": "wrap",
         "fontFamily": "'Anton', sans-serif",
-        "fontSize": 66,
+        "fontSize": 130,
         "fontWeight": 400,
         "justifyContent": "flex-start",
         "left": 119,
@@ -433,8 +433,6 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         "width": 842,
       }
     }
-  >
-    AI infrastructure boom drives record-breaking seed round.
-  </div>
+  />
 </div>
 `;
