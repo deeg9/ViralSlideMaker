@@ -24,6 +24,7 @@ import { DIVIDERS } from '@/lib/elements/dividers'
 import { DecorationCard } from './text-rail/decoration-card'
 import { WatermarkControls, type WatermarkSpec } from './watermark-controls'
 import { SlideBackgroundControls } from './slide-background-controls'
+import { SlidePhotoOverlayControls } from './slide-photo-overlay-controls'
 import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Decoration } from '@/lib/types/decoration'
 import type { Slide } from '@/lib/types/slide'
@@ -140,6 +141,12 @@ export function ElementsPanel({
             dual-panel collision on magazine-bold / tr3nding-news. Takes the
             PER-SLIDE-RESOLVED template for the color-swatch default. */}
         <SlideBackgroundControls
+          slide={slide}
+          template={resolvePerSlideTemplate(slide, template)}
+          onSlideUpdate={onSlideUpdate}
+          onSlidePreview={onSlidePreview ?? onSlideUpdate}
+        />
+        <SlidePhotoOverlayControls
           slide={slide}
           template={resolvePerSlideTemplate(slide, template)}
           onSlideUpdate={onSlideUpdate}
