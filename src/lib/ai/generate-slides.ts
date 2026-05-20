@@ -302,7 +302,7 @@ export async function generateSlideContent(
     const newsTemplate = templateId ? getTemplate(templateId) : getTemplate('news-cyan')
     const accentHex =
       newsTemplate.accentColor ?? getTemplate('news-cyan').accentColor ?? '#00E5FF'
-    promoteNewsHeadline(parsedCarousel, accentHex)
+    promoteNewsHeadline(parsedCarousel, accentHex, newsTemplate)
   }
 
   // quick-260519-hym: deterministic caption-card text snap. Runs AFTER

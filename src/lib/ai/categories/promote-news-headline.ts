@@ -31,7 +31,8 @@
 // Pure module — no I/O, no Gemini, never throws. Mirrors validateAndRepair's
 // documented in-place-mutation contract; also returns the carousel for chaining.
 
-import { fitHeadlineToBox, type HeadlineBox } from '@/lib/render/hook-fit'
+import { fitHeadlineToBox, getHookFontSize, hasHookFit, type HeadlineBox } from '@/lib/render/hook-fit'
+import type { SlideTemplate } from '@/lib/render/templates'
 
 /** Phase 82 Gap D: the default news hook-zone box on the 1080×1920 canvas — a
  *  headline-only news slide (R4 default — no body, no caption card enabled at
@@ -143,6 +144,12 @@ function deriveSegments(hookText: string, accentColorHex: string): LooseSegment[
 export function promoteNewsHeadline<T extends { slides: LooseNewsSlide[] }>(
   carousel: T,
   accentColorHex: string,
+  // quick-260519-t3x: optional template — when supplied, the auto-fit step
+  // routes through HOOK_FIT_REGISTRY for templates that have their own
+  // per-template calibration (e.g. chrome-pulse uses image-bleed not full-
+  // bleed newsZone, so the 842x620 default box yielded a ~129px size that
+  // overflowed). When omitted, behavior is byte-identical to pre-fix.
+  template?: SlideTemplate,
 ): T {
   for (const slide of carousel.slides) {
     const existing = slide.hook_segments
@@ -167,9 +174,19 @@ export function promoteNewsHeadline<T extends { slides: LooseNewsSlide[] }>(
     // Gap D — auto-fit headline size. Sized as large as fits the default news
     // hook box without overflowing or splitting a word — NOT a flat constant.
     // Respect a pre-existing override if present.
+    // quick-260519-t3x: route through the per-template HOOK_FIT_REGISTRY when
+    // the template has its own calibration — the 842x620 default news box
+    // assumes a classic full-bleed newsZone layout, but image-bleed templates
+    // like chrome-pulse have a much shorter hook zone (top:48%→62% = ~14% of
+    // canvas) and need a smaller fitted size.
     const overrides = slide.style_overrides ?? {}
     if (overrides.hook_font_size == null) {
-      const fitted = fitHeadlineToBox(slide.hook_text ?? '', NEWS_DEFAULT_HEADLINE_BOX)
+      const hookText = slide.hook_text ?? ''
+      const baseSize = template ? parseInt(template.hookFontSize, 10) : 0
+      const fitted =
+        template && hasHookFit(template.id) && Number.isFinite(baseSize)
+          ? getHookFontSize(template.id, hookText, baseSize)
+          : fitHeadlineToBox(hookText, NEWS_DEFAULT_HEADLINE_BOX)
       slide.style_overrides = { ...overrides, hook_font_size: fitted }
     }
   }

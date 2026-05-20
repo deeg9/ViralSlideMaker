@@ -120,6 +120,47 @@ const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
       { maxChars: Infinity, scale: 0.32 },
     ],
   },
+  // quick-260519-t3x templates.
+  // chrome-pulse — Anton (condensed, single-weight 400), 116px base. image-
+  // bleed layout with bottom-anchored text (top:48% hook → top:62% body =
+  // 14% gap). Mirrors tr3nding-news but smaller baseSize so curve scales
+  // slightly higher.
+  'chrome-pulse': {
+    baseSize: 116,
+    steps: [
+      { maxChars: 14, scale: 1 },
+      { maxChars: 24, scale: 0.78 },
+      { maxChars: 36, scale: 0.6 },
+      { maxChars: 52, scale: 0.48 },
+      { maxChars: Infinity, scale: 0.4 },
+    ],
+  },
+  // sunset-tabloid — Bebas Neue (condensed, single-weight 400), 128px base.
+  // No-photo color-block. textPosition: 'center' so hook + body share the
+  // middle band. Forgiving headroom but still need fit for 50+ char hooks.
+  'sunset-tabloid': {
+    baseSize: 128,
+    steps: [
+      { maxChars: 14, scale: 1 },
+      { maxChars: 24, scale: 0.78 },
+      { maxChars: 36, scale: 0.62 },
+      { maxChars: 52, scale: 0.5 },
+      { maxChars: Infinity, scale: 0.42 },
+    ],
+  },
+  // soft-sage — DM Serif Display italic (proportional, weight 400), 108px
+  // base. No-photo cream canvas, centered. Italic serif is wider per char
+  // than Anton, so tighten thresholds vs sibling chrome-pulse.
+  'soft-sage': {
+    baseSize: 108,
+    steps: [
+      { maxChars: 12, scale: 1 },
+      { maxChars: 20, scale: 0.78 },
+      { maxChars: 32, scale: 0.62 },
+      { maxChars: 46, scale: 0.5 },
+      { maxChars: Infinity, scale: 0.42 },
+    ],
+  },
 }
 
 export function getHookFontSize(

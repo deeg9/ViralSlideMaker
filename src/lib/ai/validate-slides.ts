@@ -247,6 +247,21 @@ export function validateAndRepair<
     ) {
       delete slide.template_id_override
     }
+    // quick-260519-t3x: Gemini empirically sets `template_id_override` on
+    // every slide to a single template (often unrelated to the user's
+    // picker choice — e.g. all slides override to 'tr3nding-news' even
+    // when the user selected Chrome Pulse). That's not the "visual rhythm"
+    // the schema description envisions — it's the picker getting hijacked.
+    // Strip per-slide overrides that don't match the user's selection so
+    // the picked template wins. (Future: surface explicit per-slide picker
+    // UI before re-enabling AI-driven multi-template rhythm.)
+    if (
+      slide.template_id_override !== undefined &&
+      templateId !== undefined &&
+      slide.template_id_override !== templateId
+    ) {
+      delete slide.template_id_override
+    }
   })
 
   const overflows = detectOverflows(data.slides, templateId)
