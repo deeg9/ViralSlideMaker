@@ -118,7 +118,10 @@ export function SlidePhotoOverlayControls({
   }
 
   return (
-    <section
+    // quick-260519-o55 follow-up: <div> (not <section>) so all three rail
+    // portlets (Caption card, Photo overlay, Watermark) use the same outer
+    // tag — purely a consistency nit; the shell classes already match.
+    <div
       className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3"
       data-testid="slide-photo-overlay-controls"
     >
@@ -270,6 +273,6 @@ export function SlidePhotoOverlayControls({
           </div>
         </>
       )}
-    </section>
+    </div>
   )
 }
