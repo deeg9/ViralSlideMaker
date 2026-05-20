@@ -35,6 +35,7 @@ export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
   'verify',
   'reset',
   'forgot-password',
+  'reset-password',
   // common system / vanity
   'admin',
   'administrator',
