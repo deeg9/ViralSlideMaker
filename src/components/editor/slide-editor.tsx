@@ -1481,7 +1481,12 @@ export function SlideEditor({
             </div>
           </div>
 
-          <div className="p-4 flex flex-col gap-4 flex-1 overflow-y-auto">
+          {/* quick-260519-scr: macOS overlay scrollbar floats over content
+              rather than reserving layout space, so a symmetric p-4 puts the
+              scrollbar on top of the slide thumbnails (visible bug on the
+              right edge of the cards). Extra right padding gives the
+              scrollbar a dedicated lane. */}
+          <div className="pl-4 pr-5 py-4 flex flex-col gap-4 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
             <SlideList
               slides={slides}
               template={template}
