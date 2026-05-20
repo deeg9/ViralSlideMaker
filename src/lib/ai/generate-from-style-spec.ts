@@ -52,7 +52,7 @@ import {
 } from './schemas'
 import { buildFromSpecPrompt } from './prompts'
 import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
-import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import { legacyToTextBoxes, textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
 import { getTemplate } from '@/lib/render/templates'
@@ -400,12 +400,29 @@ export async function generateFromStyleSpec(
   })
 
   // Phase 7: text_boxes population — server-side adapter (mirror generate-slides.ts:323-328).
-  const slidesWithTextBoxes: SlideContentWithTextBoxes[] = slidesProcessed.map((slide) => ({
-    ...slide,
-    text_boxes: separateOverlappingTextBoxes(
-      legacyToTextBoxes(slide as unknown as Slide),
-    ),
-  })) as SlideContentWithTextBoxes[]
+  // quick-260520-064: resolve per-slide template (template_id_override → carousel
+  // template) and thread it into legacyToTextBoxes so the D1 fallback injects
+  // the news-oracle 'BREAKING NEWS' 'ruled' kicker on style-spec covers too.
+  // Also mirror text_boxes → custom_texts so server-side renderers see the
+  // adapter-injected custom-role boxes (TPLREND-05 / PARITY-01).
+  const slidesWithTextBoxes: SlideContentWithTextBoxes[] = slidesProcessed.map((slide) => {
+    const slideTemplate = slide.template_id_override
+      ? getTemplate(slide.template_id_override)
+      : template
+    const nextTextBoxes = separateOverlappingTextBoxes(
+      legacyToTextBoxes(slide as unknown as Slide, slideTemplate),
+    )
+    const slice = textBoxesToLegacy(nextTextBoxes)
+    const result = {
+      ...slide,
+      text_boxes: nextTextBoxes,
+    } as SlideContentWithTextBoxes
+    if (slice.custom_texts !== undefined && slice.custom_texts.length > 0) {
+      ;(result as SlideContentWithTextBoxes & { custom_texts?: unknown }).custom_texts =
+        slice.custom_texts
+    }
+    return result
+  }) as SlideContentWithTextBoxes[]
 
   // Telemetry: log silent-drop count if non-zero. Code review checklist
   // (T-77-12): MUST NOT log spec.voice_note text — only structural counts.

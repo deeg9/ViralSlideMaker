@@ -23,6 +23,16 @@ import type {
   TextEffects,
   TextSegment,
 } from '@/lib/types/slide'
+import type { SlideTemplate } from '@/lib/render/templates'
+// quick-260520-064: shared geometry + live-caption-card-Y helper. The adapter
+// uses these to inject the news-oracle 'BREAKING NEWS' 'ruled' kicker at the
+// exact pixel position the deleted chrome painted (D4 parity), honoring
+// LIVE user edits to the caption card (Blocker 1 fix).
+import {
+  RULED_HIGHLIGHT,
+  ruledHighlightTopPctFromCaptionCardY,
+  liveCaptionCardTopPct,
+} from '@/lib/render/ruled-highlight'
 
 // -----------------------------------------------------------------------------
 // legacyToTextBoxes
@@ -94,8 +104,18 @@ function customTextToBox(ct: CustomText): TextBox {
  *   - Index 0: hook (role='hook')
  *   - Index 1: body (role='body')
  *   - Index 2+: each custom_text in original order, mapped to role='custom'
+ *
+ * quick-260520-064: optional `template` parameter. When passed AND the slide is
+ * a news-oracle cover, the adapter applies the D1 fallback:
+ *   - `accessory_label === undefined` + captionCardEnabled → inject
+ *     `'BREAKING NEWS'` `'ruled'` kicker (replacing the deleted chrome).
+ *   - `accessory_label === ''` → user opt-out, no kicker.
+ *   - `accessory_label === 'EXCLUSIVE'` (or any non-empty string) → custom
+ *     `'ruled'` kicker carrying the user's text.
+ * Existing one-arg callers (30+ test files) continue to receive byte-identical
+ * output because the template-aware branches are gated on `template !== undefined`.
  */
-export function legacyToTextBoxes(slide: Slide): TextBox[] {
+export function legacyToTextBoxes(slide: Slide, template?: SlideTemplate): TextBox[] {
   const overrides = slide.style_overrides
   const boxes: TextBox[] = []
 
@@ -147,23 +167,87 @@ export function legacyToTextBoxes(slide: Slide): TextBox[] {
     }
   }
 
-  // Phase 82 (R5): map an optional accessory_label to a DISTINCT small,
-  // uppercase, top-anchored role='custom' TextBox — the reference kicker
-  // label ("NEWS", "TRENDING NEWS"). It is NOT merged into the headline
-  // hook_text box. Read defensively — accessory_label is optional.
+  // Phase 82 (R5) + quick-260520-064: accessory_label → custom-anchor TextBox.
   //
-  // quick-260519-pbg: switched from anchor 'top' (which resolved to
-  // left:0%/top:0%/width:60%/text-align:left — visually a top-LEFT label
-  // with no background, low contrast on photos, and collides with the
-  // tr3nding-news kicker pill which also lives top-left). New default:
-  // top-CENTER custom anchor + tight black highlight pill + white text
-  // so the kicker reads as a kicker on any background. User-dragged
-  // positions still win — this only changes the at-AI-ingest default.
-  if (typeof slide.accessory_label === 'string' && slide.accessory_label.length > 0) {
+  // quick-260519-pbg (legacy precedent): when accessory_label is a non-empty
+  // string, render as a small top-CENTER custom kicker with a tight black
+  // highlight pill + white text (the TR3NDING pill aesthetic).
+  //
+  // quick-260520-064 (current): on news-oracle covers we replace the deleted
+  // BREAKING NEWS chrome with an adapter-injected 'ruled' kicker that paints
+  // pixel-for-pixel identically to the chrome:
+  //   - accessory_label === undefined + captionCardEnabled → inject
+  //     "BREAKING NEWS" (D1 fallback; matches the chrome's cc.enabled gate).
+  //   - accessory_label === '' → user opt-out, NO kicker.
+  //   - accessory_label === 'EXCLUSIVE' (any non-empty string) → carry the
+  //     user's text, 'ruled' style on news-oracle covers, 'tight' elsewhere.
+  // Other templates (no template passed, OR a non-news-oracle template) keep
+  // the pre-change behavior byte-identically — back-compat for 30+ existing
+  // test callers and the tr3nding-news / chrome-pulse / sunset-tabloid covers.
+  // `slide.role` is set at the validator boundary but not declared on the
+  // `Slide` interface — read defensively via a structural cast. This mirrors
+  // how slide-preview.tsx / render-slide.ts / render-slide-satori.tsx already
+  // consume it (the pre-existing TS errors on those files come from the same
+  // gap; this read stays consistent with that established pattern).
+  const slideRole = (slide as { role?: string }).role
+  const isNewsOracleCover =
+    template?.id === 'news-oracle' && slideRole === 'cover'
+  const o = slide.style_overrides
+  // Blocker 2 (cc.enabled gate): mirror the chrome's gate so toggling the
+  // caption card OFF also removes the kicker. For news-oracle (which has
+  // backgroundMode == null), the chrome's isNewsLayoutSlide reduced to
+  // `o.layout != null`, so the chrome was visible iff:
+  //   o.caption_bar_enabled === true ||
+  //   (o.caption_bar_enabled == null && o.layout != null)
+  const captionCardEnabled =
+    o?.caption_bar_enabled === true ||
+    (o?.caption_bar_enabled == null && o?.layout != null)
+
+  function pushAccessoryLabelBox(
+    text: string,
+    style: 'tight' | 'ruled',
+  ): void {
+    if (style === 'ruled' && template) {
+      // D4 geometry preset for news-oracle cover.
+      // Blocker 1 fix: compute the LIVE caption-card top % (honors user drags /
+      // height edits / top-position flips), NOT a frozen template default.
+      // liveCaptionCardTopPct mirrors resolveCaptionBar's Y math (see
+      // src/lib/render/resolve-overlay.ts:543-572).
+      const cardTopPct = liveCaptionCardTopPct(slide.style_overrides, template)
+      const y = ruledHighlightTopPctFromCaptionCardY(cardTopPct)
+      boxes.push({
+        id: crypto.randomUUID(),
+        role: 'custom',
+        text,
+        font_family: template.headingFontFamily ?? template.fontFamily,
+        font_size: RULED_HIGHLIGHT.fontSizePx,
+        font_weight: template.hookFontWeight ?? 400,
+        text_transform: 'uppercase',
+        text_align: 'center',
+        color: template.textColor,
+        effects: {
+          highlight: {
+            enabled: true,
+            // Informational — the renderers paint the rules using tb.color
+            // (Warning 4), not highlight.color. Setting highlight.color to
+            // textColor here keeps the resolved style consistent for any
+            // future consumer that reads it.
+            color: template.textColor,
+            style: 'ruled',
+            padding: 16,
+          },
+        },
+        // y is the LIVE Y derived from the caption card; x: 0, width: 100
+        // matches the deleted chrome's full-bleed flex row.
+        position: { anchor: 'custom', x: 0, y, width: 100 },
+      })
+      return
+    }
+    // 'tight' fallback — the existing TR3NDING-pill default (unchanged).
     boxes.push({
       id: crypto.randomUUID(),
       role: 'custom',
-      text: slide.accessory_label.toUpperCase(),
+      text: text.toUpperCase(),
       font_size: ACCESSORY_LABEL_FONT_SIZE,
       text_transform: 'uppercase',
       text_align: 'center',
@@ -179,6 +263,24 @@ export function legacyToTextBoxes(slide: Slide): TextBox[] {
       position: { anchor: 'custom', x: 20, y: 3, width: 60 },
     })
   }
+
+  const label = slide.accessory_label
+  if (label === undefined && isNewsOracleCover && captionCardEnabled) {
+    // D1 fallback — default 'BREAKING NEWS' kicker for the news-oracle cover
+    // (only when the caption card itself would render — Blocker 2).
+    pushAccessoryLabelBox('BREAKING NEWS', 'ruled')
+  } else if (typeof label === 'string' && label.length > 0) {
+    // Explicit string — 'ruled' on news-oracle covers, 'tight' elsewhere
+    // (including the case where `template` is omitted — back-compat).
+    const style: 'tight' | 'ruled' = isNewsOracleCover ? 'ruled' : 'tight'
+    pushAccessoryLabelBox(label, style)
+  }
+  // label === '' → user opt-out, do nothing.
+  // label === undefined && !isNewsOracleCover → do nothing (zero new boxes
+  // for non-news-oracle covers — preserves back-compat for chrome-pulse /
+  // tr3nding-news / sunset-tabloid + every legacy test caller).
+  // label === undefined && isNewsOracleCover && !captionCardEnabled → no
+  // kicker (Blocker 2: chrome was hidden, kicker is hidden too).
 
   return boxes
 }

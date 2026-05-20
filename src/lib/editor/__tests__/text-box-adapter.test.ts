@@ -439,3 +439,225 @@ describe('text-box-adapter', () => {
     })
   })
 })
+
+// =====================================================================
+// quick-260520-064 — accessory_label as kicker
+// =====================================================================
+// Coverage map:
+//   - 8 baseline cases (D1 truth table)
+//   - 5 live-Y cases (Blocker 1)
+//   - 4 cc.enabled-gate cases (Blocker 2)
+//   - 1 rule-color anti-assertion (Warning 4 — adapter-level companion to
+//     the Task 5 render-surface coverage)
+// =====================================================================
+
+import { newsOracle } from '@/lib/render/templates/news-oracle'
+import { chromePulse } from '@/lib/render/templates/chrome-pulse'
+import {
+  RULED_HIGHLIGHT,
+  ruledHighlightTopPctFromCaptionCardY,
+  liveCaptionCardTopPct,
+} from '@/lib/render/ruled-highlight'
+import { CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT } from '@/lib/render/hook-fit'
+
+/** Build a minimal news-oracle cover slide for the kicker-injection tests. */
+function newsCoverSlide(
+  overrides: Partial<Slide> = {},
+  styleOverrides: Slide['style_overrides'] = { caption_bar_enabled: true },
+): Slide {
+  return {
+    hook_text: 'ORACLE CUTS 30,000 JOBS',
+    body_text: '',
+    image_query: 'tech layoffs',
+    is_cta: false,
+    background_url: null,
+    pexels_photo_id: null,
+    style_overrides: styleOverrides,
+    // `role` is not on the Slide type but is read structurally by the
+    // adapter (and the renderers). Cast for the test fixture.
+    ...(({ role: 'cover' } as unknown) as Partial<Slide>),
+    ...overrides,
+  }
+}
+
+describe('quick-260520-064 — accessory_label as kicker', () => {
+  describe('baseline truth table (D1)', () => {
+    test('1. undefined accessory_label + news-oracle cover + caption_bar_enabled → BREAKING NEWS ruled kicker', () => {
+      const slide = newsCoverSlide()
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom' && b.text === 'BREAKING NEWS')
+      expect(kicker).toBeDefined()
+      expect(kicker?.effects?.highlight).toEqual({
+        enabled: true,
+        color: newsOracle.textColor, // '#ffffff'
+        style: 'ruled',
+        padding: 16,
+      })
+      expect(kicker?.position.anchor).toBe('custom')
+      // No Y-related overrides → cardTopPct = 100 - newsOracle.captionCardDefaults.heightPct (42).
+      const expectedY = ruledHighlightTopPctFromCaptionCardY(
+        liveCaptionCardTopPct(slide.style_overrides, newsOracle),
+      )
+      expect(kicker?.position.y).toBeCloseTo(expectedY, 4)
+    })
+
+    test('2. explicit empty accessory_label → no kicker (user opt-out)', () => {
+      const slide = newsCoverSlide({ accessory_label: '' })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      expect(boxes.find((b) => b.role === 'custom')).toBeUndefined()
+    })
+
+    test('3. accessory_label="EXCLUSIVE" + news-oracle cover → custom ruled kicker', () => {
+      const slide = newsCoverSlide({ accessory_label: 'EXCLUSIVE' })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom')
+      expect(kicker?.text).toBe('EXCLUSIVE')
+      expect(kicker?.effects?.highlight?.style).toBe('ruled')
+      // News-oracle cover wins over the legacy TR3NDING tight default.
+      expect(kicker?.color).toBe(newsOracle.textColor)
+    })
+
+    test('4. accessory_label="EXCLUSIVE" + non-news-oracle template → preserve TR3NDING tight pill', () => {
+      const slide = newsCoverSlide({ accessory_label: 'EXCLUSIVE' })
+      const boxes = legacyToTextBoxes(slide, chromePulse)
+      const kicker = boxes.find((b) => b.role === 'custom')
+      // Existing TR3NDING-pill defaults (unchanged behavior).
+      expect(kicker?.text).toBe('EXCLUSIVE')
+      expect(kicker?.effects?.highlight?.style).toBe('tight')
+      expect(kicker?.color).toBe('#FFFFFF')
+      expect(kicker?.effects?.highlight?.color).toBe('#000000CC')
+      expect(kicker?.position).toEqual({ anchor: 'custom', x: 20, y: 3, width: 60 })
+    })
+
+    test('5. undefined accessory_label + news-oracle template + non-cover role → no kicker', () => {
+      const slide = newsCoverSlide({
+        ...(({ role: 'support' } as unknown) as Partial<Slide>),
+      })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      expect(boxes.find((b) => b.role === 'custom')).toBeUndefined()
+    })
+
+    test('6. undefined accessory_label + non-news-oracle cover → no kicker (back-compat for other templates)', () => {
+      const slide = newsCoverSlide()
+      const boxes = legacyToTextBoxes(slide, chromePulse)
+      expect(boxes.find((b) => b.role === 'custom')).toBeUndefined()
+    })
+
+    test('7. one-arg legacyToTextBoxes(slide) on news-oracle cover → no kicker (back-compat for ~30 test callers)', () => {
+      const slide = newsCoverSlide()
+      const boxes = legacyToTextBoxes(slide)
+      expect(boxes.find((b) => b.role === 'custom')).toBeUndefined()
+    })
+
+    test('8. textBoxesToLegacy round-trip: dragged kicker survives to custom_texts', () => {
+      const slide = newsCoverSlide()
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom')!
+      // Simulate user dragging the kicker.
+      kicker.position = { anchor: 'custom', x: 10, y: 50, width: 100 }
+      const slice = textBoxesToLegacy(boxes)
+      expect(slice.custom_texts).toBeDefined()
+      expect(slice.custom_texts?.length).toBe(1)
+      expect(slice.custom_texts?.[0].x).toBe(10)
+      expect(slice.custom_texts?.[0].y).toBe(50)
+      expect(slice.custom_texts?.[0].text).toBe('BREAKING NEWS')
+    })
+  })
+
+  describe('live caption-card Y (Blocker 1)', () => {
+    test('9. kicker Y follows user-edited caption_bar_y (drag)', () => {
+      const slide = newsCoverSlide({}, { caption_bar_enabled: true, caption_bar_y: 70 })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom')!
+      expect(kicker.position.y).toBeCloseTo(ruledHighlightTopPctFromCaptionCardY(70), 4)
+    })
+
+    test('10. kicker Y follows user-edited caption_bar_height_pct (bottom default)', () => {
+      const slide = newsCoverSlide({}, { caption_bar_enabled: true, caption_bar_height_pct: 50 })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom')!
+      // cardTopPct = 100 - heightPct = 50.
+      expect(kicker.position.y).toBeCloseTo(ruledHighlightTopPctFromCaptionCardY(50), 4)
+    })
+
+    test("11. kicker Y honors caption_bar_position='top'", () => {
+      const slide = newsCoverSlide({}, { caption_bar_enabled: true, caption_bar_position: 'top' })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom')!
+      expect(kicker.position.y).toBeCloseTo(ruledHighlightTopPctFromCaptionCardY(0), 4)
+    })
+
+    test('12. kicker Y uses template-default heightPct when no overrides set', () => {
+      const slide = newsCoverSlide({}, { caption_bar_enabled: true })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom')!
+      const tplH =
+        newsOracle.captionCardDefaults?.heightPct ?? CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT
+      expect(kicker.position.y).toBeCloseTo(
+        ruledHighlightTopPctFromCaptionCardY(100 - tplH),
+        4,
+      )
+    })
+
+    test('13. production-baseline live-Y (2026-05-20 — caption_bar_y=67.3, height=34)', () => {
+      const slide = newsCoverSlide(
+        {},
+        { caption_bar_enabled: true, caption_bar_y: 67.3, caption_bar_height_pct: 34 },
+      )
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom')!
+      // Live Y must land at ruledHighlightTopPctFromCaptionCardY(67.3),
+      // NOT the template-default Y derived from heightPct (the frozen-default
+      // implementation would have un-anchored the kicker from the user-moved card).
+      expect(kicker.position.y).toBeCloseTo(ruledHighlightTopPctFromCaptionCardY(67.3), 4)
+      // W2 (anti-assertion): the template-default Y must NOT match — derive it
+      // dynamically so this test stays correct if news-oracle's heightPct is
+      // ever tweaked.
+      const templateDefaultCardTop =
+        100 - (newsOracle.captionCardDefaults?.heightPct ?? CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT)
+      expect(kicker.position.y).not.toBeCloseTo(
+        ruledHighlightTopPctFromCaptionCardY(templateDefaultCardTop),
+        4,
+      )
+    })
+  })
+
+  describe('cc.enabled gate (Blocker 2)', () => {
+    test('14. no kicker when caption_bar_enabled === false', () => {
+      const slide = newsCoverSlide({}, { caption_bar_enabled: false })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      expect(boxes.find((b) => b.role === 'custom')).toBeUndefined()
+    })
+
+    test('15. no kicker when caption_bar_enabled is absent AND no layout (chrome was hidden)', () => {
+      const slide = newsCoverSlide({}, {})
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      expect(boxes.find((b) => b.role === 'custom')).toBeUndefined()
+    })
+
+    test('16. kicker WHEN caption_bar_enabled === true (explicit enable)', () => {
+      const slide = newsCoverSlide({}, { caption_bar_enabled: true })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      expect(boxes.find((b) => b.role === 'custom' && b.text === 'BREAKING NEWS')).toBeDefined()
+    })
+
+    test("17. kicker WHEN caption_bar_enabled is absent AND layout='cover' (news-layout default fires)", () => {
+      const slide = newsCoverSlide({}, { layout: 'cover' })
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      expect(boxes.find((b) => b.role === 'custom' && b.text === 'BREAKING NEWS')).toBeDefined()
+    })
+  })
+
+  describe('rule color (Warning 4)', () => {
+    test('18. adapter writes color=template.textColor on the ruled kicker (rules paint in tb.color, NOT effects.highlight.color)', () => {
+      const slide = newsCoverSlide()
+      const boxes = legacyToTextBoxes(slide, newsOracle)
+      const kicker = boxes.find((b) => b.role === 'custom' && b.text === 'BREAKING NEWS')!
+      // Adapter wires tb.color = template.textColor; renderers paint rules in
+      // that value. effects.highlight.color is informational only.
+      expect(kicker.color).toBe(newsOracle.textColor)
+      // Rule fontSize matches RULED_HIGHLIGHT geometry.
+      expect(kicker.font_size).toBe(RULED_HIGHLIGHT.fontSizePx)
+    })
+  })
+})

@@ -24,7 +24,7 @@ import { resolveTemplate } from '@/lib/render/templates/registry'
 import { validateAndRepair, isPremiumTemplate } from './validate-slides'
 import { promoteNewsHeadline } from './categories/promote-news-headline'
 import { snapHeadlineToCaptionCard } from './caption-card-text-snap'
-import { legacyToTextBoxes } from '@/lib/editor/text-box-adapter'
+import { legacyToTextBoxes, textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { separateOverlappingTextBoxes } from '@/lib/editor/separate-overlapping-text-boxes'
 import { resolveAIDecoration } from './resolve-ai-decoration'
 import { decorationDiversityCheck } from './decoration-diversity-check'
@@ -397,12 +397,33 @@ export async function generateSlideContent(
   // all of which are present (or safely undefined) on `SlideContent`. We cast to the
   // structural minimum the adapter requires; the adapter is defensive on missing fields.
   const slidesWithTextBoxes: SlideContentWithTextBoxes[] = slidesWithDecorations.map(
-    (slide) => ({
-      ...slide,
-      text_boxes: separateOverlappingTextBoxes(
-        legacyToTextBoxes(slide as unknown as Slide),
-      ),
-    }),
+    (slide) => {
+      // quick-260520-064: resolve the slide-specific template (template_id_override
+      // wins over the carousel-level templateId — same precedent as the decorations
+      // loop at line ~358). Passed to legacyToTextBoxes so the D1 fallback can
+      // inject the news-oracle 'BREAKING NEWS' 'ruled' kicker at AI-ingest time.
+      const slideTemplateId =
+        (slide as { template_id_override?: string }).template_id_override ?? templateId
+      const slideTemplate = slideTemplateId ? getTemplate(slideTemplateId) : undefined
+      const nextTextBoxes = separateOverlappingTextBoxes(
+        legacyToTextBoxes(slide as unknown as Slide, slideTemplate),
+      )
+      // quick-260520-064: mirror text_boxes → custom_texts so the server-side
+      // renderers (which iterate slide.custom_texts) can paint adapter-injected
+      // custom-role boxes (e.g. the D1 BREAKING NEWS kicker) on first render
+      // — before the editor's applyDualWrite fires. Mirrors the migration-time
+      // dual-write in use-slide-editor.ts (TPLREND-05 / PARITY-01).
+      const slice = textBoxesToLegacy(nextTextBoxes)
+      const result: SlideContentWithTextBoxes = {
+        ...slide,
+        text_boxes: nextTextBoxes,
+      }
+      if (slice.custom_texts !== undefined && slice.custom_texts.length > 0) {
+        ;(result as SlideContentWithTextBoxes & { custom_texts?: unknown }).custom_texts =
+          slice.custom_texts
+      }
+      return result
+    },
   )
 
   return { ...parsedCarousel, slides: slidesWithTextBoxes }
