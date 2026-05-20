@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SlideBackgroundControls } from '../slide-background-controls'
 import { getTemplate } from '@/lib/render/templates/index'
+import type { SlideTemplate } from '@/lib/render/templates/index'
 import type { Slide } from '@/lib/types/slide'
 
 /**
@@ -439,6 +440,162 @@ describe('SlideBackgroundControls', () => {
       expect(onSlideUpdate.mock.calls[0][0].style_overrides.caption_bar_y).toBe(
         62,
       )
+    })
+  })
+
+  describe('quick-260519-vy2 — captionCardDefaults drift fix', () => {
+    /** Build a synthetic template that ships captionCardDefaults — keeps the
+     *  test decoupled from the real news-oracle / chrome-pulse values forever
+     *  while preserving the same {heightPct:42, blendPct:15, opacity:0.80}
+     *  shape they currently ship. `backgroundMode` is left undefined (same as
+     *  highlight-bar) so the news-layout resolver default fires when the
+     *  fixture slide sets `style_overrides.layout`. */
+    function tmplWithDefaults(): SlideTemplate {
+      return {
+        ...getTemplate('highlight-bar'),
+        id: 'test-with-defaults',
+        captionCardDefaults: { heightPct: 42, blendPct: 15, opacity: 0.80 },
+      } as SlideTemplate
+    }
+
+    describe('A: template with NO captionCardDefaults and no overrides', () => {
+      it('caption-card-toggle reads OFF on a non-news slide', () => {
+        render(
+          <SlideBackgroundControls
+            slide={makeSlide()}
+            template={TMPL}
+            onSlideUpdate={vi.fn()}
+          />,
+        )
+        expect(
+          screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+        ).toBe('false')
+      })
+
+      it('Height slider reads 38, Opacity reads 85, Edge blend OFF when card is ON', () => {
+        render(
+          <SlideBackgroundControls
+            slide={makeSlide({ style_overrides: { caption_bar_enabled: true } })}
+            template={TMPL}
+            onSlideUpdate={vi.fn()}
+            onSlidePreview={vi.fn()}
+          />,
+        )
+        expect(
+          (screen.getByTestId('caption-card-height') as HTMLInputElement).value,
+        ).toBe('38')
+        expect(
+          (screen.getByTestId('caption-card-opacity') as HTMLInputElement).value,
+        ).toBe('85')
+        expect(
+          screen.getByTestId('caption-card-blend-toggle').getAttribute('aria-checked'),
+        ).toBe('false')
+        expect(screen.queryByTestId('caption-card-blend-amount')).toBeNull()
+      })
+    })
+
+    describe('B: template WITH captionCardDefaults {42, 15, 0.80}, no overrides', () => {
+      it('toggle ON, Height=42, Opacity=80, Edge blend ON with amount=15', () => {
+        render(
+          <SlideBackgroundControls
+            slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+            template={tmplWithDefaults()}
+            onSlideUpdate={vi.fn()}
+            onSlidePreview={vi.fn()}
+          />,
+        )
+        expect(
+          screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+        ).toBe('true')
+        expect(
+          (screen.getByTestId('caption-card-height') as HTMLInputElement).value,
+        ).toBe('42')
+        expect(
+          (screen.getByTestId('caption-card-opacity') as HTMLInputElement).value,
+        ).toBe('80')
+        expect(
+          screen.getByTestId('caption-card-blend-toggle').getAttribute('aria-checked'),
+        ).toBe('true')
+        const amount = screen.getByTestId(
+          'caption-card-blend-amount',
+        ) as HTMLInputElement
+        expect(amount.value).toBe('15')
+      })
+    })
+
+    describe('C: per-slide overrides WIN over captionCardDefaults', () => {
+      it('explicit height_pct=50 wins over template 42', () => {
+        render(
+          <SlideBackgroundControls
+            slide={makeSlide({
+              style_overrides: {
+                layout: 'cover',
+                caption_bar_height_pct: 50,
+              },
+            })}
+            template={tmplWithDefaults()}
+            onSlideUpdate={vi.fn()}
+            onSlidePreview={vi.fn()}
+          />,
+        )
+        expect(
+          (screen.getByTestId('caption-card-height') as HTMLInputElement).value,
+        ).toBe('50')
+      })
+
+      it('explicit caption_bar_opacity=0.90 wins over template 0.80', () => {
+        render(
+          <SlideBackgroundControls
+            slide={makeSlide({
+              style_overrides: {
+                layout: 'cover',
+                caption_bar_opacity: 0.90,
+              },
+            })}
+            template={tmplWithDefaults()}
+            onSlideUpdate={vi.fn()}
+            onSlidePreview={vi.fn()}
+          />,
+        )
+        expect(
+          (screen.getByTestId('caption-card-opacity') as HTMLInputElement).value,
+        ).toBe('90')
+      })
+
+      it('explicit caption_bar_blend_pct=0 reads OFF (does NOT fall through to template 15)', () => {
+        render(
+          <SlideBackgroundControls
+            slide={makeSlide({
+              style_overrides: {
+                layout: 'cover',
+                caption_bar_blend_pct: 0,
+              },
+            })}
+            template={tmplWithDefaults()}
+            onSlideUpdate={vi.fn()}
+            onSlidePreview={vi.fn()}
+          />,
+        )
+        expect(
+          screen.getByTestId('caption-card-blend-toggle').getAttribute('aria-checked'),
+        ).toBe('false')
+        expect(screen.queryByTestId('caption-card-blend-amount')).toBeNull()
+      })
+    })
+
+    describe('D: master-toggle regression — news-layout default on a no-defaults template still ON', () => {
+      it('toggle reads ON for highlight-bar + layout:cover (existing 8o0 behavior preserved)', () => {
+        render(
+          <SlideBackgroundControls
+            slide={makeSlide({ style_overrides: { layout: 'cover' } })}
+            template={TMPL}
+            onSlideUpdate={vi.fn()}
+          />,
+        )
+        expect(
+          screen.getByTestId('caption-card-toggle').getAttribute('aria-checked'),
+        ).toBe('true')
+      })
     })
   })
 
