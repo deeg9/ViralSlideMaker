@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { suggestFromEmail } from '@/lib/profile/username-suggestions'
 import { ClaimUsernameForm } from './claim-username-form'
 
 export default async function OnboardingUsernamePage({
@@ -26,11 +25,12 @@ export default async function OnboardingUsernamePage({
     redirect(params.next ?? '/dashboard')
   }
 
-  const suggestion = currentUsername
-    ? ''
-    : user.email
-      ? suggestFromEmail(user.email)
-      : ''
+  // quick-260520-gr3: don't pre-fill the username on first claim — showing the
+  // current dev's email-derived handle to every new user is leaky and
+  // confusing. Empty input + a generic placeholder is the cleaner default.
+  // The `change` branch still gets '' because we don't want to re-suggest
+  // the current username back to the user.
+  const suggestion = ''
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#fff8f7] px-4">
