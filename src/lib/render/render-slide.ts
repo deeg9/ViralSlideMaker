@@ -18,14 +18,10 @@ import {
   captionCardBackgroundStyle,
   resolveNewsHeadlineFit,
 } from './resolve-overlay'
-// quick-260519-bkn: shared spec for the news-oracle BREAKING NEWS cover badge.
-import {
-  BREAKING_NEWS_BADGE,
-  shouldShowBreakingNewsBadge,
-} from './breaking-news-badge'
 // quick-260520-064: shared geometry for the 'ruled' TextHighlight style.
 // Reuses RULED_HIGHLIGHT constants so the HTML export paints the flanking
-// rules byte-identically to the canvas + Satori paths.
+// rules byte-identically to the canvas + Satori paths. (The deleted
+// breaking-news-badge module is replaced by adapter-injected 'ruled' kickers.)
 import { RULED_HIGHLIGHT } from './ruled-highlight'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
@@ -365,23 +361,11 @@ export function buildSlideHtml(
     ? `<div style="position:absolute; left:${captionCard.x}%; top:${captionCard.y}%; width:${captionCard.width}%; height:${captionCard.heightPct}%; ${captionCardBgCss}; z-index:2;"></div>`
     : ''
 
-  // quick-260519-bkn: BREAKING NEWS badge — news-oracle cover only. Shared
-  // spec with slide-preview.tsx + render-slide-satori.tsx (PARITY-01).
-  const breakingNewsHtml = (() => {
-    if (!shouldShowBreakingNewsBadge(template.id, slide.role)) return ''
-    if (!captionCard.enabled) return ''
-    const H = 1920
-    const cardTopPx = (captionCard.y / 100) * H
-    const badgeBottomPx = cardTopPx - BREAKING_NEWS_BADGE.bottomOffsetPx
-    const badgeTopPx = badgeBottomPx - BREAKING_NEWS_BADGE.totalHeightPx
-    const topPct = (badgeTopPx / H) * 100
-    const heightPct = (BREAKING_NEWS_BADGE.totalHeightPx / H) * 100
-    const lineHtml = `<div style="width:${BREAKING_NEWS_BADGE.lineLengthPx}px; height:${BREAKING_NEWS_BADGE.lineThicknessPx}px; background-color:${template.textColor};"></div>`
-    const fontFamily = template.headingFontFamily ?? template.fontFamily
-    const fontWeight = template.hookFontWeight ?? 400
-    const textHtml = `<div style="font-family:${fontFamily}; font-weight:${fontWeight}; font-size:${BREAKING_NEWS_BADGE.fontSizePx}px; letter-spacing:${BREAKING_NEWS_BADGE.letterSpacingPx}px; color:${template.textColor}; text-transform:uppercase; line-height:1; white-space:nowrap;">${BREAKING_NEWS_BADGE.text}</div>`
-    return `<div style="position:absolute; left:0; top:${topPct}%; width:100%; height:${heightPct}%; display:flex; align-items:center; justify-content:center; gap:${BREAKING_NEWS_BADGE.lineGapPx}px; z-index:3;">${lineHtml}${textHtml}${lineHtml}</div>`
-  })()
+  // quick-260520-064: the BREAKING NEWS chrome IIFE was deleted in favor of
+  // an adapter-injected 'ruled' kicker TextBox (replicated pixel-for-pixel by
+  // the customTextHtml branch below via the RULED_HIGHLIGHT geometry). The
+  // kicker lives in slide.custom_texts (dual-write mirror) and renders through
+  // the same path as every other custom-anchored text box.
 
   // Phase 82 Gap D (render-wiring): re-fit the news headline to the
   // quick-260517-k2n caption card when one is enabled, so the HTML export
@@ -512,7 +496,6 @@ export function buildSlideHtml(
 <body>
   <div class="overlay"></div>
   ${captionCardHtml}
-  ${breakingNewsHtml}
   <div class="hook">${(() => {
     const hookHL = highlightCSS(resolved.hookEffects, 'native')
     const hookBase = isColorOnlyTemplate

@@ -35,12 +35,9 @@ import {
   resolveHookTypography,
   type OverlayResolveCtx,
 } from './resolve-overlay'
-// quick-260519-bkn: shared spec for the news-oracle BREAKING NEWS cover badge.
-import {
-  BREAKING_NEWS_BADGE,
-  shouldShowBreakingNewsBadge,
-} from './breaking-news-badge'
 // quick-260520-064: shared geometry for the 'ruled' TextHighlight style.
+// (The deleted breaking-news-badge module is replaced by adapter-injected
+// 'ruled' kickers rendered through the customTexts branch below.)
 import { RULED_HIGHLIGHT } from './ruled-highlight'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
@@ -500,63 +497,10 @@ export function buildSlideElement(
           />
         )
       })()}
-      {/* quick-260519-bkn: BREAKING NEWS badge for news-oracle cover. Shared
-          geometry/predicate (TPLREND-05 parity with slide-preview.tsx + the
-          HTML export). Skipped when the caption card is disabled. */}
-      {(() => {
-        if (!shouldShowBreakingNewsBadge(template.id, slide.role)) return null
-        if (!cc.enabled) return null
-        const cardTopPx = Math.round((cc.y / 100) * H)
-        const badgeBottomPx = cardTopPx - BREAKING_NEWS_BADGE.bottomOffsetPx
-        const badgeTopPx = badgeBottomPx - BREAKING_NEWS_BADGE.totalHeightPx
-        return (
-          <div
-            key="breaking-news-badge"
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: badgeTopPx,
-              width: W,
-              height: BREAKING_NEWS_BADGE.totalHeightPx,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: BREAKING_NEWS_BADGE.lineGapPx,
-              zIndex: 3,
-            }}
-          >
-            <div
-              style={{
-                width: BREAKING_NEWS_BADGE.lineLengthPx,
-                height: BREAKING_NEWS_BADGE.lineThicknessPx,
-                backgroundColor: template.textColor,
-              }}
-            />
-            <div
-              style={{
-                fontFamily: template.headingFontFamily ?? template.fontFamily,
-                fontWeight: template.hookFontWeight ?? 400,
-                fontSize: BREAKING_NEWS_BADGE.fontSizePx,
-                letterSpacing: BREAKING_NEWS_BADGE.letterSpacingPx,
-                color: template.textColor,
-                textTransform: 'uppercase' as const,
-                lineHeight: 1,
-                display: 'flex',
-                whiteSpace: 'nowrap' as const,
-              }}
-            >
-              {BREAKING_NEWS_BADGE.text}
-            </div>
-            <div
-              style={{
-                width: BREAKING_NEWS_BADGE.lineLengthPx,
-                height: BREAKING_NEWS_BADGE.lineThicknessPx,
-                backgroundColor: template.textColor,
-              }}
-            />
-          </div>
-        )
-      })()}
+      {/* quick-260520-064: the BREAKING NEWS chrome IIFE was deleted. The
+          news-oracle cover now renders a 'ruled' kicker TextBox injected by
+          legacyToTextBoxes (adapter D1 fallback). Renders through the
+          customTexts branch below using the same RULED_HIGHLIGHT geometry. */}
       {/* Phase 45: overlay zones (chip / counter / mid pill / bottom card surface).
           Inserted AFTER bottom-card and BEFORE the hook so headline pills stay
           top-most (CONTEXT.md Area 1 layer 4 vs layer 5). Each overlay's text is
