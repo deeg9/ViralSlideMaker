@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 Phase: Milestone v2.15 complete
 Plan: —
 Status: Awaiting next milestone (Task 6 manual smoke for quick-260520-064 pending)
-Last activity: 2026-05-20 — Completed quick task 260520-064: Convert BREAKING NEWS chrome → editable 'ruled' kicker
+Last activity: 2026-05-20 — Completed quick task 260520-ft0: Fix tr3nding-news headline scale (pivot to newsZone path)
 
 ## Roadmap — v2.15 (Phases 87–88)
 
@@ -92,6 +92,7 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 | 260519-bkn | BREAKING NEWS badge on news-oracle cover (3-surface) | 2026-05-19 | 202fe66 | [260519-bkn-breaking-news-badge](./quick/260519-bkn-breaking-news-badge/) |
 | 260519-vy2 | Mirror resolveCaptionBar in right-panel controls (Height / Opacity / Edge blend drift on captionCardDefaults templates) | 2026-05-19 | 2c15db1 | [260519-vy2-fix-three-caption-card-control-drifts-ed](./quick/260519-vy2-fix-three-caption-card-control-drifts-ed/) |
 | 260520-064 | Convert BREAKING NEWS chrome → editable 'ruled' kicker (D1 adapter fallback + D2 'ruled' highlight style + D3 AI prompt + D4 live-Y pixel parity + R3 post-validator + R4 recipe-extract regression). Replaces 75-line per-renderer chrome with editable Layers-panel kicker. 5 atomic commits; Task 6 manual smoke verdict pending. | 2026-05-20 | 7e57ad3 | [260520-064-convert-breaking-news-chrome-to-accessor](./quick/260520-064-convert-breaking-news-chrome-to-accessor/) |
+| 260520-ft0 | Fix tr3nding-news headline scale: pivot off Phase 45 `backgroundMode='image-with-bottom-card'` to the classic newsZone path (mirrors chrome-pulse quick-260519-bgr). Drop backgroundMode + bump hookFontSize 120→130 + add `captionCardDefaults { heightPct:42, blendPct:15, opacity:0.80 }` + remove HOOK_FIT_REGISTRY entry + add `layout:'cover'` to sample. Generated headlines now stamp at oracle-scale ~130px (was ~66px from registry's 0.55 scale on 42-char hooks). | 2026-05-20 | dc4aa05 | [260520-ft0-fix-tr3nding-news-headline-scale](./quick/260520-ft0-fix-tr3nding-news-headline-scale/) |
 
 ### Open Items (carried forward)
 
