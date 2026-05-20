@@ -4,8 +4,8 @@ milestone: v2.15
 milestone_name: DB-Backed Template Wiring
 status: Awaiting next milestone
 stopped_at: Phase 88 (Render Paths + Per-Slide Override + Publish/Fork) executed — plan → execute → code-review chain complete. The 5 render-path call sites + prompts + generation + editor canvas resolve a DB `template_id` via async `resolveTemplate` (WIRE-03); per-slide `template_id_override` is DB-aware (WIRE-04); fork inherits the source `template_id` (WIRE-05); parity re-verified (WIRE-06). Code review `clean`; verification `human_needed` (the end-to-end dry-run). v2.15 is the final milestone phase — all phases complete.
-last_updated: "2026-05-20T06:15:00.000Z"
-last_activity: 2026-05-19 — Completed quick task 260519-vy2: Mirror resolveCaptionBar in right-panel controls (drift fix)
+last_updated: "2026-05-20T07:05:00.000Z"
+last_activity: 2026-05-20 — Completed quick task 260520-064: Convert BREAKING NEWS chrome → editable 'ruled' kicker (Task 6 manual smoke pending)
 progress:
   total_phases: 2
   completed_phases: 2
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 
 Phase: Milestone v2.15 complete
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-19 — Completed quick task 260519-o55: Extract Photo overlay into its own portlet
+Status: Awaiting next milestone (Task 6 manual smoke for quick-260520-064 pending)
+Last activity: 2026-05-20 — Completed quick task 260520-064: Convert BREAKING NEWS chrome → editable 'ruled' kicker
 
 ## Roadmap — v2.15 (Phases 87–88)
 
@@ -91,6 +91,7 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 | 260519-cdf | news-oracle caption-card defaults (height 42% / blend 15% / opacity 80%) | 2026-05-19 | 85cdfb7 | [260519-cdf-news-oracle-caption-card-defaults](./quick/260519-cdf-news-oracle-caption-card-defaults/) |
 | 260519-bkn | BREAKING NEWS badge on news-oracle cover (3-surface) | 2026-05-19 | 202fe66 | [260519-bkn-breaking-news-badge](./quick/260519-bkn-breaking-news-badge/) |
 | 260519-vy2 | Mirror resolveCaptionBar in right-panel controls (Height / Opacity / Edge blend drift on captionCardDefaults templates) | 2026-05-19 | 2c15db1 | [260519-vy2-fix-three-caption-card-control-drifts-ed](./quick/260519-vy2-fix-three-caption-card-control-drifts-ed/) |
+| 260520-064 | Convert BREAKING NEWS chrome → editable 'ruled' kicker (D1 adapter fallback + D2 'ruled' highlight style + D3 AI prompt + D4 live-Y pixel parity + R3 post-validator + R4 recipe-extract regression). Replaces 75-line per-renderer chrome with editable Layers-panel kicker. 5 atomic commits; Task 6 manual smoke verdict pending. | 2026-05-20 | 7e57ad3 | [260520-064-convert-breaking-news-chrome-to-accessor](./quick/260520-064-convert-breaking-news-chrome-to-accessor/) |
 
 ### Open Items (carried forward)
 
@@ -110,9 +111,9 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 
 ## Session Continuity
 
-Last session: 2026-05-19
-Stopped at: Quick task 260519-vy2 complete — right-panel caption-card controls (Height, Opacity, Edge blend) now route through `resolveCaptionBar` + `template.captionCardDefaults?.opacity` so they agree with the canvas/Satori/HTML output on news-oracle and chrome-pulse (the toggle previously read OFF while the rendered card was blending). +7 Vitest cases; renderer untouched (PARITY-01 preserved).
-Resume file: None — next step is `/gsd-complete-milestone` for v2.15.
+Last session: 2026-05-20
+Stopped at: Quick task 260520-064 complete (Tasks 1-5 of 6 committed; Task 6 manual smoke pending human verdict) — news-oracle BREAKING NEWS chrome (3-surface 75-line hard-coded layer) replaced by an editable `'ruled'` highlight style on the `accessory_label` TextBox. Adapter D1 fallback injects 'BREAKING NEWS' on news-oracle covers with an unset `accessory_label`; LIVE caption-card Y mirroring (Blocker 1) tracks user drags / height edits / position flips; cc.enabled gate (Blocker 2) mirrors the deleted chrome's visibility predicate. AI prompt (D3) instructs Gemini to always emit a contextual kicker; R3 post-validator coerces overly-long outputs to 'BREAKING NEWS'. Net +1483/-333 across 19 files, 2 deletes, 4 new files. 92/92 new tests GREEN; pre-existing failures unchanged. See `.planning/quick/260520-064-convert-breaking-news-chrome-to-accessor/260520-064-SUMMARY.md`.
+Resume file: None — next step is human Task-6 smoke (PLAN.md §Task 6), then `/gsd-new-milestone` to scope the next cycle.
 
 ## Operator Next Steps
 
