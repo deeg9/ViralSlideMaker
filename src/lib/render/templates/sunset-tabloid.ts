@@ -27,6 +27,11 @@ export const sunsetTabloid: SlideTemplate = {
   textPosition: 'center',
   hookStyle: 'uppercase',
   accentColor: '#D4571C',
+  // Color-block kill-switch: suppress any persisted slide.background_url so
+  // the cream canvas stays the canvas (mirrors paper-essay / soft-sage). The
+  // template is designed as a no-photo retro-tabloid color-block — adding a
+  // Pexels image breaks the visual identity.
+  backgroundMode: 'color',
   aiVoiceNote:
     'Retro-tabloid voice: declarative, punchy, slightly nostalgic. Lean into specific cultural detail and round numbers. Avoid hedges.',
   sample: {
