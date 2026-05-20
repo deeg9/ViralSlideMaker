@@ -151,6 +151,19 @@ export interface SlideTemplate {
       'fixed' = use template.accentColor verbatim (default behavior when undefined);
       'palette-dominant' = pick from slide.style_overrides.derived_palette. */
   paletteMode?: 'fixed' | 'palette-dominant'
+
+  /** quick-260519-cdf: per-template caption-card baseline that `resolveCaptionBar`
+      prefers over the global constants when set. Lets a template ship a tuned
+      card geometry (height / edge-blend / opacity) without forcing every slide to
+      carry explicit overrides. User-explicit `caption_bar_*` keys on a slide
+      still win — this only changes the FALLBACK. Legacy templates leaving it
+      undefined behave byte-identically (no-color/no-opacity branch in
+      resolveCaptionBar still routes to `bottomCardBackground`). */
+  captionCardDefaults?: {
+    heightPct?: number
+    blendPct?: number
+    opacity?: number
+  }
 }
 
 // Phase 55 (D-21, SLOP-03): PREMIUM_TEMPLATE_IDS lives in `./premium-tier` (leaf

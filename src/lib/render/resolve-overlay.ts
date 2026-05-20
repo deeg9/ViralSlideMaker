@@ -525,6 +525,11 @@ export function resolveCaptionBar(
   isNewsLayoutSlide = false,
 ): ResolvedCaptionBar {
   const o = overrides ?? {}
+  // quick-260519-cdf: per-template baseline (height / blend / opacity). Falls
+  // back to the global constants for templates leaving captionCardDefaults
+  // undefined → byte-identical to the pre-cdf code path. User-explicit
+  // caption_bar_* keys still win over template defaults.
+  const tplDefaults = template.captionCardDefaults
   // quick-260518-8o0: `== null` (the key is ABSENT) triggers the news-layout
   // default; an EXPLICIT `caption_bar_enabled: false` does NOT — that is what
   // lets "Toggle OFF removes the block" survive the default on news slides
@@ -536,22 +541,29 @@ export function resolveCaptionBar(
   // headline auto-fit uses as its fixed reference (`captionCardBox`) — keeping
   // them in sync guarantees a default-height slide re-fits byte-identically.
   const heightPct = clamp(
-    o.caption_bar_height_pct ?? CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT,
+    o.caption_bar_height_pct ?? tplDefaults?.heightPct ?? CAPTION_CARD_FIT_REFERENCE_HEIGHT_PCT,
     10,
     90,
   )
   // quick-260518-ch8: edge-blend amount, clamped [0,50] (threat T-ch8-01 — a
   // hand-edited payload cannot push an out-of-range gradient stop into any
   // render path). Default 0 keeps every legacy slide byte-identical (TPLREND-05).
-  const blendPct = clamp(o.caption_bar_blend_pct ?? 0, 0, 50)
+  const blendPct = clamp(o.caption_bar_blend_pct ?? tplDefaults?.blendPct ?? 0, 0, 50)
   const hasColor = o.caption_bar_color != null
   const hasOpacity = o.caption_bar_opacity != null
+  // quick-260519-cdf: when a template ships a baseline opacity, route through
+  // hexToRgba directly so the alpha matches the template intent. The legacy
+  // `bottomCardBackground` (alpha 0.85) is preserved as the fallback for
+  // templates with no captionCardDefaults — keeping the no-color/no-opacity
+  // branch byte-identical for every legacy template.
   const backgroundColor =
     !hasColor && !hasOpacity
-      ? bottomCardBackground(template.backgroundColor)
+      ? tplDefaults?.opacity != null
+        ? hexToRgba(template.backgroundColor, tplDefaults.opacity)
+        : bottomCardBackground(template.backgroundColor)
       : hexToRgba(
           o.caption_bar_color ?? template.backgroundColor,
-          o.caption_bar_opacity ?? 0.85,
+          o.caption_bar_opacity ?? tplDefaults?.opacity ?? 0.85,
         )
   const position = o.caption_bar_position ?? 'bottom'
   const x = clamp(o.caption_bar_x ?? 0, 0, 100)
