@@ -54,9 +54,6 @@ import { COLOR_SWATCHES } from './text-rail/color-swatches'
 const DEFAULT_CAPTION_HEIGHT = 38
 /** Default caption-card opacity — matches resolveCaptionBar's default (0.85). */
 const DEFAULT_CAPTION_OPACITY = 0.85
-/** quick-260518-ch8: default caption-card edge-blend percent — matches
- *  resolveCaptionBar's default (0 = blend off). */
-const DEFAULT_CAPTION_BLEND = 0
 /** quick-260518-ch8: blend amount written when the Edge blend toggle is flipped
  *  ON — a sensible mid-range starting fade. */
 const BLEND_ON_DEFAULT = 25
@@ -107,11 +104,17 @@ export function SlideBackgroundControls({
   // the SAME `resolveCaptionBar` the three renderers use, so the panel cannot
   // drift from the canvas/Satori/HTML output. For an unedited news-layout
   // slide the resolver default fires => the toggle reads ON.
-  const captionPanelOn = resolveCaptionBar(
+  // quick-260519-vy2: mirror the canonical resolver — all four derived
+  // values (enabled, heightPct, blendPct, opacity) must agree with what
+  // the three renderers paint. captionCardDefaults on a template (e.g.
+  // news-oracle, chrome-pulse) would otherwise drift the right-panel
+  // sliders OFF from the canvas/Satori/HTML output.
+  const resolvedBar = resolveCaptionBar(
     slide.style_overrides,
     template,
     isNewsLayoutSlide,
-  ).enabled
+  )
+  const captionPanelOn = resolvedBar.enabled
 
   // Effective (resolved) card color — same fallback chain the renderers use,
   // so the active swatch reflects what the slide actually renders.
@@ -123,9 +126,13 @@ export function SlideBackgroundControls({
     slide.style_overrides?.caption_bar_position === 'top' ? 'body' : 'cover'
 
   // Resolved opacity percent (0..100) for the slider.
+  // quick-260519-vy2: opacity routes through its own fallback chain
+  // (not resolvedBar.backgroundColor, which bakes alpha into an rgba
+  // string). Mirrors the resolver's logic for this dimension.
   const opacityPct = Math.round(
-    (slide.style_overrides?.caption_bar_opacity ?? DEFAULT_CAPTION_OPACITY) *
-      100,
+    (slide.style_overrides?.caption_bar_opacity
+      ?? template.captionCardDefaults?.opacity
+      ?? DEFAULT_CAPTION_OPACITY) * 100,
   )
 
   // Local drag draft — the range <input> is driven from this so the thumb
@@ -138,8 +145,10 @@ export function SlideBackgroundControls({
 
   // quick-260518-ch8: resolved caption-card height percent (10..90) for the
   // Height slider — mirrors resolveCaptionBar's `caption_bar_height_pct ?? 38`.
-  const heightPct =
-    slide.style_overrides?.caption_bar_height_pct ?? DEFAULT_CAPTION_HEIGHT
+  // quick-260519-vy2: take heightPct from the resolved bar so a
+  // template-default (e.g. news-oracle's heightPct:42) reaches the
+  // slider on an unedited slide.
+  const heightPct = resolvedBar.heightPct
   const [heightDraft, setHeightDraft] = useState(heightPct)
   useEffect(() => {
     setHeightDraft(heightPct)
@@ -148,8 +157,10 @@ export function SlideBackgroundControls({
   // quick-260518-ch8: resolved edge-blend percent (0..50) for the Edge blend
   // slider — mirrors resolveCaptionBar's `caption_bar_blend_pct ?? 0`. Blend is
   // "on" when this is > 0.
-  const blendPct =
-    slide.style_overrides?.caption_bar_blend_pct ?? DEFAULT_CAPTION_BLEND
+  // quick-260519-vy2: take blendPct from the resolved bar so the
+  // Edge blend toggle reads ON for templates shipping a non-zero
+  // blendPct default.
+  const blendPct = resolvedBar.blendPct
   const [blendDraft, setBlendDraft] = useState(blendPct)
   useEffect(() => {
     setBlendDraft(blendPct)
