@@ -47,9 +47,17 @@ describe('Phase 46 — legacy template regression gate (TPLNEW-05)', () => {
       const template = getTemplate(id)
       // Sanity: getTemplate(id) returned the right template (not the fallback).
       expect(template.id).toBe(id)
-      // Sanity: legacy templates have no overlays / backgroundMode.
+      // Sanity: legacy templates have no overlays.
       expect(template.overlays).toBeUndefined()
-      expect(template.backgroundMode).toBeUndefined()
+      // quick-260519-pbg: y2k-pop + bold-yellow now declare
+      // `backgroundMode: 'color'` (color-block kill-switch — suppresses any
+      // persisted slide.background_url so the solid color stays the canvas).
+      // The other 3 legacy templates keep backgroundMode undefined.
+      if (id === 'y2k-pop' || id === 'bold-yellow') {
+        expect(template.backgroundMode).toBe('color')
+      } else {
+        expect(template.backgroundMode).toBeUndefined()
+      }
 
       const element = buildSlideElement(
         fixtureSlide,

@@ -334,13 +334,12 @@ exports[`Phase 46 premium templates — Satori snapshots > tr3nding-news: render
         "display": "flex",
         "fontSize": "28px",
         "fontWeight": 700,
-        "left": "50%",
+        "left": 60,
         "lineHeight": 1,
         "padding": "12px 24px",
         "position": "absolute",
         "textTransform": "uppercase",
-        "top": "55%",
-        "transform": "translateX(-50%)",
+        "top": 60,
       }
     }
   >

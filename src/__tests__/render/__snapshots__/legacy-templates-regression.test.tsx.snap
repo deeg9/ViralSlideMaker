@@ -4,6 +4,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > bold-yellow:
 <div
   style={
     {
+      "backgroundColor": "#FFD600",
       "color": "#000000",
       "display": "flex",
       "fontFamily": "'Bebas Neue', sans-serif",
@@ -14,20 +15,6 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > bold-yellow:
     }
   }
 >
-  <img
-    src="https://example.com/fixture.jpg"
-    style={
-      {
-        "height": 1920,
-        "left": 0,
-        "objectFit": "cover",
-        "objectPosition": "center",
-        "position": "absolute",
-        "top": 0,
-        "width": 1080,
-      }
-    }
-  />
   <div
     style={
       {
@@ -492,6 +479,7 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > y2k-pop: ren
 <div
   style={
     {
+      "backgroundColor": "#FF1493",
       "color": "#ffffff",
       "display": "flex",
       "fontFamily": "'Righteous', sans-serif",
@@ -502,20 +490,6 @@ exports[`Phase 46 — legacy template regression gate (TPLNEW-05) > y2k-pop: ren
     }
   }
 >
-  <img
-    src="https://example.com/fixture.jpg"
-    style={
-      {
-        "height": 1920,
-        "left": 0,
-        "objectFit": "cover",
-        "objectPosition": "center",
-        "position": "absolute",
-        "top": 0,
-        "width": 1080,
-      }
-    }
-  />
   <div
     style={
       {
