@@ -35,6 +35,11 @@ import {
   resolveHookTypography,
   type OverlayResolveCtx,
 } from './resolve-overlay'
+// quick-260519-bkn: shared spec for the news-oracle BREAKING NEWS cover badge.
+import {
+  BREAKING_NEWS_BADGE,
+  shouldShowBreakingNewsBadge,
+} from './breaking-news-badge'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -491,6 +496,63 @@ export function buildSlideElement(
               flexDirection: 'column',
             }}
           />
+        )
+      })()}
+      {/* quick-260519-bkn: BREAKING NEWS badge for news-oracle cover. Shared
+          geometry/predicate (TPLREND-05 parity with slide-preview.tsx + the
+          HTML export). Skipped when the caption card is disabled. */}
+      {(() => {
+        if (!shouldShowBreakingNewsBadge(template.id, slide.role)) return null
+        if (!cc.enabled) return null
+        const cardTopPx = Math.round((cc.y / 100) * H)
+        const badgeBottomPx = cardTopPx - BREAKING_NEWS_BADGE.bottomOffsetPx
+        const badgeTopPx = badgeBottomPx - BREAKING_NEWS_BADGE.totalHeightPx
+        return (
+          <div
+            key="breaking-news-badge"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: badgeTopPx,
+              width: W,
+              height: BREAKING_NEWS_BADGE.totalHeightPx,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: BREAKING_NEWS_BADGE.lineGapPx,
+              zIndex: 3,
+            }}
+          >
+            <div
+              style={{
+                width: BREAKING_NEWS_BADGE.lineLengthPx,
+                height: BREAKING_NEWS_BADGE.lineThicknessPx,
+                backgroundColor: template.textColor,
+              }}
+            />
+            <div
+              style={{
+                fontFamily: template.headingFontFamily ?? template.fontFamily,
+                fontWeight: template.hookFontWeight ?? 400,
+                fontSize: BREAKING_NEWS_BADGE.fontSizePx,
+                letterSpacing: BREAKING_NEWS_BADGE.letterSpacingPx,
+                color: template.textColor,
+                textTransform: 'uppercase' as const,
+                lineHeight: 1,
+                display: 'flex',
+                whiteSpace: 'nowrap' as const,
+              }}
+            >
+              {BREAKING_NEWS_BADGE.text}
+            </div>
+            <div
+              style={{
+                width: BREAKING_NEWS_BADGE.lineLengthPx,
+                height: BREAKING_NEWS_BADGE.lineThicknessPx,
+                backgroundColor: template.textColor,
+              }}
+            />
+          </div>
         )
       })()}
       {/* Phase 45: overlay zones (chip / counter / mid pill / bottom card surface).
