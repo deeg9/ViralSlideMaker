@@ -103,7 +103,7 @@ export function ClaimUsernameForm({
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="w-full rounded-xl border border-[#dbc1bc]/60 bg-white pl-7 pr-10 py-3 text-sm text-[#3d0000] placeholder:text-[#7d6161]/60 focus:border-[#3d0000] focus:outline-none focus:ring-2 focus:ring-[#3d0000]/20"
-            placeholder="yourhandle"
+            placeholder="username"
             maxLength={24}
           />
           <StatusIndicator status={status} />
