@@ -57,16 +57,6 @@ const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
       { maxChars: Infinity, scale: 0.38 },
     ],
   },
-  'tr3nding-news': {
-    baseSize: 120,
-    steps: [
-      { maxChars: 15, scale: 1 },
-      { maxChars: 28, scale: 0.7 },
-      { maxChars: 42, scale: 0.55 },
-      { maxChars: 60, scale: 0.45 },
-      { maxChars: Infinity, scale: 0.38 },
-    ],
-  },
   // documentary — Plus Jakarta Sans, 110px base, hookY 48% / bodyY 62% =
   // tight 269px hook zone. Tightened 2026-05-02 to match news-template
   // calibration so multi-line wraps don't bleed into body.
@@ -127,6 +117,12 @@ const HOOK_FIT_REGISTRY: Record<string, HookFitSpec> = {
   // stamps the headline size. The previous registry curve produced
   // ~56px for a 43-char hook, which read visibly smaller than the
   // news-oracle reference (~100-130px for similar hooks).
+  // tr3nding-news — quick-260520-ft0 (2026-05-20): registry entry removed.
+  // tr3nding-news now uses the classic newsZone layout (matching
+  // news-oracle / chrome-pulse), so promoteNewsHeadline's
+  // fitHeadlineToBox(842x620) stamps the headline size. The previous
+  // registry curve produced ~66px for a 42-char hook (scale 0.55 ×
+  // 120), which read visibly smaller than the news-oracle reference.
   // sunset-tabloid + soft-sage — quick-260519-bgr (2026-05-19): registry
   // entries removed to match chrome-pulse's oracle-scale fix. No-photo
   // color-block templates default to template.hookFontSize directly

@@ -10,6 +10,16 @@ import type { SlideTemplate } from './index'
 // fontSize, fontWeight, textTransform) are accepted. The 40px borderRadius
 // on the mid-pill produces a fully-rounded shape at the chip's line-height,
 // equivalent to a `9999`-style pill without leaving the permitted union.
+//
+// quick-260520-ft0 (2026-05-20): pivoted off Phase 45's
+// image-with-bottom-card path to the classic newsZone path used by
+// news-oracle / chrome-pulse. backgroundMode dropped + hookFontSize
+// bumped 120→130 + HOOK_FIT_REGISTRY entry removed (see hook-fit.ts).
+// promoteNewsHeadline's fitHeadlineToBox(842x620) now stamps the
+// oracle-scale headline (~100-130px) instead of the registry's
+// collapsed 66px (scale 0.55 × 120) at the 42-char threshold.
+// captionCardDefaults mirror news-oracle / chrome-pulse so the dark
+// caption card carries the mint accent + TR3NDING kicker cleanly.
 export const tr3ndingNews: SlideTemplate = {
   id: 'tr3nding-news',
   name: 'Tr3nding News',
@@ -19,9 +29,9 @@ export const tr3ndingNews: SlideTemplate = {
   // completes the audit). Plus Jakarta Sans matches sibling premium aesthetic.
   fontFamily: "'Plus Jakarta Sans', sans-serif",
   headingFontFamily: "'Anton', sans-serif",
-  // Phase 55 (D-18, TYPO-03): premium hook size raised to 120px (mid-range of 110-130
-  // per-template band; sibling cohesion with magazine-bold also at 120px).
-  hookFontSize: '120px',
+  // quick-260520-ft0: bumped 120→130 to match news-oracle / chrome-pulse
+  // oracle-scale base — fitHeadlineToBox stamps the live headline.
+  hookFontSize: '130px',
   // 260503-0f2: Anton ships single-weight (400) on Google Fonts. Force 400 so
   // Satori PNG export matches browser preview.
   hookFontWeight: 400,
@@ -37,7 +47,15 @@ export const tr3ndingNews: SlideTemplate = {
   // validateTemplateRegistry on every premium-tier template.
   bodyFontFamily: "'Plus Jakarta Sans', sans-serif",
   accentColor: '#A8E0B0',
-  backgroundMode: 'image-with-bottom-card',
+  // quick-260520-ft0: dark caption-card baseline mirroring news-oracle /
+  // chrome-pulse (heightPct 42, blendPct 15, opacity 0.80). Engages the
+  // classic newsZone full-bleed photo + bottom caption-card geometry now
+  // that backgroundMode is undefined.
+  captionCardDefaults: {
+    heightPct: 42,
+    blendPct: 15,
+    opacity: 0.80,
+  },
   aiVoiceNote: 'Write in viral-news pitch: shocking specifics, breakout moments, money/time/scale numbers prominent. Tone is breaking-news energy.',
   overlays: [
     {
@@ -73,12 +91,17 @@ export const tr3ndingNews: SlideTemplate = {
   ],
   sample: {
     hook_text: 'STARTUP RAISES $50M IN 12 MINUTES',
-    body_text: 'AI infrastructure boom drives record-breaking seed round.',
+    body_text: '',
     hook_segments: [
       { text: 'STARTUP RAISES' },
       { text: '$50M', highlightColor: '#A8E0B0', highlightStyle: 'pill' },
       { text: 'IN' },
       { text: '12 MINUTES', highlightColor: '#A8E0B0', highlightStyle: 'pill' },
     ],
+    // quick-260520-ft0: cover layout mirrors news-oracle so the template
+    // picker thumbnail renders the headline in the bottom caption-card zone
+    // (matching the real generated cover slide). Generated decks still get
+    // layout='cover' stamped by promoteNewsHeadline at gen time.
+    layout: 'cover',
   },
 }

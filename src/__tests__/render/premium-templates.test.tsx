@@ -19,8 +19,13 @@ import type { Slide } from '@/lib/types/slide'
  * Locked tokens validated:
  *   - mint hex `#A8E0B0` (magazine-bold + tr3nding-news, ABSENT from documentary)
  *   - mid-pill literal `'TR3NDING'` (tr3nding-news only)
- *   - caption-card layer `rgba(0, 0, 0, 0.85)` (magazine-bold + tr3nding-news;
- *     ABSENT from documentary)
+ *   - caption-card layer `rgba(0, 0, 0, 0.85)` (magazine-bold) — opaque
+ *     bottomCardBackground fill. quick-260520-ft0: tr3nding-news pivoted to
+ *     the newsZone path with captionCardDefaults (heightPct 42, blendPct 15,
+ *     opacity 0.80) so its caption card is a `linear-gradient` at 0.80 alpha
+ *     instead. Both render the same dark bottom card visually; the gradient
+ *     adds an edge-blend matching news-oracle / chrome-pulse.
+ *   - caption-card layer absent on documentary.
  *   - ghosted page-counter `'1/5'` with `background: 'transparent'` (documentary)
  *   - free-slot gradient containing `linear-gradient` + `rgba(0,0,0,0.85)` (documentary)
  *
@@ -147,7 +152,11 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
   })
 
   // 2. tr3nding-news
-  it('tr3nding-news: renders image-with-bottom-card + top-right counter + mid-pill TR3NDING + mint pill segments', () => {
+  // quick-260520-ft0: pivoted off image-with-bottom-card to the classic
+  // newsZone path (same as news-oracle / chrome-pulse). Caption card now
+  // uses captionCardDefaults { heightPct: 42, blendPct: 15, opacity: 0.80 }
+  // → height 806px, top 1114px, gradient backgroundImage.
+  it('tr3nding-news: renders newsZone caption-card + top-right counter + mid-pill TR3NDING + mint pill segments', () => {
     const template = getTemplate('tr3nding-news')
     const slide: Slide = {
       ...baseSlide,
@@ -158,15 +167,17 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
       style_overrides: { caption_bar_enabled: true },
     }
     const element = buildSlideElement(slide, template, null, 'pro', 'http://localhost', ctx)
-    expect(element).toMatchSnapshot('tr3nding-news-bottom-card-with-mid-pill')
+    expect(element).toMatchSnapshot('tr3nding-news-newsZone-caption-card-with-mid-pill')
 
     const nodes = walk(element)
 
-    // Caption-card present
+    // Caption-card present — newsZone geometry from captionCardDefaults
+    // (heightPct 42 → 806, y=58 → top 1114, blendPct 15 → gradient fill at 0.80 alpha).
     const captionCardNode = nodes.find((n) => {
       const s = styleOf(n)
-      return s && s.height === 730 && s.top === 1190 && typeof s.backgroundColor === 'string' &&
-        (s.backgroundColor as string).includes('rgba(0, 0, 0, 0.85)')
+      return s && s.height === 806 && s.top === 1114 && typeof s.backgroundImage === 'string' &&
+        (s.backgroundImage as string).includes('linear-gradient') &&
+        (s.backgroundImage as string).includes('rgba(0, 0, 0, 0.8)')
     })
     expect(captionCardNode).toBeDefined()
 
