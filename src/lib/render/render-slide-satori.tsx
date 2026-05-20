@@ -40,6 +40,8 @@ import {
   BREAKING_NEWS_BADGE,
   shouldShowBreakingNewsBadge,
 } from './breaking-news-badge'
+// quick-260520-064: shared geometry for the 'ruled' TextHighlight style.
+import { RULED_HIGHLIGHT } from './ruled-highlight'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -746,6 +748,62 @@ export function buildSlideElement(
         const ctEffects = resolvedCt ? satoriEffectStyles(resolvedCt.resolvedEffects) : {}
         const ctHighlight = resolvedCt ? satoriHighlightStyle(resolvedCt.resolvedEffects) : null
         const ctBaseColor = ct.color ?? textColor
+        // quick-260520-064: 'ruled' highlight — flanking 96×2 rules in a
+        // centered flex row, painted in the text color (Warning 4). Hook/body
+        // 'ruled' is intentionally out of scope (Warning 5); the iteration
+        // above is the custom-box path only.
+        const isRuled =
+          resolvedCt?.resolvedEffects.highlight?.enabled === true &&
+          resolvedCt.resolvedEffects.highlight.style === 'ruled'
+        if (isRuled) {
+          return (
+            <div
+              key={ct.id}
+              style={{
+                position: 'absolute',
+                left: pxX(ct.x),
+                top: pxY(ct.y),
+                width: pxX(ct.width),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: RULED_HIGHLIGHT.lineGapPx,
+                textAlign: ct.text_align ?? 'center',
+                fontSize: ct.font_size ?? RULED_HIGHLIGHT.fontSizePx,
+                fontWeight: ct.font_weight ?? 400,
+                fontStyle: ct.font_style ?? 'normal',
+                letterSpacing: RULED_HIGHLIGHT.letterSpacingPx,
+                lineHeight: 1,
+                color: ctBaseColor,
+                fontFamily: ct.font_family ?? template.fontFamily,
+                ...ctEffects,
+              }}
+            >
+              <div
+                style={{
+                  width: RULED_HIGHLIGHT.lineLengthPx,
+                  height: RULED_HIGHLIGHT.lineThicknessPx,
+                  backgroundColor: ctBaseColor,
+                }}
+              />
+              <div
+                style={{
+                  whiteSpace: 'nowrap' as const,
+                  display: 'flex',
+                }}
+              >
+                {ct.text}
+              </div>
+              <div
+                style={{
+                  width: RULED_HIGHLIGHT.lineLengthPx,
+                  height: RULED_HIGHLIGHT.lineThicknessPx,
+                  backgroundColor: ctBaseColor,
+                }}
+              />
+            </div>
+          )
+        }
         return (
           <div
             key={ct.id}

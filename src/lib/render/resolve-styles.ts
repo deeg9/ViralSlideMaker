@@ -26,7 +26,9 @@ export interface ResolvedTextEffectStyles {
   highlight?: {
     enabled: boolean
     color: string
-    style: 'tight' | 'full'
+    // quick-260520-064: 'ruled' joins the user-toggleable highlight enum.
+    // Renderers gate dedicated ruled-flanking-rules markup on this value.
+    style: 'tight' | 'full' | 'ruled'
     padding: number
   }
 }

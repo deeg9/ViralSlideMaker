@@ -33,6 +33,11 @@ import {
   breakingNewsBadgeTopPct,
   shouldShowBreakingNewsBadge,
 } from '@/lib/render/breaking-news-badge'
+// quick-260520-064: shared geometry for the 'ruled' TextHighlight style on
+// custom-anchor TextBoxes (e.g. the news-oracle BREAKING NEWS kicker). Reused
+// by render-slide-satori.tsx + render-slide.ts so all three surfaces paint the
+// flanking rules identically (TPLREND-05 / PARITY-01).
+import { RULED_HIGHLIGHT } from '@/lib/render/ruled-highlight'
 // Phase 69 Plan 02 (TPLREND-05): single source of truth for layer 5.5
 // decoration → DOM markup. BOTH renderers (render-slide-satori.tsx + this
 // React preview path) import renderDecoration from this exact module path.
@@ -1616,6 +1621,41 @@ export function SlidePreview({
             const ctEffectCSS = resolvedCt ? effectToCSS(resolvedCt.resolvedEffects) : {}
             const ctHighlight = resolvedCt?.resolvedEffects.highlight
             const ctBaseColor = ct.color ?? textColor
+            // quick-260520-064: 'ruled' highlight — flanking 96×2 rules in a
+            // centered flex row. Rules paint in the TEXT color (Warning 4 —
+            // NOT effects.highlight.color). Hook/body 'ruled' is out of scope
+            // (Warning 5); this branch is custom-box only.
+            if (ctHighlight?.enabled && ctHighlight.style === 'ruled') {
+              return (
+                <div
+                  key={ct.id}
+                  style={{
+                    position: 'absolute',
+                    left: `${ct.x}%`,
+                    top: `${ct.y}%`,
+                    width: `${ct.width}%`,
+                    zIndex: 15,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: `${RULED_HIGHLIGHT.lineGapPx}px`,
+                    textAlign: ct.text_align ?? 'center',
+                    fontSize: `${ct.font_size ?? RULED_HIGHLIGHT.fontSizePx}px`,
+                    fontFamily: ct.font_family ?? template.fontFamily,
+                    fontWeight: ct.font_weight ?? 400,
+                    fontStyle: ct.font_style ?? 'normal',
+                    letterSpacing: `${RULED_HIGHLIGHT.letterSpacingPx}px`,
+                    color: ctBaseColor,
+                    lineHeight: 1,
+                    ...ctEffectCSS,
+                  }}
+                >
+                  <div style={{ width: `${RULED_HIGHLIGHT.lineLengthPx}px`, height: `${RULED_HIGHLIGHT.lineThicknessPx}px`, backgroundColor: ctBaseColor }} />
+                  <span style={{ whiteSpace: 'nowrap' }}>{ct.text}</span>
+                  <div style={{ width: `${RULED_HIGHLIGHT.lineLengthPx}px`, height: `${RULED_HIGHLIGHT.lineThicknessPx}px`, backgroundColor: ctBaseColor }} />
+                </div>
+              )
+            }
             return (
               <div
                 key={ct.id}
@@ -3100,6 +3140,22 @@ export function SlidePreview({
                   ...(ctHighlight?.enabled && ctHighlight.style === 'full'
                     ? { backgroundColor: ctHighlight.color, padding: `${ctHighlight.padding}px` }
                     : {}),
+                  // quick-260520-064: 'ruled' container — flex row that hosts
+                  // the flanking rules + text. Letter-spacing + nowrap matches
+                  // the deleted chrome's typography. Hook/body 'ruled' falls
+                  // through to plain text (Warning 5) — this branch is the
+                  // custom-anchor (accessory_label) kicker only.
+                  ...(ctHighlight?.enabled && ctHighlight.style === 'ruled'
+                    ? {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: `${RULED_HIGHLIGHT.lineGapPx}px`,
+                        letterSpacing: `${RULED_HIGHLIGHT.letterSpacingPx}px`,
+                        lineHeight: 1,
+                        textAlign: ct.text_align ?? 'center',
+                      }
+                    : {}),
                 }}
                 onDoubleClick={() => setEditingCustomTextId(ct.id)}
                 contentEditable={isEditing}
@@ -3127,7 +3183,21 @@ export function SlidePreview({
                     aria-hidden="true"
                   >🔒</div>
                 )}
-                {isEditing ? ct.text : (
+                {ctHighlight?.enabled && ctHighlight.style === 'ruled' ? (
+                  // quick-260520-064: ruled-kicker rendering inside the editable
+                  // wrapper. While editing we drop the rules so the
+                  // contentEditable target is the plain text (the rules would
+                  // otherwise count as editable content). Rule fill = ctBaseColor.
+                  isEditing ? (
+                    ct.text
+                  ) : (
+                    <>
+                      <div style={{ width: `${RULED_HIGHLIGHT.lineLengthPx}px`, height: `${RULED_HIGHLIGHT.lineThicknessPx}px`, backgroundColor: ctBaseColor, flex: 'none' }} />
+                      <span style={{ whiteSpace: 'nowrap' }}>{ct.text}</span>
+                      <div style={{ width: `${RULED_HIGHLIGHT.lineLengthPx}px`, height: `${RULED_HIGHLIGHT.lineThicknessPx}px`, backgroundColor: ctBaseColor, flex: 'none' }} />
+                    </>
+                  )
+                ) : isEditing ? ct.text : (
                   ctHighlight?.enabled && ctHighlight.style === 'tight'
                     ? renderTightHighlight(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor, ctHighlight, ct.text_align)
                     : renderTextBlock(ct.text, ct.segments, ct.list_type, ct.list_indent, ctBaseColor, accentColor)

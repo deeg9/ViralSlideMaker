@@ -23,6 +23,10 @@ import {
   BREAKING_NEWS_BADGE,
   shouldShowBreakingNewsBadge,
 } from './breaking-news-badge'
+// quick-260520-064: shared geometry for the 'ruled' TextHighlight style.
+// Reuses RULED_HIGHLIGHT constants so the HTML export paints the flanking
+// rules byte-identically to the canvas + Satori paths.
+import { RULED_HIGHLIGHT } from './ruled-highlight'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -414,6 +418,25 @@ export function buildSlideHtml(
       : { containerCSS: '', isTight: false }
     const ctBaseColor = ct.color ?? textColor
     const ctInner = renderSegments(ct.text, ct.segments, ctBaseColor, accentColor)
+
+    // quick-260520-064: 'ruled' highlight — flanking horizontal rules sit on
+    // either side of the text inside a centered flex row. Rules paint in the
+    // box's TEXT color (NOT effects.highlight.color — Warning 4) so the
+    // flanking rules track tb.color edits. Hook/body 'ruled' is intentionally
+    // out of scope (Warning 5) — that branch falls through to plain text on
+    // this surface. We render the 'ruled' kicker as a SELF-CONTAINED div
+    // whose container has NO inline-style highlight (the rules + text together
+    // are the highlight), which is why we bypass `ctHL.containerCSS` here.
+    const isRuled =
+      resolvedCt?.resolvedEffects.highlight?.enabled === true &&
+      resolvedCt.resolvedEffects.highlight.style === 'ruled'
+    if (isRuled) {
+      const ctEffectInlineRuled = ctEffectStr.replace(/\n\s+/g, ' ').trim()
+      const ruleHtml = `<div style="width:${RULED_HIGHLIGHT.lineLengthPx}px; height:${RULED_HIGHLIGHT.lineThicknessPx}px; background-color:${ctBaseColor};"></div>`
+      const textInner = `<div style="white-space:nowrap; letter-spacing:${RULED_HIGHLIGHT.letterSpacingPx}px;">${ctInner}</div>`
+      return `<div style="position:absolute; left:${ct.x}%; top:${ct.y}%; width:${ct.width}%; display:flex; align-items:center; justify-content:center; gap:${RULED_HIGHLIGHT.lineGapPx}px; text-align:${ct.text_align ?? 'left'}; font-size:${ct.font_size ?? 48}px; font-weight:${ct.font_weight ?? 400}; font-style:${ct.font_style ?? 'normal'}; line-height:1; color:${ctBaseColor}; z-index:2; font-family:'${ct.font_family ?? template.fontFamily}', sans-serif; ${ctEffectInlineRuled}">${ruleHtml}${textInner}${ruleHtml}</div>`
+    }
+
     const ctContent =
       ctHL.isTight && resolvedCt?.resolvedEffects.highlight?.enabled
         ? buildTightHighlightHtml(
