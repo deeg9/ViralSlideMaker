@@ -1,6 +1,15 @@
 'use client'
 
-// Phase 81 (R3): 4-slide Embla welcome modal with TikTok-Slideshow copy.
+// Phase 81 (R3): Embla welcome modal — 3 slides as of quick-260520-gr3.
+// Slide order: Welcome → Topic → Publish.
+//
+// quick-260520-gr3 (2026-05-20):
+//   - Renamed slide 1 to "Welcome to Viral Slide Maker" (was "TikTok
+//     Slideshow Creator"); brand is settling on Viral Slide Maker everywhere.
+//   - Removed the "Bring your own references" slide — we are pivoting away
+//     from references-first messaging in the post-signup tour.
+//   - Replaced the Publish-to-share placeholder with a globe SVG; the prior
+//     card+arrow+checkmark composition read poorly at modal scale.
 //
 // Self-gating: reads { needsOnboarding, welcomeSeen, markWelcomeSeen, skipTour }
 // from useOnboarding(). Renders nothing when needsOnboarding=false or
@@ -26,15 +35,12 @@ import { cn } from '@/lib/utils'
 
 import { useOnboarding } from './onboarding-provider'
 
-// Locked copy (CONTEXT.md <specifics>). Do not edit without updating SPEC R3.
+// Locked copy (CONTEXT.md <specifics>). Updated by quick-260520-gr3:
+// brand rename + references slide dropped. Three slides now.
 const SLIDES = [
   {
-    title: 'Welcome to TikTok Slideshow Creator',
+    title: 'Welcome to Viral Slide Maker',
     body: 'Type a topic, get a ready-to-post carousel in seconds.',
-  },
-  {
-    title: 'Bring your own references',
-    body: "Upload reference slideshow images and we'll mimic their visual style.",
   },
   {
     title: 'Tell us your topic',
@@ -97,10 +103,10 @@ export function FirstRunWelcomeDialog() {
       <DialogContent className="max-w-md p-0">
         {/* Accessibility: Radix requires DialogTitle + Description. Visible
             heading is the slide-active <h2> below. */}
-        <DialogTitle className="sr-only">Welcome to TikTok Slideshow Creator</DialogTitle>
+        <DialogTitle className="sr-only">Welcome to Viral Slide Maker</DialogTitle>
         <DialogDescription className="sr-only">
-          First-run introduction. Four slides describing how to upload references,
-          type a topic, generate a carousel, and publish to share.
+          First-run introduction. Three slides covering the welcome, how to
+          describe a topic, and how publishing works.
         </DialogDescription>
 
         {/* Visual area: 4 placeholder SVGs swiped by Embla */}
@@ -194,14 +200,18 @@ export function FirstRunWelcomeDialog() {
 // Placeholder SVG visuals per slide. Real product screenshots ship in a
 // follow-up quick task (SPEC out-of-scope). Each slide uses a distinct
 // arrangement so the carousel feels purposeful.
+//
+// quick-260520-gr3: 3 slides — palettes/labels indexed 0..2.
+//   0: Welcome (stacked carousel cards)
+//   1: Topic   (textarea with cursor)
+//   2: Publish (globe — "your slides reach the world")
 function PlaceholderSvg({ index }: { index: number }) {
   const palettes = [
     { bg: '#fff0f0', fg: '#3d0000', accent: '#dbc1bc' },
-    { bg: '#fff8f7', fg: '#3d0000', accent: '#fadbdb' },
     { bg: '#fff0f0', fg: '#7d6161', accent: '#3d0000' },
     { bg: '#fadbdb', fg: '#3d0000', accent: '#ffffff' },
   ] as const
-  const labels = ['Welcome', 'Upload references', 'Type a topic', 'Publish to share'] as const
+  const labels = ['Welcome', 'Type a topic', 'Publish to share'] as const
   const palette = palettes[index] ?? palettes[0]
   const label = labels[index] ?? ''
 
@@ -228,23 +238,6 @@ function PlaceholderSvg({ index }: { index: number }) {
 
       {index === 1 && (
         <>
-          {/* Three reference thumbnails + an upload arrow */}
-          <rect x="60" y="60" width="80" height="100" rx="10" fill={palette.accent} />
-          <rect x="160" y="60" width="80" height="100" rx="10" fill={palette.fg} opacity="0.9" />
-          <rect x="260" y="60" width="80" height="100" rx="10" fill={palette.accent} opacity="0.6" />
-          <path
-            d="M200 200 L200 175 M188 187 L200 175 L212 187"
-            stroke={palette.fg}
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </>
-      )}
-
-      {index === 2 && (
-        <>
           {/* Topic textarea with a cursor */}
           <rect x="70" y="60" width="260" height="120" rx="14" fill="#ffffff" stroke={palette.accent} strokeWidth="2" />
           <rect x="90" y="80" width="180" height="6" rx="3" fill={palette.accent} />
@@ -254,27 +247,69 @@ function PlaceholderSvg({ index }: { index: number }) {
         </>
       )}
 
-      {index === 3 && (
+      {index === 2 && (
         <>
-          {/* Carousel + share arrow */}
-          <rect x="80" y="50" width="120" height="140" rx="14" fill={palette.fg} />
-          <rect x="100" y="70" width="80" height="100" rx="8" fill={palette.accent} />
-          <path
-            d="M240 110 L300 110 M286 96 L300 110 L286 124"
+          {/* Globe — outer disc, equator, prime meridian, two secondary
+              meridians. Slightly off-center so the modal feels alive. The
+              "world reach" metaphor reads cleanly at 200x200. */}
+          <circle cx="200" cy="108" r="72" fill={palette.accent} />
+          <circle
+            cx="200"
+            cy="108"
+            r="72"
+            fill="none"
             stroke={palette.fg}
             strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
           />
-          <circle cx="320" cy="110" r="22" fill={palette.fg} />
-          <path
-            d="M312 110 L318 116 L328 104"
-            stroke={palette.accent}
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* Equator */}
+          <line
+            x1="128"
+            y1="108"
+            x2="272"
+            y2="108"
+            stroke={palette.fg}
+            strokeWidth="2.5"
+          />
+          {/* Latitude bands (ellipses) for spherical feel */}
+          <ellipse
+            cx="200"
+            cy="108"
+            rx="72"
+            ry="28"
             fill="none"
+            stroke={palette.fg}
+            strokeWidth="1.5"
+            opacity="0.6"
+          />
+          <ellipse
+            cx="200"
+            cy="108"
+            rx="72"
+            ry="56"
+            fill="none"
+            stroke={palette.fg}
+            strokeWidth="1.5"
+            opacity="0.45"
+          />
+          {/* Prime meridian */}
+          <line
+            x1="200"
+            y1="36"
+            x2="200"
+            y2="180"
+            stroke={palette.fg}
+            strokeWidth="2.5"
+          />
+          {/* Side meridians (elliptical arcs approximated as ellipses) */}
+          <ellipse
+            cx="200"
+            cy="108"
+            rx="36"
+            ry="72"
+            fill="none"
+            stroke={palette.fg}
+            strokeWidth="1.5"
+            opacity="0.7"
           />
         </>
       )}
