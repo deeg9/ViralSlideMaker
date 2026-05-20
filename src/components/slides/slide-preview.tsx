@@ -1952,12 +1952,19 @@ export function SlidePreview({
           // centered + auto-fit) — not independently draggable/resizable. The
           // user moves/resizes the CARD; the headline follows.
           enableResizing={hookLocked || hookEditing || !hookRndSelected || !!captionCardHeadline ? false : enableResizing}
-          disableDragging={hookLocked || hookEditing || !!captionCardHeadline}
+          // quick-260519-d7g: card-bound headlines remain draggable so the
+          // user can grab the visible text to reposition the card. The drag
+          // is forwarded to caption_bar_x/y in the handlers below.
+          disableDragging={hookLocked || hookEditing}
           resizeHandleStyles={resizeHandleStyles}
           onDragStart={(_e, data) => {
-            // Phase 61 Plan 02 (KBD-07): snapshot drag-start position for
-            // axis-constrain. Cleared in onDragStop.
+            // quick-260519-d7g: when card-bound, drag is FORWARDED to the
+            // caption-card position. Snap/alt-duplicate/group-drag don't
+            // apply (the headline geometry follows the card; the user is
+            // really moving the card). Just snapshot the start position so
+            // onDragStop can compute the gesture delta.
             hookDragStartRef.current = { x: data.x, y: data.y }
+            if (captionCardHeadline) return
             // Phase 66 Plan 02 (DIFF-01): snapshot alt-state at gesture-start.
             // Reads from `modifiers.get().alt` (Plan 60-04 KBD-04 single source
             // of truth). The drag-stop branch reads this ref to decide
@@ -1974,6 +1981,10 @@ export function SlidePreview({
             wasSnappedYRef.current = null
           }}
           onDrag={(_e, data) => {
+            // quick-260519-d7g: card-bound headline — let react-rnd handle
+            // the visual translate; no snap/axis-constrain (the headline is
+            // a passive passenger of the card, not a free-floating element).
+            if (captionCardHeadline) return
             // Phase 61 Plan 02 (KBD-07): if Shift held, lock to dominant axis
             // BEFORE snap. Snap then refines on the FREE axis. TouchEvent has
             // no shiftKey — safe falsy fall-through (KBD-07 graceful no-op on
@@ -2031,6 +2042,23 @@ export function SlidePreview({
             data.y = result.y + (data.y - queryY)
           }}
           onDragStop={(_e, data) => {
+            // quick-260519-d7g: card-bound headline — forward the gesture
+            // delta onto caption_bar_x/y. Skip every snap/group-drag/
+            // alt-duplicate branch below (none of them apply: card-managed
+            // headlines are passive passengers, not free-floating elements).
+            // One onCaptionBarUpdate call = one undo entry, matching the
+            // caption-card's own drag-stop pattern (line ~1869).
+            if (captionCardHeadline) {
+              const startRef = hookDragStartRef.current
+              hookDragStartRef.current = null
+              if (!startRef) return
+              const dxPct = ((data.x - startRef.x) / REF_WIDTH) * 100
+              const dyPct = ((data.y - startRef.y) / REF_HEIGHT) * 100
+              const nextX = Math.max(0, Math.min(100, captionBarForFit.x + dxPct))
+              const nextY = Math.max(0, Math.min(100, captionBarForFit.y + dyPct))
+              onCaptionBarUpdate?.({ caption_bar_x: nextX, caption_bar_y: nextY })
+              return
+            }
             // Final snap pass: react-draggable doesn't honor data.x/y mutation
             // from the onDrag callback in controlled mode (its newState is
             // built from the cursor BEFORE the callback runs), so the live
