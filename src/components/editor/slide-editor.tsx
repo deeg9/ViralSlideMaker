@@ -1020,6 +1020,21 @@ export function SlideEditor({
         e.preventDefault()
         setOpenPicker('shape')
       },
+
+      // quick-260519-uzr: Cmd/Ctrl+Z → undo, Cmd/Ctrl+Shift+Z → redo.
+      // `$mod` resolves to Meta on macOS and Control on Windows/Linux, so the
+      // same binding serves both platforms. Editing-target firewall first so
+      // text inputs / contentEditable keep their native undo stack.
+      '$mod+z': (e) => {
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
+        e.preventDefault()
+        undo()
+      },
+      '$mod+Shift+z': (e) => {
+        if (isEditingTarget(e.target) || isPickerOpenRef.current) return
+        e.preventDefault()
+        redo()
+      },
     })
 
     // Phase 63 Plan 02 — closure helpers. Defined INSIDE the useEffect so
@@ -1068,6 +1083,10 @@ export function SlideEditor({
     // Phase 70 Plan 03 (KBD-11): setOpenPicker is a useCallback with empty
     // deps so its identity is stable; included explicitly for the lint rule.
     setOpenPicker,
+    // quick-260519-uzr: undo/redo are useCallback with stable identity from
+    // useSlideEditor, but ESLint exhaustive-deps wants them listed.
+    undo,
+    redo,
   ])
 
   async function handleTemplateChange(newId: string) {
