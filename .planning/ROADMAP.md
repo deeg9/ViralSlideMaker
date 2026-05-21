@@ -54,9 +54,16 @@
 **Plans**: 4 plans
 
 Plans:
+**Wave 1**
 - [ ] 89-01-PLAN.md — Remove brand-kit UI surfaces: picker tile, Settings page, /api/v1/me/brand-kit/* routes, OpenAPI schema, nav links (BKSHELVE-01..03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 89-02-PLAN.md — Strip brand-kit from render/publish/download + editor prop chain; add getTemplate('brand-kit') -> news-oracle fallback (BKSHELVE-05, -07)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 89-03-PLAN.md — Strip brand-kit from AI prompts, carousel service, generation form, and style-from-reference flow (BKSHELVE-04, -06, -08)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 89-04-PLAN.md — Relocate BrandKitTextPosition type, delete src/lib/brand-kit/ + types, final tsc + parity sweep (BKSHELVE-09)
 
 **Scope notes**: ~79 files touched across `src/components/`, `src/app/(dashboard)/`, `src/app/api/`, `src/lib/brand-kit/`, `src/lib/types/`, `src/lib/ai/`, `src/lib/render/`, `src/lib/services/`, and tests. The `20260427_brand_kit_template.sql` migration is marked SHELVED but not rolled back; brand-kit DB rows stay dormant on existing accounts. Removal is forward-only — a future revival rebuilds against the same schema rather than toggling old code on. BKSHELVE-05 byte-identity check is the hard gate.
