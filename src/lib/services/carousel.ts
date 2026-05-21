@@ -21,10 +21,8 @@ import type { Slide } from '@/lib/types/slide'
 // Phase 77 Plan 02 Task 4 (EMIT-02): sibling orchestrator that consumes
 // the persisted-spec + Plan 01 helpers + generateFromStyleSpec.
 import { applyAspectFilter } from '@/lib/ai/style-spec-aspect-filter'
-import { applyBrandKitRemix } from '@/lib/ai/style-spec-brand-kit-merge'
 import { generateFromStyleSpec } from '@/lib/ai/generate-from-style-spec'
 import type { StyleSpec } from '@/lib/types/style-spec'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
@@ -287,9 +285,8 @@ export async function generateCarousel(
 //
 // Composition order (locked per Plan 01 SUMMARY):
 //   1. applyAspectFilter — neutralizes unchecked spec sections (Phase 76 toggle)
-//   2. applyBrandKitRemix — merges brand-kit colors + font categories (when on)
-//   3. generateFromStyleSpec — Gemini text emit with projector-fused overrides
-//   4. UPDATE projects.slide_data + generation_status:'complete' (existing
+//   2. generateFromStyleSpec — Gemini text emit with projector-fused overrides
+//   3. UPDATE projects.slide_data + generation_status:'complete' (existing
 //      project — Phase 75 already created the row with extracted spec)
 //
 // Differences from generateCarousel (existing — UNTOUCHED):
@@ -310,8 +307,6 @@ export interface CarouselFromReferencesInput {
   projectId: string
   spec: StyleSpec
   aspects: SpecPreviewAspects
-  brandKit: BrandKit | null
-  useBrandKitRemix: boolean
   content: ContentSource
   slideCount?: number
   /** quick-260514-images: optional background-source for the references
@@ -341,14 +336,8 @@ export async function generateCarouselFromReferences(
 ): Promise<{ projectId: string; slideCount: number }> {
   // Step 1: aspect filter (per CONTEXT.md per-aspect zeroing)
   const filtered = applyAspectFilter(input.spec, input.aspects)
-  // Step 2: brand-kit merge (per CONTEXT.md PREVIEW-08 + Plan 01); skip
-  // entirely when toggle is OFF — Object.is short-circuit elsewhere is
-  // already a fast path, but bypass keeps spy assertions clean.
-  const merged = input.useBrandKitRemix
-    ? applyBrandKitRemix(filtered, input.brandKit)
-    : filtered
-  // Step 3: text-only Gemini emit through projector + closed-enum responseSchema
-  const carousel = await generateFromStyleSpec(merged, input.content, {
+  // Step 2: text-only Gemini emit through projector + closed-enum responseSchema
+  const carousel = await generateFromStyleSpec(filtered, input.content, {
     slideCount: input.slideCount,
   })
 

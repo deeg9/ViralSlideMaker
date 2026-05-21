@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
 import { StyleFromReferenceShell } from '@/components/style-from-reference/style-from-reference-shell'
 import type { SpecPreviewState } from '@/components/style-from-reference/state-machine'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import type { PickerDbTemplate } from '@/lib/render/templates/registry'
 
 export type ImageSource = 'stock' | 'ai' | 'none'
@@ -31,7 +30,6 @@ interface GenerationFormProps {
   currentCategory?: string
   hasSlides: boolean
   userTier?: 'free' | 'pro' | 'plus'
-  brandKit?: BrandKit | null
   /** quick-260514-g7y: ToS clickwrap state for the inlined style-from-
    *  reference collapsible. Forwarded into the embedded
    *  StyleFromReferenceShell so the modal fires only when the user has
@@ -53,7 +51,6 @@ export function GenerationForm({
   currentCategory,
   hasSlides,
   userTier = 'free',
-  brandKit,
   tosAlreadyAccepted,
   acceptTosAction,
   dbTemplates = [],
@@ -234,8 +231,6 @@ export function GenerationForm({
           projectId,
           spec: inlineSpec.spec,
           aspects: inlineSpec.aspects,
-          useBrandKitRemix: inlineSpec.useBrandKitRemix,
-          brandKit: brandKit ?? null,
           content: { mode: 'ai-copy', topic: topic.trim() },
           imageSource,
           slideCount: effectiveSlideCount,
@@ -458,8 +453,6 @@ export function GenerationForm({
               projectId={projectId}
               targetProjectId={projectId}
               currentTopic={topic}
-              brandKit={brandKit ?? null}
-              brandKitAvailable={brandKit != null}
               tosAlreadyAccepted={tosAlreadyAccepted}
               acceptTosAction={acceptTosAction}
               hideGenerateCta
