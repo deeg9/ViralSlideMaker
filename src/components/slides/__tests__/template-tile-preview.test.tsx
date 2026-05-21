@@ -5,15 +5,14 @@ import { pickerTemplates } from '@/lib/render/templates/index'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 
 /**
- * Phase 86 (ADMIN-02) — the tile-level preview switch.
+ * Phase 90 (PREVIEW-04) — the picker tile is a SINGLE-BRANCH <img>.
  *
- * Relies on src/__tests__/setup.ts polyfills (ResizeObserver +
- * getBoundingClientRect) so <SlidePreview> renders its inner DOM
- * (testid: 'slide-preview').
+ * Every code AND DB template now carries a `preview` URL (a rendered
+ * cover-snapshot PNG). <TemplateTilePreview> always renders exactly one
+ * <img src={template.preview}> and NEVER mounts <SlidePreview> — the
+ * live-render fallback branch was deleted. These tests lock that contract:
+ * a `slide-preview` testid must never appear in the tile output.
  */
-
-// A real code template — leaves `preview` undefined (fallback branch).
-const codeTemplate: SlideTemplate = pickerTemplates[0]
 
 // A DB-style template with a saved cover-snapshot PNG.
 const dbTemplate: SlideTemplate = {
@@ -23,21 +22,29 @@ const dbTemplate: SlideTemplate = {
   preview: 'https://example.com/cover.png',
 }
 
+// A code template — after Plan 02 every code template carries a `preview` URL.
+const codeTemplate: SlideTemplate = {
+  ...pickerTemplates[0],
+  preview: 'https://example.com/code-cover.png',
+}
+
 describe('<TemplateTilePreview>', () => {
-  it('renders the preview PNG (and no SlidePreview) when template.preview is set', () => {
+  it('renders the preview <img> (and never <SlidePreview>) for a DB template', () => {
     render(<TemplateTilePreview template={dbTemplate} />)
     const img = screen.getByRole('img')
     expect(img).toHaveAttribute('src', 'https://example.com/cover.png')
     expect(screen.queryByTestId('slide-preview')).toBeNull()
   })
 
-  it('renders <SlidePreview> (and no preview img) when template.preview is absent', () => {
+  it('renders the preview <img> (and never <SlidePreview>) for a code template', () => {
     render(<TemplateTilePreview template={codeTemplate} />)
-    expect(screen.getByTestId('slide-preview')).toBeTruthy()
-    expect(screen.queryByAltText(/^Preview of /)).toBeNull()
+    const img = screen.getByRole('img')
+    expect(img).toHaveAttribute('src', 'https://example.com/code-cover.png')
+    // The <SlidePreview> live-render fallback branch was deleted (PREVIEW-04).
+    expect(screen.queryByTestId('slide-preview')).toBeNull()
   })
 
-  it('gives the preview img descriptive alt text (ADMIN-02)', () => {
+  it('gives the preview <img> descriptive alt text', () => {
     render(<TemplateTilePreview template={dbTemplate} />)
     expect(screen.getByAltText('Preview of My DB Template')).toBeTruthy()
   })
