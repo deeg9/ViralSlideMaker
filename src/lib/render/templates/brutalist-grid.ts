@@ -84,4 +84,5 @@ export const brutalistGrid: SlideTemplate = {
     body_text:
       'A weekly publication for designers who refuse to decorate.',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/brutalist-grid.png',
 }

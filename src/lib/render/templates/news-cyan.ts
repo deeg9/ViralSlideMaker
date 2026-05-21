@@ -52,4 +52,5 @@ export const newsCyan: SlideTemplate = {
     ],
     layout: 'cover',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/news-cyan.png',
 }

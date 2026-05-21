@@ -25,4 +25,5 @@ export const boldYellow: SlideTemplate = {
     hook_text: 'STOP SCROLLING',
     body_text: 'This will change how you post forever.',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/bold-yellow.png',
 }

@@ -92,4 +92,5 @@ export const notesAppChic: SlideTemplate = {
       { text: 'paintings', fontFamily: "'DM Serif Display', serif" },
     ],
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/notes-app-chic.png',
 }

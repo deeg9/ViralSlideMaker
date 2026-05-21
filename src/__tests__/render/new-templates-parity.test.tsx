@@ -79,6 +79,11 @@ describe('Phase 56: new templates parity (TPL-10)', () => {
         const hash = createHash('sha256').update(json).digest('hex')
         // First run via vitest will create the snapshot fixture; subsequent
         // runs assert byte-identical match.
+        //
+        // 90-02 update: the snapshot was regenerated because Phase 90 wires an
+        // OPTIONAL `preview` URL (a field that already exists on SlideTemplate
+        // since v2.14 Phase 86) onto every code template — a purely additive
+        // change. The drift was verified to be a single `preview:` line each.
         expect(hash).toMatchSnapshot()
       })
     })

@@ -21,4 +21,5 @@ export const highlightBar: SlideTemplate = {
     hook_text: 'HOW I GAINED 50K FOLLOWERS',
     body_text: 'In 30 days using only carousel posts.',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/highlight-bar.png',
 }

@@ -8,8 +8,14 @@
 // each template object should hash to the same value as before Phase 55.
 //
 // Fixture (legacy-template-hashes.json) was generated BEFORE any Phase 55 source change
-// (Plan 55-01 Task 1). If this test fails after Phase 55 changes, a non-additive change
-// snuck into a legacy template — investigate before regenerating the fixture.
+// (Plan 55-01 Task 1). If this test fails, a non-additive change snuck into a legacy
+// template — investigate before regenerating the fixture.
+//
+// 90-02 regeneration: Phase 90 wires a `preview` URL (an OPTIONAL field that already
+// exists on SlideTemplate since v2.14 Phase 86) onto every code template — including
+// these 5 legacy ones. That is a purely additive change of exactly the kind this guard
+// permits, so the fixture hashes were regenerated. The five diffs were verified to be a
+// single `preview:` line each, nothing else.
 
 import { describe, it, expect } from 'vitest'
 import { createHash } from 'node:crypto'

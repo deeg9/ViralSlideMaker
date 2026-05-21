@@ -351,9 +351,17 @@ export const TIGHT_HIGHLIGHT_PADDING = 8
  *
  * `alignSelf` honors text-align so each pill hugs and aligns correctly
  * (left → flex-start, center → center, right → flex-end). Satori-safe: only
- * `<span>` tags + `display: flex` / `inline-block` — no `<div>` inside `<p>`
- * (would trip React hydration — see renderTextBlock note above) and no
- * `box-decoration-break`.
+ * `<span>` tags + `display: flex` — no `<div>` inside `<p>` (would trip React
+ * hydration — see renderTextBlock note above) and no `box-decoration-break`.
+ *
+ * 90-02: each per-line pill uses `display: flex` (NOT `inline-block`). Satori's
+ * CSS subset only allows `display: flex | block | none | -webkit-box` and
+ * THROWS on `inline-block` at PNG-generation time — the old `inline-block`
+ * value compiled fine but crashed `renderCoverPreviewPng` / `/api/render` the
+ * moment a slide actually carried a `tight` highlight. A `display: flex` span
+ * sized by its `alignSelf` inside the `flex-direction: column` container
+ * shrink-wraps to its text exactly as `inline-block` did, so the per-line pill
+ * still hugs its content — structural parity (canvas / Satori / HTML) is kept.
  *
  * `highlight.padding` is intentionally NOT read — see TIGHT_HIGHLIGHT_PADDING.
  */
@@ -395,7 +403,7 @@ export function renderTightHighlight(
       // Per-segment highlight markup is preserved for segmented text by
       // delegating to renderSegments; for a list line or segment-less line we
       // emit the bare (marker-prefixed) string. The pill background + inset
-      // comes from THIS span — one independent inline-block pill per line.
+      // comes from THIS span — one independent shrink-wrapped pill per line.
       const lineChildren =
         !listType && segments && segments.length > 0 && lines.length === 1
           ? renderSegments(line, segments, baseColor, accentColor)
@@ -405,7 +413,9 @@ export function renderTightHighlight(
         {
           key: `tight-line-${lineIdx}`,
           style: {
-            display: 'inline-block',
+            // Satori rejects `inline-block` — `flex` shrink-wraps identically
+            // inside the flex-column container via `alignSelf` (90-02).
+            display: 'flex',
             backgroundColor: highlight.color,
             color: baseColor,
             padding: `${TIGHT_HIGHLIGHT_PADDING}px ${TIGHT_HIGHLIGHT_PADDING}px`,

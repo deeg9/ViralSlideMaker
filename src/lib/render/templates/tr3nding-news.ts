@@ -104,4 +104,5 @@ export const tr3ndingNews: SlideTemplate = {
     // layout='cover' stamped by promoteNewsHeadline at gen time.
     layout: 'cover',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/tr3nding-news.png',
 }

@@ -79,4 +79,5 @@ export const magazineBold: SlideTemplate = {
       { text: 'CLONED HER VOICE', highlightColor: '#A8E0B0', highlightStyle: 'pill' },
     ],
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/magazine-bold.png',
 }
