@@ -174,7 +174,7 @@ describe('Phase 88 WIRE-04: per-slide DB template_id_override parity', () => {
     const projectTemplate = getTemplate('news-cyan')
     const overrideSlide = makeOverrideSlide()
 
-    const html = buildSlideHtml(overrideSlide, projectTemplate, undefined, undefined, dbMap)
+    const html = buildSlideHtml(overrideSlide, projectTemplate, undefined, dbMap)
     // The DB fixture's backgroundColor renders — the override resolved.
     expect(html).toContain(DB_BG)
     expect(html).not.toContain(PROJECT_BG)
@@ -187,7 +187,7 @@ describe('Phase 88 WIRE-04: per-slide DB template_id_override parity', () => {
     const overrideSlide = makeOverrideSlide()
 
     const markup = renderToStaticMarkup(
-      buildSlideElement(overrideSlide, projectTemplate, undefined, undefined, undefined, undefined, dbMap),
+      buildSlideElement(overrideSlide, projectTemplate, undefined, undefined, undefined, dbMap),
     )
     expect(markup).toContain(DB_BG)
     expect(markup).not.toContain(PROJECT_BG)

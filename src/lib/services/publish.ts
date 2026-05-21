@@ -3,15 +3,9 @@ import { randomBytes } from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
-import {
-  mergeWithBrandKit,
-  synthesizeBrandKitTemplate,
-  BRAND_KIT_TEMPLATE_ID,
-} from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { getUserTier } from '@/lib/credits/check-credits'
 import type { Project } from '@/lib/types/project'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 const TAG_REGEX = /^[a-z0-9][a-z0-9_-]*[a-z0-9]?$/
 const BANNED_TAG_PATTERNS = [/n[i1]gg/i, /f[a4]g/i, /tr[a4]nn/i, /cunt/i, /retard/i]
@@ -43,26 +37,23 @@ export function normalizePublishTags(rawTags: unknown): { tags: string[] } | { e
 
 export async function renderHeroBuffer(
   project: Project,
-  brandKit: BrandKit | null,
   origin: string,
 ): Promise<Buffer> {
   const slide = project.slide_data?.[0]
   if (!slide) throw new Error('Project has no slides to render')
 
-  const template =
-    project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
-      ? synthesizeBrandKitTemplate(brandKit)
-      : await resolveTemplate(project.template_id ?? 'highlight-bar')
+  // Phase 89 (BKSHELVE): brand-kit removed. A legacy template_id === 'brand-kit'
+  // resolves to news-oracle via getTemplate's defensive fallback.
+  const template = await resolveTemplate(project.template_id ?? 'highlight-bar')
 
-  const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   const ownerTier = await getUserTier(project.user_id)
   // Phase 45: same shape as publish-actions — hero render is slide 0 of a
   // single-slide payload; topic from project flows into slide-field overlays.
   const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
   // Phase 88 (WIRE-04): per-slide DB override resolution for the publish hero.
   const dbTemplates = await getDbTemplatesMap()
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx, dbTemplates)
-  const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
+  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates)
+  const fonts = await loadFontBuffersForSlide(slide, template)
 
   const imageResponse = new ImageResponse(element, {
     width: 1080,
@@ -131,16 +122,9 @@ export async function publishProjectAdmin(
     return { success: false, error: 'Cannot publish an empty carousel', status: 400 }
   }
 
-  const { data: brandKitRow } = await admin
-    .from('brand_kits')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle()
-  const brandKit = (brandKitRow as BrandKit) ?? null
-
   let heroBuffer: Buffer
   try {
-    heroBuffer = await renderHeroBuffer(project, brandKit, appOrigin())
+    heroBuffer = await renderHeroBuffer(project, appOrigin())
   } catch (err) {
     return { success: false, error: `Hero render failed: ${(err as Error).message}`, status: 500 }
   }
