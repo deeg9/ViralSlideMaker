@@ -66,6 +66,7 @@ created: 2026-05-20
 |----------|-------------|------------|-------------------|
 | `/settings/brand-kit` → 404 | BKSHELVE-02 | Route-segment deletion; 404 is structural, no unit harness for Next.js route absence | Run dev server, navigate to `/settings/brand-kit`, confirm 404 |
 | `/api/v1/me/brand-kit` → 404 | BKSHELVE-03 | API route-dir deletion; 404 structural | `curl localhost:3000/api/v1/me/brand-kit` → 404 |
+| `20260427_brand_kit_template.sql` marked SHELVED, not rolled back | — (CONTEXT lock, Deferred Ideas) | DB outcome — no unit harness for a migration doc-note; verified by Plan 04 Task 2 grep `SHELVED` | `grep -in 'SHELVED' supabase/migrations/20260427_brand_kit_template.sql` shows the note; the migration file still exists; no new down-migration was added |
 
 ---
 
@@ -79,3 +80,4 @@ created: 2026-05-20
 - [ ] `nyquist_compliant: true` set in frontmatter after planning
 
 **Approval:** pending
+</content>
