@@ -311,8 +311,6 @@ describe('Phase 77 Plan 02 Task 4: regenerateAction (EMIT-02 + EDITOR-01)', () =
       projectId: 'project-1',
       spec: makeSpec(),
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      useBrandKitRemix: false,
-      brandKit: null,
       content: { mode: 'ai-copy', topic: 'urban gardening' },
       ...overrides,
     }

@@ -108,8 +108,6 @@ function makePreviewState(overrides: Partial<SpecPreviewState> = {}): SpecPrevie
     spec: makeSpec(),
     retriesRemaining: 2,
     aspects: makeAspects(),
-    useBrandKitRemix: false,
-    brandKitAvailable: false,
     error: null,
     lastTelemetry: null,
     ...overrides,
