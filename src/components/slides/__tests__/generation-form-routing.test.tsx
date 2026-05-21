@@ -47,7 +47,7 @@ beforeEach(() => {
 
 describe('GenerationForm routing', () => {
   it('routes a plain topic submit to generateCarousel', async () => {
-    render(<GenerationForm projectId="p1" hasSlides={false} />)
+    render(<GenerationForm projectId="p1" />)
 
     const textarea = screen.getByPlaceholderText(/5 tips for growing/i)
     fireEvent.change(textarea, { target: { value: 'plain topic' } })

@@ -132,7 +132,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         currentTopic={p.topic}
         currentTemplateId={p.template_id}
         currentCategory={p.category}
-        hasSlides={false}
         userTier={tier}
         dbTemplates={dbTemplates}
       />
