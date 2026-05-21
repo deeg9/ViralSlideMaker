@@ -90,7 +90,7 @@ Plans:
 - [x] 90-01-PLAN.md — Build `scripts/render-template-previews.ts` (pure helpers + `main()`, `--dry-run` only) + Wave-0 test scaffolding (PREVIEW-03)
 
 **Wave 2** *(blocked on Wave 1)*
-- [ ] 90-02-PLAN.md — Run the pipeline LIVE: generate gap carousels, snapshot covers, upload PNGs, wire `preview` URLs into the 16 template files (PREVIEW-01, -02)
+- [x] 90-02-PLAN.md — Run the pipeline LIVE: generate gap carousels, snapshot covers, upload PNGs, wire `preview` URLs into the 16 template files (PREVIEW-01, -02)
 
 **Wave 3** *(blocked on Wave 2)*
 - [ ] 90-03-PLAN.md — Collapse `<TemplateTilePreview>` to single-branch `<img>`, rewrite picker tests, finalize Playwright smoke (PREVIEW-04, -05)
@@ -142,7 +142,7 @@ _Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.plann
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
 | 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | Complete    | 2026-05-21 |
-| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 1/3 | In Progress|  |
+| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 2/3 | In Progress|  |
 | 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
 
