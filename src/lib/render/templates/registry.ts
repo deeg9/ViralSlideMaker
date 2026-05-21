@@ -83,6 +83,8 @@ const CODE_TEMPLATE_ID_SET: ReadonlySet<string> = new Set(TEMPLATE_IDS)
 /**
  * Resolve a template id to a SlideTemplate, merging code templates and DB rows.
  *
+ * - The shelved-feature sentinel 'brand-kit' is normalized to news-oracle
+ *   FIRST, so this mirrors the sync getTemplate fallback (BKSHELVE-07).
  * - A CODE template with the id always wins (collision rule).
  * - Else a DB row with the id is mapped via dbRowToSlideTemplate.
  * - Else falls back to templates[0] (mirrors the sync getTemplate contract so
@@ -91,11 +93,22 @@ const CODE_TEMPLATE_ID_SET: ReadonlySet<string> = new Set(TEMPLATE_IDS)
  * Never throws.
  */
 export async function resolveTemplate(id: string): Promise<SlideTemplate> {
-  const codeTemplate = templates.find((t) => t.id === id)
+  // Phase 89 (BKSHELVE-07): mirror getTemplate's 'brand-kit' sentinel fallback.
+  // The brand-kit feature is shelved; legacy projects saved against it carry
+  // template_id === 'brand-kit'. Normalize here — BEFORE both the code-template
+  // lookup AND the DB-row lookup — so every server render/publish/download path
+  // that resolves via resolveTemplate agrees with getTemplate (which the editor
+  // + dashboard grid use). Without this the same legacy project would render as
+  // news-oracle in the editor but highlight-bar (templates[0]) in PNG export /
+  // ZIP / publish, violating the render-parity invariant. This is a no-op for
+  // every real template id — only the literal 'brand-kit' string is remapped.
+  const resolvedId = id === 'brand-kit' ? 'news-oracle' : id
+
+  const codeTemplate = templates.find((t) => t.id === resolvedId)
   if (codeTemplate) return codeTemplate
 
   const rows = await getDbRows()
-  const row = rows.find((r) => r.id === id)
+  const row = rows.find((r) => r.id === resolvedId)
   if (row) return dbRowToSlideTemplate(row)
 
   return templates[0]
