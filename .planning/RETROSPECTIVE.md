@@ -81,6 +81,42 @@
 
 ---
 
+## Milestone: v2.16 — Picker Polish & Brand-Kit Shelving
+
+**Shipped:** 2026-05-21
+**Phases:** 2 (89–90) | **Plans:** 7 | **Sessions:** 1 (autonomous)
+
+### What Was Built
+- Phase 89 — Brand-Kit Shelving (Full Removal): removed the brand-kit feature across ~79 files (picker tile, Settings page, `/api/v1/me/brand-kit/*` routes, render/publish/download wiring, AI prompts, style-from-reference remix flow, `src/lib/brand-kit/` library + types). Dropped the `brandKit` positional arg from `buildSlideElement`/`buildSlideHtml` atomically across 20+ call sites; added a defensive `getTemplate('brand-kit') → news-oracle` resolver fallback. Render parity 45/45 held; DB schema left dormant.
+- Phase 90 — Pre-Rendered Template Preview Pipeline: built `scripts/render-template-previews.ts`, ran it live (16 code-template cover PNGs sourced from `buyer@example.com`'s carousels, uploaded to the `template-previews` Supabase bucket, `preview` URLs wired into all 16 template files); collapsed `<TemplateTilePreview>` to a single-branch `<img>`.
+
+### What Worked
+- The plan-checker revision loop earned its keep on Phase 89: it caught a non-atomic `buildSlideElement` positional-arg removal across two iterations — 17 unowned call sites including a hard-gate parity suite — before any code was written. A delete-heavy refactor is exactly where unowned call sites hide.
+- Running Phase 90's live pipeline on the main working tree (not an isolated worktree) was the right call — the worktree wouldn't have had the gitignored `.env.local` credentials the live Supabase/Gemini run needed.
+- Per-wave `tsc` + parity-suite gates after every worktree merge caught nothing broken — but that's the point: each linear wave provably left the tree green, so the 79-file removal never compounded a latent break.
+- Sourcing previews from the user's own published carousels (vs. curated stock photos) made the previews depict exactly what generation produces — and the gap-fill generation step meant even unused templates got a real exemplar.
+
+### What Was Inefficient
+- A coherent unrelated feature (an inline-dashboard generation form) surfaced in the working tree mid-Phase-89 with no commit provenance — it turned out to be the user's parallel work. It cost an investigation + a quarantine branch. Worktree executors leaving stray main-tree changes is a known hazard; a coherent *feature* appearing was new.
+- The gsd-verifier ran `git` branch surgery to test a hypothesis and left the repo on the wrong branch — its Phase-89 "regression" finding was its own branch confusion. Cost a full state-recovery detour. Verifiers must stay read-only on git refs.
+- `gsd-sdk query milestone.complete` again produced a junk accomplishments list (extracted a `[Rule 3 - Blocking]` deviation line + three bare `Task 1 —` fragments as "key accomplishments") and again did not reorganize ROADMAP.md or delete REQUIREMENTS.md — same gap flagged in the v2.14 and v2.15 retros, hand-fixed a third time.
+- Phase 90's `*-VALIDATION.md` shipped `nyquist_compliant: false` because the planner never flipped it; the ROADMAP phase checkbox didn't auto-tick on `phase.complete` for either phase — both hand-corrected. Recurring tracking-write gaps.
+
+### Patterns Established
+- Quarantine, don't discard, unexplained working-tree state: when coherent uncommitted work of unknown provenance blocks a clean tree, commit it to a `wip/` branch (fully recoverable, inspectable) rather than stashing or reverting — it preserved what turned out to be the user's real parallel work.
+- Run live-credential phases on the main tree, not a worktree: any plan that needs gitignored `.env.local` secrets (live API/DB runs) should drop worktree isolation — a fresh worktree never carries gitignored files.
+
+### Key Lessons
+- For a delete-heavy refactor, the highest-value gate is the plan-checker's call-site-completeness check — "is this edit atomic across every caller?" — not the post-hoc tests. Both Phase-89 revision rounds were the same defect class (unowned call sites), caught pre-execution.
+- Subagents must be constrained to read-only git operations. A verifier that switches branches to test a hypothesis can strand the orchestrator on the wrong ref and produce findings that describe a branch that isn't HEAD.
+
+### Cost Observations
+- Model mix: opus orchestrator + opus planners/executors, sonnet checkers/verifiers.
+- Sessions: 1 (a single autonomous `/gsd-autonomous` run, both phases + lifecycle).
+- Notable: 2 phases / 7 plans, ~79-file removal + a live AI-generation pipeline run (~10 Gemini Flash calls), zero new test failures, render parity 45/45 held throughout. The autonomous run paused twice for genuine user decisions (the quarantine call; the live-run scope) — both were correct pause points, not friction.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
