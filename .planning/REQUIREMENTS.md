@@ -21,15 +21,15 @@ status: scoped
 
 Full removal of the brand-kit feature from the user-facing app and the type/render/AI pipelines. DB schema is left in place (dormant).
 
-- [ ] **BKSHELVE-01** — User no longer sees the "Your Brand Kit" tile (configured or empty-state CTA) in the template picker on the project page.
-- [ ] **BKSHELVE-02** — Settings → Brand Kit page is removed: nav link in `src/app/(dashboard)/settings/layout.tsx` deleted, `src/app/(dashboard)/settings/brand-kit/` directory removed, navigating to `/settings/brand-kit` returns 404.
-- [ ] **BKSHELVE-03** — `/api/v1/me/brand-kit/*` routes removed (`route.ts` + `logo-upload-url/route.ts`); calls return 404. The `/api/v1/me/brand-kit` schema is removed from `src/lib/api/openapi.ts`.
-- [ ] **BKSHELVE-04** — Carousel generation works without a brand-kit param in all code paths (`generation-form.tsx`, `actions.ts`, `carousel.ts`). Removed from props, type unions, request bodies. Public API request schema no longer accepts the field.
-- [ ] **BKSHELVE-05** — Render parity preserved: byte-identity check on all 13 code templates + the live DB-backed templates currently in `templates` table on production. The 3 fixture suites stay GREEN at 45/45. No new fixture regen required.
-- [ ] **BKSHELVE-06** — Style-from-reference flow works without the brand-kit remix toggle: `src/components/style-from-reference/brand-kit-remix-toggle.tsx` deleted, the toggle is removed from the shell, the `state-machine.ts` no longer threads a `useBrandKitRemix` field, and generation from a style spec doesn't merge with brand kit.
-- [ ] **BKSHELVE-07** — Publish/fork/download paths free of brand-kit references: `publish-actions.ts`, `publish.ts`, `download/route.ts`, `render/route.ts` all stripped of `BRAND_KIT_TEMPLATE_ID` / `synthesizeBrandKitTemplate` / `mergeWithBrandKit`. Existing projects whose `project.template_id === 'brand-kit'` fall back to a sensible default template (e.g. `news-oracle`) at resolve time — they don't crash.
-- [ ] **BKSHELVE-08** — AI prompts no longer include brand-kit merge logic: `src/lib/ai/style-spec-brand-kit-merge.ts` and its tests deleted; `prompts.ts` and `style-spec-projector.ts` no longer reference brand kit. Generated copy is unchanged for users who never configured a brand kit (the vast majority — verified by snapshot regression).
-- [ ] **BKSHELVE-09** — `src/lib/brand-kit/` directory + `src/lib/types/brand-kit.ts` deleted. All `import` references across the 79-file footprint resolved (either removed or replaced).
+- [x] **BKSHELVE-01** — User no longer sees the "Your Brand Kit" tile (configured or empty-state CTA) in the template picker on the project page.
+- [x] **BKSHELVE-02** — Settings → Brand Kit page is removed: nav link in `src/app/(dashboard)/settings/layout.tsx` deleted, `src/app/(dashboard)/settings/brand-kit/` directory removed, navigating to `/settings/brand-kit` returns 404.
+- [x] **BKSHELVE-03** — `/api/v1/me/brand-kit/*` routes removed (`route.ts` + `logo-upload-url/route.ts`); calls return 404. The `/api/v1/me/brand-kit` schema is removed from `src/lib/api/openapi.ts`.
+- [x] **BKSHELVE-04** — Carousel generation works without a brand-kit param in all code paths (`generation-form.tsx`, `actions.ts`, `carousel.ts`). Removed from props, type unions, request bodies. Public API request schema no longer accepts the field.
+- [x] **BKSHELVE-05** — Render parity preserved: byte-identity check on all 13 code templates + the live DB-backed templates currently in `templates` table on production. The 3 fixture suites stay GREEN at 45/45. No new fixture regen required.
+- [x] **BKSHELVE-06** — Style-from-reference flow works without the brand-kit remix toggle: `src/components/style-from-reference/brand-kit-remix-toggle.tsx` deleted, the toggle is removed from the shell, the `state-machine.ts` no longer threads a `useBrandKitRemix` field, and generation from a style spec doesn't merge with brand kit.
+- [x] **BKSHELVE-07** — Publish/fork/download paths free of brand-kit references: `publish-actions.ts`, `publish.ts`, `download/route.ts`, `render/route.ts` all stripped of `BRAND_KIT_TEMPLATE_ID` / `synthesizeBrandKitTemplate` / `mergeWithBrandKit`. Existing projects whose `project.template_id === 'brand-kit'` fall back to a sensible default template (e.g. `news-oracle`) at resolve time — they don't crash.
+- [x] **BKSHELVE-08** — AI prompts no longer include brand-kit merge logic: `src/lib/ai/style-spec-brand-kit-merge.ts` and its tests deleted; `prompts.ts` and `style-spec-projector.ts` no longer reference brand kit. Generated copy is unchanged for users who never configured a brand kit (the vast majority — verified by snapshot regression).
+- [x] **BKSHELVE-09** — `src/lib/brand-kit/` directory + `src/lib/types/brand-kit.ts` deleted. All `import` references across the 79-file footprint resolved (either removed or replaced).
 
 ### Pre-Rendered Template Previews (PREVIEW-*)
 
