@@ -28,6 +28,7 @@
  */
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { templates, type SlideTemplate } from '../src/lib/render/templates/index'
 import { resolveTemplate } from '../src/lib/render/templates/registry'
@@ -454,7 +455,18 @@ export async function main(): Promise<void> {
   )
 }
 
-main().catch((err) => {
-  console.error(`${LOG} fatal:`, err)
-  process.exit(1)
-})
+// Run `main()` ONLY when this file is executed directly (`npm run previews` /
+// `tsx scripts/render-template-previews.ts`). When the Wave-0 unit test imports
+// the pure helpers, the module must NOT run the pipeline — otherwise `main()`'s
+// `requireEnv` preflight calls `process.exit(1)` inside vitest, which surfaces
+// as an unhandled error and can poison the test run.
+const isDirectRun =
+  typeof process.argv[1] === 'string' &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(`${LOG} fatal:`, err)
+    process.exit(1)
+  })
+}
