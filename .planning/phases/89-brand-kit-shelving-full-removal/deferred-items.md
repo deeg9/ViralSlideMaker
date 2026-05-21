@@ -45,6 +45,20 @@ Logged per the executor SCOPE BOUNDARY rule; not fixed here.
   Recommend a follow-up quick task to regenerate / re-bless the t3x parity
   snapshots.
 
+## From Plan 89-03
+
+### Pre-existing failing test: `publish-style-spec-snapshot.test.ts` + `publish-template-id-snapshot.test.ts`
+
+- **Failure:** `No "TEMPLATE_IDS" export is defined on the "@/lib/render/templates/index" mock` — `registry.ts` (transitively imported by `publish.ts` since Plan 89-02 rewired publish to `resolveTemplate`) reads `TEMPLATE_IDS`, but both test files' `vi.mock('@/lib/render/templates/index')` only stubs `getTemplate`.
+- **Status:** PRE-EXISTING on the plan base SHA `6a362c7` — verified by checking out the base-SHA versions of both test files + `publish.ts` and running them: identical `No "TEMPLATE_IDS" export` failure. NOT caused by the Plan 89-03 brand-kit strip (this plan only removed the now-dead `mergeWithBrandKit` mock + `brand_kits` table branch from these files — the `templates/index` mock was untouched).
+- **Action:** NOT fixed in Plan 89-03 (out of scope — pre-dates this plan, introduced by Plan 89-02's publish-resolver rewiring). Recommend a follow-up quick task to add `TEMPLATE_IDS` (and any other registry exports) to the `vi.mock` in both publish snapshot test files.
+
+### Pre-existing failing test: `forked-project-references-strip.test.tsx`
+
+- **Failure:** `Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL env vars` — `project/[id]/page.tsx` calls `createAdminClient()` which throws when the env vars are unset in the jsdom test env.
+- **Status:** PRE-EXISTING on the plan base SHA `6a362c7` — verified by running the base-SHA version: identical 2-test env-var failure. NOT caused by the Plan 89-03 brand-kit strip (this plan only removed the now-dead `getBrandKit` mock of the Plan-01-deleted `settings/brand-kit/actions` module — the env-var failure is upstream of any brand-kit code).
+- **Action:** NOT fixed in Plan 89-03 (out of scope — environment setup issue, pre-dates this plan).
+
 ### Pre-existing failing editor suites
 
 - **Suites:** `phase-70-final-regression-sweep.test.ts`,

@@ -4,7 +4,7 @@
  *
  * Tests cover:
  *   - Fill control: HexAlphaColorPicker (shape) / HexColorPicker (icon)
- *     + brand-kit + derived_palette swatches above + 300ms debounced commit
+ *     + derived_palette swatches above + 300ms debounced commit
  *   - Stroke control: color picker + width slider + style enum (shape only)
  *   - Size + position: 4 numeric inputs (W/H/X/Y) clamped [0, 100]
  *   - Per-shape: cornerRadius (rect), points (polygon/star), aspect-lock
