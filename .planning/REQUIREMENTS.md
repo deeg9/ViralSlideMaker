@@ -57,19 +57,19 @@ All 14 v2.16 requirements mapped to exactly one phase. Zero orphans, zero duplic
 
 | REQ ID | Phase | Status |
 |--------|-------|--------|
-| BKSHELVE-01 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-02 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-03 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-04 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-05 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-06 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-07 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-08 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| BKSHELVE-09 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
-| PREVIEW-01 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
-| PREVIEW-02 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
-| PREVIEW-03 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
-| PREVIEW-04 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
-| PREVIEW-05 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
+| BKSHELVE-01 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-02 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-03 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-04 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-05 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-06 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-07 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-08 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| BKSHELVE-09 | Phase 89 — Brand-Kit Shelving (Full Removal) | Satisfied |
+| PREVIEW-01 | Phase 90 — Pre-Rendered Template Preview Pipeline | Satisfied |
+| PREVIEW-02 | Phase 90 — Pre-Rendered Template Preview Pipeline | Satisfied |
+| PREVIEW-03 | Phase 90 — Pre-Rendered Template Preview Pipeline | Satisfied |
+| PREVIEW-04 | Phase 90 — Pre-Rendered Template Preview Pipeline | Satisfied |
+| PREVIEW-05 | Phase 90 — Pre-Rendered Template Preview Pipeline | Satisfied |
 
 **Coverage:** 14/14 mapped. Phase 89 holds 9 BKSHELVE reqs; Phase 90 holds 5 PREVIEW reqs.
