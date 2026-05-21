@@ -4,7 +4,7 @@ import { Icon } from '@/components/ui/icon'
 export const metadata = {
   title: 'Resources — ViralSlideMaker',
   description:
-    'The viral-carousel playbook: hook formulas, slide structure, text-legibility rules, and how to ship faster with templates and your brand kit.',
+    'The viral-carousel playbook: hook formulas, slide structure, text-legibility rules, and how to ship faster with templates.',
 }
 
 interface HookExample {
@@ -201,12 +201,6 @@ export default function ResourcesPage() {
             title="Start from a proven template"
             body="Browse Explore for carousels that already went viral. Tap any tile to see the full deck — the Remix button forks it into a new project so you can keep the structure and swap in your topic."
             cta={{ label: 'Browse Explore', href: '/explore' }}
-          />
-          <AppStep
-            icon="palette"
-            title="Lock in your Brand Kit once"
-            body="Set your fonts, accent color, text alignment, and overlay opacity in your Brand Kit. Apply it as a single-click style on every new project — your slides stop looking like a template and start looking like you."
-            cta={{ label: 'Set up Brand Kit', href: '/settings/brand-kit' }}
           />
           <AppStep
             icon="branding_watermark"

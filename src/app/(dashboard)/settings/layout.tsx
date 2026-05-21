@@ -8,8 +8,6 @@ const settingsNav = [
   { href: '/settings/profile', icon: 'person', label: 'Profile' },
   { href: '/settings/notifications', icon: 'notifications', label: 'Notifications' },
   { href: '/settings/subscription', icon: 'credit_card', label: 'Manage Subscription' },
-  // Brand Kit hidden from production — feature not ready (260515-eey). Re-enable when complete.
-  // { href: '/settings/brand-kit', icon: 'palette', label: 'Brand Kit' },
   { href: '/settings/api-keys', icon: 'key', label: 'API Keys' },
 ]
 
