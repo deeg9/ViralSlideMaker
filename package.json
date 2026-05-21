@@ -9,6 +9,7 @@
     "lint": "eslint",
     "lint:gates": "bash scripts/grep-gates/closed-enum-styleSpec.sh && node scripts/grep-gates/prompt-token-budget.cjs && bash scripts/grep-gates/inspired-by-framing.sh",
     "thumbs": "tsx scripts/generate-template-thumbnails.ts",
+    "previews": "tsx --env-file=.env.local scripts/render-template-previews.ts",
     "textures": "tsx scripts/build-textures.ts",
     "shapes": "tsx scripts/build-shapes.ts",
     "parity-grid": "tsx scripts/render-parity-grid.ts"
