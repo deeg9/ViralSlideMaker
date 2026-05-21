@@ -5,7 +5,7 @@
 // STYLESPEC-04 (typography from font-catalog categories), STYLESPEC-05
 // (decorations.preferredLucide from registry allowlist), STYLESPEC-06
 // (decorations.preferredShapes from ShapeKind), STYLESPEC-07
-// (layout.hookPosition from the local TextPosition enum), STYLESPEC-08
+// (layout.hookPosition from the local HookTextPosition enum), STYLESPEC-08
 // (imagery.treatmentPreset from TreatmentPreset.kind), STYLESPEC-09
 // (voice_note is the ONLY free-text field — sanitized by the validator).
 //
@@ -71,10 +71,14 @@ import type { ArchetypeSlots } from '@/lib/types/style-spec-archetypes'
 export type StyleSpecVersion = 2
 export const STYLE_SPEC_VERSION: StyleSpecVersion = 2
 
-/** Coarse vertical text placement — a 3-value literal union. Relocated
-    in-file from a shelved module in Phase 89 (BKSHELVE-09); it is a
-    generic layout primitive owned by this contract. */
-export type TextPosition = 'top' | 'center' | 'bottom'
+/** Coarse vertical text placement for the hook — a 3-value literal union.
+    Relocated in-file from a shelved module in Phase 89 (BKSHELVE-09); it is
+    a generic layout primitive owned by this contract.
+
+    Named HookTextPosition (not TextPosition) deliberately: `@/lib/types/slide`
+    already exports an unrelated `TextPosition` `{x, y}` coordinate interface,
+    and the bare name invited a wrong auto-import (Phase 89 review WR-02). */
+export type HookTextPosition = 'top' | 'center' | 'bottom'
 
 /**
  * Palette section — color mode + role colors (all hex, validated by Zod).
@@ -107,11 +111,11 @@ export interface StyleSpecTypography {
 
 /**
  * Layout section — coarse positioning + density. hookPosition is sourced
- * from the local TextPosition enum (top | center | bottom). Density is a
- * closed enum local to this contract (3 values).
+ * from the local HookTextPosition enum (top | center | bottom). Density is
+ * a closed enum local to this contract (3 values).
  */
 export interface StyleSpecLayout {
-  hookPosition?: TextPosition
+  hookPosition?: HookTextPosition
   density?: 'tight' | 'medium' | 'airy'
 }
 

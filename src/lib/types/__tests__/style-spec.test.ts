@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import type { StyleSpec, StyleSpecVersion, TextPosition } from '../style-spec'
+import type { StyleSpec, StyleSpecVersion, HookTextPosition } from '../style-spec'
 import type { FontEntry } from '@/lib/fonts/font-catalog'
 import { LUCIDE_DECORATION_ALLOWLIST } from '@/lib/render/decorations/registry'
 import type { ShapeKind } from '@/lib/types/decoration'
@@ -113,14 +113,14 @@ describe('Phase 74 (STYLESPEC-01..09): StyleSpec type contract', () => {
     expect(_bad[0]).toBe('blob')
   })
 
-  it('Test T5: layout.hookPosition is assignable from TextPosition only', () => {
-    const positions: TextPosition[] = ['top', 'center', 'bottom']
+  it('Test T5: layout.hookPosition is assignable from HookTextPosition only', () => {
+    const positions: HookTextPosition[] = ['top', 'center', 'bottom']
     positions.forEach((p) => {
       const spec = makeFixture()
       spec.layout.hookPosition = p
       expect(spec.layout.hookPosition).toBe(p)
     })
-    // @ts-expect-error 'top-left' is NOT a TextPosition
+    // @ts-expect-error 'top-left' is NOT a HookTextPosition
     const _bad: StyleSpec['layout']['hookPosition'] = 'top-left'
     expect(_bad).toBe('top-left')
   })
