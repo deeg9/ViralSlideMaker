@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { ProfileMenu } from './profile-menu'
 import { useNavigationLoader } from './navigation-loader'
-import { StartNewProject } from '@/components/projects/start-new-project'
 
 interface TopNavbarProps {
   variant: 'marketing' | 'app'
@@ -32,6 +31,7 @@ function Logo({ size = 32 }: { size?: number }) {
 const NAV_LOAD_MESSAGES: Record<string, string> = {
   dashboard: 'Loading dashboard…',
   explore: 'Loading explore…',
+  settings: 'Loading settings…',
 }
 
 export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }: TopNavbarProps) {
@@ -103,20 +103,6 @@ export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }:
             >
               <Icon name="dashboard" size="sm" />
             </Link>
-            {/* Create — triggers project creation + nav to /project/{id}?naming=1 */}
-            <StartNewProject>
-              {({ start, pending }) => (
-                <button
-                  type="button"
-                  title="Create"
-                  onClick={start}
-                  disabled={pending}
-                  className="p-2.5 rounded-full transition-colors text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Icon name="add_circle" size="sm" />
-                </button>
-              )}
-            </StartNewProject>
             {/* Explore link */}
             <Link
               href="/explore"
@@ -129,6 +115,19 @@ export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }:
               }`}
             >
               <Icon name="explore" size="sm" />
+            </Link>
+            {/* Settings link */}
+            <Link
+              href="/settings"
+              title="Settings"
+              onClick={() => navigateMaybe('/settings', NAV_LOAD_MESSAGES.settings)}
+              className={`p-2.5 rounded-full transition-colors ${
+                pathname.startsWith('/settings')
+                  ? 'bg-[#fadbdb] text-[#3d0000]'
+                  : 'text-[#7d6161] hover:bg-[#fff0f0] hover:text-[#3d0000]'
+              }`}
+            >
+              <Icon name="settings" size="sm" />
             </Link>
           </div>
 
