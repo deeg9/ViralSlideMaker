@@ -146,17 +146,95 @@ export function buildGapMap(
 // indentation so a replacement preserves the file's existing formatting.
 const PREVIEW_LINE_RE = /^([ \t]*)preview:\s*'[^']*',?[ \t]*$/m
 
+// Matches the `export const <name>: SlideTemplate = {` declaration that opens
+// the template literal. The capture is unused — only the match END index
+// matters: it is the position of the opening `{`'s following character, which
+// is where brace-depth counting starts.
+const TEMPLATE_OPEN_RE = /export\s+const\s+[A-Za-z0-9_$]+\s*:\s*SlideTemplate\s*=\s*{/
+
+/**
+ * 90-WR-04: locate the index of the `}` that closes the
+ * `export const ...: SlideTemplate = { ... }` literal, by brace-depth counting
+ * from the literal's opening `{`.
+ *
+ * This replaces the old `src.lastIndexOf('\n}')` heuristic, which only worked
+ * because every current template file ends in exactly `\n}\n` with no trailing
+ * code. A nested `}` near the file end (a trailing helper, a second `export`,
+ * a multi-line type annotation, a block comment containing `\n}`) would have
+ * misled `lastIndexOf` and corrupted the file.
+ *
+ * String/comment-aware: braces inside `'...'`, `"..."`, `` `...` ``, `// ...`,
+ * and `/* ... *​/` are ignored so a `}` in a comment or string literal cannot
+ * throw off the depth count.
+ *
+ * Returns the index of the closing `}`, or -1 when no `export const ...:
+ * SlideTemplate = {` declaration is found / its braces are unbalanced.
+ */
+function findTemplateLiteralCloseIndex(src: string): number {
+  const open = TEMPLATE_OPEN_RE.exec(src)
+  if (!open) return -1
+  // open.index + open[0].length points one char PAST the opening `{`; the
+  // opening brace itself is the last char of the match, so depth starts at 1.
+  let i = open.index + open[0].length
+  let depth = 1
+  type Mode = 'code' | 'line-comment' | 'block-comment' | 'single' | 'double' | 'template'
+  let mode: Mode = 'code'
+  for (; i < src.length; i++) {
+    const c = src[i]
+    const next = src[i + 1]
+    switch (mode) {
+      case 'code':
+        if (c === '/' && next === '/') { mode = 'line-comment'; i++; continue }
+        if (c === '/' && next === '*') { mode = 'block-comment'; i++; continue }
+        if (c === "'") { mode = 'single'; continue }
+        if (c === '"') { mode = 'double'; continue }
+        if (c === '`') { mode = 'template'; continue }
+        if (c === '{') { depth++; continue }
+        if (c === '}') {
+          depth--
+          if (depth === 0) return i
+        }
+        continue
+      case 'line-comment':
+        if (c === '\n') mode = 'code'
+        continue
+      case 'block-comment':
+        if (c === '*' && next === '/') { mode = 'code'; i++ }
+        continue
+      case 'single':
+        if (c === '\\') { i++; continue }
+        if (c === "'") mode = 'code'
+        continue
+      case 'double':
+        if (c === '\\') { i++; continue }
+        if (c === '"') mode = 'code'
+        continue
+      case 'template':
+        if (c === '\\') { i++; continue }
+        if (c === '`') mode = 'code'
+        continue
+    }
+  }
+  return -1
+}
+
 /**
  * Insert-or-replace the `preview:` field on a single template `.ts` file's text.
  *
  * - If a `preview:` line already exists, REPLACE its string value with
  *   `previewUrl` (preserving the line's indentation).
- * - Else INSERT `  preview: '<previewUrl>',` immediately before the final `}`
- *   that closes the `export const ...: SlideTemplate = { ... }` literal.
+ * - Else INSERT `  preview: '<previewUrl>',` immediately before the `}` that
+ *   closes the `export const ...: SlideTemplate = { ... }` literal.
+ *
+ * 90-WR-04: the insertion anchor is the brace-depth-matched closing `}` of the
+ * `export const ...: SlideTemplate = {` declaration (see
+ * findTemplateLiteralCloseIndex) — NOT `src.lastIndexOf('\n}')`. This is robust
+ * for any template file that gains a trailing helper, a second export, a
+ * multi-line type annotation, or a block comment containing `\n}`.
  *
  * Idempotent: `rewriteTemplateSource(rewriteTemplateSource(SRC, u), u)` equals
- * `rewriteTemplateSource(SRC, u)`. Every template file is a flat literal ending
- * in `\n}\n` (verified against highlight-bar.ts / news-oracle.ts).
+ * `rewriteTemplateSource(SRC, u)` — once a `preview:` line exists the replace
+ * branch is taken and re-running with the same url is a byte-level no-op.
  */
 export function rewriteTemplateSource(src: string, previewUrl: string): string {
   const existing = PREVIEW_LINE_RE.exec(src)
@@ -165,18 +243,21 @@ export function rewriteTemplateSource(src: string, previewUrl: string): string {
     return src.replace(PREVIEW_LINE_RE, `${indent}preview: '${previewUrl}',`)
   }
 
-  // No preview line — insert before the closing `}` of the export literal.
-  // The closing brace is the last top-level `}` followed by an optional
-  // trailing newline at end-of-file.
-  const closeIdx = src.lastIndexOf('\n}')
+  // No preview line — insert before the closing `}` of the export literal,
+  // located by brace-depth counting from the `export const ...: SlideTemplate
+  // = {` declaration (string/comment-aware).
+  const closeIdx = findTemplateLiteralCloseIndex(src)
   if (closeIdx < 0) {
     throw new Error(
-      `${LOG} could not locate the closing '}' of the template literal`,
+      `${LOG} could not locate the closing '}' of the 'export const ...: SlideTemplate = {' literal`,
     )
   }
-  const before = src.slice(0, closeIdx)
-  const after = src.slice(closeIdx) // begins with '\n}'
-  return `${before}\n  preview: '${previewUrl}',${after}`
+  // Trim trailing whitespace immediately before the brace so the inserted
+  // field lands on its own clean line (mirrors the formatting the old
+  // `\n}`-anchored insert produced for the well-formed flat literals).
+  const before = src.slice(0, closeIdx).replace(/[ \t]*$/, '')
+  const after = src.slice(closeIdx) // begins with the closing '}'
+  return `${before}\n  preview: '${previewUrl}',\n${after}`
 }
 
 // ─── Script-only helpers (not exported — touch env / argv / DB) ──────────────
@@ -195,28 +276,58 @@ function requireEnv(name: string): string {
   return v
 }
 
+// Maximum pages `resolveUserIdByEmail` will scan before giving up. At
+// `perPage: 1000` this caps the scan at 100,000 users — a deliberate runaway
+// guard, NOT an expected termination condition (90-WR-05).
+const LIST_USERS_MAX_PAGES = 100
+const LIST_USERS_PER_PAGE = 1000
+
 /**
  * Resolve a Supabase user id by email via the service-role `auth.admin` API.
+ *
  * `listUsers` is paginated — page through (large perPage) until a match or the
- * final page. Throws a clear error if no auth user matches.
+ * genuine end of the user list. Throws a clear, distinguishable error: a
+ * "no user" message when every page was scanned without a match, and a
+ * separate "scan cap" message when the runaway page guard was hit (so an
+ * operator is not misled into thinking the account was deleted).
+ *
+ * 90-WR-05: termination is `data.users.length === 0` — an EMPTY page is the
+ * unambiguous end signal. The old `length < perPage` break stopped one page
+ * early-or-late on an exact `perPage`-multiple final page; emptiness has no
+ * such boundary ambiguity.
  */
 async function resolveUserIdByEmail(
   admin: SupabaseClient,
   email: string,
 ): Promise<string> {
-  for (let page = 1; page <= 20; page++) {
+  const target = email.toLowerCase()
+  let scanned = 0
+  for (let page = 1; page <= LIST_USERS_MAX_PAGES; page++) {
     const { data, error } = await admin.auth.admin.listUsers({
       page,
-      perPage: 1000,
+      perPage: LIST_USERS_PER_PAGE,
     })
     if (error) throw new Error(`listUsers failed: ${error.message}`)
-    const match = data.users.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase(),
-    )
+    // An empty page is the unambiguous end of the list — including the case
+    // where the previous page held exactly `perPage` users.
+    if (data.users.length === 0) break
+    scanned += data.users.length
+    const match = data.users.find((u) => u.email?.toLowerCase() === target)
     if (match) return match.id
-    if (data.users.length < 1000) break
+    // A short (non-empty) page is also a terminal page — there is no further
+    // page to request — so stop here rather than spending another round-trip.
+    if (data.users.length < LIST_USERS_PER_PAGE) break
+    // Hit the runaway guard while pages are still full — surface this as a
+    // DISTINCT failure so it is not confused with "user does not exist".
+    if (page === LIST_USERS_MAX_PAGES) {
+      throw new Error(
+        `pagination scan cap reached (${LIST_USERS_MAX_PAGES} pages, ` +
+          `${scanned} users scanned) without finding ${email} — raise ` +
+          `LIST_USERS_MAX_PAGES if the account count genuinely exceeds this`,
+      )
+    }
   }
-  throw new Error(`No auth user for ${email}`)
+  throw new Error(`No auth user for ${email} (${scanned} users scanned)`)
 }
 
 // ─── Orchestration ──────────────────────────────────────────────────────────
@@ -325,129 +436,161 @@ export async function main(): Promise<void> {
   // 9. Live path — exercised in Plan 02. For each of the 16 templates:
   //    gap-fill generate (if needed), snapshot the cover, upload, rewrite the
   //    template source file.
+  //
+  // 90-WR-03: the loop is per-template fault-isolated. A failure on ONE
+  // template (a transient Satori error, an upload hiccup, an empty
+  // slide_data) is caught, recorded in `failures`, and the loop CONTINUES
+  // to the remaining templates — so a single bad template no longer strands
+  // the Gemini spend already incurred for the gap templates it would have
+  // gone on to process. The script still exits non-zero at the end if ANY
+  // template failed, so CI / the operator sees the failure; a re-run is
+  // idempotent for storage (upsert) and the source rewrite, so it only
+  // retries the genuinely-failed templates.
   let generated = 0
   let reused = 0
   let uploaded = 0
   let rewritten = 0
+  const failures: { id: string; message: string }[] = []
 
   for (const template of templates) {
     const id = template.id
-    // Path-injection guard (threat T-90-01) — also re-asserts before any I/O.
-    const storagePath = previewStoragePath(id)
-    const entry = gapMap.get(id)!
-
-    // 9a. Obtain the source carousel — reuse an exemplar, or generate a gap.
-    let project: ProjectRow
-    if (entry.kind === 'exemplar') {
-      project = entry.project
-      reused++
-      console.log(`${LOG} ${id}: reusing exemplar project ${project.id}`)
-    } else {
-      const topic = TOPIC_MAP[id]
-      if (!topic) {
-        console.error(`${LOG} ${id}: no TOPIC_MAP entry — cannot gap-fill`)
-        process.exit(1)
-      }
-      console.log(`${LOG} ${id}: gap — generating carousel (topic: "${topic}")`)
-      // Lazy import — keeps the Pexels-client module-load side effect (and any
-      // Gemini-client init) off the dry-run / unit-test path. See the note at
-      // the top of this file.
-      const { generateCarousel } = await import('../src/lib/services/carousel')
-      // imageSource: 'stock' — Pexels, cheap. NEVER 'ai' (Imagen per slide).
-      const { projectId } = await generateCarousel(admin, userId, {
-        topic,
-        templateId: id,
-        slideCount: 3,
-        imageSource: 'stock',
-      })
-      // Re-fetch the generated project's slide_data.
-      const { data: freshRow, error: freshErr } = await admin
-        .from('projects')
-        .select(
-          'id, title, topic, template_id, slide_data, generation_status, updated_at',
-        )
-        .eq('id', projectId)
-        .single()
-      if (freshErr || !freshRow) {
-        console.error(
-          `${LOG} ${id}: could not re-fetch generated project ${projectId}: ${
-            freshErr?.message ?? 'no row'
-          }`,
-        )
-        process.exit(1)
-      }
-      project = freshRow as ProjectRow
-      generated++
-    }
-
-    const slides = project.slide_data
-    if (!Array.isArray(slides) || slides.length === 0) {
-      console.error(`${LOG} ${id}: project ${project.id} has empty slide_data`)
-      process.exit(1)
-    }
-
-    // 9b. Snapshot the cover. Pitfall 1: render with resolveTemplate(id) — the
-    //     INTENDED template — NOT the generated project's template_id, which
-    //     generateCarousel may have silently snapped to a category default.
-    const resolved = await resolveTemplate(id)
-    let buffer: Buffer
     try {
-      buffer = await renderCoverPreviewPng(
-        slides[0],
-        resolved,
-        {
-          slideIndex: 0,
-          totalSlides: slides.length,
-          topic: project.topic ?? undefined,
-        },
-        appUrl, // origin — lets Satori fetch /textures + /overlays (Pitfall 3)
+      // Path-injection guard (threat T-90-01) — also re-asserts before any I/O.
+      const storagePath = previewStoragePath(id)
+      const entry = gapMap.get(id)!
+
+      // 9a. Obtain the source carousel — reuse an exemplar, or generate a gap.
+      let project: ProjectRow
+      if (entry.kind === 'exemplar') {
+        project = entry.project
+        reused++
+        console.log(`${LOG} ${id}: reusing exemplar project ${project.id}`)
+      } else {
+        const topic = TOPIC_MAP[id]
+        if (!topic) {
+          throw new Error(`no TOPIC_MAP entry — cannot gap-fill`)
+        }
+        console.log(`${LOG} ${id}: gap — generating carousel (topic: "${topic}")`)
+        // Lazy import — keeps the Pexels-client module-load side effect (and
+        // any Gemini-client init) off the dry-run / unit-test path. See the
+        // note at the top of this file.
+        const { generateCarousel } = await import('../src/lib/services/carousel')
+        // imageSource: 'stock' — Pexels, cheap. NEVER 'ai' (Imagen per slide).
+        const { projectId } = await generateCarousel(admin, userId, {
+          topic,
+          templateId: id,
+          slideCount: 3,
+          imageSource: 'stock',
+        })
+        // Re-fetch the generated project's slide_data.
+        const { data: freshRow, error: freshErr } = await admin
+          .from('projects')
+          .select(
+            'id, title, topic, template_id, slide_data, generation_status, updated_at',
+          )
+          .eq('id', projectId)
+          .single()
+        if (freshErr || !freshRow) {
+          throw new Error(
+            `could not re-fetch generated project ${projectId}: ${
+              freshErr?.message ?? 'no row'
+            }`,
+          )
+        }
+        project = freshRow as ProjectRow
+        generated++
+      }
+
+      const slides = project.slide_data
+      if (!Array.isArray(slides) || slides.length === 0) {
+        throw new Error(`project ${project.id} has empty slide_data`)
+      }
+
+      // 9b. Snapshot the cover. Pitfall 1: render with resolveTemplate(id) —
+      //     the INTENDED template — NOT the generated project's template_id,
+      //     which generateCarousel may have silently snapped to a category
+      //     default.
+      const resolved = await resolveTemplate(id)
+      let buffer: Buffer
+      try {
+        buffer = await renderCoverPreviewPng(
+          slides[0],
+          resolved,
+          {
+            slideIndex: 0,
+            totalSlides: slides.length,
+            topic: project.topic ?? undefined,
+          },
+          appUrl, // origin — lets Satori fetch /textures + /overlays (Pitfall 3)
+        )
+      } catch (err) {
+        throw new Error(
+          `renderCoverPreviewPng failed: ${(err as Error).message}`,
+        )
+      }
+      console.log(`${LOG} ${id}: rendered cover (${buffer.length} bytes)`)
+
+      // 9c. Upload to Storage. Pitfall 2: upsert: true is mandatory — the
+      //     deterministic path requires overwrite-in-place for idempotent
+      //     re-runs.
+      const { error: uploadErr } = await admin.storage
+        .from(PREVIEW_BUCKET)
+        .upload(storagePath, buffer, {
+          contentType: 'image/png',
+          upsert: true,
+        })
+      if (uploadErr) {
+        throw new Error(`upload failed: ${uploadErr.message}`)
+      }
+      const { data: pub } = admin.storage
+        .from(PREVIEW_BUCKET)
+        .getPublicUrl(storagePath)
+      const previewUrl = pub.publicUrl
+      uploaded++
+      console.log(`${LOG} ${id}: uploaded → ${previewUrl}`)
+
+      // 9d. Wire the URL onto the template source file (insert-or-replace).
+      //     Write back only when the rewrite actually changes the file.
+      const filePath = join(
+        process.cwd(),
+        'src',
+        'lib',
+        'render',
+        'templates',
+        `${id}.ts`,
       )
+      const fileText = readFileSync(filePath, 'utf-8')
+      const rewritten1 = rewriteTemplateSource(fileText, previewUrl)
+      if (rewritten1 !== fileText) {
+        writeFileSync(filePath, rewritten1)
+        rewritten++
+        console.log(`${LOG} ${id}: wired preview URL into ${id}.ts`)
+      } else {
+        console.log(`${LOG} ${id}: ${id}.ts already up to date`)
+      }
     } catch (err) {
-      console.error(
-        `${LOG} ${id}: renderCoverPreviewPng failed: ${(err as Error).message}`,
-      )
-      process.exit(1)
+      // 90-WR-03: record the failure and keep going — do NOT abandon the
+      // templates that would still succeed (and strand their Gemini spend).
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(`${LOG} ${id}: FAILED — ${message}`)
+      failures.push({ id, message })
     }
-    console.log(`${LOG} ${id}: rendered cover (${buffer.length} bytes)`)
+  }
 
-    // 9c. Upload to Storage. Pitfall 2: upsert: true is mandatory — the
-    //     deterministic path requires overwrite-in-place for idempotent re-runs.
-    const { error: uploadErr } = await admin.storage
-      .from(PREVIEW_BUCKET)
-      .upload(storagePath, buffer, {
-        contentType: 'image/png',
-        upsert: true,
-      })
-    if (uploadErr) {
-      console.error(`${LOG} ${id}: upload failed: ${uploadErr.message}`)
-      process.exit(1)
-    }
-    const { data: pub } = admin.storage
-      .from(PREVIEW_BUCKET)
-      .getPublicUrl(storagePath)
-    const previewUrl = pub.publicUrl
-    uploaded++
-    console.log(`${LOG} ${id}: uploaded → ${previewUrl}`)
-
-    // 9d. Wire the URL onto the template source file (insert-or-replace).
-    //     Write back only when the rewrite actually changes the file.
-    const filePath = join(
-      process.cwd(),
-      'src',
-      'lib',
-      'render',
-      'templates',
-      `${id}.ts`,
+  if (failures.length > 0) {
+    console.error(
+      `${LOG} STATUS: completed with ${failures.length} failure(s) — ` +
+        `${generated} generated, ${reused} reused, ${uploaded} uploaded, ` +
+        `${rewritten} file(s) rewritten`,
     )
-    const fileText = readFileSync(filePath, 'utf-8')
-    const rewritten1 = rewriteTemplateSource(fileText, previewUrl)
-    if (rewritten1 !== fileText) {
-      writeFileSync(filePath, rewritten1)
-      rewritten++
-      console.log(`${LOG} ${id}: wired preview URL into ${id}.ts`)
-    } else {
-      console.log(`${LOG} ${id}: ${id}.ts already up to date`)
+    for (const f of failures) {
+      console.error(`${LOG}   FAILED ${f.id}: ${f.message}`)
     }
+    console.error(
+      `${LOG} re-run to retry only the failed template(s) — storage upload ` +
+        `(upsert) and the source rewrite are idempotent`,
+    )
+    process.exit(1)
   }
 
   console.log(
