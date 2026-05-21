@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useMemo, useRef, useEffect, useCallback } from 'react'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
-import { regenerateAction } from '@/app/(dashboard)/style-from-reference/actions'
 import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
@@ -13,8 +12,6 @@ import { LetterCircleLoader } from '@/components/ui/letter-circle-loader'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
 import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
-import { StyleFromReferenceShell } from '@/components/style-from-reference/style-from-reference-shell'
-import type { SpecPreviewState } from '@/components/style-from-reference/state-machine'
 import type { PickerDbTemplate } from '@/lib/render/templates/registry'
 
 export type ImageSource = 'stock' | 'ai' | 'none'
@@ -30,18 +27,15 @@ interface GenerationFormProps {
   currentCategory?: string
   hasSlides: boolean
   userTier?: 'free' | 'pro' | 'plus'
-  /** quick-260514-g7y: ToS clickwrap state for the inlined style-from-
-   *  reference collapsible. Forwarded into the embedded
-   *  StyleFromReferenceShell so the modal fires only when the user has
-   *  not yet accepted the current ToS version. Defaults to true so
-   *  callers that never render the references collapsible (legacy
-   *  contexts, tests) don't accidentally surface the modal. */
-  tosAlreadyAccepted?: boolean
-  acceptTosAction?: () => Promise<{ ok: true } | { ok: false; error: string }>
   /** Phase 87 (WIRE-01): DB-backed templates fetched server-side by the
    *  project page and threaded into the picker. Defaults to [] so callers
    *  that don't pass it (tests, legacy contexts) are unaffected. */
   dbTemplates?: PickerDbTemplate[]
+  /** When the form is hosted somewhere that can't render the editor itself
+   *  (the dashboard), navigate to /project/{projectId} on a successful
+   *  generation instead of refreshing the current route. Defaults to false
+   *  so the /project/[id] page keeps its in-place refresh-into-editor flow. */
+  redirectToEditorOnSuccess?: boolean
 }
 
 export function GenerationForm({
@@ -51,9 +45,8 @@ export function GenerationForm({
   currentCategory,
   hasSlides,
   userTier = 'free',
-  tosAlreadyAccepted,
-  acceptTosAction,
   dbTemplates = [],
+  redirectToEditorOnSuccess = false,
 }: GenerationFormProps) {
   // Phase 87 (WIRE-02): an id belongs to a category if it is a code template
   // in that category's curated templateIds OR a DB template (from dbTemplates)
@@ -92,20 +85,11 @@ export function GenerationForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
-  // Phase 82 (R6): the Content Category collapsible defaults open so the new
-  // capability is discoverable on first paint.
+  // The Visual Style collapsible (category cards + template grid) defaults
+  // open so the picker is discoverable on first paint.
   const [showCategory, setShowCategory] = useState(true)
-  const [showVisualStyle, setShowVisualStyle] = useState(true)
   const [showSlideCount, setShowSlideCount] = useState(true)
   const [showBackgroundImages, setShowBackgroundImages] = useState(true)
-  // quick-260514-g7y: new collapsible hosting the inlined style-from-
-  // reference shell. Default closed so the form's first-paint is
-  // unchanged for users who don't use the references flow.
-  const [showInspiredByRefs, setShowInspiredByRefs] = useState(false)
-  // Mirrors the embedded shell's reducer state. Populated via
-  // <StyleFromReferenceShell onSpecChange>. handleSubmit reads this to
-  // route generation through regenerateAction when a spec is present.
-  const [inlineSpec, setInlineSpec] = useState<SpecPreviewState | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [advancedFont, setAdvancedFont] = useState<string>('')
   const [advancedFontColor, setAdvancedFontColor] = useState<string>('')
@@ -193,6 +177,17 @@ export function GenerationForm({
     return urls
   }
 
+  // On a successful generation: the /project/[id] page refreshes in place
+  // (it re-renders into the editor); a host that can't render the editor
+  // (the dashboard) navigates to the project route instead.
+  function handleGenerationSuccess() {
+    if (redirectToEditorOnSuccess) {
+      router.push(`/project/${projectId}`)
+    } else {
+      router.refresh()
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!topic.trim()) return
@@ -244,7 +239,7 @@ export function GenerationForm({
         if (!result.ok) {
           setError(`Generation failed (${result.error}): ${result.detail ?? 'no detail'}`)
         } else {
-          router.refresh()
+          handleGenerationSuccess()
         }
         return
       }
@@ -283,7 +278,7 @@ export function GenerationForm({
           setShowUpgradePrompt(true)
         }
       } else {
-        router.refresh()
+        handleGenerationSuccess()
       }
     })
   }
