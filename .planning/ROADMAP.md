@@ -77,16 +77,27 @@ Plans:
 **Requirements**: PREVIEW-01, PREVIEW-02, PREVIEW-03, PREVIEW-04, PREVIEW-05
 
 **Success Criteria** (what must be TRUE):
-1. Every code template in the project picker (15 templates in `src/lib/render/templates/*.ts`) renders a real photo-backed preview tile — not text on a solid color, not a `<SlidePreview>` fallback.
-2. Newly added or DB-saved templates also render via the same `<img>` path; the picker's preview source is consistent for every tile (code + DB) — verified by Playwright smoke against the project picker showing all 15 code templates + live DB templates rendering as `<img>` with valid `src` URLs.
+1. Every code template in the project picker (16 templates in `src/lib/render/templates/*.ts`, including `y2k-pop`) renders a real photo-backed preview tile — not text on a solid color, not a `<SlidePreview>` fallback.
+2. Newly added or DB-saved templates also render via the same `<img>` path; the picker's preview source is consistent for every tile (code + DB) — verified by Playwright smoke against the project picker showing the picker-visible code templates + live DB templates rendering as `<img>` with valid `src` URLs.
 3. The picker no longer mounts `<SlidePreview>` for tiles — `template-tile-preview.tsx` and `template-picker.tsx` no longer import `makeSampleSlide`; the fallback branch is deleted (forcing function — a new code template can't ship without first rendering its preview).
 4. Operator (Diego) can re-run `scripts/render-template-previews.ts` after a template redesign and get updated previews uploaded to the `template-previews` Supabase Storage bucket with deterministic paths (`code-templates/{slug}.png`); re-running on an unchanged set is a no-op (idempotent).
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+**Wave 1**
+- [ ] 90-01-PLAN.md — Build `scripts/render-template-previews.ts` (pure helpers + `main()`, `--dry-run` only) + Wave-0 test scaffolding (PREVIEW-03)
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 90-02-PLAN.md — Run the pipeline LIVE: generate gap carousels, snapshot covers, upload PNGs, wire `preview` URLs into the 16 template files (PREVIEW-01, -02)
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 90-03-PLAN.md — Collapse `<TemplateTilePreview>` to single-branch `<img>`, rewrite picker tests, finalize Playwright smoke (PREVIEW-04, -05)
 
 **UI hint**: yes
 
-**Scope notes**: All 15 preview PNGs are sourced from carousels on the `christopherfill9@gmail.com` account (Diego's pro account = canonical "good-looking exemplar" source — sidesteps stock-photo licensing). The pipeline (or the operator) generates a new carousel on that account for any template that has no exemplar, then snapshots its cover. Uses the existing `template-previews` Supabase Storage bucket from v2.14 Phase 86 and the existing `template.preview` field. One-off render at milestone time — no scheduled refresh. Out of scope: per-slide variants, animated previews, premium-tier picker chrome redesign, picker layout changes.
+**Scope notes**: All 16 preview PNGs (RESEARCH.md confirmed 16 code templates, not 15 — `y2k-pop` is the 16th) are sourced from carousels on the `christopherfill9@gmail.com` account (Diego's pro account = canonical "good-looking exemplar" source — sidesteps stock-photo licensing). The pipeline (or the operator) generates a new carousel on that account for any template that has no exemplar, then snapshots its cover. Uses the existing `template-previews` Supabase Storage bucket from v2.14 Phase 86 and the existing `template.preview` field. One-off render at milestone time — no scheduled refresh. Out of scope: per-slide variants, animated previews, premium-tier picker chrome redesign, picker layout changes.
 
 ### Dependencies
 
@@ -131,7 +142,7 @@ _Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.plann
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
 | 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | Complete    | 2026-05-21 |
-| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 0/? | Not started | - |
+| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 0/3 | Planned | - |
 | 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
 
