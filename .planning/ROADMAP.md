@@ -130,7 +130,7 @@ _Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.plann
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
-| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | Complete   | 2026-05-21 |
+| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | Complete    | 2026-05-21 |
 | 90. Pre-Rendered Template Preview Pipeline | v2.16 | 0/? | Not started | - |
 | 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
