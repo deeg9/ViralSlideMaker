@@ -4,8 +4,8 @@ milestone: v2.16
 milestone_name: Picker Polish & Brand-Kit Shelving
 status: executing
 stopped_at: "Roadmap created for v2.16 (Phases 89–90). Phase 89 — Brand-Kit Shelving (Full Removal, BKSHELVE-01..09); Phase 90 — Pre-Rendered Template Preview Pipeline (PREVIEW-01..05). 14/14 requirements mapped, no orphans. Next step: `/gsd-plan-phase 89` to begin planning Phase 89."
-last_updated: "2026-05-21T01:53:31.887Z"
-last_activity: 2026-05-21 -- Phase 89 planning complete
+last_updated: "2026-05-21T01:54:04.628Z"
+last_activity: 2026-05-21 -- Phase 89 execution started
 progress:
   total_phases: 2
   completed_phases: 0
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** v2.16 Picker Polish & Brand-Kit Shelving — Phase 89 (Brand-Kit Shelving, full removal) then Phase 90 (Pre-Rendered Template Preview Pipeline).
+**Current focus:** Phase 89 — Brand-Kit Shelving (Full Removal)
 **Latest shipped:** v2.15 DB-Backed Template Wiring (2026-05-19) — wires v2.14's DB-backed templates through the picker, generation, all three render paths, per-slide override, and publish/fork; verified by a live end-to-end Playwright dry-run.
 
 ## Current Position
 
-Phase: 89 — Brand-Kit Shelving (Full Removal) — not started
-Plan: —
-Status: Ready to execute
-Last activity: 2026-05-21 -- Phase 89 planning complete
+Phase: 89 (Brand-Kit Shelving (Full Removal)) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 89
+Last activity: 2026-05-21 -- Phase 89 execution started
 
 ## Roadmap — v2.16 (Phases 89–90)
 
