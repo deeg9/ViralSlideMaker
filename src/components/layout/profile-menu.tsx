@@ -29,13 +29,6 @@ const rows: MenuRow[] = [
     isActive: (p) => p.startsWith('/bookmarks'),
   },
   {
-    label: 'Settings',
-    icon: 'settings',
-    href: '/settings',
-    message: 'Loading settings…',
-    isActive: (p) => p.startsWith('/settings'),
-  },
-  {
     label: 'Resources',
     icon: 'science',
     href: '/resources',
