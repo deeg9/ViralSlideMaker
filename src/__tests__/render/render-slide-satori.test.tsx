@@ -111,7 +111,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       baseSlide,
       legacyTemplate,
-      null,
       'free',
       'http://localhost',
     )
@@ -130,7 +129,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       baseSlide,
       tpl,
-      null,
       'free',
       'http://localhost',
     )
@@ -170,7 +168,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       slideWithCaption,
       tpl,
-      null,
       'free',
       'http://localhost',
     )
@@ -237,7 +234,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       baseSlide,
       tpl,
-      null,
       'free',
       'http://localhost',
       { slideIndex: 0, totalSlides: 5, topic: 'folk-music' },
@@ -277,7 +273,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       baseSlide,
       tpl,
-      null,
       'free',
       'http://localhost',
       { slideIndex: 0, totalSlides: 5, topic: 'folk-music' },
@@ -307,7 +302,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       slide,
       baseTemplate,
-      null,
       'free',
       'http://localhost',
     )
@@ -340,7 +334,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       slide,
       baseTemplate,
-      null,
       'free',
       'http://localhost',
     )
@@ -372,7 +365,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       baseSlide,
       tpl,
-      null,
       'free',
       'http://localhost',
       // ctx intentionally omitted
@@ -398,7 +390,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       baseSlide,
       tpl,
-      null,
       'free',
       'http://localhost',
       // ctx intentionally omitted
@@ -429,7 +420,6 @@ describe('buildSlideElement — Phase 45 overlay composition', () => {
     const element = buildSlideElement(
       slide,
       tpl,
-      null,
       'free',
       'http://localhost',
     )

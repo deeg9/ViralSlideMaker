@@ -6,15 +6,9 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
-import {
-  mergeWithBrandKit,
-  synthesizeBrandKitTemplate,
-  BRAND_KIT_TEMPLATE_ID,
-} from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { getUserTier } from '@/lib/credits/check-credits'
 import type { Project } from '@/lib/types/project'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 export type PublishResult =
   | { success: true; slug: string; publishedId: string }
@@ -36,18 +30,15 @@ function isOffensive(tag: string): boolean {
 
 async function renderHero(
   project: Project,
-  brandKit: BrandKit | null,
   origin: string,
 ): Promise<Buffer> {
   const slide = project.slide_data?.[0]
   if (!slide) throw new Error('Project has no slides to render')
 
-  const template =
-    project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
-      ? synthesizeBrandKitTemplate(brandKit)
-      : await resolveTemplate(project.template_id ?? 'highlight-bar')
+  // Phase 89 (BKSHELVE): brand-kit removed. A legacy template_id === 'brand-kit'
+  // resolves to news-oracle via getTemplate's defensive fallback.
+  const template = await resolveTemplate(project.template_id ?? 'highlight-bar')
 
-  const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   const ownerTier = await getUserTier(project.user_id)
   // Phase 45: hero render is always slide 0 of a single-slide payload — overlay
   // counter resolves to '1/1' (per CONTEXT.md graceful-fallback path); topic
@@ -55,8 +46,8 @@ async function renderHero(
   const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
   // Phase 88 (WIRE-04): per-slide DB override resolution for the publish hero.
   const dbTemplates = await getDbTemplatesMap()
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx, dbTemplates)
-  const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
+  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates)
+  const fonts = await loadFontBuffersForSlide(slide, template)
 
   const imageResponse = new ImageResponse(element, {
     width: 1080,
@@ -77,16 +68,13 @@ async function renderHero(
  */
 async function renderMinimalHero(
   project: Project,
-  brandKit: BrandKit | null,
 ): Promise<Buffer> {
   const slide = project.slide_data?.[0]
   if (!slide) throw new Error('Project has no slides to render')
 
-  const template =
-    project.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
-      ? synthesizeBrandKitTemplate(brandKit)
-      : await resolveTemplate(project.template_id ?? 'highlight-bar')
-  const effectiveTemplate = mergeWithBrandKit(template, brandKit)
+  // Phase 89 (BKSHELVE): brand-kit removed. A legacy template_id === 'brand-kit'
+  // resolves to news-oracle via getTemplate's defensive fallback.
+  const template = await resolveTemplate(project.template_id ?? 'highlight-bar')
 
   const hookText = slide.hook_text?.trim() ?? ''
   const bodyText = slide.body_text?.trim() ?? ''
@@ -102,9 +90,9 @@ async function renderMinimalHero(
         alignItems: 'center',
         justifyContent: 'center',
         padding: 80,
-        backgroundColor: effectiveTemplate.backgroundColor,
-        color: effectiveTemplate.textColor,
-        fontFamily: effectiveTemplate.fontFamily,
+        backgroundColor: template.backgroundColor,
+        color: template.textColor,
+        fontFamily: template.fontFamily,
       },
     },
     hookText
@@ -143,7 +131,7 @@ async function renderMinimalHero(
       : null,
   )
 
-  const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
+  const fonts = await loadFontBuffersForSlide(slide, template)
   const imageResponse = new ImageResponse(element, {
     width: 1080,
     height: 1920,
@@ -199,14 +187,6 @@ export async function publishProjectToExplore(
     return { success: false, error: 'Cannot publish an empty carousel' }
   }
 
-  // Brand kit for hero render
-  const { data: brandKitRow } = await supabase
-    .from('brand_kits')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
-  const brandKit = (brandKitRow as BrandKit) ?? null
-
   // Render hero PNG (slide 1). quick-260514-minimal-hero-fallback: two-layer
   // fallback so publish always succeeds with a RENDERED first-slide thumbnail
   // (never the raw background_url):
@@ -218,11 +198,11 @@ export async function publishProjectToExplore(
     process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
   let heroBuffer: Buffer
   try {
-    heroBuffer = await renderHero(project, brandKit, proto)
+    heroBuffer = await renderHero(project, proto)
   } catch (err) {
     console.warn('[publish] renderHero failed, falling back to renderMinimalHero:', (err as Error).message)
     try {
-      heroBuffer = await renderMinimalHero(project, brandKit)
+      heroBuffer = await renderMinimalHero(project)
     } catch (err2) {
       return { success: false, error: `Hero render failed: ${(err2 as Error).message}` }
     }

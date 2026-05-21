@@ -29,7 +29,6 @@ import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template
 import type { Decoration } from '@/lib/types/decoration'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 /**
  * Stroke color used for the in-picker preview tiles only — distinct from
@@ -98,8 +97,7 @@ interface ElementsPanelProps {
   onOpenIconPicker?: () => void
   /** Opens the ShapePicker popover (rect, circle, polygon, star, etc.). */
   onOpenShapePicker?: () => void
-  /** Brand-kit palette + extracted palette piped to DecorationCard swatches. */
-  brandKit?: BrandKit | null
+  /** Extracted palette piped to DecorationCard swatches. */
   derivedPalette?: string[]
 }
 
@@ -123,7 +121,6 @@ export function ElementsPanel({
   onWatermarkLogoUpload,
   onWatermarkLogoRemove,
   isWatermarkPending,
-  brandKit,
   derivedPalette,
 }: ElementsPanelProps) {
   // quick-260514-move-slide-cards-to-elements: shared slide-level cards
@@ -187,7 +184,6 @@ export function ElementsPanel({
           onRemove={onDecorationRemove}
           onSwapIcon={isIcon ? onSwapIcon : undefined}
           onPreview={onDecorationPreview}
-          brandKit={brandKit}
           derivedPalette={derivedPalette}
         />
         {slideLevelCards}

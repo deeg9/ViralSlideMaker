@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { resolvePerSlideTemplate } from '../resolve-per-slide-template'
 import { getTemplate, type SlideTemplate } from '../templates'
-import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 /**
  * quick-260515-epn — unit coverage for the single-source-of-truth helper
@@ -16,8 +14,8 @@ import type { BrandKit } from '@/lib/types/brand-kit'
  *      from style_overrides.template_id_override after PROJECTOR FUSION)
  *   2. slide.style_overrides?.template_id_override  (defensive pre-fusion
  *      shape — projector emit before generator lift)
- *   3. projectTemplate  (caller-resolved: brand-kit synthesis OR registry
- *      lookup by project.template_id — the helper is brand-kit-agnostic)
+ *   3. projectTemplate  (caller-resolved registry lookup by
+ *      project.template_id)
  *
  * Unknown ids silently fall back to projectTemplate (mirrors STYLESPEC-10 /
  * EMIT-08 / PARITY-03 closed-enum hygiene from STATE.md).
@@ -37,19 +35,6 @@ function makeSlide(overrides: {
     style_overrides: overrides.style_overrides,
     template_id_override: overrides.template_id_override,
   }
-}
-
-function makeBrandKit(): BrandKit {
-  // Minimum viable BrandKit for synthesizeBrandKitTemplate. The shape comes
-  // from src/lib/types/brand-kit.ts but the helper only reads string-ish
-  // optional fields; we stub the required identity fields.
-  return {
-    id: 'bk-1',
-    user_id: 'u-1',
-    name: 'Acme',
-    created_at: '2026-05-15T00:00:00Z',
-    updated_at: '2026-05-15T00:00:00Z',
-  } as unknown as BrandKit
 }
 
 describe('resolvePerSlideTemplate', () => {
@@ -116,30 +101,6 @@ describe('resolvePerSlideTemplate', () => {
     // (STYLESPEC-10 / EMIT-08 / PARITY-03).
     expect(result).toBe(projectTemplate)
     expect(result.id).toBe('bold-yellow')
-  })
-
-  // -------------------------------------------------------------------------
-  // Test 6: brand-kit passthrough (no override → caller-synthesized brand kit template wins)
-  // -------------------------------------------------------------------------
-  it('returns the synthesized brand-kit template unchanged when slide has no override', () => {
-    const brandKitTemplate = synthesizeBrandKitTemplate(makeBrandKit())
-    expect(brandKitTemplate.id).toBe(BRAND_KIT_TEMPLATE_ID)
-    const slide = makeSlide()
-    const result = resolvePerSlideTemplate(slide, brandKitTemplate)
-    // Returned by reference — brand-kit synthesis is the caller's job; the
-    // helper does not consult or rebuild brand-kit fields.
-    expect(result).toBe(brandKitTemplate)
-  })
-
-  // -------------------------------------------------------------------------
-  // Test 7: brand-kit + override → override wins (per-slide override > brand-kit)
-  // -------------------------------------------------------------------------
-  it('per-slide override beats brand-kit synthesis (precedence: override > brand-kit > project)', () => {
-    const brandKitTemplate = synthesizeBrandKitTemplate(makeBrandKit())
-    const slide = makeSlide({ template_id_override: 'magazine-bold' })
-    const result = resolvePerSlideTemplate(slide, brandKitTemplate)
-    expect(result.id).toBe('magazine-bold')
-    expect(result.backgroundMode).toBe('image-with-bottom-card')
   })
 
   // -------------------------------------------------------------------------

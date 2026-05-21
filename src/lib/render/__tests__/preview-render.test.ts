@@ -68,6 +68,8 @@ describe('renderCoverPreviewPng', () => {
     const args = buildSlideElementCalls[0]
     expect(args[0]).toBe(slide)
     expect(args[1]).toBe(template)
-    expect(args[5]).toEqual(ctx)
+    // Phase 89 (BKSHELVE): the brandKit positional arg #3 was removed from
+    // buildSlideElement, shifting ctx from index 5 to index 4.
+    expect(args[4]).toEqual(ctx)
   })
 })

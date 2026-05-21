@@ -62,7 +62,6 @@ describe('Phase 46 — legacy template regression gate (TPLNEW-05)', () => {
       const element = buildSlideElement(
         fixtureSlide,
         template,
-        null,
         'free',
         'http://localhost',
         fixtureCtx,

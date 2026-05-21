@@ -32,7 +32,7 @@ export async function renderCoverPreviewPng(
   ctx: { slideIndex: number; totalSlides: number; topic?: string },
   origin?: string,
 ): Promise<Buffer> {
-  const element = buildSlideElement(slide, template, null, 'free', origin, ctx)
+  const element = buildSlideElement(slide, template, 'free', origin, ctx)
   const fonts = await loadFontBuffersForSlide(slide, template)
   const imageResponse = new ImageResponse(element, {
     width: 1080,

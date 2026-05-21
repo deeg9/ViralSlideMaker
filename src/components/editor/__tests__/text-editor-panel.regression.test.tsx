@@ -60,7 +60,6 @@ function renderPanel(opts: {
       customTexts={opts.customTexts ?? opts.slide.custom_texts}
       onCustomTextUpdate={vi.fn()}
       onCustomTextRemove={vi.fn()}
-      brandKit={null}
     />,
   )
 }

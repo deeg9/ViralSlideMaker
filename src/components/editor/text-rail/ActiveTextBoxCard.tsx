@@ -23,13 +23,11 @@ import type {
   TextHighlightEffect,
 } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface ActiveTextBoxCardProps {
   textBox: TextBox | null
   onUpdate: (updates: Partial<TextBox>) => void
   template: SlideTemplate
-  brandKit?: BrandKit | null
   /** quick-260514-textbox-numeric-labels: 1-indexed position in the slide's
    *  text_boxes array. Used to render "TEXT BOX 1" / "TEXT BOX 2" / etc.
    *  in the role-label slot instead of the legacy "HOOK TEXT" / "BODY TEXT"
@@ -84,7 +82,6 @@ export function ActiveTextBoxCard({
   textBox,
   onUpdate,
   template,
-  brandKit: _brandKit,
   textBoxNumber,
   onRemove,
 }: ActiveTextBoxCardProps) {

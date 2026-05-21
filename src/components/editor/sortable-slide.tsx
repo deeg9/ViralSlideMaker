@@ -5,7 +5,6 @@ import { CSS } from '@dnd-kit/utilities'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { BrandKit } from '@/lib/types/brand-kit'
 // quick-260515-epn: each thumbnail resolves its own template via
 // resolvePerSlideTemplate so a slide carrying `template_id_override`
 // (typically projector-emitted from Copy Style → archetype) renders in the
@@ -26,7 +25,6 @@ interface SortableSlideProps {
   topic?: string
   isSelected: boolean
   onSelect: (index: number) => void
-  brandKit?: BrandKit | null
   userTier?: 'free' | 'plus' | 'pro'
 }
 
@@ -39,7 +37,6 @@ export function SortableSlide({
   topic,
   isSelected,
   onSelect,
-  brandKit,
   userTier,
 }: SortableSlideProps) {
   const {
@@ -85,7 +82,6 @@ export function SortableSlide({
           slideIndex={index}
           totalSlides={totalSlides}
           topic={topic}
-          brandKit={brandKit}
           userTier={userTier}
         />
       </div>
