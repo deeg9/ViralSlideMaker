@@ -1,3 +1,12 @@
+-- =====================================================================
+-- SHELVED 2026-05-20 (Phase 89, BKSHELVE) — the brand-kit feature was
+-- fully removed from the application code. This migration is intentionally
+-- NOT rolled back: the brand_kits schema (and the columns added below) is
+-- left DORMANT so a future revival can rewire against it without a new
+-- migration. Do NOT add a down-migration; do NOT drop these columns.
+-- No application code reads brand_kits as of Phase 89.
+-- =====================================================================
+--
 -- 260427-bkt: Brand kit as a first-class template.
 -- Adds 7 fields so the brand kit can fully describe a slide template:
 --   heading_font_family, body_font_family — Canva-style font pairing

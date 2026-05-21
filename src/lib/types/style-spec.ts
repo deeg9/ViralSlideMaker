@@ -5,7 +5,7 @@
 // STYLESPEC-04 (typography from font-catalog categories), STYLESPEC-05
 // (decorations.preferredLucide from registry allowlist), STYLESPEC-06
 // (decorations.preferredShapes from ShapeKind), STYLESPEC-07
-// (layout.hookPosition from BrandKitTextPosition), STYLESPEC-08
+// (layout.hookPosition from the local TextPosition enum), STYLESPEC-08
 // (imagery.treatmentPreset from TreatmentPreset.kind), STYLESPEC-09
 // (voice_note is the ONLY free-text field — sanitized by the validator).
 //
@@ -62,7 +62,6 @@
 import type { FontEntry } from '@/lib/fonts/font-catalog'
 import type { LucideDecorationName } from '@/lib/render/decorations/registry'
 import type { ShapeKind } from '@/lib/types/decoration'
-import type { BrandKitTextPosition } from '@/lib/types/brand-kit'
 import type { TreatmentPreset } from '@/lib/photo-treatment/treat'
 import type { ArchetypeSlots } from '@/lib/types/style-spec-archetypes'
 
@@ -71,6 +70,11 @@ import type { ArchetypeSlots } from '@/lib/types/style-spec-archetypes'
     Always 2; bumped at Phase 80 (composition-aware schema). */
 export type StyleSpecVersion = 2
 export const STYLE_SPEC_VERSION: StyleSpecVersion = 2
+
+/** Coarse vertical text placement — a 3-value literal union. Relocated
+    in-file from a shelved module in Phase 89 (BKSHELVE-09); it is a
+    generic layout primitive owned by this contract. */
+export type TextPosition = 'top' | 'center' | 'bottom'
 
 /**
  * Palette section — color mode + role colors (all hex, validated by Zod).
@@ -103,11 +107,11 @@ export interface StyleSpecTypography {
 
 /**
  * Layout section — coarse positioning + density. hookPosition is sourced
- * from BrandKitTextPosition (top | center | bottom). Density is a closed
- * enum local to this contract (3 values).
+ * from the local TextPosition enum (top | center | bottom). Density is a
+ * closed enum local to this contract (3 values).
  */
 export interface StyleSpecLayout {
-  hookPosition?: BrandKitTextPosition
+  hookPosition?: TextPosition
   density?: 'tight' | 'medium' | 'airy'
 }
 
