@@ -14,7 +14,6 @@ import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import { readFileSync } from 'fs'
 import path from 'path'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import {
   renderGrain,
   renderVignette,
@@ -1241,79 +1240,12 @@ describe('Phase 64 Plan 02 (LOCK-07, PARITY-01): both renderers honor `hidden`',
     expect(satoriHtml).toMatch(/visible\.png/)
   })
 
-  it('PH3: hidden watermark → both renderers omit watermark', async () => {
-    // The watermark resolver (resolve-watermark.ts) reads from the legacy
-    // brandKit slot — supply one so the floor test (slide WITHOUT
-    // hidden:true) actually renders the watermark URL. Then the hidden:true
-    // path must SUPPRESS the same URL through the Plan 64-02 gate.
-    const brandKit = {
-      logo_url: 'https://cdn.example.com/HIDDEN_WMARK.png',
-      logo_position: 'bottom-right' as const,
-      logo_size_pct: 10,
-      logo_opacity_pct: 60,
-    } as unknown as Parameters<typeof SlidePreview>[0]['brandKit']
-
-    const baseSlide: Slide = {
-      hook_text: 'H',
-      body_text: 'B',
-      image_query: 'q',
-      is_cta: false,
-      background_url: null,
-      pexels_photo_id: null,
-      watermark: {
-        id: 'w_0',
-        enabled: true,
-        position: 'bottom-right',
-      },
-    }
-    baseSlide.text_boxes = legacyToTextBoxes(baseSlide)
-
-    // Floor test: without hidden, watermark URL appears (sanity gate so
-    // the absence-probe below isn't vacuous).
-    const { container: floorC } = render(
-      <SlidePreview
-        slide={baseSlide}
-        template={getTemplate('highlight-bar')}
-        index={0}
-        editable={false}
-        brandKit={brandKit}
-      />,
-    )
-    const floorSatori = await (async () => {
-      const { buildSlideElement } = await import('@/lib/render/render-slide-satori')
-      const { renderToStaticMarkup } = await import('react-dom/server')
-      return renderToStaticMarkup(
-        buildSlideElement(baseSlide, getTemplate('highlight-bar')),
-      )
-    })()
-    expect(floorC.innerHTML).toMatch(/HIDDEN_WMARK\.png/)
-    expect(floorSatori).toMatch(/HIDDEN_WMARK\.png/)
-
-    // Hidden test: with watermark.hidden = true, both renderers must
-    // omit the watermark URL.
-    const hiddenSlide: Slide = {
-      ...baseSlide,
-      watermark: { ...baseSlide.watermark!, hidden: true },
-    }
-    const { container: hiddenC } = render(
-      <SlidePreview
-        slide={hiddenSlide}
-        template={getTemplate('highlight-bar')}
-        index={0}
-        editable={false}
-        brandKit={brandKit}
-      />,
-    )
-    const hiddenSatori = await (async () => {
-      const { buildSlideElement } = await import('@/lib/render/render-slide-satori')
-      const { renderToStaticMarkup } = await import('react-dom/server')
-      return renderToStaticMarkup(
-        buildSlideElement(hiddenSlide, getTemplate('highlight-bar')),
-      )
-    })()
-    expect(hiddenC.innerHTML).not.toMatch(/HIDDEN_WMARK\.png/)
-    expect(hiddenSatori).not.toMatch(/HIDDEN_WMARK\.png/)
-  })
+  // Phase 89 (BKSHELVE-05/07): the PH3 watermark test was removed. It was an
+  // all-brand-kit test — it built a logo_url fixture and asserted the watermark
+  // URL rendered. With brand-kit shelved, resolveWatermark(null, …) always
+  // returns null so the watermark layer never renders; there is no brand-kit-
+  // free remnant to keep. The watermark.hidden gate is still exercised by the
+  // dedicated watermark-sync suites.
 
   it('PH4: hidden custom_text → both renderers omit it', async () => {
     const slide: Slide = {

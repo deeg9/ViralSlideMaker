@@ -21,7 +21,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, screen, act } from '@testing-library/react'
 import { DecorationCard } from '../decoration-card'
 import type { IconDecoration, ShapeDecoration } from '@/lib/types/decoration'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 const baseShape: ShapeDecoration = {
   id: 'd1',
@@ -38,30 +37,6 @@ const baseIcon: IconDecoration = {
   color: '#3D0000',
   strokeWidth: 2,
   position: { x: 5, y: 10, width: 15, height: 15 },
-}
-
-const FAKE_BRAND_KIT: BrandKit = {
-  id: 'bk',
-  user_id: 'u',
-  name: 'b',
-  primary_color: '#AA0000',
-  secondary_color: '#00AA00',
-  text_color: '#000000',
-  background_color: '#FFFFFF',
-  accent_color: '#0000AA',
-  font_family: null,
-  logo_url: null,
-  logo_position: null,
-  logo_size_pct: null,
-  logo_opacity_pct: null,
-  heading_font_family: null,
-  body_font_family: null,
-  text_align: null,
-  text_position: null,
-  hook_style: null,
-  overlay_opacity_pct: null,
-  created_at: '',
-  updated_at: '',
 }
 
 beforeEach(() => {
@@ -148,21 +123,6 @@ describe('Phase 70 Plan 04 — DecorationCard (CARD-01..05, SHAPES-06..09)', () 
       const arg = onUpdate.mock.calls[0][0]
       expect(arg).toHaveProperty('color')
       expect(arg).not.toHaveProperty('fill')
-    })
-
-    it('renders brand-kit swatches above the picker', () => {
-      const { container } = render(
-        <DecorationCard
-          decoration={baseShape}
-          onUpdate={vi.fn()}
-          brandKit={FAKE_BRAND_KIT}
-        />,
-      )
-      const swatches = container.querySelectorAll(
-        '[data-testid^="decoration-fill-swatch-"]',
-      )
-      // brand-kit contributes primary/secondary/text/background/accent (5 non-null).
-      expect(swatches.length).toBeGreaterThanOrEqual(5)
     })
 
     it('renders derived_palette swatches above the picker', () => {

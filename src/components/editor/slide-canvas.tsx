@@ -5,7 +5,6 @@ import { HintPill } from '@/components/ui/hint-pill'
 import { SlidePreview } from '@/components/slides/slide-preview'
 import type { Slide, TextPosition, CustomText, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { BrandKit } from '@/lib/types/brand-kit'
 // quick-260515-epn: canvas resolves per-slide template_id_override for the
 // SELECTED slide so the right archetype-matched template paints behind the
 // editor controls. Shared helper guarantees the precedence chain matches
@@ -23,7 +22,6 @@ interface SlideCanvasProps {
   template: SlideTemplate
   selectedIndex: number
   onSelectIndex: (index: number) => void
-  brandKit?: BrandKit | null
   userTier?: 'free' | 'plus' | 'pro'
   // Phase 45 — project topic forwarded for slide-field overlay resolution.
   // Optional: when omitted, slide-field topic overlays render '' per Plan 45-01.
@@ -114,7 +112,6 @@ export function SlideCanvas({
   template,
   selectedIndex,
   onSelectIndex,
-  brandKit,
   userTier,
   topic,
   onPositionChange,
@@ -204,7 +201,6 @@ export function SlideCanvas({
             totalSlides={slides.length}
             topic={topic}
             editable={true}
-            brandKit={brandKit}
             userTier={userTier}
             onPositionChange={onPositionChange}
             onWidthChange={onWidthChange}

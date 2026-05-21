@@ -9,7 +9,6 @@ import { COLOR_SWATCHES } from './text-rail/color-swatches'
 import { MultiSelectTypeBar } from './multi-select-type-bar'
 import type { Slide, CustomText, TextBox } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import type { Selection } from '@/lib/editor/use-selection-model'
 
 /**
@@ -49,7 +48,6 @@ export interface TextEditorPanelProps {
   customTexts?: CustomText[]
   onCustomTextUpdate?: (id: string, updates: Partial<CustomText>) => void
   onCustomTextRemove?: (id: string) => void
-  brandKit?: BrandKit | null
   /** Phase 60 (SEL-12): canonical multi-select state. When N>=2, the panel
       replaces ActiveTextBoxCard with MultiSelectTypeBar. When N<=1, the
       legacy single-element flow renders unchanged. Optional — callers that
@@ -72,7 +70,6 @@ export function TextEditorPanel({
   customTexts,
   onCustomTextUpdate,
   onCustomTextRemove,
-  brandKit,
   selection,
   onBulkDelete,
 }: TextEditorPanelProps) {
@@ -126,7 +123,6 @@ export function TextEditorPanel({
           textBox={activeTextBox}
           onUpdate={updateActiveTextBox}
           template={template}
-          brandKit={brandKit}
           textBoxNumber={
             activeTextBox
               ? textBoxes.findIndex((tb) => tb.id === activeTextBox.id) + 1

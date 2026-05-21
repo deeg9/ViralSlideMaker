@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useSlideEditor } from '@/lib/editor/use-slide-editor'
 import { getTemplate, TEMPLATE_IDS } from '@/lib/render/templates/index'
 import type { PickerDbTemplate } from '@/lib/render/templates/registry'
-import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { SlideList } from '@/components/editor/slide-list'
 import { SlideCanvas } from '@/components/editor/slide-canvas'
 import { TextEditorPanel } from '@/components/editor/text-editor-panel'
@@ -52,7 +51,6 @@ import type {
 import type { ToolbarAction } from '@/components/editor/floating-alignment-toolbar'
 import { tinykeys } from 'tinykeys'
 import type { Slide, TextPosition, CustomText } from '@/lib/types/slide'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Phase 66 Plan 01 (KBD-05 / KBD-06 / DIFF-02): nudge magnitudes in % of
@@ -85,7 +83,6 @@ interface SlideEditorProps {
   topic: string
   title?: string
   userTier?: 'free' | 'pro' | 'plus'
-  brandKit?: BrandKit | null
   initialPublishedState?: InitialPublishedState | null
   /** Phase 88 (WIRE-03): DB-backed templates fetched server-side by the
    *  project page. The editor resolves a DB project template_id from this
@@ -101,7 +98,6 @@ export function SlideEditor({
   topic,
   title,
   userTier,
-  brandKit,
   initialPublishedState,
   dbTemplates = [],
 }: SlideEditorProps) {
@@ -128,20 +124,17 @@ export function SlideEditor({
     removeTextBox,
   } = useSlideEditor(initialSlides, initialTemplateForMigration)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
-  // Phase 88 (WIRE-03): resolve currentTemplateId. Brand-kit synthesizes from
-  // the user's brand_kit row at render time. A code template id resolves via
-  // the sync getTemplate registry. A DB template id (not in TEMPLATE_IDS)
+  // Phase 88 (WIRE-03): resolve currentTemplateId. A code template id resolves
+  // via the sync getTemplate registry. A DB template id (not in TEMPLATE_IDS)
   // resolves from the server-fetched dbTemplates list; if not found there
   // either, getTemplate's templates[0] fallback applies (graceful — STYLESPEC
-  // discipline). Falls back to the first registry entry when brand-kit is
-  // selected but the brand kit was deleted.
+  // discipline). Phase 89 (BKSHELVE): a legacy 'brand-kit' template_id resolves
+  // to news-oracle via getTemplate's defensive fallback.
   const dbMatch = dbTemplates.find((d) => d.template.id === currentTemplateId)
   const template =
-    currentTemplateId === BRAND_KIT_TEMPLATE_ID && brandKit
-      ? synthesizeBrandKitTemplate(brandKit)
-      : TEMPLATE_IDS.includes(currentTemplateId)
-        ? getTemplate(currentTemplateId)
-        : (dbMatch?.template ?? getTemplate(currentTemplateId))
+    TEMPLATE_IDS.includes(currentTemplateId)
+      ? getTemplate(currentTemplateId)
+      : (dbMatch?.template ?? getTemplate(currentTemplateId))
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [activeTab, setActiveTab] = useState<'text' | 'elements' | 'images'>('text')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
@@ -1521,7 +1514,6 @@ export function SlideEditor({
               template={template}
               selectedIndex={selectedIndex}
               onSelect={setSelectedIndex}
-              brandKit={brandKit}
               userTier={userTier ?? 'free'}
               topic={topic}
               onReorder={(from, to) => {
@@ -1548,7 +1540,6 @@ export function SlideEditor({
           template={template}
           selectedIndex={selectedIndex}
           onSelectIndex={setSelectedIndex}
-          brandKit={brandKit}
           userTier={userTier ?? 'free'}
           topic={topic}
           onPositionChange={handlePositionChange}
@@ -1775,7 +1766,6 @@ export function SlideEditor({
                   customTexts={currentSlide.custom_texts}
                   onCustomTextUpdate={handleCustomTextUpdate}
                   onCustomTextRemove={handleRemoveCustomText}
-                  brandKit={brandKit}
                   selection={{
                     ids: selection.ids,
                     primary: selection.primary,
@@ -1823,7 +1813,6 @@ export function SlideEditor({
                   customTexts={currentSlide.custom_texts}
                   onCustomTextUpdate={handleCustomTextUpdate}
                   onCustomTextRemove={handleRemoveCustomText}
-                  brandKit={brandKit}
                 />
               )
             )}
@@ -1880,7 +1869,6 @@ export function SlideEditor({
                   setOpenPicker('lucide')
                 }}
                 onBackToLibrary={() => selection.clear()}
-                brandKit={brandKit}
                 derivedPalette={currentSlide.style_overrides?.derived_palette}
                 // quick-260514-move-slide-cards-to-elements: SlideSettings +
                 // WatermarkControls moved from TextEditorPanel to here. They

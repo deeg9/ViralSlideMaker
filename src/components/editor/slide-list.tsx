@@ -15,7 +15,6 @@ import {
 import { SortableSlide } from '@/components/editor/sortable-slide'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface SlideListProps {
   slides: Slide[]
@@ -23,7 +22,6 @@ interface SlideListProps {
   selectedIndex: number
   onSelect: (index: number) => void
   onReorder: (oldIndex: number, newIndex: number) => void
-  brandKit?: BrandKit | null
   userTier?: 'free' | 'plus' | 'pro'
   // Phase 45 — project topic forwarded to <SortableSlide> → <SlidePreview>
   // for slide-field overlay resolution. Optional (graceful fallback to '').
@@ -36,7 +34,6 @@ export function SlideList({
   selectedIndex,
   onSelect,
   onReorder,
-  brandKit,
   userTier,
   topic,
 }: SlideListProps) {
@@ -79,7 +76,6 @@ export function SlideList({
               topic={topic}
               isSelected={index === selectedIndex}
               onSelect={onSelect}
-              brandKit={brandKit}
               userTier={userTier}
             />
           ))}

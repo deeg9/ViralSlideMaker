@@ -27,3 +27,31 @@ Logged per the executor SCOPE BOUNDARY rule; not fixed here.
   4th failure is unrelated. Recommend a follow-up quick task to either
   re-add `notes-app-chic` to `pickerTemplates` or update the test to match
   the current keeper set.
+
+## From Plan 89-02
+
+### Pre-existing failing snapshot suites: t3x-template parity fingerprints
+
+- **Suites:** `parity.style-spec-absent-baseline.test.tsx`,
+  `parity.template-fingerprint-decorations-undefined.test.tsx`,
+  `parity.template-fingerprint.test.tsx` (snapshot mismatches for
+  `tr3nding-news`, `sunset-tabloid`, `soft-sage`).
+- **Status:** PRE-EXISTING on the plan base SHA — verified by running the
+  suites against the untouched main repo: identical failing snapshots for the
+  same 3 templates. Introduced by the quick-260519-t3x template additions
+  whose parity snapshots were never regenerated. NOT caused by brand-kit
+  removal (the 3 BKSHELVE-05 byte-identity fixture suites stay GREEN 45/45).
+- **Action:** NOT fixed in Plan 89-02 (out of scope — pre-dates this plan).
+  Recommend a follow-up quick task to regenerate / re-bless the t3x parity
+  snapshots.
+
+### Pre-existing failing editor suites
+
+- **Suites:** `phase-70-final-regression-sweep.test.ts`,
+  `slide-editor.treatment-sync.test.tsx`, `slide-editor.watermark-sync.test.tsx`,
+  `text-editor-panel.regression.test.tsx` (16 failing tests total).
+- **Status:** PRE-EXISTING on the plan base SHA — verified by running all four
+  against the untouched main repo: identical failure counts. NOT caused by the
+  brand-kit prop-chain removal (the worktree shows the same 16 failures, no
+  new ones).
+- **Action:** NOT fixed in Plan 89-02 (out of scope — pre-dates this plan).
