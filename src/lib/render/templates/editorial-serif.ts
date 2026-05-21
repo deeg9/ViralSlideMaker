@@ -65,4 +65,5 @@ export const editorialSerif: SlideTemplate = {
     body_text:
       "Why community kitchens are 2026's most quietly radical institution.",
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/editorial-serif.png',
 }

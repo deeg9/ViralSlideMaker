@@ -103,10 +103,11 @@ function satoriEffectStyles(effects: ResolvedTextEffectStyles): React.CSSPropert
  * REND-04 (resolved by quick-260517-iiy): Satori has no
  * `box-decoration-break`, so the old tight path silently fell back to
  * full-width here — non-parity with the canvas. Tight is now rendered as
- * per-line `inline-block` pills via the shared `renderTightHighlight` helper
- * (Satori's CSS subset honors `display: flex` + `inline-block`), producing
- * pills identical to the canvas + HTML paths. So this helper returns null for
- * `tight` — the container gets NO background; the per-line pills carry it.
+ * per-line `display: flex` pills via the shared `renderTightHighlight` helper
+ * (90-02: Satori's CSS subset allows `display: flex` but THROWS on
+ * `inline-block`), producing pills identical to the canvas + HTML paths. So
+ * this helper returns null for `tight` — the container gets NO background; the
+ * per-line pills carry it.
  */
 function satoriHighlightStyle(effects: ResolvedTextEffectStyles): React.CSSProperties | null {
   if (!effects.highlight?.enabled) return null

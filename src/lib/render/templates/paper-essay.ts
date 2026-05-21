@@ -80,4 +80,5 @@ export const paperEssay: SlideTemplate = {
     hook_text: 'staying is the default.',
     body_text: 'doing nothing = you stayed. leaving takes effort.',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/paper-essay.png',
 }

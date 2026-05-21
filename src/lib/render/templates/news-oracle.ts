@@ -71,4 +71,5 @@ export const newsOracle: SlideTemplate = {
     blendPct: 15,
     opacity: 0.80,
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/news-oracle.png',
 }

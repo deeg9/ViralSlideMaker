@@ -44,4 +44,5 @@ export const sunsetTabloid: SlideTemplate = {
       { text: 'BORED', accent: true, highlightStyle: 'pill' },
     ],
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/sunset-tabloid.png',
 }

@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Phase 56: new templates parity (TPL-10) > brutalist-grid > configuration matches committed snapshot (regression guard) 1`] = `"a53a7640d6ab09f526a3449881427c45dea5eb32b07891d814adcf6a64a525b1"`;
+exports[`Phase 56: new templates parity (TPL-10) > brutalist-grid > configuration matches committed snapshot (regression guard) 1`] = `"5dfbb1fefae080e378bcf4fa5a313c3ad5463700c99af9ef1d89150954ef77c7"`;
 
-exports[`Phase 56: new templates parity (TPL-10) > editorial-serif > configuration matches committed snapshot (regression guard) 1`] = `"f6fdd4d717fbc750913a38349bd236d73219aeac4fbfadb81e43bb26461dcb14"`;
+exports[`Phase 56: new templates parity (TPL-10) > editorial-serif > configuration matches committed snapshot (regression guard) 1`] = `"effd8899b07babeb408f277b7ebbc04b9eccf88495ff6df2be44a5f78b4ee813"`;
 
-exports[`Phase 56: new templates parity (TPL-10) > notes-app-chic > configuration matches committed snapshot (regression guard) 1`] = `"7ae1b89d343641a09037bc007e1857989068dfdad5a9763de6aa9021c656b82c"`;
+exports[`Phase 56: new templates parity (TPL-10) > notes-app-chic > configuration matches committed snapshot (regression guard) 1`] = `"1f864ef421ae8a1ec9e070e5b3e70cbe926b6766cc5e39848adfbd89e74b5c47"`;

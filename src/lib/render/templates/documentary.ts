@@ -75,4 +75,5 @@ export const documentary: SlideTemplate = {
     hook_text: 'The Last Glassblower of Murano',
     body_text: 'How four centuries of craft survive in a digital age.',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/documentary.png',
 }

@@ -126,7 +126,7 @@ const TIGHT_HIGHLIGHT_PADDING = 8
  * quick-260517-iiy: the old `tight` path set `box-decoration-break: clone` on a
  * single wrapper span — that renders as one continuous horizontal bar for
  * segment-less plain text and is unsupported by Satori. Tight is now per-line
- * inline-block pills (see buildTightHighlightHtml) so all three render paths
+ * `display: flex` pills (see buildTightHighlightHtml) so all three render paths
  * match.
  */
 function highlightCSS(
@@ -149,10 +149,15 @@ function highlightCSS(
 
 /**
  * quick-260517-iiy: HTML equivalent of resolve-overlay.renderTightHighlight —
- * emit one `inline-block` padded pill per `\n`-split line inside a
- * `flex-direction: column` container. Line-deterministic; no
- * `box-decoration-break`. The per-line markup is byte-structurally identical
- * to the canvas + Satori paths (TPLREND-05).
+ * emit one padded pill per `\n`-split line inside a `flex-direction: column`
+ * container. Line-deterministic; no `box-decoration-break`. The per-line markup
+ * is byte-structurally identical to the canvas + Satori paths (TPLREND-05).
+ *
+ * 90-02: each pill uses `display: flex` (NOT `inline-block`) to stay
+ * byte-structurally identical to the Satori path, where `inline-block` is
+ * rejected by Satori's CSS subset. A `display: flex` span sized by `align-self`
+ * inside the `flex-direction: column` container shrink-wraps to its text just
+ * as `inline-block` did.
  *
  * `inner` is the pre-rendered inner HTML for single-line text (e.g. segmented
  * spans). For multi-line text each line is escaped + wrapped individually.
@@ -168,7 +173,7 @@ function buildTightHighlightHtml(
   const flexAlign =
     textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start'
   const pillStyle =
-    `display: inline-block; background-color: ${color}; color: ${textColor};` +
+    `display: flex; background-color: ${color}; color: ${textColor};` +
     ` padding: ${TIGHT_HIGHLIGHT_PADDING}px ${TIGHT_HIGHLIGHT_PADDING}px;` +
     ` align-self: ${flexAlign}; max-width: 100%; overflow-wrap: break-word;`
   const pills =

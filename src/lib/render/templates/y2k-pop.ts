@@ -25,4 +25,5 @@ export const y2kPop: SlideTemplate = {
     hook_text: 'TOTALLY ICONIC',
     body_text: '5 Y2K trends back in 2026.',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/y2k-pop.png',
 }

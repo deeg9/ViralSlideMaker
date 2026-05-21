@@ -56,4 +56,5 @@ export const softSage: SlideTemplate = {
     hook_text: 'rest is not the reward.',
     body_text: 'it is the soil. everything else grows from it.',
   },
+  preview: 'https://mzfeqsyhnxgnrdawlhcb.supabase.co/storage/v1/object/public/template-previews/code-templates/soft-sage.png',
 }
