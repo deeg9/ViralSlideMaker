@@ -12,11 +12,10 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import type { StyleSpec, StyleSpecVersion } from '../style-spec'
+import type { StyleSpec, StyleSpecVersion, TextPosition } from '../style-spec'
 import type { FontEntry } from '@/lib/fonts/font-catalog'
 import { LUCIDE_DECORATION_ALLOWLIST } from '@/lib/render/decorations/registry'
 import type { ShapeKind } from '@/lib/types/decoration'
-import type { BrandKitTextPosition } from '@/lib/types/brand-kit'
 import type { TreatmentPreset } from '@/lib/photo-treatment/treat'
 
 const STYLE_SPEC_PATH = resolve(__dirname, '../style-spec.ts')
@@ -114,14 +113,14 @@ describe('Phase 74 (STYLESPEC-01..09): StyleSpec type contract', () => {
     expect(_bad[0]).toBe('blob')
   })
 
-  it('Test T5: layout.hookPosition is assignable from BrandKitTextPosition only', () => {
-    const positions: BrandKitTextPosition[] = ['top', 'center', 'bottom']
+  it('Test T5: layout.hookPosition is assignable from TextPosition only', () => {
+    const positions: TextPosition[] = ['top', 'center', 'bottom']
     positions.forEach((p) => {
       const spec = makeFixture()
       spec.layout.hookPosition = p
       expect(spec.layout.hookPosition).toBe(p)
     })
-    // @ts-expect-error 'top-left' is NOT a BrandKitTextPosition
+    // @ts-expect-error 'top-left' is NOT a TextPosition
     const _bad: StyleSpec['layout']['hookPosition'] = 'top-left'
     expect(_bad).toBe('top-left')
   })
@@ -166,12 +165,11 @@ describe('Phase 74 (STYLESPEC-01..09): StyleSpec type contract', () => {
     expect(STYLE_SPEC_SOURCE).not.toMatch(forbidden)
   })
 
-  it('Test T10: source file imports from all 5 closed-enum source modules (single source of truth)', () => {
+  it('Test T10: source file imports from all 4 closed-enum source modules (single source of truth)', () => {
     const expected = [
       /from\s+['"]@\/lib\/fonts\/font-catalog['"]/,
       /from\s+['"]@\/lib\/render\/decorations\/registry['"]/,
       /from\s+['"]@\/lib\/types\/decoration['"]/,
-      /from\s+['"]@\/lib\/types\/brand-kit['"]/,
       /from\s+['"]@\/lib\/photo-treatment\/treat['"]/,
     ]
     expected.forEach((re) => {
