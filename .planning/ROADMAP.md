@@ -31,7 +31,7 @@
 
 ### Phases
 
-- [ ] **Phase 89: Brand-Kit Shelving (Full Removal)** — Delete the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow; preserve render parity on all 13 code templates + live DB templates.
+- [x] **Phase 89: Brand-Kit Shelving (Full Removal)** — Delete the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow; preserve render parity on all 13 code templates + live DB templates.
 - [ ] **Phase 90: Pre-Rendered Template Preview Pipeline** — Replace the picker's live-render fallback with real photo-backed preview PNGs sourced from `buyer@example.com`'s published carousels; every code template gets a `preview` URL.
 
 ### Phase Details
