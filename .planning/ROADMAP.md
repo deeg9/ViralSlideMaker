@@ -32,7 +32,7 @@
 ### Phases
 
 - [x] **Phase 89: Brand-Kit Shelving (Full Removal)** — Delete the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow; preserve render parity on all 13 code templates + live DB templates.
-- [ ] **Phase 90: Pre-Rendered Template Preview Pipeline** — Replace the picker's live-render fallback with real photo-backed preview PNGs sourced from `christopherfill9@gmail.com`'s published carousels; every code template gets a `preview` URL.
+- [x] **Phase 90: Pre-Rendered Template Preview Pipeline** — Replace the picker's live-render fallback with real photo-backed preview PNGs sourced from `christopherfill9@gmail.com`'s published carousels; every code template gets a `preview` URL.
 
 ### Phase Details
 
@@ -142,7 +142,7 @@ _Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.plann
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
 | 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | Complete    | 2026-05-21 |
-| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 3/3 | Complete   | 2026-05-21 |
+| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 3/3 | Complete    | 2026-05-21 |
 | 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
 
