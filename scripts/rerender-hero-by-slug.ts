@@ -17,7 +17,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { renderHeroBuffer, appOrigin } from '../src/lib/services/publish'
 import type { Project } from '../src/lib/types/project'
-import type { BrandKit } from '../src/lib/types/brand-kit'
 
 const DEFAULT_SLUG = 'cognitive-agency-surrender-ai-s-impact-on-your-brain-7ebfc1'
 
@@ -110,18 +109,12 @@ async function main(): Promise<void> {
   const project = projectRow as Project
   console.log(`[rerender-hero] source project template_id: ${project.template_id ?? '<null>'}`)
 
-  // 3. Fetch the owner's brand kit (may not exist).
-  const { data: brandKitRow } = await admin
-    .from('brand_kits')
-    .select('*')
-    .eq('user_id', pub.owner_id)
-    .maybeSingle()
-  const brandKit = (brandKitRow as BrandKit) ?? null
-
-  // 4. Render via the production path — byte-identical to a fresh publish.
+  // 3. Render via the production path — byte-identical to a fresh publish.
+  // Phase 89 (BKSHELVE): brand-kit removed; renderHeroBuffer no longer
+  // takes a brand-kit argument.
   let buffer: Buffer
   try {
-    buffer = await renderHeroBuffer(project, brandKit, appOrigin())
+    buffer = await renderHeroBuffer(project, appOrigin())
   } catch (err) {
     console.error('[rerender-hero] renderHeroBuffer failed:', (err as Error).message)
     process.exit(1)

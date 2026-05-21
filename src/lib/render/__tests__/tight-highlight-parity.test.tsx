@@ -149,7 +149,7 @@ describe('renderTightHighlight — shared per-line pill helper', () => {
 
 describe('tight highlight — Satori PNG render', () => {
   it('renders one per-line pill (NOT a single full-width strip)', () => {
-    const element = buildSlideElement(tightSlide, baseTemplate, null, 'free', 'http://localhost')
+    const element = buildSlideElement(tightSlide, baseTemplate, 'free', 'http://localhost')
     const pills = walk(element).filter((n) => styleOf(n)?.backgroundColor === HL_COLOR)
     expect(pills.length).toBe(3)
     for (const p of pills) {
@@ -158,7 +158,7 @@ describe('tight highlight — Satori PNG render', () => {
   })
 
   it('full highlight still paints background on the container (unchanged)', () => {
-    const element = buildSlideElement(fullSlide, baseTemplate, null, 'free', 'http://localhost')
+    const element = buildSlideElement(fullSlide, baseTemplate, 'free', 'http://localhost')
     const tinted = walk(element).filter((n) => styleOf(n)?.backgroundColor === HL_COLOR)
     // exactly one tinted node, and it is NOT an inline-block pill
     expect(tinted.length).toBe(1)
@@ -166,7 +166,7 @@ describe('tight highlight — Satori PNG render', () => {
   })
 
   it('no highlight → no tinted highlight node', () => {
-    const element = buildSlideElement(plainSlide, baseTemplate, null, 'free', 'http://localhost')
+    const element = buildSlideElement(plainSlide, baseTemplate, 'free', 'http://localhost')
     const tinted = walk(element).filter((n) => styleOf(n)?.backgroundColor === HL_COLOR)
     expect(tinted.length).toBe(0)
   })

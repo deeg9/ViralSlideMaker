@@ -86,7 +86,7 @@ async function main(): Promise<void> {
       totalSlides: carousel.slides.length,
       topic: 'TR3NDING',
     }
-    const element = buildSlideElement(slide, template, null, null, undefined, ctx)
+    const element = buildSlideElement(slide, template, null, undefined, ctx)
     const fonts = await loadFontBuffersForSlide(slide, template)
     const imageResponse = new ImageResponse(element, { width: 1080, height: 1920, fonts })
     const pngBytes = Buffer.from(await imageResponse.arrayBuffer())

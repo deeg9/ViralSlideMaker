@@ -2,12 +2,10 @@ import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
 import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/registry'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
-import { mergeWithBrandKit, synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { rateLimitBucket } from '@/lib/rate-limit'
 import { getUserTier } from '@/lib/credits/check-credits'
 import type { Project } from '@/lib/types/project'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 export const maxDuration = 60
 
@@ -74,24 +72,10 @@ export async function GET(request: Request) {
     )
   }
 
-  // Fetch the brand kit for the project owner — needed for both brand-kit
-  // template resolution AND mergeWithBrandKit overrides on built-in templates.
-  const { data: brandKitRow } = await supabase
-    .from('brand_kits')
-    .select('*')
-    .eq('user_id', p.user_id)
-    .single()
-  const brandKit = (brandKitRow as BrandKit) ?? null
+  // Phase 89 (BKSHELVE): brand-kit removed. A legacy template_id === 'brand-kit'
+  // resolves to news-oracle via getTemplate's defensive fallback.
+  const template = await resolveTemplate(p.template_id ?? 'highlight-bar')
 
-  // When the project picked the brand-kit template, synthesize directly from
-  // the user's brand_kit row. Falls back to highlight-bar if the brand kit was
-  // deleted after project save.
-  const template =
-    p.template_id === BRAND_KIT_TEMPLATE_ID && brandKit
-      ? synthesizeBrandKitTemplate(brandKit)
-      : await resolveTemplate(p.template_id ?? 'highlight-bar')
-
-  const effectiveTemplate = mergeWithBrandKit(template, brandKit)
   // Phase 88 (WIRE-04): pre-fetch DB templates so a per-slide DB
   // template_id_override resolves inside buildSlideElement. Never throws.
   const dbTemplates = await getDbTemplatesMap()
@@ -103,11 +87,11 @@ export async function GET(request: Request) {
   const totalSlides = (p.slide_data ?? []).length
   const ctx = { slideIndex: index, totalSlides, topic: p.topic }
   // quick-260515-epn: buildSlideElement re-resolves slide.template_id_override
-  // internally via resolvePerSlideTemplate; `effectiveTemplate` is the
-  // project-level fallback the helper returns when no per-slide override is
-  // set (TPLREND-05 byte-identity reference).
-  const element = buildSlideElement(slide, effectiveTemplate, brandKit, ownerTier, origin, ctx, dbTemplates)
-  const fonts = await loadFontBuffersForSlide(slide, effectiveTemplate)
+  // internally via resolvePerSlideTemplate; `template` is the project-level
+  // fallback the helper returns when no per-slide override is set
+  // (TPLREND-05 byte-identity reference).
+  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates)
+  const fonts = await loadFontBuffersForSlide(slide, template)
 
   const imageResponse = new ImageResponse(element, {
     width: 1080,

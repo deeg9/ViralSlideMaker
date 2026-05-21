@@ -80,7 +80,7 @@ async function main(): Promise<void> {
     }
     const slide = makeSampleSlide(template)
     const ctx = { slideIndex: 0, totalSlides: 1, topic: undefined as string | undefined }
-    const rawElement = buildSlideElement(slide, template, null, null, undefined, ctx)
+    const rawElement = buildSlideElement(slide, template, null, undefined, ctx)
     const element = rewriteAssetSrcs(rawElement) as React.ReactElement
     const fonts = await loadFontBuffersForSlide(slide, template)
     const imageResponse = new ImageResponse(element, {

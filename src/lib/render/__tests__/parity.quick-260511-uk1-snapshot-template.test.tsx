@@ -148,10 +148,10 @@ describe('quick-260511-uk1: render-time brand-kit-merge parity pin (Option B)', 
         }
 
         const htmlKit = renderToStaticMarkup(
-          buildSlideElement(slide, template, brandKitFixture),
+          buildSlideElement(slide, template),
         )
         const htmlNull = renderToStaticMarkup(
-          buildSlideElement(slide, template, null),
+          buildSlideElement(slide, template),
         )
 
         const fpKit = computeStructuralFingerprint(htmlKit)
