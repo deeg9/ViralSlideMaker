@@ -258,5 +258,9 @@ export const pickerTemplates: SlideTemplate[] = templates.filter(
 )
 
 export function getTemplate(id: string): SlideTemplate {
-  return templates.find((t) => t.id === id) ?? templates[0]
+  // Phase 89 (BKSHELVE-07): 'brand-kit' is the shelved-feature sentinel.
+  // Legacy projects saved against the removed brand-kit feature carry
+  // template_id === 'brand-kit'; resolve it to a live default template.
+  const resolvedId = id === 'brand-kit' ? 'news-oracle' : id
+  return templates.find((t) => t.id === resolvedId) ?? templates[0]
 }
