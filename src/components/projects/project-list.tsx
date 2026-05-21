@@ -6,13 +6,11 @@ import { ProjectCard, type ProjectPublishedState } from './project-card'
 import { StartNewProject } from './start-new-project'
 import { Icon } from '@/components/ui/icon'
 import type { Project } from '@/lib/types/project'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 interface ProjectListProps {
   projects: Project[]
   showCreateOnly?: boolean
   publishedByProjectId?: Record<string, ProjectPublishedState>
-  brandKit?: BrandKit | null
 }
 
 // quick-260510-modal-on-prompt-page: anyone hitting /dashboard?new=1 (legacy
@@ -41,7 +39,7 @@ function LegacyNewQueryEffect({ start }: { start: () => void }) {
   return null
 }
 
-export function ProjectList({ projects, showCreateOnly, publishedByProjectId, brandKit }: ProjectListProps) {
+export function ProjectList({ projects, showCreateOnly, publishedByProjectId }: ProjectListProps) {
   if (showCreateOnly) {
     return (
       <StartNewProject>
@@ -93,7 +91,6 @@ export function ProjectList({ projects, showCreateOnly, publishedByProjectId, br
               key={project.id}
               project={project}
               publishedState={publishedByProjectId?.[project.id] ?? null}
-              brandKit={brandKit ?? null}
             />
           ))}
           {/* Start Fresh card — same trigger as header button */}

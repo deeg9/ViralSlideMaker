@@ -116,7 +116,7 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
       // quick-260517-k2n: caption card is opt-in — enable it so the layer renders.
       style_overrides: { caption_bar_enabled: true },
     }
-    const element = buildSlideElement(slide, template, null, 'pro', 'http://localhost', ctx)
+    const element = buildSlideElement(slide, template, 'pro', 'http://localhost', ctx)
     expect(element).toMatchSnapshot('magazine-bold-bottom-card-with-overlays')
 
     const nodes = walk(element)
@@ -166,7 +166,7 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
       // quick-260517-k2n: caption card is opt-in — enable it so the layer renders.
       style_overrides: { caption_bar_enabled: true },
     }
-    const element = buildSlideElement(slide, template, null, 'pro', 'http://localhost', ctx)
+    const element = buildSlideElement(slide, template, 'pro', 'http://localhost', ctx)
     expect(element).toMatchSnapshot('tr3nding-news-newsZone-caption-card-with-mid-pill')
 
     const nodes = walk(element)
@@ -215,7 +215,7 @@ describe('Phase 46 premium templates — Satori snapshots', () => {
       hook_text: template.sample!.hook_text,
       body_text: template.sample!.body_text,
     }
-    const element = buildSlideElement(slide, template, null, 'pro', 'http://localhost', ctx)
+    const element = buildSlideElement(slide, template, 'pro', 'http://localhost', ctx)
     expect(element).toMatchSnapshot('documentary-image-bleed-with-gradient-overlay')
 
     const nodes = walk(element)

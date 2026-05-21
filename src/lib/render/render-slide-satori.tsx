@@ -1,6 +1,5 @@
 import type { SlideTemplate } from './templates'
 import type { Slide, TextSegment } from '../types/slide'
-import type { BrandKit } from '../types/brand-kit'
 import React from 'react'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
@@ -133,7 +132,6 @@ function satoriHighlightStyle(effects: ResolvedTextEffectStyles): React.CSSPrope
 export function buildSlideElement(
   slide: Slide,
   templateParam: SlideTemplate,
-  brandKit?: BrandKit | null,
   tier?: ForcedWatermarkTier | null,
   origin?: string,
   ctx?: { slideIndex: number; totalSlides: number; topic?: string },
@@ -410,7 +408,9 @@ export function buildSlideElement(
   // so byte-identical output is preserved across the schema lift. Replacing
   // resolveWatermark wholesale belongs to a later phase; Phase 60 only adds the
   // unified element while preserving the resolver contract (RESEARCH Q1 + Q10).
-  const watermark = resolveWatermark(brandKit ?? null, slide, { width: W, height: H })
+  // Phase 89 (BKSHELVE): brand-kit removed — resolveWatermark short-circuits
+  // to null on null input, so this layer never renders. Kept for parity.
+  const watermark = resolveWatermark(null, slide, { width: W, height: H })
 
   // Forced free-tier watermark (260427-wmk). Rendered last in JSX so it sits on top.
   // Satori requires absolute URLs — when origin is provided we prepend it to /logo.png.

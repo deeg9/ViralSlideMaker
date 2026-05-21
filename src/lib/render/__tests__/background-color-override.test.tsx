@@ -123,7 +123,6 @@ describe('background_color override — Satori PNG render (render-slide-satori.t
     const element = buildSlideElement(
       coverSlideBase,
       newsTemplate,
-      null,
       'free',
       'http://localhost',
     )
@@ -135,7 +134,6 @@ describe('background_color override — Satori PNG render (render-slide-satori.t
     const element = buildSlideElement(
       slideWithOverride,
       newsTemplate,
-      null,
       'free',
       'http://localhost',
     )
@@ -205,7 +203,6 @@ describe('quick-260518-8o0 — news photo is full-bleed', () => {
     const element = buildSlideElement(
       coverSlideWithPhoto,
       newsTemplate,
-      null,
       'free',
       'http://localhost',
     )

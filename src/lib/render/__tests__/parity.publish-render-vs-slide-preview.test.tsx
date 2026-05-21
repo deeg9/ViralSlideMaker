@@ -131,7 +131,6 @@ describe('quick-260513-rerender-hero: publish-path call-shape brand-kit independ
           buildSlideElement(
             slide,
             effectiveKit,
-            brandKitFixture,
             PUBLISH_TIER,
             PUBLISH_ORIGIN,
             PUBLISH_CTX,
@@ -144,7 +143,6 @@ describe('quick-260513-rerender-hero: publish-path call-shape brand-kit independ
           buildSlideElement(
             slide,
             effectiveNull,
-            null,
             PUBLISH_TIER,
             PUBLISH_ORIGIN,
             PUBLISH_CTX,

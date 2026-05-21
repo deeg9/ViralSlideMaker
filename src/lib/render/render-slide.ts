@@ -1,6 +1,5 @@
 import type { SlideTemplate } from './templates'
 import type { Slide, TextSegment } from '../types/slide'
-import type { BrandKit } from '../types/brand-kit'
 import { resolveSlideStyles, type ResolvedTextEffectStyles } from './resolve-styles'
 import { resolveWatermark } from './resolve-watermark'
 import { resolveForcedWatermark, type ForcedWatermarkTier } from './resolve-forced-watermark'
@@ -187,7 +186,6 @@ function buildTightHighlightHtml(
 export function buildSlideHtml(
   slide: Slide,
   templateParam: SlideTemplate,
-  brandKit?: BrandKit | null,
   tier?: ForcedWatermarkTier | null,
   // Phase 88 (WIRE-04): optional DB-template lookup forwarded to
   // resolvePerSlideTemplate so a per-slide DB template_id_override resolves
@@ -381,13 +379,15 @@ export function buildSlideHtml(
     `<img src="${ci.url}" style="position:absolute; left:${ci.x}%; top:${ci.y}%; width:${ci.width}%; height:${ci.height}%; object-fit:cover; opacity:${(ci.opacity ?? 100) / 100}; border-radius:${ci.border_radius ?? 0}px; z-index:1;" />`
   ).join('\n  ')
 
-  // Brand watermark layer (260427-hut). Sits above custom_images at z-index:5.
-  const watermark = resolveWatermark(brandKit ?? null, slide, { width: 1080, height: 1920 })
+  // Watermark layer (260427-hut). Sits above custom_images at z-index:5.
+  // Phase 89 (BKSHELVE): brand-kit removed — resolveWatermark short-circuits
+  // to null on null input, so this layer never renders. Kept for parity.
+  const watermark = resolveWatermark(null, slide, { width: 1080, height: 1920 })
   const watermarkHtml = watermark
     ? `<img src="${watermark.url}" style="position:absolute; left:${watermark.x}px; top:${watermark.y}px; width:${watermark.width}px; height:auto; opacity:${watermark.opacity}; z-index:5; pointer-events:none;" />`
     : ''
 
-  // Forced free-tier watermark (260427-wmk). z-index:6 so it sits above the brand-kit watermark.
+  // Forced free-tier watermark (260427-wmk). z-index:6 so it sits above the watermark layer.
   const forced = resolveForcedWatermark(tier, { width: 1080, height: 1920 }, slide)
   const forcedWatermarkHtml = forced
     ? `<div style="position:absolute; left:${forced.x}px; top:${forced.y}px; display:flex; align-items:center; opacity:${forced.opacity}; z-index:6; pointer-events:none;"><img src="${forced.logoUrl}" style="width:${forced.logoSize}px; height:${forced.logoSize}px; object-fit:contain; margin-right:${forced.gap}px;" /><span style="font-size:${forced.fontSize}px; font-weight:700; color:${forced.textColor}; text-shadow:${forced.textShadow}; letter-spacing:-0.2px; line-height:1;">${forced.text}</span></div>`

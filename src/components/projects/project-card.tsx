@@ -14,7 +14,6 @@ import { getTemplate } from '@/lib/render/templates'
 import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Project } from '@/lib/types/project'
 import type { Slide } from '@/lib/types/slide'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 export interface ProjectPublishedState {
   publishedId: string
@@ -38,10 +37,9 @@ function relativeTime(dateStr: string): string {
 interface ProjectCardProps {
   project: Project
   publishedState?: ProjectPublishedState | null
-  brandKit?: BrandKit | null
 }
 
-export function ProjectCard({ project, publishedState, brandKit }: ProjectCardProps) {
+export function ProjectCard({ project, publishedState }: ProjectCardProps) {
   const router = useRouter()
   const slides = (project.slide_data ?? []) as Slide[]
   const [menuOpen, setMenuOpen] = useState(false)
@@ -167,7 +165,6 @@ export function ProjectCard({ project, publishedState, brandKit }: ProjectCardPr
               totalSlides={slides.length}
               topic={project.topic ?? undefined}
               editable={false}
-              brandKit={brandKit ?? null}
             />
           ) : currentSlide.background_url ? (
             <img

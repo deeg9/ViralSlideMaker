@@ -172,7 +172,6 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
     const element = buildSlideElement(
       slideWithOverride,
       projectTemplate, // passes the PROJECT template — helper re-resolves inside
-      null,
       'free',
       'http://localhost',
       { slideIndex: 0, totalSlides: 1, topic: 'test' },
@@ -188,7 +187,6 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
     const element = buildSlideElement(
       slideWithoutOverride,
       projectTemplate,
-      null,
       'free',
       'http://localhost',
       { slideIndex: 0, totalSlides: 1, topic: 'test' },

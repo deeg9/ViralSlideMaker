@@ -40,7 +40,6 @@ async function main() {
         slide,
         tpl,
         null,
-        null,
         undefined,
         { slideIndex: i, totalSlides: 3, topic: 'preview' },
       )

@@ -4,7 +4,6 @@ import React, { useRef, useState, useEffect, useLayoutEffect, useCallback, useMe
 import { Rnd } from 'react-rnd'
 import type { Slide, TextPosition, CustomText, TextSegment, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
-import type { BrandKit } from '@/lib/types/brand-kit'
 // Phase 63 Plan 04 (SNAP-02..06, SNAP-09, DIFF-03, PERF-03): snap-index +
 // smart-guide overlay + equal-spacing == indicator. Replaces the legacy
 // alignment-guides hook (file retained at src/hooks/use-alignment-guides.ts
@@ -425,7 +424,6 @@ interface SlidePreviewProps {
   totalSlides?: number
   topic?: string
   editable?: boolean
-  brandKit?: BrandKit | null
   userTier?: 'free' | 'plus' | 'pro'
   onPositionChange?: (field: 'hook' | 'body', position: TextPosition) => void
   onWidthChange?: (field: 'hook' | 'body', width: number) => void
@@ -583,7 +581,7 @@ interface SlidePreviewProps {
 }
 
 export function SlidePreview({
-  slide, template, index, slideIndex, totalSlides, topic, editable, brandKit, userTier,
+  slide, template, index, slideIndex, totalSlides, topic, editable, userTier,
   onPositionChange, onWidthChange, onSizeChange,
   onCustomTextPositionChange, onCustomTextWidthChange, onCustomTextSizeChange,
   onCustomTextUpdate, onCustomTextSelect, onCustomTextRemove,
@@ -933,7 +931,7 @@ export function SlidePreview({
   // Phase 45 — graceful-fallback render context for the shared overlay resolver.
   // slideIndex defaults to `index` (the array position prop already in scope);
   // totalSlides defaults to 1 so the page-counter prints '1/1' in single-tile
-  // contexts (template-picker, brand-kit-form). Mirrors render-slide-satori's
+  // contexts (template-picker). Mirrors render-slide-satori's
   // resolveCtx — same source of truth, same TPLREND-05 parity contract.
   const resolveCtx: OverlayResolveCtx = {
     slideIndex: slideIndex ?? index ?? 0,
@@ -1468,7 +1466,7 @@ export function SlidePreview({
               watermark suppresses both the unified-slot AND legacy resolver paths. */}
           {(() => {
             if (slide.watermark?.hidden === true) return null
-            const wm = resolveWatermark(brandKit ?? null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
+            const wm = resolveWatermark(null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
             if (!wm) return null
             return (
               <img
@@ -3718,7 +3716,7 @@ export function SlidePreview({
             non-editable branch + render-slide-satori. */}
         {(() => {
           if (slide.watermark?.hidden === true) return null
-          const wm = resolveWatermark(brandKit ?? null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
+          const wm = resolveWatermark(null, slide, { width: REF_WIDTH, height: REF_HEIGHT })
           if (!wm) return null
           return (
             <img

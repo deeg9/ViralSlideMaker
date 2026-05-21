@@ -5,8 +5,8 @@ import type { Slide } from '@/lib/types/slide'
  * quick-260515-epn — single source of truth for per-slide template resolution.
  *
  * Resolve the effective SlideTemplate for one slide given the project-level
- * template the caller already computed (post brand-kit synthesis OR registry
- * lookup by project.template_id). All five render surfaces (editor canvas,
+ * template the caller already computed (registry lookup by
+ * project.template_id). All five render surfaces (editor canvas,
  * editor thumbnails, Satori PNG export, HTML preview, explore / dashboard
  * SlidePreview wrappers) import this helper — no inlined
  * `getTemplate(slide.template_id_override)` patterns should drift across files.
@@ -19,8 +19,8 @@ import type { Slide } from '@/lib/types/slide'
  *      pre-fusion projector emit shape — generate-from-style-spec.ts is the
  *      lifter; readers honor BOTH slots so a slide that bypasses the lift
  *      still renders with the right archetype-matched template).
- *   3. projectTemplate (caller-resolved: brand-kit synthesis OR registry
- *      lookup by project.template_id — this helper is brand-kit-agnostic).
+ *   3. projectTemplate (caller-resolved: registry lookup by
+ *      project.template_id).
  *
  * Override resolution order (Phase 88 WIRE-04):
  *   - A code-template id (in the TEMPLATE_IDS closed enum) → `getTemplate`.
