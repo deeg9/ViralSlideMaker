@@ -68,8 +68,6 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
       spec: null,
       retriesRemaining: 2,
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      useBrandKitRemix: false,
-      brandKitAvailable: false,
       error: null,
       lastTelemetry: null,
     })
@@ -233,23 +231,9 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
     expect(s2.aspects).toEqual(preview.aspects)
   })
 
-  it('Test 11: TOGGLE_BRAND_KIT_REMIX requires brandKitAvailable=true; otherwise unchanged', () => {
-    const noKit: SpecPreviewState = {
-      ...initialSpecPreviewState,
-      status: 'preview',
-      spec: makeSpec(),
-      brandKitAvailable: false,
-      useBrandKitRemix: false,
-    }
-    const sNoKit = specPreviewReducer(noKit, { type: 'TOGGLE_BRAND_KIT_REMIX' })
-    expect(sNoKit.useBrandKitRemix).toBe(false) // unchanged
-
-    const withKit: SpecPreviewState = { ...noKit, brandKitAvailable: true }
-    const sWithKit = specPreviewReducer(withKit, { type: 'TOGGLE_BRAND_KIT_REMIX' })
-    expect(sWithKit.useBrandKitRemix).toBe(true)
-    const sWithKit2 = specPreviewReducer(sWithKit, { type: 'TOGGLE_BRAND_KIT_REMIX' })
-    expect(sWithKit2.useBrandKitRemix).toBe(false)
-  })
+  // Test 11 (former remix-toggle reducer action) deleted — Phase 89
+  // (BKSHELVE-06): the removed feature's action and its two state fields
+  // no longer exist on the reducer.
 
   it('Test 12: UPLOAD_RESET resets retriesRemaining to 2, clears spec, sets status=idle', () => {
     const used: SpecPreviewState = {
@@ -285,10 +269,8 @@ describe('Phase 76 Plan 01: specPreviewReducer — initial state + transitions',
       { type: 'EXTRACT_ERROR', error: { kind: 'extraction_failed' }, telemetry: makeTelemetry() },
       { type: 'RE_EXTRACT_CLICK' },
       { type: 'TOGGLE_ASPECT', aspect: 'palette' },
-      { type: 'TOGGLE_BRAND_KIT_REMIX' },
       { type: 'GENERATE_CLICK' },
       { type: 'GENERATE_DONE' },
-      { type: 'BRAND_KIT_AVAILABILITY', available: true },
       { type: 'CLEAR_ERROR' },
     ]
     for (const action of allActions) {

@@ -9,8 +9,8 @@
 //
 // Mirrors src/lib/services/__tests__/publish-style-spec-snapshot.test.ts
 // (same hoisted mocks, same hand-rolled SupabaseClient that captures the
-// INSERT payload). The rendering pipeline (next/og + brand-kit + font
-// loading) is mocked so the test stays in JSDOM.
+// INSERT payload). The rendering pipeline (next/og + font loading) is mocked
+// so the test stays in JSDOM.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Slide } from '@/lib/types/slide'
@@ -19,14 +19,12 @@ import type { Slide } from '@/lib/types/slide'
 // mocks resolve to the stubs.
 const {
   mockBuildSlideElement,
-  mockMergeWithBrandKit,
   mockGetTemplate,
   mockGetUserTier,
   mockLoadFontBuffers,
   mockImageResponse,
 } = vi.hoisted(() => ({
   mockBuildSlideElement: vi.fn(() => ({ type: 'div', props: {} })),
-  mockMergeWithBrandKit: vi.fn((t: unknown) => t),
   mockGetTemplate: vi.fn(() => ({ id: 'highlight-bar' })),
   mockGetUserTier: vi.fn().mockResolvedValue('free'),
   mockLoadFontBuffers: vi.fn().mockResolvedValue([]),
@@ -49,12 +47,6 @@ vi.mock('@/lib/render/templates/index', () => ({
 
 vi.mock('@/lib/render/render-slide-satori', () => ({
   buildSlideElement: mockBuildSlideElement,
-}))
-
-vi.mock('@/lib/brand-kit/get-effective-template', () => ({
-  mergeWithBrandKit: mockMergeWithBrandKit,
-  synthesizeBrandKitTemplate: vi.fn(() => ({ id: 'brand-kit' })),
-  BRAND_KIT_TEMPLATE_ID: 'brand-kit',
 }))
 
 vi.mock('@/lib/render/load-font', () => ({
@@ -86,7 +78,6 @@ interface CapturedInsert {
 
 function makeFakeAdmin(opts: {
   projectRow: Record<string, unknown> | null
-  brandKitRow?: Record<string, unknown> | null
   insertReturn?: { id: string; slug: string } | null
   insertError?: { code?: string; message: string } | null
 }) {
@@ -98,14 +89,6 @@ function makeFakeAdmin(opts: {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         maybeSingle: vi.fn().mockResolvedValue({ data: opts.projectRow, error: null }),
-      }
-      return builder as unknown as ReturnType<SupabaseClient['from']>
-    }
-    if (table === 'brand_kits') {
-      const builder = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: opts.brandKitRow ?? null, error: null }),
       }
       return builder as unknown as ReturnType<SupabaseClient['from']>
     }
@@ -149,7 +132,6 @@ beforeEach(() => {
   mockGetUserTier.mockResolvedValue('free')
   mockLoadFontBuffers.mockResolvedValue([])
   mockBuildSlideElement.mockReturnValue({ type: 'div', props: {} })
-  mockMergeWithBrandKit.mockImplementation((t: unknown) => t)
   mockGetTemplate.mockReturnValue({ id: 'highlight-bar' })
 })
 

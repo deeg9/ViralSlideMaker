@@ -18,12 +18,10 @@ vi.mock('pexels', () => ({
 const {
   mockGenerateFromStyleSpec,
   mockApplyAspectFilter,
-  mockApplyBrandKitRemix,
   mockAutoPublishOnGenerate,
 } = vi.hoisted(() => ({
   mockGenerateFromStyleSpec: vi.fn(),
   mockApplyAspectFilter: vi.fn(),
-  mockApplyBrandKitRemix: vi.fn(),
   mockAutoPublishOnGenerate: vi.fn(),
 }))
 
@@ -33,10 +31,6 @@ vi.mock('@/lib/ai/generate-from-style-spec', () => ({
 
 vi.mock('@/lib/ai/style-spec-aspect-filter', () => ({
   applyAspectFilter: mockApplyAspectFilter,
-}))
-
-vi.mock('@/lib/ai/style-spec-brand-kit-merge', () => ({
-  applyBrandKitRemix: mockApplyBrandKitRemix,
 }))
 
 // quick-260515-dwu: spy on the public-by-default helper so the regression
@@ -95,7 +89,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockGenerateFromStyleSpec.mockReset()
   mockApplyAspectFilter.mockReset()
-  mockApplyBrandKitRemix.mockReset()
   mockAutoPublishOnGenerate.mockReset()
   // Default: the helper resolves cleanly. Individual tests can override.
   mockAutoPublishOnGenerate.mockResolvedValue(undefined)
@@ -114,13 +107,11 @@ function makeRefRow(overrides: Partial<ReferenceAssetRow> = {}): ReferenceAssetR
 }
 
 describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator', () => {
-  it('Test 1: call order — applyAspectFilter THEN applyBrandKitRemix THEN generateFromStyleSpec', async () => {
+  it('Test 1: call order — applyAspectFilter THEN generateFromStyleSpec, with the filtered spec', async () => {
     const spec = makeSpec({ palette: { mode: 'solid', primary: '#111111' } })
     const filtered = makeSpec({ palette: { mode: 'solid', primary: '#222222' } })
-    const merged = makeSpec({ palette: { mode: 'solid', primary: '#333333' } })
 
     mockApplyAspectFilter.mockReturnValueOnce(filtered)
-    mockApplyBrandKitRemix.mockReturnValueOnce(merged)
     mockGenerateFromStyleSpec.mockResolvedValueOnce({
       title: 'T',
       slides: [{ hook_text: 'H', body_text: 'B', image_query: 'q', is_cta: false, role: 'cover', text_boxes: [] }],
@@ -132,32 +123,24 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
       projectId: 'p-1',
       spec,
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      brandKit: null,
-      useBrandKitRemix: true,
       content,
     })
 
     // applyAspectFilter called first with the input spec
     expect(mockApplyAspectFilter).toHaveBeenCalledTimes(1)
     expect(mockApplyAspectFilter.mock.calls[0][0]).toBe(spec)
-    // applyBrandKitRemix called with the filtered spec
-    expect(mockApplyBrandKitRemix).toHaveBeenCalledTimes(1)
-    expect(mockApplyBrandKitRemix.mock.calls[0][0]).toBe(filtered)
-    // generateFromStyleSpec called with the merged spec
+    // generateFromStyleSpec called with the filtered spec (no brand-kit merge step)
     expect(mockGenerateFromStyleSpec).toHaveBeenCalledTimes(1)
-    expect(mockGenerateFromStyleSpec.mock.calls[0][0]).toBe(merged)
+    expect(mockGenerateFromStyleSpec.mock.calls[0][0]).toBe(filtered)
 
     // Order check via invocation order
     const aspectOrder = mockApplyAspectFilter.mock.invocationCallOrder[0]
-    const brandOrder = mockApplyBrandKitRemix.mock.invocationCallOrder[0]
     const emitOrder = mockGenerateFromStyleSpec.mock.invocationCallOrder[0]
-    expect(aspectOrder).toBeLessThan(brandOrder)
-    expect(brandOrder).toBeLessThan(emitOrder)
+    expect(aspectOrder).toBeLessThan(emitOrder)
   })
 
   it('Test 2: persists slides via UPDATE on existing project row (NOT INSERT)', async () => {
     mockApplyAspectFilter.mockImplementation((s: StyleSpec) => s)
-    mockApplyBrandKitRemix.mockImplementation((s: StyleSpec) => s)
     mockGenerateFromStyleSpec.mockResolvedValueOnce({
       title: 'My Carousel',
       slides: [
@@ -171,8 +154,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
       projectId: 'project-abc',
       spec: makeSpec(),
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      brandKit: null,
-      useBrandKitRemix: false,
       content: { mode: 'ai-copy', topic: 'X' },
     })
 
@@ -195,33 +176,12 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
     expect(typeof carouselModule.generateCarouselFromReferences).toBe('function')
   })
 
-  it('Test 4: useBrandKitRemix=false → applyBrandKitRemix NOT called', async () => {
-    mockApplyAspectFilter.mockImplementation((s: StyleSpec) => s)
-    mockApplyBrandKitRemix.mockImplementation((s: StyleSpec) => s)
-    mockGenerateFromStyleSpec.mockResolvedValueOnce({
-      title: 'T',
-      slides: [
-        { hook_text: 'H', body_text: 'B', image_query: 'q', is_cta: false, role: 'cover', text_boxes: [] },
-      ],
-    })
-
-    const sb = makeSupabase()
-    await generateCarouselFromReferences(sb.client, 'user-1', {
-      projectId: 'p',
-      spec: makeSpec(),
-      aspects: { palette: true, typography: true, layout: true, decorations: true },
-      brandKit: null,
-      useBrandKitRemix: false, // OFF
-      content: { mode: 'ai-copy', topic: 'X' },
-    })
-
-    // applyBrandKitRemix is bypassed when toggle is OFF
-    expect(mockApplyBrandKitRemix).not.toHaveBeenCalled()
-  })
+  // Test 4 (former remix-merge bypass test) deleted — Phase 89 (BKSHELVE-08):
+  // the merge step is removed entirely; there is no merge call to assert
+  // against.
 
   it('Test 5: persist UPDATE error → throws with descriptive message', async () => {
     mockApplyAspectFilter.mockImplementation((s: StyleSpec) => s)
-    mockApplyBrandKitRemix.mockImplementation((s: StyleSpec) => s)
     mockGenerateFromStyleSpec.mockResolvedValueOnce({
       title: 'T',
       slides: [
@@ -235,8 +195,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
         projectId: 'p',
         spec: makeSpec(),
         aspects: { palette: true, typography: true, layout: true, decorations: true },
-        brandKit: null,
-        useBrandKitRemix: false,
         content: { mode: 'ai-copy', topic: 'X' },
       }),
     ).rejects.toThrow(/rls denied|persist failed/i)
@@ -251,7 +209,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
   it('Test 6 (quick-260515-dwu): persists style_spec + reference_assets on the project row when references are provided', async () => {
     const inputSpec = makeSpec({ palette: { mode: 'solid', primary: '#ABCDEF' } })
     mockApplyAspectFilter.mockImplementation((s: StyleSpec) => s)
-    mockApplyBrandKitRemix.mockImplementation((s: StyleSpec) => s)
     mockGenerateFromStyleSpec.mockResolvedValueOnce({
       title: 'test-title',
       slides: [
@@ -269,8 +226,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
       projectId: 'proj-dwu',
       spec: inputSpec,
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      brandKit: null,
-      useBrandKitRemix: false,
       content: { mode: 'ai-copy', topic: 'Topic' },
       imageSource: 'none', // avoid Pexels search path
       references: refs,
@@ -292,7 +247,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
   it('Test 7 (quick-260515-dwu): omits reference_assets when input has no references array', async () => {
     const inputSpec = makeSpec()
     mockApplyAspectFilter.mockImplementation((s: StyleSpec) => s)
-    mockApplyBrandKitRemix.mockImplementation((s: StyleSpec) => s)
     mockGenerateFromStyleSpec.mockResolvedValueOnce({
       title: 'no-refs',
       slides: [
@@ -305,8 +259,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
       projectId: 'proj-no-refs',
       spec: inputSpec,
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      brandKit: null,
-      useBrandKitRemix: false,
       content: { mode: 'ai-copy', topic: 'T' },
       imageSource: 'none',
       // no `references` field
@@ -322,7 +274,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
 
   it('Test 8 (quick-260515-dwu): calls autoPublishOnGenerate exactly once after persistence', async () => {
     mockApplyAspectFilter.mockImplementation((s: StyleSpec) => s)
-    mockApplyBrandKitRemix.mockImplementation((s: StyleSpec) => s)
     mockGenerateFromStyleSpec.mockResolvedValueOnce({
       title: 'pub-test',
       slides: [
@@ -335,8 +286,6 @@ describe('Phase 77 Plan 02 Task 4: generateCarouselFromReferences orchestrator',
       projectId: 'proj-pub',
       spec: makeSpec(),
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      brandKit: null,
-      useBrandKitRemix: false,
       content: { mode: 'ai-copy', topic: 'T' },
       imageSource: 'none',
       references: [makeRefRow()],

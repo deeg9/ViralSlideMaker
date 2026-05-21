@@ -18,7 +18,6 @@ import type { ExtractResult } from '@/lib/ai/extract-style-spec.types'
 import type { StyleSpec } from '@/lib/types/style-spec'
 import { SpecPreviewPanel } from '../spec-preview-panel'
 import { initialSpecPreviewState, type SpecPreviewState } from '../state-machine'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 // ---- Hoisted mocks (mirror style-from-reference-shell.test.tsx) ----
 const { mockExtractStyleSpecAction } = vi.hoisted(() => ({
@@ -111,7 +110,7 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       recovery_suggestion: 'Try cropping high-skin areas',
       telemetry: { vision_calls_count: 1, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
     } as ExtractResult)
-    render(<StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />)
+    render(<StyleFromReferenceShell projectId="p" />)
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
       expect(screen.getByTestId('safety-block-recovery')).toBeTruthy()
@@ -128,7 +127,6 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       <SpecPreviewPanel
         state={fullPreviewState({ retriesRemaining: 2 })}
         dispatch={vi.fn()}
-        brandKit={null as BrandKit | null}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
       />,
@@ -143,7 +141,6 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       <SpecPreviewPanel
         state={fullPreviewState({ retriesRemaining: 0 })}
         dispatch={vi.fn()}
-        brandKit={null as BrandKit | null}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
       />,
@@ -161,7 +158,6 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       <SpecPreviewPanel
         state={fullPreviewState({ retriesRemaining: 2 })}
         dispatch={dispatch}
-        brandKit={null as BrandKit | null}
         onGenerate={vi.fn()}
         onReExtract={onReExtract}
       />,
@@ -177,7 +173,6 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       <SpecPreviewPanel
         state={fullPreviewState({ retriesRemaining: 2 })}
         dispatch={dispatch}
-        brandKit={null as BrandKit | null}
         onGenerate={vi.fn()}
         onReExtract={onReExtract}
       />,
@@ -198,7 +193,7 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       detail: 'timeout',
       telemetry: { vision_calls_count: 0, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
     } as ExtractResult)
-    render(<StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />)
+    render(<StyleFromReferenceShell projectId="p" />)
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
       expect(screen.getByTestId('error-extraction-failed')).toBeTruthy()
@@ -214,7 +209,7 @@ describe('Phase 76 Plan 03: recovery integration', () => {
       cached: false,
       telemetry: { vision_calls_count: 1, tokens_in: 100, tokens_out: 50, cache_hit: false, duration_ms: 1234 },
     } as ExtractResult)
-    render(<StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />)
+    render(<StyleFromReferenceShell projectId="p" />)
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
       expect(screen.getByTestId('spec-preview-panel')).toBeTruthy()

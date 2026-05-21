@@ -3,7 +3,7 @@
 // <RegenerateFromReferencesButton> in. Uses a SOURCE-GREP shape (mirror of
 // the existing actions.ts firewall test pattern) because the page is an
 // async React Server Component — full-tree rendering would require mocking
-// the Supabase server client + getUserTier + getBrandKit + the editor +
+// the Supabase server client + getUserTier + the editor +
 // the published-row lookup, which goes well beyond what this smoke test
 // is meant to catch.
 //
