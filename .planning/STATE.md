@@ -119,6 +119,10 @@ No open milestone blockers. Phase 89 risk vector identified:
 | Templates | Explicit registry cache invalidation on template write | v1 accepts the ≤60s TTL | v2.15 requirements |
 | Templates | Migrating the 13 code templates into the DB | Stay in code (back-compat) | v2.14 spec |
 | QA | Carry-over manual QA from v2.10/v2.12/v2.13 (iPhone Safari touch, Lucide picker perf, template visual fidelity) | Carried forward | prior milestones |
+| UAT | v2.16 Phase 90 — visual review of the 16 generated preview PNGs + authenticated Playwright picker smoke | Tracked in `90-HUMAN-UAT.md` (status partial) | v2.16 close |
+| UAT | v2.16 Phase 89 — 5 live-runtime confirmations (404 routes, OpenAPI /docs, picker visual, style-from-reference, e2e generation) | Code-level evidence verified; tracked in `89-VERIFICATION.md` | v2.16 close |
+| Hardening | DB template with NULL `preview` renders a broken `<img>` (no `onError` fallback) — no supported write-path produces it | Low risk; REVIEW WR-02 / integration WARNING-2 | v2.16 close |
+| Tracking | 9 historical quick tasks (260519/260520 series) report `status: missing` — completed work, SUMMARY frontmatter lacks a machine-readable status field | Acknowledged at v2.16 close — cosmetic, not open work | v2.16 close |
 
 ## Session Continuity
 
