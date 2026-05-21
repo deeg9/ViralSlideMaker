@@ -53,9 +53,23 @@ Replace the picker's live-render fallback with real photo-backed previews source
 
 ## Traceability
 
-To be filled by `gsd-roadmapper` after roadmap creation.
+All 14 v2.16 requirements mapped to exactly one phase. Zero orphans, zero duplicates.
 
 | REQ ID | Phase | Status |
 |--------|-------|--------|
-| BKSHELVE-01..09 | TBD | Open |
-| PREVIEW-01..05 | TBD | Open |
+| BKSHELVE-01 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-02 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-03 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-04 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-05 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-06 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-07 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-08 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| BKSHELVE-09 | Phase 89 — Brand-Kit Shelving (Full Removal) | Open |
+| PREVIEW-01 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
+| PREVIEW-02 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
+| PREVIEW-03 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
+| PREVIEW-04 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
+| PREVIEW-05 | Phase 90 — Pre-Rendered Template Preview Pipeline | Open |
+
+**Coverage:** 14/14 mapped. Phase 89 holds 9 BKSHELVE reqs; Phase 90 holds 5 PREVIEW reqs.

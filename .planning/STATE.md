@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v2.16
 milestone_name: Picker Polish & Brand-Kit Shelving
 status: planning
-last_updated: "2026-05-20T23:35:19.150Z"
+last_updated: "2026-05-20T23:55:00.000Z"
 last_activity: 2026-05-20
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,24 +20,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** None — v2.15 shipped. Next: `/gsd-new-milestone` to scope the next cycle.
+**Current focus:** v2.16 Picker Polish & Brand-Kit Shelving — Phase 89 (Brand-Kit Shelving, full removal) then Phase 90 (Pre-Rendered Template Preview Pipeline).
 **Latest shipped:** v2.15 DB-Backed Template Wiring (2026-05-19) — wires v2.14's DB-backed templates through the picker, generation, all three render paths, per-slide override, and publish/fork; verified by a live end-to-end Playwright dry-run.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 89 — Brand-Kit Shelving (Full Removal) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-20 — Milestone v2.16 started
+Status: Roadmap created (2026-05-20); awaiting `/gsd-plan-phase 89`
+Last activity: 2026-05-20 — Roadmap drafted for v2.16 (Phases 89–90)
 
-## Roadmap — v2.15 (Phases 87–88)
+## Roadmap — v2.16 (Phases 89–90)
 
 | Phase | Goal | Requirements | Status |
 |-------|------|--------------|--------|
-| 87. Picker + Generation Wiring | DB templates appear in the category-filtered picker and survive selection through generation | WIRE-01, WIRE-02 | ✅ Complete (2026-05-19) |
-| 88. Render Paths + Per-Slide Override + Publish/Fork | All three render paths, per-slide override, and publish/fork resolve a DB `template_id`; parity re-verified | WIRE-03, WIRE-04, WIRE-05, WIRE-06 | ✅ Complete (2026-05-19) — verification human_needed (e2e dry-run) |
+| 89. Brand-Kit Shelving (Full Removal) | Fully remove the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow without breaking render parity on 13 code templates + live DB templates | BKSHELVE-01..09 (9 reqs) | Not started |
+| 90. Pre-Rendered Template Preview Pipeline | Replace the picker's live-render `<SlidePreview>` fallback with real photo-backed preview PNGs sourced from `christopherfill9@gmail.com`'s published carousels; every code template gets a `preview` URL | PREVIEW-01..05 (5 reqs) | Not started |
 
-**Coverage:** 6/6 v2.15 requirements mapped (no orphans, no duplicates).
+**Coverage:** 14/14 v2.16 requirements mapped (no orphans, no duplicates).
 
 ## Milestone History
 
@@ -53,29 +53,30 @@ Full history: `.planning/MILESTONES.md`. Archives: `.planning/milestones/`.
 
 ## Performance Metrics
 
-**Velocity (through v2.14):**
+**Velocity (through v2.15):**
 
-- 14 milestones shipped (v1.0–v2.14, Phases 1–86).
+- 15 milestones shipped (v1.0–v2.15, Phases 1–88).
+- v2.15: 2 phases, 5 plans, 37 new tests added, single-day execution (2026-05-19).
 - v2.14: 4 phases, 12 plans, ~107 phase tests added, 53 commits, single-day execution (2026-05-18).
-- v2.15 Phase 87: 2 plans, 22 new tests added (WIRE-01 + WIRE-02 coverage on both generation paths + the API guard).
-- v2.15 Phase 88: 3 plans, 15 new tests added (byte-identity guard, per-slide DB-override parity, fork-inheritance). 14 source files converted sync→async / DB-aware.
-- Full suite: zero new failures from Phase 88 — the failing-test-FILE set is byte-identical to clean HEAD. The 3 fixture suites (`legacy-templates-byte-identical`, `-regression`, `new-templates-parity`) stay GREEN at 45/45. The pre-existing failing baseline is unchanged Phase-87→Phase-88.
+- Full suite (pre-v2.16): zero new failures from v2.15. The 3 fixture suites (`legacy-templates-byte-identical`, `-regression`, `new-templates-parity`) stay GREEN at 45/45. The pre-existing failing baseline is unrelated tests (auth / stripe / legal / api-keys / editorial-serif-name fixture-regen).
 
 ## Accumulated Context
 
 ### Decisions
 
-- **2-phase split honored from the spec** — `.planning/DB-TEMPLATE-WIRING-SPEC.md` verified the file-level blast radius and recommended a tight 2-phase breakdown; the file sets are disjoint and there is no shared schema work, so the roadmap honors it as-is. Config granularity (`coarse`) favors the same shape.
-- **No schema migration in v2.15** — the `templates` table + `category` column already exist (Phase 83); this milestone is app-layer wiring only.
+- **2-phase split (89 → 90)** — Phase 89 runs first (delete-heavy refactor with parity hard-gate BKSHELVE-05). Phase 90 runs second (additive; depends on simpler picker surface after brand-kit removal). Granularity `coarse` favors this tight shape.
+- **Brand-kit DB stays dormant** — no rollback of the `20260427_brand_kit_template.sql` migration; brand-kit rows survive but unused. Removal is forward-only — future revival rebuilds against the same schema rather than toggling old code on.
+- **Preview source = `christopherfill9@gmail.com`'s published carousels** — sidesteps stock-photo licensing, guarantees previews depict what generation actually produces today. One-off script (`scripts/render-template-previews.ts`) renders cover snapshots and uploads to the existing `template-previews` Supabase bucket from v2.14 Phase 86.
+- **`<SlidePreview>` picker fallback fully deleted** — every code template MUST carry a `preview` URL after Phase 90. Acts as a forcing function: a new code template can't ship without first rendering its preview.
 
-Decisions logged in PROJECT.md Key Decisions table (v2.14 decisions added at milestone close). Per-milestone decision logs live in the milestone archives.
+Decisions logged in PROJECT.md Key Decisions table (v2.14 + v2.15 decisions added at milestone close). Per-milestone decision logs live in the milestone archives.
 
 ### Blockers/Concerns
 
-No open milestone blockers. All v2.15 phase-risks resolved:
+No open milestone blockers. Phase 89 risk vector identified:
 
-- **Sync→async conversion in Phase 88** — RESOLVED. All 5 render-path `getTemplate`→`resolveTemplate` sites verified in async contexts; `resolvePerSlideTemplate` and `buildSystemPrompt` kept SYNC via optional params (a literal asyncification would cascade into 7 client components + 40+ test files). Byte-identity guard proves the conversion is behavior-neutral for the 13 code templates.
-- **`autoPublishOnGenerate` regression risk in Phase 87** — RESOLVED (Phase 87 verified).
+- **BKSHELVE-05 byte-identity is the hard gate** — all 13 code templates + live DB templates must render byte-identical pre/post removal. The 3 fixture suites (`legacy-templates-byte-identical`, `-regression`, `new-templates-parity`) staying GREEN at 45/45 is the codified proof. Phase planning should front-load a parity snapshot baseline before any deletion.
+- **`project.template_id === 'brand-kit'` legacy projects** — existing user carousels saved against the brand-kit template id need a fallback (BKSHELVE-07 specifies `news-oracle` as the resolve-time default) so they don't crash.
 
 ### Quick Tasks Completed
 
@@ -97,14 +98,21 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 
 ### Open Items (carried forward)
 
-- **Phase 88 end-to-end dry-run — DONE (PASSED 2026-05-19).** The orchestrator drove the live Playwright dry-run: admin save → picker → generate → render → publish → fork — all WIRE-01..06 confirmed. The one fork failure encountered was a pre-existing prod bug (missing `_strip_locked_from_slide_data` fn + 2 unapplied migrations) — fixed by applying `20260504_fork_strip_decoration_locked` to Supabase; not a v2.15 defect. See `88-VERIFICATION.md`.
-- **Pre-existing test debt:** the 3 fixture suites `legacy-templates-byte-identical` / `-regression` / `new-templates-parity` are GREEN at 45/45. The failing baseline is unrelated tests (auth / stripe / legal / api-keys / editorial-serif-name fixture-regen); v2.15 introduced ZERO new failures and added 37 new passing tests.
-- **v2.14 operational user-setup:** if not already applied — set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`) and apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project.
+- **Pre-existing test debt:** the 3 fixture suites `legacy-templates-byte-identical` / `-regression` / `new-templates-parity` are GREEN at 45/45. The failing baseline is unrelated tests (auth / stripe / legal / api-keys / editorial-serif-name fixture-regen); v2.15 introduced ZERO new failures and added 37 new passing tests. v2.16 BKSHELVE-05 must keep this baseline intact.
+- **v2.14 operational user-setup:** if not already applied — set `ADMIN_USER_IDS` env var in `.env.local` + Vercel (Diego's dev user id: `ed8ca688-ec50-4c8c-834e-1b9f562eee8a`) and apply `supabase/migrations/20260519_phase86_template_previews_bucket.sql` to the shared Supabase project. The `template-previews` bucket is required by Phase 90.
+- **Phase 88 e2e dry-run — DONE (PASSED 2026-05-19).**
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
+| Brand Kit | Brand-kit migration rollback (drop `brand_kit` table/columns) | DB schema stays dormant; revival rebuilds against same schema | v2.16 requirements |
+| Brand Kit | Brand-kit feature flag instead of removal | Removal is forward-only | v2.16 requirements |
+| Previews | Per-slide variants in picker (multiple sample photos per template) | One preview per template in v2.16 | v2.16 requirements |
+| Previews | Animated/video previews in picker | Static PNG only | v2.16 requirements |
+| Previews | Rolling preview refresh / cron | One-off render at milestone time; operator re-runs script on redesign | v2.16 requirements |
+| Picker | Premium-template indicator overlay redesign | Picker chrome unchanged | v2.16 requirements |
+| Picker | Picker layout changes (columns, sort order, category chips) | Only tile preview body changes | v2.16 requirements |
 | Templates | End-user / community template authoring + picker surfacing community templates | Deferred to future milestone | v2.15 requirements |
 | Templates | Editing or deleting a saved DB template | V1 is save-new-only | v2.15 requirements |
 | Templates | Explicit registry cache invalidation on template write | v1 accepts the ≤60s TTL | v2.15 requirements |
@@ -114,9 +122,9 @@ No open milestone blockers. All v2.15 phase-risks resolved:
 ## Session Continuity
 
 Last session: 2026-05-20
-Stopped at: Quick task 260520-064 complete (Tasks 1-5 of 6 committed; Task 6 manual smoke pending human verdict) — news-oracle BREAKING NEWS chrome (3-surface 75-line hard-coded layer) replaced by an editable `'ruled'` highlight style on the `accessory_label` TextBox. Adapter D1 fallback injects 'BREAKING NEWS' on news-oracle covers with an unset `accessory_label`; LIVE caption-card Y mirroring (Blocker 1) tracks user drags / height edits / position flips; cc.enabled gate (Blocker 2) mirrors the deleted chrome's visibility predicate. AI prompt (D3) instructs Gemini to always emit a contextual kicker; R3 post-validator coerces overly-long outputs to 'BREAKING NEWS'. Net +1483/-333 across 19 files, 2 deletes, 4 new files. 92/92 new tests GREEN; pre-existing failures unchanged. See `.planning/quick/260520-064-convert-breaking-news-chrome-to-accessor/260520-064-SUMMARY.md`.
-Resume file: None — next step is human Task-6 smoke (PLAN.md §Task 6), then `/gsd-new-milestone` to scope the next cycle.
+Stopped at: Roadmap created for v2.16 (Phases 89–90). Phase 89 — Brand-Kit Shelving (Full Removal, BKSHELVE-01..09); Phase 90 — Pre-Rendered Template Preview Pipeline (PREVIEW-01..05). 14/14 requirements mapped, no orphans. Next step: `/gsd-plan-phase 89` to begin planning Phase 89.
+Resume file: `.planning/ROADMAP.md`
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd-plan-phase 89` to begin planning Brand-Kit Shelving (Full Removal).
