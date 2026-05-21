@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.16
 milestone_name: Picker Polish & Brand-Kit Shelving
-status: milestone_complete
+status: Awaiting next milestone
 stopped_at: "Roadmap created for v2.16 (Phases 89–90). Phase 89 — Brand-Kit Shelving (Full Removal, BKSHELVE-01..09); Phase 90 — Pre-Rendered Template Preview Pipeline (PREVIEW-01..05). 14/14 requirements mapped, no orphans. Next step: `/gsd-plan-phase 89` to begin planning Phase 89."
-last_updated: "2026-05-21T03:26:17.561Z"
-last_activity: 2026-05-21 -- Phase 90 execution started
+last_updated: "2026-05-21T04:09:07.982Z"
+last_activity: 2026-05-21 — Milestone v2.16 completed and archived
 progress:
   total_phases: 2
   completed_phases: 2
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 7
   percent: 100
 ---
 
@@ -18,34 +18,35 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-19 — after v2.15 milestone)
+See: .planning/PROJECT.md (updated 2026-05-21 — after v2.16 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** Phase 90 — Pre-Rendered Template Preview Pipeline
-**Latest shipped:** v2.15 DB-Backed Template Wiring (2026-05-19) — wires v2.14's DB-backed templates through the picker, generation, all three render paths, per-slide override, and publish/fork; verified by a live end-to-end Playwright dry-run.
+**Current focus:** None — v2.16 shipped. Next: `/gsd-new-milestone` to scope the next cycle.
+**Latest shipped:** v2.16 Picker Polish & Brand-Kit Shelving (2026-05-21) — removed the brand-kit feature (~79 files) and replaced the picker's live-render fallback with real photo-backed preview PNGs for all 16 code templates.
 
 ## Current Position
 
-Phase: 90
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-21
+Phase: Milestone v2.16 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-21 — Milestone v2.16 completed and archived
 
-## Roadmap — v2.16 (Phases 89–90)
+## Roadmap — v2.16 (Phases 89–90) ✅ SHIPPED
 
 | Phase | Goal | Requirements | Status |
 |-------|------|--------------|--------|
-| 89. Brand-Kit Shelving (Full Removal) | Fully remove the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow without breaking render parity on 13 code templates + live DB templates | BKSHELVE-01..09 (9 reqs) | Not started |
-| 90. Pre-Rendered Template Preview Pipeline | Replace the picker's live-render `<SlidePreview>` fallback with real photo-backed preview PNGs sourced from `christopherfill9@gmail.com`'s published carousels; every code template gets a `preview` URL | PREVIEW-01..05 (5 reqs) | Not started |
+| 89. Brand-Kit Shelving (Full Removal) | Fully remove the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow without breaking render parity | BKSHELVE-01..09 (9 reqs) | ✅ Complete (2026-05-21) |
+| 90. Pre-Rendered Template Preview Pipeline | Replace the picker's live-render `<SlidePreview>` fallback with real photo-backed preview PNGs; every code template gets a `preview` URL | PREVIEW-01..05 (5 reqs) | ✅ Complete (2026-05-21) — verification human_needed (visual + e2e UAT) |
 
-**Coverage:** 14/14 v2.16 requirements mapped (no orphans, no duplicates).
+**Coverage:** 14/14 v2.16 requirements satisfied (no orphans, no duplicates).
 
 ## Milestone History
 
-15 milestones shipped (v1.0–v2.15, Phases 1–88). Latest:
+16 milestones shipped (v1.0–v2.16, Phases 1–90). Latest:
 
 | Milestone | Phases | Shipped | Notes |
 |-----------|--------|---------|-------|
+| v2.16 Picker Polish & Brand-Kit Shelving | 89–90 | 2026-05-21 | Removed brand-kit (~79 files); real photo-backed picker previews for 16 code templates. tech_debt audit (14/14 reqs satisfied, non-critical debt only — human-UAT items). |
 | v2.15 DB-Backed Template Wiring | 87–88 | 2026-05-19 | Wires v2.14 DB templates through picker / generation / render paths / per-slide override / publish-fork. passed audit (6/6 reqs, Nyquist COMPLIANT, non-critical debt only); live e2e Playwright dry-run. |
 | v2.14 Save as Template | 83–86 | 2026-05-19 | DB-backed templates + LayoutRecipe + recipe-driven generation + admin Save-as-Template flow. tech_debt audit (9/9 reqs, non-critical debt only). |
 | v2.13 Style-from-Reference Generation | 73–82 | 2026-05-14 | Vision-LLM style extraction + recipe preview + remix/fork. |
@@ -132,4 +133,4 @@ Resume file: `.planning/ROADMAP.md`
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 89` to begin planning Brand-Kit Shelving (Full Removal).
+- Start the next milestone with /gsd-new-milestone
