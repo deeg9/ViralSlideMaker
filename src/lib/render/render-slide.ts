@@ -172,8 +172,13 @@ function buildTightHighlightHtml(
   const lines = text.split('\n')
   const flexAlign =
     textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start'
+  // 90-WR-01: `flex-wrap: wrap` mirrors the Satori pill span in
+  // resolve-overlay.ts — without it a `display: flex` pill keeps a long
+  // multi-word line on a single non-wrapping flex line, where the old
+  // `inline-block` pill wrapped that content across line-boxes. Byte-mirrored
+  // with the canvas/Satori path (TPLREND-05).
   const pillStyle =
-    `display: flex; background-color: ${color}; color: ${textColor};` +
+    `display: flex; flex-wrap: wrap; background-color: ${color}; color: ${textColor};` +
     ` padding: ${TIGHT_HIGHLIGHT_PADDING}px ${TIGHT_HIGHLIGHT_PADDING}px;` +
     ` align-self: ${flexAlign}; max-width: 100%; overflow-wrap: break-word;`
   const pills =

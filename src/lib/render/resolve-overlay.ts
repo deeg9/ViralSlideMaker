@@ -416,6 +416,16 @@ export function renderTightHighlight(
             // Satori rejects `inline-block` — `flex` shrink-wraps identically
             // inside the flex-column container via `alignSelf` (90-02).
             display: 'flex',
+            // 90-WR-01: `display: flex` (default `flex-wrap: nowrap`) keeps the
+            // pill's INNER content — a multi-word segment-less line, or the
+            // multiple `<span>` children from `renderSegments` — on a single
+            // non-wrapping flex line in Satori. The old `inline-block` laid that
+            // content out in normal inline flow, so a long line wrapped across
+            // line-boxes inside the pill. `flexWrap: 'wrap'` restores that
+            // behavior: the pill's content wraps at spaces / between segment
+            // spans the way `inline-block` did, so a long tight-highlight hook
+            // no longer renders as a single overflowing pill.
+            flexWrap: 'wrap',
             backgroundColor: highlight.color,
             color: baseColor,
             padding: `${TIGHT_HIGHLIGHT_PADDING}px ${TIGHT_HIGHLIGHT_PADDING}px`,
