@@ -527,7 +527,6 @@ export function GenerationForm({
             <TemplatePicker
               selectedId={templateId}
               onSelect={setTemplateId}
-              brandKit={brandKit}
               category={category}
               dbTemplates={dbTemplates}
             />
