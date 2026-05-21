@@ -92,7 +92,7 @@ export default async function DashboardPage() {
     <div className="space-y-16">
       {/* Welcome Header */}
       <section>
-        <h1 className="text-[3.5rem] font-semibold tracking-tighter text-[#3d0000] leading-tight">
+        <h1 className="text-[3.5rem] font-semibold tracking-tighter text-[#3d0000] leading-tight text-center">
           Welcome back, {userName}!
         </h1>
       </section>

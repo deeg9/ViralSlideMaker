@@ -7,12 +7,12 @@ import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
 import { CategorySelector } from './category-selector'
 import { FilePreviewCard, PastedContentCard } from './prompt-attachment-cards'
+import { ToolPill } from './prompt-toolbar'
 import { DEFAULT_CATEGORY, getCategory } from '@/lib/ai/categories'
 import { Icon } from '@/components/ui/icon'
 import { LetterCircleLoader } from '@/components/ui/letter-circle-loader'
 import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import { useRouter } from 'next/navigation'
-import { FONT_CATALOG } from '@/lib/fonts/font-catalog'
 import type { PickerDbTemplate } from '@/lib/render/templates/registry'
 
 export type ImageSource = 'stock' | 'ai' | 'none'
@@ -86,15 +86,8 @@ export function GenerationForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
-  // The Visual Style collapsible (category cards + template grid) defaults
-  // open so the picker is discoverable on first paint.
-  const [showCategory, setShowCategory] = useState(true)
-  const [showSlideCount, setShowSlideCount] = useState(true)
-  const [showBackgroundImages, setShowBackgroundImages] = useState(true)
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [advancedFont, setAdvancedFont] = useState<string>('')
-  const [advancedFontColor, setAdvancedFontColor] = useState<string>('')
-  const [advancedImagePrompt, setAdvancedImagePrompt] = useState('')
+  // Which tool-pill panel is expanded below the prompt card (null = none).
+  const [activePanel, setActivePanel] = useState<'visual' | 'slides' | 'images' | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   // Long text pastes are captured as removable cards instead of flooding the
@@ -104,15 +97,6 @@ export function GenerationForm({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
-
-  const fontsByCategory = useMemo(() => {
-    const groups: Record<string, typeof FONT_CATALOG> = {}
-    for (const font of FONT_CATALOG) {
-      if (!groups[font.category]) groups[font.category] = []
-      groups[font.category].push(font)
-    }
-    return groups
-  }, [])
 
   const previewUrls = useMemo(
     () => selectedFiles.map((f) => URL.createObjectURL(f)),
@@ -271,9 +255,6 @@ export function GenerationForm({
         imageSource,
         effectiveSlideCount,
         {
-          font: advancedFont || undefined,
-          fontColor: advancedFontColor || undefined,
-          imagePrompt: advancedImagePrompt || undefined,
           uploadedImageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
         },
         // Phase 82 (R1): the selected content category drives generation.
@@ -447,269 +428,151 @@ export function GenerationForm({
         })()}
       </div>
 
-      {/* Visual Style — collapsible. Content category and the visual-style
-          template grid live in one section: the user picks a category (which
-          drives Gemini's copy) and the template grid below it filters to that
-          category's curated subset. Clicking a category re-renders the grid. */}
+      {/* Tool pills — open one option panel at a time */}
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <button
-            type="button"
-            onClick={() => setShowCategory(!showCategory)}
-            className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
-            aria-expanded={showCategory}
-          >
-            Select Visual Style
-            <Icon
-              name="expand_more"
-              size="sm"
-              className={`transition-transform ${showCategory ? 'rotate-180' : ''}`}
-            />
-          </button>
-        </div>
-        {showCategory && (
-          <div className="mt-4 space-y-6">
-            <CategorySelector
-              selected={category}
-              onSelect={handleCategoryChange}
-              disabled={isPending}
-            />
-            {/* Phase 82 (R7/R8): picker filtered to the selected category's
-                curated templateIds subset. */}
-            <TemplatePicker
-              selectedId={templateId}
-              onSelect={setTemplateId}
-              category={category}
-              dbTemplates={dbTemplates}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Slide Count — collapsible */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <button
-            type="button"
-            onClick={() => setShowSlideCount(!showSlideCount)}
-            className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
-            aria-expanded={showSlideCount}
-          >
-            Number of Slides
-            <Icon
-              name="expand_more"
-              size="sm"
-              className={`transition-transform ${showSlideCount ? 'rotate-180' : ''}`}
-            />
-          </button>
-          <span className="text-sm font-bold text-[#3d0000]">{slideCount}</span>
-        </div>
-        {showSlideCount && (
-          <div className="mt-2">
-            <input
-              type="range"
-              min={3}
-              max={sliderMax}
-              step={1}
-              value={slideCount}
-              onChange={(e) => setSlideCount(Number(e.target.value))}
-              disabled={isPending}
-              className="w-full h-1.5 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] disabled:opacity-50"
-            />
-            <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-[#7d6161]">3</span>
-              <span className="text-[10px] text-[#7d6161]">{sliderMax}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Image Source Toggle — collapsible */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowBackgroundImages(!showBackgroundImages)}
-          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1"
-          aria-expanded={showBackgroundImages}
-        >
-          Background Images
-          <Icon
-            name="expand_more"
-            size="sm"
-            className={`transition-transform ${showBackgroundImages ? 'rotate-180' : ''}`}
+        <div className="flex flex-wrap justify-center gap-2">
+          <ToolPill
+            icon="palette"
+            label="Visual Style"
+            active={activePanel === 'visual'}
+            onClick={() => setActivePanel((p) => (p === 'visual' ? null : 'visual'))}
           />
-        </button>
-        {showBackgroundImages && (
-        <>
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            type="button"
-            onClick={() => setImageSource('stock')}
-            disabled={isPending}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-              imageSource === 'stock'
-                ? 'border-[#3d0000] bg-[#fff0f0]'
-                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
-            } disabled:opacity-50`}
-          >
-            <Icon name="image" size="lg" className={imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
-            <span className={`text-sm font-semibold ${imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
-              Stock Photos
-            </span>
-            <span className="text-[10px] text-[#7d6161]">Included free</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!isPaidUser) {
-                setShowUpgradePrompt(true)
-                return
-              }
-              setImageSource('ai')
-            }}
-            disabled={isPending}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-              imageSource === 'ai'
-                ? 'border-[#3d0000] bg-[#fff0f0]'
-                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
-            } disabled:opacity-50`}
-          >
-            <Icon name="auto_awesome" size="lg" className={imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
-            <span className={`text-sm font-semibold ${imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
-              AI Generated
-            </span>
-            <span className="text-[10px] text-[#7d6161]">
-              {isPaidUser ? '1 credit per slide' : 'Hobbyist / Creator only'}
-            </span>
-          </button>
-          {/* No-Photos: text-only slides on the template's flat background.
-              Pairs best with color-only templates like Paper Essay or
-              Brutalist Grid; on photo-designed templates the slide falls
-              back to the template's solid backgroundColor. */}
-          <button
-            type="button"
-            onClick={() => setImageSource('none')}
-            disabled={isPending}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-              imageSource === 'none'
-                ? 'border-[#3d0000] bg-[#fff0f0]'
-                : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
-            } disabled:opacity-50`}
-          >
-            <Icon name="text_fields" size="lg" className={imageSource === 'none' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
-            <span className={`text-sm font-semibold ${imageSource === 'none' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
-              No Photos
-            </span>
-            <span className="text-[10px] text-[#7d6161]">Text only</span>
-          </button>
-        </div>
-        {imageSource === 'ai' && (
-          <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
-            Uses ~{slideCount} credits for AI backgrounds. Takes ~{Math.ceil(slideCount / 2) * 10}-{Math.ceil(slideCount / 2) * 15}s. Slides that fail will use stock photos instead.
-          </p>
-        )}
-        {imageSource === 'none' && (
-          <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
-            Pure typography on the template&apos;s flat background. Pairs best with Paper Essay, Brutalist Grid, or Editorial Serif.
-          </p>
-        )}
-        </>
-        )}
-      </div>
-
-      {/* Advanced Options */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
-        >
-          Advanced Options
-          <Icon
-            name="expand_more"
-            size="sm"
-            className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+          <ToolPill
+            icon="tag"
+            label="Slide Number"
+            active={activePanel === 'slides'}
+            onClick={() => setActivePanel((p) => (p === 'slides' ? null : 'slides'))}
           />
-        </button>
-        {showAdvanced && (
-          <div className="mt-4 space-y-5">
-            {/* Font */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-2 ml-1">
-                Font
-              </label>
-              <select
-                value={advancedFont}
-                onChange={(e) => setAdvancedFont(e.target.value)}
-                disabled={isPending}
-                className="w-full bg-white rounded-xl border-b-2 border-[#dbc1bc]/30 px-4 py-3 text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 disabled:opacity-50"
-              >
-                <option value="">Template Default</option>
-                {Object.entries(fontsByCategory).map(([category, fonts]) => (
-                  <optgroup key={category} label={category.charAt(0).toUpperCase() + category.slice(1)}>
-                    {fonts.map((font) => (
-                      <option key={font.family} value={font.family}>
-                        {font.family}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
+          <ToolPill
+            icon="image"
+            label="Images"
+            active={activePanel === 'images'}
+            onClick={() => setActivePanel((p) => (p === 'images' ? null : 'images'))}
+          />
+        </div>
 
-            {/* Font Color */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-2 ml-1">
-                Font Color
-              </label>
-              <div className="flex items-center gap-2">
-                {['#ffffff', '#3d0000', '#000000', '#7d6161'].map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setAdvancedFontColor(color)}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
-                      advancedFontColor === color
-                        ? 'border-[#3d0000] scale-110'
-                        : 'border-[#dbc1bc]/30 hover:border-[#dbc1bc]'
-                    }`}
-                    style={{ backgroundColor: color }}
-                    title={color}
-                  />
-                ))}
-                <input
-                  type="color"
-                  value={advancedFontColor || '#000000'}
-                  onChange={(e) => setAdvancedFontColor(e.target.value)}
-                  className="w-8 h-8 rounded-full border-2 border-[#dbc1bc]/30 cursor-pointer"
-                  title="Custom color"
+        {activePanel && (
+          <div className="mt-4 rounded-xl border border-[#dbc1bc]/40 bg-white p-4">
+            {/* Visual Style — content category + template grid */}
+            {activePanel === 'visual' && (
+              <div className="space-y-6">
+                <CategorySelector
+                  selected={category}
+                  onSelect={handleCategoryChange}
+                  disabled={isPending}
                 />
-                {advancedFontColor && (
+                {/* Phase 82 (R7/R8): picker filtered to the selected category's
+                    curated templateIds subset. */}
+                <TemplatePicker
+                  selectedId={templateId}
+                  onSelect={setTemplateId}
+                  category={category}
+                  dbTemplates={dbTemplates}
+                />
+              </div>
+            )}
+
+            {/* Slide Number */}
+            {activePanel === 'slides' && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]">
+                    Number of Slides
+                  </span>
+                  <span className="text-sm font-bold text-[#3d0000]">{slideCount}</span>
+                </div>
+                <input
+                  type="range"
+                  min={3}
+                  max={sliderMax}
+                  step={1}
+                  value={slideCount}
+                  onChange={(e) => setSlideCount(Number(e.target.value))}
+                  disabled={isPending}
+                  className="w-full h-1.5 bg-[#fadbdb] rounded-lg appearance-none cursor-pointer accent-[#3d0000] disabled:opacity-50"
+                />
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] text-[#7d6161]">3</span>
+                  <span className="text-[10px] text-[#7d6161]">{sliderMax}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Images — background image source */}
+            {activePanel === 'images' && (
+              <div>
+                <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
-                    onClick={() => setAdvancedFontColor('')}
-                    className="text-[10px] text-[#7d6161] hover:text-[#3d0000] ml-1"
+                    onClick={() => setImageSource('stock')}
+                    disabled={isPending}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      imageSource === 'stock'
+                        ? 'border-[#3d0000] bg-[#fff0f0]'
+                        : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+                    } disabled:opacity-50`}
                   >
-                    Reset
+                    <Icon name="image" size="lg" className={imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+                    <span className={`text-sm font-semibold ${imageSource === 'stock' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+                      Stock Photos
+                    </span>
+                    <span className="text-[10px] text-[#7d6161]">Included free</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isPaidUser) {
+                        setShowUpgradePrompt(true)
+                        return
+                      }
+                      setImageSource('ai')
+                    }}
+                    disabled={isPending}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      imageSource === 'ai'
+                        ? 'border-[#3d0000] bg-[#fff0f0]'
+                        : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+                    } disabled:opacity-50`}
+                  >
+                    <Icon name="auto_awesome" size="lg" className={imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+                    <span className={`text-sm font-semibold ${imageSource === 'ai' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+                      AI Generated
+                    </span>
+                    <span className="text-[10px] text-[#7d6161]">
+                      {isPaidUser ? '1 credit per slide' : 'Hobbyist / Creator only'}
+                    </span>
+                  </button>
+                  {/* No-Photos: text-only slides on the template's flat
+                      background. Pairs best with color-only templates. */}
+                  <button
+                    type="button"
+                    onClick={() => setImageSource('none')}
+                    disabled={isPending}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      imageSource === 'none'
+                        ? 'border-[#3d0000] bg-[#fff0f0]'
+                        : 'border-[#dbc1bc]/20 bg-white hover:border-[#dbc1bc]/40'
+                    } disabled:opacity-50`}
+                  >
+                    <Icon name="text_fields" size="lg" className={imageSource === 'none' ? 'text-[#3d0000]' : 'text-[#7d6161]'} />
+                    <span className={`text-sm font-semibold ${imageSource === 'none' ? 'text-[#3d0000]' : 'text-[#7d6161]'}`}>
+                      No Photos
+                    </span>
+                    <span className="text-[10px] text-[#7d6161]">Text only</span>
+                  </button>
+                </div>
+                {imageSource === 'ai' && (
+                  <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
+                    Uses ~{slideCount} credits for AI backgrounds. Takes ~{Math.ceil(slideCount / 2) * 10}-{Math.ceil(slideCount / 2) * 15}s. Slides that fail will use stock photos instead.
+                  </p>
+                )}
+                {imageSource === 'none' && (
+                  <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
+                    Pure typography on the template&apos;s flat background. Pairs best with Paper Essay, Brutalist Grid, or Editorial Serif.
+                  </p>
                 )}
               </div>
-            </div>
-
-            {/* AI Image Prompt */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#7d6161] mb-2 ml-1">
-                AI Image Style Hint
-              </label>
-              <textarea
-                value={advancedImagePrompt}
-                onChange={(e) => setAdvancedImagePrompt(e.target.value)}
-                placeholder="e.g. minimalist watercolor illustrations, dark moody photography..."
-                rows={2}
-                disabled={isPending}
-                className="w-full bg-white rounded-xl border-b-2 border-[#dbc1bc]/30 px-4 py-3 text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 resize-none placeholder:text-[#dbc1bc] disabled:opacity-50"
-              />
-            </div>
+            )}
           </div>
         )}
       </div>
