@@ -55,7 +55,7 @@
 
 Plans:
 **Wave 1**
-- [ ] 89-01-PLAN.md — Remove brand-kit UI surfaces: picker tile, Settings page, /api/v1/me/brand-kit/* routes, OpenAPI schema, nav links (BKSHELVE-01..03)
+- [x] 89-01-PLAN.md — Remove brand-kit UI surfaces: picker tile, Settings page, /api/v1/me/brand-kit/* routes, OpenAPI schema, nav links (BKSHELVE-01..03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 89-02-PLAN.md — Strip brand-kit from render/publish/download + editor prop chain; add getTemplate('brand-kit') -> news-oracle fallback (BKSHELVE-05, -07)
@@ -130,7 +130,7 @@ _Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.plann
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
-| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 0/4 | Not started | - |
+| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 1/4 | In Progress|  |
 | 90. Pre-Rendered Template Preview Pipeline | v2.16 | 0/? | Not started | - |
 | 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
