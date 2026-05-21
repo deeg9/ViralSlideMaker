@@ -10,7 +10,7 @@
  * Sections (top-to-bottom):
  *   1. Header — decorationLabel + ROLE label
  *   2. Fill (CARD-02) — react-colorful HexAlphaColorPicker (shape) /
- *      HexColorPicker (icon) + brand-kit + derived_palette swatches above +
+ *      HexColorPicker (icon) + derived_palette swatches above +
  *      hex input. 300ms debounced commit.
  *   3. Stroke (CARD-03 + SHAPES-08) — color picker + width slider 1-8px +
  *      style enum buttons solid/dashed/dotted. SHAPE only.
@@ -47,7 +47,6 @@ import type {
   ShapeDecoration,
   ShapeKind,
 } from '@/lib/types/decoration'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import { renderDecoration } from '@/lib/render/decoration-renderer'
 
 export interface DecorationCardProps {
@@ -68,7 +67,6 @@ export interface DecorationCardProps {
    *  still flows through `onUpdate` and pushes ONE history entry per gesture
    *  (KBD-09 invariant). */
   onPreview?: (updates: Partial<Decoration>) => void
-  brandKit?: BrandKit | null
   derivedPalette?: string[]
 }
 
@@ -90,17 +88,6 @@ const DEFAULT_STROKE: DecorationStroke = {
   style: 'solid',
 }
 
-function brandKitColors(bk: BrandKit | null | undefined): string[] {
-  if (!bk) return []
-  return [
-    bk.primary_color,
-    bk.secondary_color,
-    bk.accent_color,
-    bk.text_color,
-    bk.background_color,
-  ].filter((c): c is string => typeof c === 'string' && c.length > 0)
-}
-
 function clampPct(n: number): number {
   return Math.max(0, Math.min(100, n))
 }
@@ -115,7 +102,6 @@ export function DecorationCard({
   onRemove,
   onSwapIcon,
   onPreview,
-  brandKit,
   derivedPalette,
 }: DecorationCardProps) {
   const isShape = d.kind === 'shape'
@@ -148,9 +134,11 @@ export function DecorationCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorDraft])
 
-  // Swatches: brand-kit + derived_palette, capped at MAX_SWATCHES.
+  // Swatches: derived_palette, capped at MAX_SWATCHES.
+  // Phase 89 (BKSHELVE): brand-kit colors removed from the swatch row —
+  // only the extracted derived_palette feeds it now.
   const swatches = useMemo(() => {
-    const arr = [...brandKitColors(brandKit), ...(derivedPalette ?? [])]
+    const arr = [...(derivedPalette ?? [])]
     // Dedupe by lowercased hex.
     const seen = new Set<string>()
     const out: string[] = []
@@ -162,7 +150,7 @@ export function DecorationCard({
       if (out.length >= MAX_SWATCHES) break
     }
     return out
-  }, [brandKit, derivedPalette])
+  }, [derivedPalette])
 
   function pickSwatch(hex: string) {
     // Discrete user action — commit immediately (no debounce). Sync draft
