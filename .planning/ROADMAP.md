@@ -61,7 +61,7 @@ Plans:
 - [x] 89-02-PLAN.md — Strip brand-kit from render/publish/download + editor prop chain; add getTemplate('brand-kit') -> news-oracle fallback (BKSHELVE-05, -07)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 89-03-PLAN.md — Strip brand-kit from AI prompts, carousel service, generation form, and style-from-reference flow (BKSHELVE-04, -06, -08)
+- [x] 89-03-PLAN.md — Strip brand-kit from AI prompts, carousel service, generation form, and style-from-reference flow (BKSHELVE-04, -06, -08)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 89-04-PLAN.md — Relocate BrandKitTextPosition type, delete src/lib/brand-kit/ + types, final tsc + parity sweep (BKSHELVE-09)
@@ -130,7 +130,7 @@ _Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.plann
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
-| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 2/4 | In Progress|  |
+| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 3/4 | In Progress|  |
 | 90. Pre-Rendered Template Preview Pipeline | v2.16 | 0/? | Not started | - |
 | 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
