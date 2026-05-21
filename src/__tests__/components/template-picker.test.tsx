@@ -10,15 +10,15 @@ import type { PickerDbTemplate } from '@/lib/render/templates/registry'
  *
  * Locks the picker against future regressions where a template might
  * silently fall back to a swatch / text-only label instead of rendering
- * via <SlidePreview> + makeSampleSlide.
+ * a preview tile.
  *
- * Polyfills: relies on src/__tests__/setup.ts (ResizeObserver +
- * getBoundingClientRect 1080x1920 fallback) so SlidePreview can compute
- * its scale and render its inner DOM (testid: 'slide-preview').
+ * Phase 90 (PREVIEW-05): every code AND DB template now carries a `preview`
+ * URL, so each picker tile renders a single <img> (no <SlidePreview>
+ * live-render path). Tiles are therefore counted as `getAllByRole('img')`.
  */
 
 describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
-  it('renders exactly pickerTemplates.length SlidePreview tiles', () => {
+  it('renders exactly pickerTemplates.length preview img tiles', () => {
     render(
       <TemplatePicker
         selectedId="bold-yellow"
@@ -27,7 +27,7 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     )
     // Picker iterates the filtered list; templates hidden via HIDDEN_FROM_PICKER
     // remain in the registry for legacy projects but do not render as tiles.
-    const previews = screen.getAllByTestId('slide-preview')
+    const previews = screen.getAllByRole('img')
     expect(previews.length).toBe(pickerTemplates.length)
   })
 
@@ -42,22 +42,22 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     expect(screen.getAllByText(/Selected/i).length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders visible Phase 56 templates (editorial-serif, notes-app-chic) as SlidePreview tiles, not swatch fallback', () => {
+  it('renders the visible Phase 56 template (editorial-serif) as a preview img tile, not swatch fallback', () => {
     render(
       <TemplatePicker
         selectedId="bold-yellow"
         onSelect={vi.fn()}
       />,
     )
-    const previews = screen.getAllByTestId('slide-preview')
+    const previews = screen.getAllByRole('img')
     expect(previews.length).toBe(pickerTemplates.length)
 
     // For each visible Phase 56 template, find its tile by display name.
-    // brutalist-grid is intentionally omitted here — it's in the registry
-    // (for legacy projects) but hidden from the picker.
+    // notes-app-chic and brutalist-grid are intentionally omitted — they are
+    // in the registry (for legacy projects) but hidden via HIDDEN_FROM_PICKER,
+    // so the keeper-filtered picker never renders them as tiles.
     const visiblePhase56Templates = [
       { id: 'editorial-serif', name: 'Editorial Serif' },
-      { id: 'notes-app-chic', name: 'Notes App Chic' },
     ]
     for (const tpl of visiblePhase56Templates) {
       expect(screen.getByText(tpl.name)).toBeInTheDocument()
