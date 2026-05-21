@@ -6,6 +6,7 @@ import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { validateImageFile } from '@/lib/upload-validation'
 import { TemplatePicker } from './template-picker'
 import { CategorySelector } from './category-selector'
+import { FilePreviewCard, PastedContentCard } from './prompt-attachment-cards'
 import { DEFAULT_CATEGORY, getCategory } from '@/lib/ai/categories'
 import { Icon } from '@/components/ui/icon'
 import { LetterCircleLoader } from '@/components/ui/letter-circle-loader'
@@ -96,7 +97,12 @@ export function GenerationForm({
   const [advancedImagePrompt, setAdvancedImagePrompt] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
+  // Long text pastes are captured as removable cards instead of flooding the
+  // prompt field; their content is folded back into the topic on submit.
+  const [pastedContent, setPastedContent] = useState<{ id: string; content: string }[]>([])
+  const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
 
   const fontsByCategory = useMemo(() => {
@@ -118,10 +124,18 @@ export function GenerationForm({
     }
   }, [previewUrls])
 
-  const busy = isPending || uploading
+  // Auto-grow the prompt textarea with its content, up to a max height.
+  useEffect(() => {
+    const el = promptRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 384)}px`
+  }, [topic])
 
-  function handleFilesPicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(e.target.files ?? [])
+  const busy = isPending || uploading
+  const canSubmit = !busy && (topic.trim().length > 0 || pastedContent.length > 0)
+
+  function addFiles(picked: File[]) {
     if (picked.length === 0) return
 
     const valid: File[] = []
@@ -141,7 +155,42 @@ export function GenerationForm({
     if (valid.length > 0) {
       setSelectedFiles((prev) => [...prev, ...valid].slice(0, MAX_UPLOADS))
     }
-    e.target.value = ''
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    if (!busy) setIsDragging(true)
+  }
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragging(false)
+    if (!busy) addFiles(Array.from(e.dataTransfer.files ?? []))
+  }
+
+  // Image pastes attach as files; a long text paste is captured as a card
+  // rather than dumped into the prompt field. Short pastes fall through.
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const pastedFiles = Array.from(e.clipboardData.items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => f != null)
+    if (pastedFiles.length > 0) {
+      e.preventDefault()
+      addFiles(pastedFiles)
+      return
+    }
+    const text = e.clipboardData.getData('text')
+    if (text.length > 300) {
+      e.preventDefault()
+      setPastedContent((prev) => [
+        ...prev,
+        { id: Math.random().toString(36).slice(2, 11), content: text },
+      ])
+    }
   }
 
   function removeFile(idx: number) {
@@ -188,9 +237,14 @@ export function GenerationForm({
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!topic.trim()) return
+  function submitGeneration() {
+    // Fold any pasted-content cards back into the topic; cap at the 2000-char
+    // generation budget.
+    const effectiveTopic = [topic.trim(), ...pastedContent.map((c) => c.content)]
+      .filter(Boolean)
+      .join('\n\n')
+      .slice(0, 2000)
+    if (!effectiveTopic.trim() || busy) return
 
     setError(null)
     setShowUpgradePrompt(false)
@@ -212,7 +266,7 @@ export function GenerationForm({
 
       const result = await generateCarousel(
         projectId,
-        topic.trim(),
+        effectiveTopic,
         templateId,
         imageSource,
         effectiveSlideCount,
@@ -236,6 +290,19 @@ export function GenerationForm({
     })
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    submitGeneration()
+  }
+
+  // Enter submits; Shift+Enter inserts a newline.
+  function handlePromptKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      submitGeneration()
+    }
+  }
+
   const loaderText = uploading
     ? 'Uploading'
     : imageSource === 'ai'
@@ -250,57 +317,85 @@ export function GenerationForm({
         </div>
       )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-      {/* Textarea */}
+      {/* Prompt input — chat-style card */}
       <div>
-        <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-3 ml-1">
-          Presentation Prompt
-        </label>
-        <div className="relative">
-          <textarea
-            data-onboarding-id="topic-input"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. 5 tips for growing your Instagram following, benefits of morning routines, how to start investing..."
-            rows={6}
-            disabled={busy}
-            maxLength={2000}
-            className="w-full bg-white pt-6 px-6 pb-16 rounded-xl border-b-2 border-[#dbc1bc]/30 focus:border-[#3d0000] focus:ring-0 transition-all text-lg resize-none placeholder:text-[#dbc1bc] disabled:opacity-50"
-          />
-
-          {/* Bottom action row inside textarea container */}
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={busy || selectedFiles.length >= MAX_UPLOADS}
-              className="pointer-events-auto flex items-center gap-1 px-2 py-2 rounded-lg hover:bg-[#fff0f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Attach photos for the slideshow"
-              title="Attach photos for the slideshow"
-            >
-              <Icon name="attach_file" size="lg" className="text-[#7d6161] -rotate-45" />
-              {selectedFiles.length > 0 && (
-                <span className="text-xs font-semibold text-[#3d0000]">
-                  {selectedFiles.length}
-                </span>
+        <div
+          className="relative"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="flex flex-col rounded-2xl border border-[#dbc1bc]/40 bg-white shadow-[0_2px_15px_rgba(61,0,0,0.06)] hover:shadow-[0_2px_20px_rgba(61,0,0,0.09)] focus-within:shadow-[0_2px_24px_rgba(61,0,0,0.12)] focus-within:border-[#3d0000]/40 transition-shadow">
+            <div className="flex flex-col gap-2 px-3 pt-3 pb-2">
+              {/* Attachments — pasted snippets then files */}
+              {(pastedContent.length > 0 || selectedFiles.length > 0) && (
+                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 px-1">
+                  {pastedContent.map((c) => (
+                    <PastedContentCard
+                      key={c.id}
+                      content={c.content}
+                      onRemove={() =>
+                        setPastedContent((prev) => prev.filter((p) => p.id !== c.id))
+                      }
+                    />
+                  ))}
+                  {selectedFiles.map((file, idx) => (
+                    <FilePreviewCard
+                      key={`${file.name}-${idx}`}
+                      file={file}
+                      previewUrl={previewUrls[idx] ?? null}
+                      uploading={uploading}
+                      onRemove={() => removeFile(idx)}
+                    />
+                  ))}
+                </div>
               )}
-            </button>
 
-            <span
-              className="pointer-events-none text-[0.65rem] tracking-wide text-[#7d6161]/60 tabular-nums"
-              aria-live="polite"
-            >
-              {topic.length} / 2000
-            </span>
+              {/* Prompt textarea — auto-resizing */}
+              <div className="max-h-96 overflow-y-auto hide-scrollbar px-1">
+                <textarea
+                  ref={promptRef}
+                  data-onboarding-id="topic-input"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  onPaste={handlePaste}
+                  onKeyDown={handlePromptKeyDown}
+                  placeholder="e.g. 5 tips for growing your Instagram following, benefits of morning routines, how to start investing..."
+                  rows={1}
+                  disabled={busy}
+                  maxLength={2000}
+                  className="w-full bg-transparent border-0 outline-none resize-none text-[#3d0000] text-base placeholder:text-[#dbc1bc] py-1.5 leading-relaxed min-h-[3rem] disabled:opacity-50"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={busy || !topic.trim()}
-              className="pointer-events-auto w-10 h-10 rounded-full bg-white border-2 border-[#3d0000] flex items-center justify-center hover:bg-[#3d0000] hover:text-white text-[#3d0000] transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-white disabled:text-[#3d0000]"
-              aria-label="Generate carousel"
-              title="Generate carousel"
-            >
-              <Icon name="arrow_upward" size="md" />
-            </button>
+              {/* Action bar */}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={busy || selectedFiles.length >= MAX_UPLOADS}
+                  className="flex items-center justify-center h-8 w-8 rounded-lg text-[#7d6161] hover:text-[#3d0000] hover:bg-[#fff0f0] transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Attach photos for the slideshow"
+                  title="Attach photos for the slideshow"
+                >
+                  <Icon name="add" size="lg" />
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all active:scale-95 ${
+                    canSubmit
+                      ? 'bg-[#3d0000] text-white hover:opacity-90 shadow-sm'
+                      : 'bg-[#3d0000]/25 text-white/70 cursor-not-allowed'
+                  }`}
+                  aria-label="Generate carousel"
+                  title="Generate carousel"
+                >
+                  <Icon name="arrow_upward" size="md" />
+                </button>
+              </div>
+            </div>
           </div>
 
           <input
@@ -308,63 +403,48 @@ export function GenerationForm({
             type="file"
             accept="image/png,image/jpeg,image/webp,image/gif"
             multiple
-            onChange={handleFilesPicked}
+            onChange={(e) => {
+              addFiles(Array.from(e.target.files ?? []))
+              e.target.value = ''
+            }}
             className="hidden"
           />
+
+          {/* Drag overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 bg-[#fff0f0]/90 border-2 border-dashed border-[#3d0000] rounded-2xl z-20 flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none">
+              <Icon name="upload" size="xl" className="text-[#3d0000] mb-1" />
+              <p className="text-[#3d0000] font-medium text-sm">Drop images to attach</p>
+            </div>
+          )}
         </div>
 
-        {/* Selected photos thumbnail strip */}
-        {selectedFiles.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3 ml-1">
-            {selectedFiles.map((file, idx) => (
-              <div
-                key={`${file.name}-${idx}`}
-                className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#dbc1bc]/40 bg-[#fff0f0]"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrls[idx]}
-                  alt={file.name}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeFile(idx)}
-                  disabled={busy}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center hover:bg-black/90 disabled:opacity-50"
-                  aria-label={`Remove ${file.name}`}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            {(() => {
-              const photos = selectedFiles.length
-              const slides = slideCount
-              if (photos === slides) {
-                return (
-                  <p className="basis-full text-[10px] text-[#7d6161] mt-1">
-                    All {photos} photo{photos === 1 ? '' : 's'} will be matched to your {slides} slide{slides === 1 ? '' : 's'} by content.
-                  </p>
-                )
-              }
-              if (photos < slides) {
-                const remaining = slides - photos
-                return (
-                  <p className="basis-full text-[10px] text-[#7d6161] mt-1">
-                    {photos} photo{photos === 1 ? '' : 's'} will be placed on the most relevant slide{photos === 1 ? '' : 's'}; the remaining {remaining} will {imageSource === 'none' ? 'be text-only on the template background' : `use ${imageSource === 'ai' ? 'AI' : 'stock'}`}.
-                  </p>
-                )
-              }
-              const ignored = photos - slides
-              return (
-                <p className="basis-full text-[10px] text-red-700 mt-1">
-                  Only {slides} of your {photos} photos will be used (carousel limited to {slides} slide{slides === 1 ? '' : 's'}). Increase the slide count or remove {ignored} photo{ignored === 1 ? '' : 's'}.
-                </p>
-              )
-            })()}
-          </div>
-        )}
+        {/* Photo / slide-count helper */}
+        {selectedFiles.length > 0 && (() => {
+          const photos = selectedFiles.length
+          const slides = slideCount
+          if (photos === slides) {
+            return (
+              <p className="text-[10px] text-[#7d6161] mt-2 px-1">
+                All {photos} photo{photos === 1 ? '' : 's'} will be matched to your {slides} slide{slides === 1 ? '' : 's'} by content.
+              </p>
+            )
+          }
+          if (photos < slides) {
+            const remaining = slides - photos
+            return (
+              <p className="text-[10px] text-[#7d6161] mt-2 px-1">
+                {photos} photo{photos === 1 ? '' : 's'} will be placed on the most relevant slide{photos === 1 ? '' : 's'}; the remaining {remaining} will {imageSource === 'none' ? 'be text-only on the template background' : `use ${imageSource === 'ai' ? 'AI' : 'stock'}`}.
+              </p>
+            )
+          }
+          const ignored = photos - slides
+          return (
+            <p className="text-[10px] text-red-700 mt-2 px-1">
+              Only {slides} of your {photos} photos will be used (carousel limited to {slides} slide{slides === 1 ? '' : 's'}). Increase the slide count or remove {ignored} photo{ignored === 1 ? '' : 's'}.
+            </p>
+          )
+        })()}
       </div>
 
       {/* Visual Style — collapsible. Content category and the visual-style
@@ -649,7 +729,7 @@ export function GenerationForm({
         <button
           type="submit"
           data-onboarding-id="generate-button"
-          disabled={busy || !topic.trim()}
+          disabled={!canSubmit}
           className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-semibold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.1)] hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy ? (
