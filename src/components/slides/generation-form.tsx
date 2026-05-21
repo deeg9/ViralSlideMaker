@@ -26,7 +26,6 @@ interface GenerationFormProps {
   /** Phase 82 (R1): persisted content category — rehydrates the selector
    *  so Regenerate reuses the project's category. */
   currentCategory?: string
-  hasSlides: boolean
   userTier?: 'free' | 'pro' | 'plus'
   /** Phase 87 (WIRE-01): DB-backed templates fetched server-side by the
    *  project page and threaded into the picker. Defaults to [] so callers
@@ -44,7 +43,6 @@ export function GenerationForm({
   currentTopic,
   currentTemplateId,
   currentCategory,
-  hasSlides,
   userTier = 'free',
   dbTemplates = [],
   redirectToEditorOnSuccess = false,
@@ -364,6 +362,7 @@ export function GenerationForm({
 
                 <button
                   type="submit"
+                  data-onboarding-id="generate-button"
                   disabled={!canSubmit}
                   className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all active:scale-95 ${
                     canSubmit
@@ -586,40 +585,6 @@ export function GenerationForm({
       {showUpgradePrompt && (
         <UpgradePrompt context="generation" />
       )}
-
-      {/* Submit */}
-      <div className="flex flex-col items-center gap-6">
-        <button
-          type="submit"
-          data-onboarding-id="generate-button"
-          disabled={!canSubmit}
-          className="w-full bg-[#3d0000] text-white py-5 rounded-xl font-semibold tracking-wide flex items-center justify-center gap-3 shadow-[0px_20px_40px_rgba(61,0,0,0.1)] hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {busy ? (
-            <>
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {uploading
-                ? `Uploading ${selectedFiles.length} photo${selectedFiles.length === 1 ? '' : 's'}...`
-                : imageSource === 'ai'
-                  ? 'Generating with AI images (~30s)...'
-                  : 'Generating slides...'}
-            </>
-          ) : (
-            <>
-              {hasSlides ? 'Regenerate Carousel' : 'Generate Carousel'}
-              <Icon name="bolt" />
-            </>
-          )}
-        </button>
-        {!hasSlides && (
-          <p className="text-[10px] text-[#7d6161] uppercase tracking-widest font-bold">
-            {imageSource === 'ai' ? 'Estimated time: 30-45 seconds' : 'Estimated time: 15 seconds'}
-          </p>
-        )}
-      </div>
     </form>
     </>
   )

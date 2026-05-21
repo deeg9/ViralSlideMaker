@@ -107,7 +107,6 @@ export default async function DashboardPage() {
             currentTopic={emptyDraft?.topic}
             currentTemplateId={emptyDraft?.template_id}
             currentCategory={emptyDraft?.category}
-            hasSlides={false}
             userTier={tier}
             dbTemplates={dbTemplates}
             redirectToEditorOnSuccess
