@@ -13,14 +13,6 @@ import { ReferenceThumbnailsStrip } from '@/components/projects/reference-thumbn
 import { RegenerateFromReferencesButton } from '@/components/projects/regenerate-from-references-button'
 import { SlideEditor } from '@/components/editor/slide-editor'
 import { getUserTier } from '@/lib/credits/check-credits'
-// quick-260514-g7y: forward ToS clickwrap state into GenerationForm so
-// the inlined style-from-reference collapsible can open its clickwrap
-// modal on first reference upload (same gate as the deleted standalone
-// /style-from-reference/new page).
-import { createAdminClient } from '@/lib/supabase/admin'
-import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
-import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
-import { acceptStyleFromReferenceTosCurrentVersionAction } from '@/app/(dashboard)/style-from-reference/actions'
 // Phase 87 (WIRE-01): server-side DB-backed template fetch for the picker.
 import { getPickerDbTemplates } from '@/lib/render/templates/registry'
 
@@ -49,18 +41,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const hasSlides = slides.length > 0
 
   const tier = user ? await getUserTier(user.id) : 'free' as const
-
-  // quick-260514-g7y: pre-compute ToS acceptance server-side so the
-  // inlined collapsible can decide to render the clickwrap modal without
-  // a client-side round-trip. Same pattern as the deleted standalone
-  // /style-from-reference/new page used.
-  const tosAlreadyAccepted = user
-    ? await hasUserAcceptedCurrentTos(
-        createAdminClient(),
-        user.id,
-        STYLE_FROM_REFERENCE_TOS_VERSION,
-      )
-    : true
 
   const { data: publishedRow } = user
     ? await supabase
@@ -154,8 +134,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         currentCategory={p.category}
         hasSlides={false}
         userTier={tier}
-        tosAlreadyAccepted={tosAlreadyAccepted}
-        acceptTosAction={acceptStyleFromReferenceTosCurrentVersionAction}
         dbTemplates={dbTemplates}
       />
 

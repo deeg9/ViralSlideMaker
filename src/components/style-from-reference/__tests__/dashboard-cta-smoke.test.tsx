@@ -49,13 +49,13 @@ describe('quick-260514-g7y: style-from-reference entry-point relocation guard', 
     expect(formSrc).not.toMatch(/href=[`"]?\/style-from-reference\/new/)
   })
 
-  it('Test 3: generation form mentions "Copy style" (the new collapsible header)', () => {
+  it('Test 3: generation form no longer carries the "Copy style" collapsible', () => {
     const formSrc = readFileSync(generationFormPath, 'utf8')
-    // The inline collapsible header is the new entry-point affordance.
-    // Renamed 2026-05-14 from "Inspired by references" → "Copy style"
-    // and the collapsible was moved above SELECT VISUAL STYLE so the
-    // "copy a style" entry-point appears before the manual template picker.
-    expect(formSrc).toMatch(/Copy style/)
+    // The Copy Style collapsible (the inlined style-from-reference flow) was
+    // removed from the prompt form. Assert it stays gone so a future PR
+    // re-adding it goes red and forces explicit intent.
+    expect(formSrc).not.toMatch(/Copy style/)
+    expect(formSrc).not.toContain('StyleFromReferenceShell')
   })
 
   it('Test 4: dashboard page no longer carries the old CTA either', () => {

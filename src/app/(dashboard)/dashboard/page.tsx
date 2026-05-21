@@ -4,7 +4,6 @@
 export const maxDuration = 60
 
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { ProjectList } from '@/components/projects/project-list'
 import type { ProjectPublishedState } from '@/components/projects/project-card'
 import { getCreditBalance, getUserTier, checkProjectLimit } from '@/lib/credits/check-credits'
@@ -14,9 +13,6 @@ import { FirstRunWelcomeDialog } from '@/components/onboarding/first-run-welcome
 import { GenerationForm } from '@/components/slides/generation-form'
 import { createProjectService } from '@/lib/services/projects'
 import { getPickerDbTemplates } from '@/lib/render/templates/registry'
-import { hasUserAcceptedCurrentTos } from '@/lib/legal/audit-log'
-import { STYLE_FROM_REFERENCE_TOS_VERSION } from '@/lib/legal/tos-version'
-import { acceptStyleFromReferenceTosCurrentVersionAction } from '@/app/(dashboard)/style-from-reference/actions'
 import type { Project } from '@/lib/types/project'
 
 export default async function DashboardPage() {
@@ -88,16 +84,9 @@ export default async function DashboardPage() {
     scratchProjectId = created?.id ?? null
   }
 
-  // Server-side props for the inlined GenerationForm — same data the
-  // /project/[id] empty-state page feeds it. Skipped when there's no form.
+  // DB-backed templates for the inlined GenerationForm picker — same data
+  // the /project/[id] empty-state page feeds it. Skipped when there's no form.
   const dbTemplates = scratchProjectId ? await getPickerDbTemplates() : []
-  const tosAlreadyAccepted = user
-    ? await hasUserAcceptedCurrentTos(
-        createAdminClient(),
-        user.id,
-        STYLE_FROM_REFERENCE_TOS_VERSION,
-      )
-    : true
 
   return (
     <div className="space-y-16">
@@ -120,8 +109,6 @@ export default async function DashboardPage() {
             currentCategory={emptyDraft?.category}
             hasSlides={false}
             userTier={tier}
-            tosAlreadyAccepted={tosAlreadyAccepted}
-            acceptTosAction={acceptStyleFromReferenceTosCurrentVersionAction}
             dbTemplates={dbTemplates}
             redirectToEditorOnSuccess
           />

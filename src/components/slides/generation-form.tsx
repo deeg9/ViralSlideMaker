@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useTransition, useMemo, useRef, useEffect } from 'react'
 import { generateCarousel } from '@/app/(dashboard)/project/[id]/actions'
 import { createUploadUrl } from '@/app/(dashboard)/project/[id]/editor-actions'
 import { validateImageFile } from '@/lib/upload-validation'
@@ -196,54 +196,7 @@ export function GenerationForm({
     setShowUpgradePrompt(false)
     const effectiveSlideCount = slideCount
 
-    // quick-260514-g7y: branch on the inlined style-from-reference state.
-    // When the user has uploaded references and extraction reached the
-    // 'preview' status, the extracted spec drives generation (locked
-    // decision: "extracted spec wins" — template_id is ignored in this
-    // branch). Otherwise fall through to the template-based path.
-    //
-    // quick-260515-dwu: harden the predicate to ALSO require at least
-    // one reference row. The reducer shouldn't emit status='preview'
-    // with an empty references[] (UPLOAD_RESET → references=[] sets
-    // status back to idle), but the bug-report DB evidence shows the
-    // arrow routed wrong somewhere — belt-and-braces. A Copy Style
-    // generation without references can't populate reference_assets
-    // anyway, and the user clearly didn't complete the Copy Style flow,
-    // so falling back to the topic flow is the correct behavior.
-    const useReferenceSpec =
-      inlineSpec?.spec != null &&
-      inlineSpec.status === 'preview' &&
-      inlineSpec.references.length > 0
-
     startTransition(async () => {
-      if (useReferenceSpec && inlineSpec?.spec) {
-        // quick-260514-images: forward the form's BACKGROUND IMAGES
-        // selection + slide-count slider into the references emit so
-        // the generated carousel honors the user's choice instead of
-        // shipping text-only-on-white. Originally the references path
-        // was text-only by design; user feedback flipped that.
-        const result = await regenerateAction({
-          projectId,
-          spec: inlineSpec.spec,
-          aspects: inlineSpec.aspects,
-          content: { mode: 'ai-copy', topic: topic.trim() },
-          imageSource,
-          slideCount: effectiveSlideCount,
-          // quick-260515-dwu: forward the extracted reference rows end-
-          // to-end so the project row's reference_assets column gets
-          // populated alongside style_spec. Without this the row carries
-          // style_spec but null reference_assets and downstream
-          // remix/fork (REMIX-04) has nothing to inherit.
-          references: inlineSpec.references,
-        })
-        if (!result.ok) {
-          setError(`Generation failed (${result.error}): ${result.detail ?? 'no detail'}`)
-        } else {
-          handleGenerationSuccess()
-        }
-        return
-      }
-
       let uploadedImageUrls: string[] = []
       if (selectedFiles.length > 0) {
         try {
@@ -414,53 +367,10 @@ export function GenerationForm({
         )}
       </div>
 
-      {/* Copy style — collapsible (quick-260514-g7y + 260514-g7y-followup).
-          Inlines the style-from-reference flow: upload 1–3 reference
-          images, click Extract style, review the spec, toggle Apply
-          aspects. handleSubmit reads inlineSpec on the Generate
-          Carousel click and routes through regenerateAction when a
-          spec is present (overriding the selected template — locked
-          decision: "extracted spec wins"). Positioned ABOVE Select
-          Visual Style so users encounter the "copy a style" option
-          before the manual template picker. */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowInspiredByRefs(!showInspiredByRefs)}
-          className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
-          aria-expanded={showInspiredByRefs}
-        >
-          Copy style
-          {inlineSpec?.spec && (
-            <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-wider">
-              · Style extracted
-            </span>
-          )}
-          <Icon
-            name="expand_more"
-            size="sm"
-            className={`transition-transform ${showInspiredByRefs ? 'rotate-180' : ''}`}
-          />
-        </button>
-        {showInspiredByRefs && (
-          <div className="mt-4">
-            <StyleFromReferenceShell
-              projectId={projectId}
-              targetProjectId={projectId}
-              currentTopic={topic}
-              tosAlreadyAccepted={tosAlreadyAccepted}
-              acceptTosAction={acceptTosAction}
-              hideGenerateCta
-              onSpecChange={setInlineSpec}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Content Category — collapsible (Phase 82 R6). Inserted above Select
-          Visual Style: the user picks WHAT KIND of content before WHAT it
-          looks like. The category drives Gemini's copy; it also filters the
-          template picker below to the category's curated subset. */}
+      {/* Visual Style — collapsible. Content category and the visual-style
+          template grid live in one section: the user picks a category (which
+          drives Gemini's copy) and the template grid below it filters to that
+          category's curated subset. Clicking a category re-renders the grid. */}
       <div>
         <div className="flex justify-between items-center mb-3">
           <button
@@ -469,7 +379,7 @@ export function GenerationForm({
             className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] ml-1"
             aria-expanded={showCategory}
           >
-            Content Category
+            Select Visual Style
             <Icon
               name="expand_more"
               size="sm"
@@ -478,38 +388,12 @@ export function GenerationForm({
           </button>
         </div>
         {showCategory && (
-          <div className="mt-4">
+          <div className="mt-4 space-y-6">
             <CategorySelector
               selected={category}
               onSelect={handleCategoryChange}
               disabled={isPending}
             />
-          </div>
-        )}
-      </div>
-
-      {/* Template Picker — collapsible. (quick-260514-g7y: the References
-          pill was removed from this header. The style-from-reference flow
-          now lives in its own "Copy style" collapsible above, and the
-          standalone /style-from-reference/new page is gone.) */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <button
-            type="button"
-            onClick={() => setShowVisualStyle(!showVisualStyle)}
-            className="flex items-center gap-2 text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161]"
-            aria-expanded={showVisualStyle}
-          >
-            Select Visual Style
-            <Icon
-              name="expand_more"
-              size="sm"
-              className={`transition-transform ${showVisualStyle ? 'rotate-180' : ''}`}
-            />
-          </button>
-        </div>
-        {showVisualStyle && (
-          <div className="mt-4">
             {/* Phase 82 (R7/R8): picker filtered to the selected category's
                 curated templateIds subset. */}
             <TemplatePicker
