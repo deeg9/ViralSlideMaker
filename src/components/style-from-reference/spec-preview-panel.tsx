@@ -16,7 +16,6 @@
 // grep gate enforces zero mimicry-framing tokens project-wide.
 
 import type { StyleSpec } from '@/lib/types/style-spec'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import type { SpecPreviewState, SpecPreviewAction } from './state-machine'
 // Plan 76-02 slot fills:
 import { PaletteSwatches } from './palette-swatches'
@@ -24,13 +23,11 @@ import { FontCategoryBadges } from './font-category-badges'
 import { LayoutSketch } from './layout-sketch'
 import { VoiceNoteCaption } from './voice-note-caption'
 import { PerAspectToggles } from './per-aspect-toggles'
-import { BrandKitRemixToggle } from './brand-kit-remix-toggle'
 import { CreditCostDisplay } from './credit-cost-display'
 
 export interface SpecPreviewPanelProps {
   state: SpecPreviewState
   dispatch: React.Dispatch<SpecPreviewAction>
-  brandKit: BrandKit | null
   onGenerate: () => void
   onReExtract: () => void
   /** quick-260514-g7y: when true (inline-collapsible mode), the bottom
@@ -95,18 +92,6 @@ export function SpecPreviewPanel(props: SpecPreviewPanelProps) {
 
       <div data-testid="aspects-slot" data-slot="aspects" className="min-h-[48px]">
         <PerAspectToggles aspects={state.aspects} dispatch={props.dispatch} />
-      </div>
-
-      <div data-testid="brand-kit-slot" data-slot="brand-kit" className="min-h-[32px]">
-        {spec ? (
-          <BrandKitRemixToggle
-            brandKit={props.brandKit}
-            brandKitAvailable={state.brandKitAvailable}
-            useBrandKitRemix={state.useBrandKitRemix}
-            extractedPalette={spec.palette}
-            dispatch={props.dispatch}
-          />
-        ) : null}
       </div>
 
       <div className="flex items-center justify-between gap-3 pt-2">

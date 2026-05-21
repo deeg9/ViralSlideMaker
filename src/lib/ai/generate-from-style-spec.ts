@@ -283,7 +283,7 @@ function processSlideDecorations(
  *   - 'ai-copy': Gemini generates new slide copy in spec's voice.
  *   - 'user-copy': Gemini structures user-supplied lines (no copy generation).
  *
- * @param spec    The (validated, possibly aspect-filtered + brand-kit-merged) StyleSpec.
+ * @param spec    The (validated, possibly aspect-filtered) StyleSpec.
  * @param content The content source (ai-copy with topic OR user-copy with lines).
  * @param options { slideCount?, template? } — defaults to 5 slides + templates[0].
  * @returns       CarouselWithTextBoxes (text_boxes populated, decorations canonical).

@@ -304,8 +304,7 @@ function serializeSpecForPrompt(spec: StyleSpec): string {
  *
  * EMIT-05: spec.voice_note REPLACES template.aiVoiceNote when both present.
  *
- * @param spec     The (Phase-75-validated, possibly aspect-filtered, possibly
- *                 brand-kit-merged) StyleSpec.
+ * @param spec     The (Phase-75-validated, possibly aspect-filtered) StyleSpec.
  * @param template The slide template — used for aiVoiceNote fallback only.
  * @param content  The content source (ai-copy with topic OR user-copy with
  *                 per-slide lines).

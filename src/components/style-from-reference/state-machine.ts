@@ -76,9 +76,6 @@ export interface SpecPreviewState {
   retriesRemaining: number
   /** PREVIEW-06: per-aspect emit toggles. Defaults all-on per CONTEXT.md D-XX. */
   aspects: SpecPreviewAspects
-  /** PREVIEW-08: visible only when brand-kit exists; toggled by user. */
-  useBrandKitRemix: boolean
-  brandKitAvailable: boolean
   error: SpecPreviewError | null
   lastTelemetry: ExtractTelemetry | null
 }
@@ -100,10 +97,8 @@ export type SpecPreviewAction =
     }
   | { type: 'RE_EXTRACT_CLICK' }
   | { type: 'TOGGLE_ASPECT'; aspect: keyof SpecPreviewAspects }
-  | { type: 'TOGGLE_BRAND_KIT_REMIX' }
   | { type: 'GENERATE_CLICK' }
   | { type: 'GENERATE_DONE' }
-  | { type: 'BRAND_KIT_AVAILABILITY'; available: boolean }
   | { type: 'CLEAR_ERROR' }
 
 // ------------------------------------------------------------------------- //
@@ -116,8 +111,6 @@ export const initialSpecPreviewState: SpecPreviewState = {
   spec: null,
   retriesRemaining: 2,
   aspects: { palette: true, typography: true, layout: true, decorations: true },
-  useBrandKitRemix: false,
-  brandKitAvailable: false,
   error: null,
   lastTelemetry: null,
 }
@@ -160,8 +153,6 @@ export function specPreviewReducer(
       return {
         ...initialSpecPreviewState,
         references: action.references,
-        // Preserve brand-kit availability + per-aspect defaults from initial.
-        brandKitAvailable: state.brandKitAvailable,
       }
 
     case 'EXTRACT_START':
@@ -213,11 +204,6 @@ export function specPreviewReducer(
         error: state.error?.kind === 'no-aspects-selected' ? null : state.error,
       }
 
-    case 'TOGGLE_BRAND_KIT_REMIX':
-      // PREVIEW-08: the toggle is hidden when no brand kit; reducer enforces.
-      if (!state.brandKitAvailable) return state
-      return { ...state, useBrandKitRemix: !state.useBrandKitRemix }
-
     case 'GENERATE_CLICK':
       // PREVIEW-01 INVARIANT — load-bearing structural defense.
       if (state.status !== 'preview') {
@@ -231,9 +217,6 @@ export function specPreviewReducer(
     case 'GENERATE_DONE':
       if (state.status !== 'generating') return state
       return { ...state, status: 'done' }
-
-    case 'BRAND_KIT_AVAILABILITY':
-      return { ...state, brandKitAvailable: action.available }
 
     case 'CLEAR_ERROR':
       return { ...state, error: null }

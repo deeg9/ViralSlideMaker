@@ -49,8 +49,7 @@
 //                                        family in that category)
 //   spec.typography.bodyFontCategory → style_overrides.body_font_family
 //   spec.layout.hookPosition      → style_overrides.text_position
-//                                    (closed-enum exact match —
-//                                    BrandKitTextPosition shared with Slide)
+//                                    (closed-enum exact match)
 //   spec.imagery.treatmentPreset  → style_overrides.treatment_applied
 //                                    (Phase 54 D-03 descriptor slot)
 //   spec.slideArchetype           → style_overrides.template_id_override
@@ -240,7 +239,7 @@ export function narrowDecorationAllowlist(spec: StyleSpec): NarrowedDecorationAl
 }
 
 /**
- * Translate a (validated, possibly aspect-filtered, possibly brand-kit-merged)
+ * Translate a (validated, possibly aspect-filtered)
  * StyleSpec into the EXISTING SlideStyleOverrides shape — strict subset
  * (Pick<>) by TypeScript construction.
  *
