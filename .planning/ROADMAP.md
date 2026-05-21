@@ -51,7 +51,13 @@
 4. Style-from-reference shell renders without the brand-kit remix toggle; remix flow still completes successfully via the regular state-spec path (no merge-with-brand-kit branch).
 5. Carousel generation succeeds end-to-end (web form + `POST /api/v1/carousel` + MCP `create_carousel`) without any brand-kit param in request bodies; projects whose stored `template_id === 'brand-kit'` resolve to a sensible default (`news-oracle`) instead of crashing.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 89-01-PLAN.md — Remove brand-kit UI surfaces: picker tile, Settings page, /api/v1/me/brand-kit/* routes, OpenAPI schema, nav links (BKSHELVE-01..03)
+- [ ] 89-02-PLAN.md — Strip brand-kit from render/publish/download + editor prop chain; add getTemplate('brand-kit') -> news-oracle fallback (BKSHELVE-05, -07)
+- [ ] 89-03-PLAN.md — Strip brand-kit from AI prompts, carousel service, generation form, and style-from-reference flow (BKSHELVE-04, -06, -08)
+- [ ] 89-04-PLAN.md — Relocate BrandKitTextPosition type, delete src/lib/brand-kit/ + types, final tsc + parity sweep (BKSHELVE-09)
 
 **Scope notes**: ~79 files touched across `src/components/`, `src/app/(dashboard)/`, `src/app/api/`, `src/lib/brand-kit/`, `src/lib/types/`, `src/lib/ai/`, `src/lib/render/`, `src/lib/services/`, and tests. The `20260427_brand_kit_template.sql` migration is marked SHELVED but not rolled back; brand-kit DB rows stay dormant on existing accounts. Removal is forward-only — a future revival rebuilds against the same schema rather than toggling old code on. BKSHELVE-05 byte-identity check is the hard gate.
 
@@ -117,7 +123,7 @@ _Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.plann
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
-| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 0/? | Not started | - |
+| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 0/4 | Not started | - |
 | 90. Pre-Rendered Template Preview Pipeline | v2.16 | 0/? | Not started | - |
 | 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
 | 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |

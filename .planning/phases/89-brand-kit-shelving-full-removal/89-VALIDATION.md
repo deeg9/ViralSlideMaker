@@ -1,8 +1,8 @@
 ---
 phase: 89
 slug: brand-kit-shelving-full-removal
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-20
 ---
