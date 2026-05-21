@@ -4,9 +4,7 @@ import { SlidePreview } from '@/components/slides/slide-preview'
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { getTemplate } from '@/lib/render/templates'
 import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
-import { synthesizeBrandKitTemplate, BRAND_KIT_TEMPLATE_ID } from '@/lib/brand-kit/get-effective-template'
 import type { Slide } from '@/lib/types/slide'
-import type { BrandKit } from '@/lib/types/brand-kit'
 
 /**
  * quick-260515-epn — integration coverage for per-slide template_id_override
@@ -103,16 +101,6 @@ const slideWithOverride: Slide = {
   style_overrides: { caption_bar_enabled: true },
 }
 
-function makeBrandKit(): BrandKit {
-  return {
-    id: 'bk-1',
-    user_id: 'u-1',
-    name: 'Acme',
-    created_at: '2026-05-15T00:00:00Z',
-    updated_at: '2026-05-15T00:00:00Z',
-  } as unknown as BrandKit
-}
-
 // -----------------------------------------------------------------------------
 // Suite
 // -----------------------------------------------------------------------------
@@ -194,22 +182,10 @@ describe('quick-260515-epn — per-slide template_id_override across surfaces', 
     expect(findCaptionCardNode(element)).toBeNull()
   })
 
-  // ---------------------------------------------------------------------------
-  // Test 5: Brand-kit + override — override wins; brand-kit + no override → brand-kit.
-  // Locks the precedence chain at the renderer surface.
-  // ---------------------------------------------------------------------------
-  it('brand-kit precedence: override beats brand-kit; absence preserves brand-kit', () => {
-    const brandKitTemplate = synthesizeBrandKitTemplate(makeBrandKit())
-    expect(brandKitTemplate.id).toBe(BRAND_KIT_TEMPLATE_ID) // sanity
-
-    // With override → magazine-bold wins.
-    const overrideResolved = resolvePerSlideTemplate(slideWithOverride, brandKitTemplate)
-    expect(overrideResolved.id).toBe('magazine-bold')
-
-    // Without override → brand-kit by reference.
-    const noOverrideResolved = resolvePerSlideTemplate(slideWithoutOverride, brandKitTemplate)
-    expect(noOverrideResolved).toBe(brandKitTemplate)
-  })
+  // Test 5 (former synthesized-template precedence) deleted — Phase 89
+  // (BKSHELVE-08): the removed feature's template synthesizer no longer
+  // exists. The override-vs-registry-template precedence is still covered by
+  // Tests 1-4.
 
   // ---------------------------------------------------------------------------
   // Test 6: Explore-card contract — explore feed passes a project-level

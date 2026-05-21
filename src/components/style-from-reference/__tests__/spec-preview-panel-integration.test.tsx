@@ -1,11 +1,12 @@
 // Phase 76 Plan 02 (PREVIEW-01..06 + 08 + 11):
 // Integration tests for SpecPreviewPanel after Plan 76-02 fills the slots.
 //
-// 7 tests — all 7 PREVIEW requirements in this plan's scope render in one
-// composed panel; conditionals (brand-kit visibility, voice_note absence)
-// behave; Generate CTA disable rule still holds; re-extract counter visible;
-// PREVIEW-01 single-CTA invariant + LEGAL-03 forward-compat grep gates
-// continue to hold against this file's edits.
+// Integration tests — the PREVIEW slots render in one composed panel;
+// conditionals (voice_note absence) behave; Generate CTA disable rule still
+// holds; re-extract counter visible; PREVIEW-01 single-CTA invariant +
+// LEGAL-03 forward-compat grep gates continue to hold against this file's
+// edits. Phase 89 (BKSHELVE-06): the removed feature's remix toggle and its
+// visibility test (former Test 2) are gone.
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
@@ -13,7 +14,6 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { SpecPreviewPanel } from '../spec-preview-panel'
 import { initialSpecPreviewState, type SpecPreviewState } from '../state-machine'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import type { StyleSpec } from '@/lib/types/style-spec'
 
 function makeSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
@@ -35,38 +35,11 @@ function makeSpec(overrides: Partial<StyleSpec> = {}): StyleSpec {
   } as StyleSpec
 }
 
-function makeBrandKit(): BrandKit {
-  return {
-    id: 'bk-1',
-    user_id: 'u-1',
-    name: 'My Brand',
-    primary_color: '#0000FF',
-    secondary_color: '#00FF00',
-    accent_color: '#FF0000',
-    text_color: null,
-    background_color: null,
-    font_family: null,
-    logo_url: null,
-    logo_position: null,
-    logo_size_pct: null,
-    logo_opacity_pct: null,
-    heading_font_family: null,
-    body_font_family: null,
-    text_align: null,
-    text_position: null,
-    hook_style: null,
-    overlay_opacity_pct: null,
-    created_at: '2026-05-10T00:00:00.000Z',
-    updated_at: '2026-05-10T00:00:00.000Z',
-  }
-}
-
 function fullState(overrides: Partial<SpecPreviewState> = {}): SpecPreviewState {
   return {
     ...initialSpecPreviewState,
     status: 'preview',
     spec: makeSpec(),
-    brandKitAvailable: true,
     aspects: { palette: true, typography: true, layout: true, decorations: true },
     retriesRemaining: 2,
     ...overrides,
@@ -74,12 +47,11 @@ function fullState(overrides: Partial<SpecPreviewState> = {}): SpecPreviewState 
 }
 
 describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
-  it('Test 1: with full state + brand kit, every PREVIEW slot testid renders', () => {
+  it('Test 1: with full state, every PREVIEW slot testid renders', () => {
     render(
       <SpecPreviewPanel
         state={fullState()}
         dispatch={vi.fn()}
-        brandKit={makeBrandKit()}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
       />,
@@ -91,8 +63,6 @@ describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
     expect(screen.getByTestId('voice-note-caption')).toBeTruthy()
     // PREVIEW-06
     expect(screen.getByTestId('aspects-checkbox-group')).toBeTruthy()
-    // PREVIEW-08
-    expect(screen.getByTestId('brand-kit-remix-toggle')).toBeTruthy()
     // PREVIEW-11
     expect(screen.getByTestId('credit-cost-display')).toBeTruthy()
     // PREVIEW-01 (76-01)
@@ -100,27 +70,15 @@ describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
     expect(screen.getByTestId('re-extract-cta')).toBeTruthy()
   })
 
-  it('Test 2: brand-kit-remix-toggle is ABSENT when brandKitAvailable=false / brandKit=null', () => {
-    const { container } = render(
-      <SpecPreviewPanel
-        state={fullState({ brandKitAvailable: false })}
-        dispatch={vi.fn()}
-        brandKit={null}
-        onGenerate={vi.fn()}
-        onReExtract={vi.fn()}
-      />,
-    )
-    expect(container.querySelector('[data-testid="brand-kit-remix-toggle"]')).toBeNull()
-    // The slot wrapper still exists (76-01's structural contract)
-    expect(screen.getByTestId('brand-kit-slot')).toBeTruthy()
-  })
+  // Test 2 (former remix-toggle visibility test) deleted — Phase 89
+  // (BKSHELVE-06): the removed feature's panel slot and toggle no longer
+  // render.
 
   it('Test 3: voice-note-caption is ABSENT when spec.voice_note is undefined', () => {
     const { container } = render(
       <SpecPreviewPanel
         state={fullState({ spec: makeSpec({ voice_note: undefined }) })}
         dispatch={vi.fn()}
-        brandKit={makeBrandKit()}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
       />,
@@ -137,7 +95,6 @@ describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
           aspects: { palette: false, typography: false, layout: false, decorations: false },
         })}
         dispatch={vi.fn()}
-        brandKit={makeBrandKit()}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
       />,
@@ -152,7 +109,6 @@ describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
       <SpecPreviewPanel
         state={fullState({ retriesRemaining: 2 })}
         dispatch={vi.fn()}
-        brandKit={makeBrandKit()}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
       />,
@@ -168,7 +124,6 @@ describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
       <SpecPreviewPanel
         state={fullState({ retriesRemaining: 0 })}
         dispatch={vi.fn()}
-        brandKit={makeBrandKit()}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
       />,
@@ -207,7 +162,6 @@ describe('Phase 76 Plan 02: SpecPreviewPanel integration', () => {
       <SpecPreviewPanel
         state={fullState()}
         dispatch={vi.fn()}
-        brandKit={makeBrandKit()}
         onGenerate={vi.fn()}
         onReExtract={vi.fn()}
         hideGenerateCta

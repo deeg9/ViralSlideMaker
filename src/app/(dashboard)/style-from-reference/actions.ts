@@ -41,7 +41,6 @@ import { generateCarouselFromReferences } from '@/lib/services/carousel'
 // a NEW (sibling) project and runs extract+emit against the inherited refs.
 import { createProjectService } from '@/lib/services/projects'
 import type { StyleSpec } from '@/lib/types/style-spec'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import type { SpecPreviewAspects } from '@/components/style-from-reference/state-machine'
 import type { ContentSource } from '@/lib/ai/generate-from-style-spec.types'
 
@@ -143,8 +142,8 @@ export async function extractStyleSpecAction(
 //   1. Auth gate
 //   2. Spec presence check (input.spec MUST be non-null)
 //   3. Content shape validation (ai-copy needs topic; user-copy needs lines[])
-//   4. generateCarouselFromReferences orchestrator (applies aspect filter +
-//      brand-kit remix, calls generateFromStyleSpec, persists slide_data)
+//   4. generateCarouselFromReferences orchestrator (applies aspect filter,
+//      calls generateFromStyleSpec, persists slide_data)
 //   5. Discriminated-union return: { ok:true, projectId, slideCount } OR
 //      { ok:false, error: 'unauthenticated' | 'no_spec' | 'invalid_input' |
 //        'gemini_error' | 'token_budget_exceeded' | 'extraction_stale',
@@ -162,8 +161,6 @@ export interface RegenerateActionInput {
   projectId: string
   spec: StyleSpec
   aspects: SpecPreviewAspects
-  useBrandKitRemix: boolean
-  brandKit: BrandKit | null
   content: ContentSource
   /** quick-260514-images: forwarded into
    *  generateCarouselFromReferences so the references emit honors the
@@ -256,7 +253,7 @@ export async function regenerateAction(
 //   6. Phase 75 extractStyleSpec({ projectId: NEW_PROJECT_ID, ... })
 //   7. Phase 77 generateCarouselFromReferences({ projectId: NEW_PROJECT_ID,
 //      spec, ... }) using sane defaults (mode='ai-copy', topic derived from
-//      source title/topic, all aspects on, no brand-kit remix by default)
+//      source title/topic, all aspects on)
 //   8. Returns { ok: true, projectId: NEW_PROJECT_ID } — client navigates
 //      to /project/{projectId} via existing router.push pattern
 //
@@ -395,15 +392,13 @@ export async function regenerateFromReferencesAction(
   }
 
   // 8. Phase 77 generateCarouselFromReferences — sane defaults (ai-copy mode
-  // with the source's topic; all aspects on; no brand-kit remix by default).
+  // with the source's topic; all aspects on).
   // Project being UPDATEd is the NEW one; sibling-create invariant preserved.
   try {
     const emitResult = await generateCarouselFromReferences(admin, user.id, {
       projectId: newProjectId,
       spec: extractResult.spec,
       aspects: { palette: true, typography: true, layout: true, decorations: true },
-      useBrandKitRemix: false,
-      brandKit: null,
       content: { mode: 'ai-copy', topic: newTopic },
     })
     return { ok: true, projectId: emitResult.projectId }

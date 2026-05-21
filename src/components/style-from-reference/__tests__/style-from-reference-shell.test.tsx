@@ -95,7 +95,7 @@ beforeEach(() => {
 describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants', () => {
   it('Test 1: renders the uploader on initial mount; no SpecPreviewPanel until preview state', () => {
     render(
-      <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />,
+      <StyleFromReferenceShell projectId="p" />,
     )
     expect(screen.getByTestId('uploader-stub')).toBeTruthy()
     expect(screen.queryByTestId('spec-preview-panel')).toBeNull()
@@ -107,7 +107,7 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
       new Promise<ExtractResult>((res) => { resolve = res }),
     )
     render(
-      <StyleFromReferenceShell projectId="proj-42" brandKit={null} brandKitAvailable={false} />,
+      <StyleFromReferenceShell projectId="proj-42" />,
     )
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
@@ -130,7 +130,7 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
       new Promise<ExtractResult>((res) => { resolve = res }),
     )
     render(
-      <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />,
+      <StyleFromReferenceShell projectId="p" />,
     )
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
@@ -147,7 +147,7 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
   it('Test 4: on ok:true the SpecPreviewPanel slot becomes visible with the spec', async () => {
     mockExtractStyleSpecAction.mockResolvedValueOnce(successResult())
     render(
-      <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />,
+      <StyleFromReferenceShell projectId="p" />,
     )
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
@@ -184,7 +184,7 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
   it('Test 6: sticky strip renders both thumbnails OUTSIDE the conditional spec-preview block', async () => {
     mockExtractStyleSpecAction.mockResolvedValueOnce(successResult())
     render(
-      <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />,
+      <StyleFromReferenceShell projectId="p" />,
     )
     // Uploads two refs via the stub (one upload click) + a second
     fireEvent.click(screen.getByTestId('stub-upload-btn'))
@@ -217,7 +217,7 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
       telemetry: { vision_calls_count: 1, tokens_in: 0, tokens_out: 0, cache_hit: false, duration_ms: 1 },
     })
     render(
-      <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />,
+      <StyleFromReferenceShell projectId="p" />,
     )
     fireEvent.click(screen.getByTestId('stub-extract-btn'))
     await waitFor(() => {
@@ -232,34 +232,9 @@ describe('Phase 76 Plan 01: StyleFromReferenceShell — composition + invariants
     )
   })
 
-  it('Test 8: brandKitAvailable prop flows into reducer state', async () => {
-    mockExtractStyleSpecAction.mockResolvedValueOnce(successResult())
-    const { unmount } = render(
-      <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={true} />,
-    )
-    fireEvent.click(screen.getByTestId('stub-extract-btn'))
-    await waitFor(() => {
-      expect(screen.getByTestId('spec-preview-panel')).toBeTruthy()
-    })
-    // brand-kit-slot is present whether or not the toggle is on; Plan 76-02
-    // will conditionally render the toggle inside the slot. We assert the
-    // slot exists; reducer integration is exercised via prop pass-through.
-    expect(screen.getByTestId('brand-kit-slot')).toBeTruthy()
-    unmount()
-
-    // Now mount with brandKitAvailable=false and assert the slot ALSO renders
-    // (visibility toggle is Plan 76-02's concern; our shell hands the prop
-    // through). The relevant assertion is that no runtime error occurs.
-    mockExtractStyleSpecAction.mockResolvedValueOnce(successResult())
-    render(
-      <StyleFromReferenceShell projectId="p" brandKit={null} brandKitAvailable={false} />,
-    )
-    fireEvent.click(screen.getByTestId('stub-extract-btn'))
-    await waitFor(() => {
-      expect(screen.getByTestId('spec-preview-panel')).toBeTruthy()
-    })
-    expect(screen.getByTestId('brand-kit-slot')).toBeTruthy()
-  })
+  // Test 8 (former brand-related availability prop test) deleted —
+  // Phase 89 (BKSHELVE-06): the removed feature's props and the
+  // SpecPreviewPanel slot they fed no longer exist.
 
   it('Test 9: LEGAL-03 forward-compat copy gate — zero forbidden tokens in shell-owned files', () => {
     const files = [

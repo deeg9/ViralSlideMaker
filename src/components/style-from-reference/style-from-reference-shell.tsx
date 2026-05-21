@@ -41,7 +41,6 @@ import {
 import { StickyReferenceStrip } from './sticky-reference-strip'
 import { SpecPreviewPanel } from './spec-preview-panel'
 import { ErrorRouter } from './error-router'
-import type { BrandKit } from '@/lib/types/brand-kit'
 import type { ExtractResult } from '@/lib/ai/extract-style-spec.types'
 import type { ReferenceAssetRow } from '@/lib/types/projects-storage-constants'
 import type { SpecPreviewState } from './state-machine'
@@ -59,8 +58,6 @@ export interface StyleFromReferenceShellProps {
    *  topics fall back to a generic placeholder at generation time so the
    *  AI emit doesn't reject for missing content. */
   currentTopic?: string | null
-  brandKit: BrandKit | null
-  brandKitAvailable: boolean
   /** quick-260514-g7y: when the shell is embedded inside the prompt-form
    *  collapsible, the outer Generate Carousel button owns generation
    *  routing — the inline Generate + credit-cost row inside
@@ -71,10 +68,10 @@ export interface StyleFromReferenceShellProps {
    *  path is unchanged. */
   hideGenerateCta?: boolean
   /** quick-260514-g7y: fires on every reducer transition while the shell
-   *  is embedded. Lets the prompt-form read the extracted spec, the per-
-   *  aspect toggles, and the useBrandKitRemix flag without duplicating
-   *  the reducer. Caller MUST treat the value as immutable (Object.is is
-   *  fine for change detection). */
+   *  is embedded. Lets the prompt-form read the extracted spec and the
+   *  per-aspect toggles without duplicating the reducer. Caller MUST
+   *  treat the value as immutable (Object.is is fine for change
+   *  detection). */
   onSpecChange?: (state: SpecPreviewState) => void
   // Phase 79 LEGAL-01: ToS clickwrap props pass through to ReferenceImageUploader.
   // tosAlreadyAccepted = false forces the modal to render before first upload.
@@ -126,8 +123,8 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
 
   // quick-260514-g7y: surface every state transition to the embedding
   // parent (the prompt-form collapsible). The parent reads spec / aspects
-  // / useBrandKitRemix to decide between regenerateAction and the
-  // template-based generateCarousel path on its own submit handler.
+  // to decide between regenerateAction and the template-based
+  // generateCarousel path on its own submit handler.
   useEffect(() => {
     props.onSpecChange?.(state)
     // Object.is on state itself is enough because the reducer produces a
@@ -162,13 +159,6 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
     // unmount is the only cleanup we need.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Hydrate brand-kit availability into the reducer on mount + when prop changes.
-  // useRef guard avoids dispatching on every render; useEffect handles the
-  // BRAND_KIT_AVAILABILITY action whose only purpose is reducer-side state.
-  useEffect(() => {
-    dispatch({ type: 'BRAND_KIT_AVAILABILITY', available: props.brandKitAvailable })
-  }, [props.brandKitAvailable])
 
   // Track latest references in a ref so RE_EXTRACT can read them without
   // refreshing its callback identity on every reference push.
@@ -271,8 +261,6 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
         projectId: props.targetProjectId as string,
         spec: state.spec!,
         aspects: state.aspects,
-        useBrandKitRemix: state.useBrandKitRemix,
-        brandKit: props.brandKit,
         content: { mode: 'ai-copy', topic },
       })
       if (result.ok) {
@@ -300,11 +288,9 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
     state.status,
     state.spec,
     state.aspects,
-    state.useBrandKitRemix,
     state.lastTelemetry,
     props.targetProjectId,
     props.currentTopic,
-    props.brandKit,
     props.hideGenerateCta,
     router,
   ])
@@ -358,7 +344,6 @@ export function StyleFromReferenceShell(props: StyleFromReferenceShellProps) {
         <SpecPreviewPanel
           state={state}
           dispatch={dispatch}
-          brandKit={props.brandKit}
           onGenerate={() => dispatch({ type: 'GENERATE_CLICK' })}
           onReExtract={() => {
             void handleReExtract()

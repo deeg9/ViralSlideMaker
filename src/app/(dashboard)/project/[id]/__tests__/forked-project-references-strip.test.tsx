@@ -15,9 +15,9 @@
 // Plan 78-01. This test sits at the seam where the page reads the row and
 // renders the strip.
 //
-// All Supabase / brand-kit / credit calls are mocked at the module boundary;
-// the editor + dialog children are stubbed because their internal trees are
-// out of scope for the REMIX-04 invariant under test.
+// All Supabase / credit calls are mocked at the module boundary; the editor +
+// dialog children are stubbed because their internal trees are out of scope
+// for the REMIX-04 invariant under test.
 //
 // @vitest-environment jsdom
 
@@ -31,13 +31,11 @@ const {
   mockProjectsSingle,
   mockPublishedMaybeSingle,
   mockGetUserTier,
-  mockGetBrandKit,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockProjectsSingle: vi.fn(),
   mockPublishedMaybeSingle: vi.fn(),
   mockGetUserTier: vi.fn(),
-  mockGetBrandKit: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase/server', () => {
@@ -66,10 +64,6 @@ vi.mock('@/lib/supabase/server', () => {
 
 vi.mock('@/lib/credits/check-credits', () => ({
   getUserTier: mockGetUserTier,
-}))
-
-vi.mock('@/app/(dashboard)/settings/brand-kit/actions', () => ({
-  getBrandKit: mockGetBrandKit,
 }))
 
 // Stub the editor — its internal tree (history, toolbars, undo, ...) is
@@ -130,7 +124,6 @@ beforeEach(() => {
   mockProjectsSingle.mockReset()
   mockPublishedMaybeSingle.mockReset()
   mockGetUserTier.mockReset()
-  mockGetBrandKit.mockReset()
 })
 
 describe('Phase 78 Plan 02 Task 4: REMIX-04 verification — forked project shows inherited references', () => {
@@ -169,7 +162,6 @@ describe('Phase 78 Plan 02 Task 4: REMIX-04 verification — forked project show
     })
     mockPublishedMaybeSingle.mockResolvedValueOnce({ data: null })
     mockGetUserTier.mockResolvedValueOnce('free')
-    mockGetBrandKit.mockResolvedValueOnce(null)
 
     // RSC: ProjectPage is an async component returning JSX.
     const ui = await ProjectPage({
@@ -223,7 +215,6 @@ describe('Phase 78 Plan 02 Task 4: REMIX-04 verification — forked project show
     })
     mockPublishedMaybeSingle.mockResolvedValueOnce({ data: null })
     mockGetUserTier.mockResolvedValueOnce('free')
-    mockGetBrandKit.mockResolvedValueOnce(null)
 
     const ui = await ProjectPage({
       params: Promise.resolve({ id: 'legacy-project-id' }),
