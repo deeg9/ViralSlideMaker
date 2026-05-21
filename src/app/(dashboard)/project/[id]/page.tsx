@@ -13,7 +13,6 @@ import { ReferenceThumbnailsStrip } from '@/components/projects/reference-thumbn
 import { RegenerateFromReferencesButton } from '@/components/projects/regenerate-from-references-button'
 import { SlideEditor } from '@/components/editor/slide-editor'
 import { getUserTier } from '@/lib/credits/check-credits'
-import { getBrandKit } from '@/app/(dashboard)/settings/brand-kit/actions'
 // quick-260514-g7y: forward ToS clickwrap state into GenerationForm so
 // the inlined style-from-reference collapsible can open its clickwrap
 // modal on first reference upload (same gate as the deleted standalone
@@ -50,7 +49,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const hasSlides = slides.length > 0
 
   const tier = user ? await getUserTier(user.id) : 'free' as const
-  const brandKit = user ? await getBrandKit() : null
 
   // quick-260514-g7y: pre-compute ToS acceptance server-side so the
   // inlined collapsible can decide to render the clickwrap modal without
@@ -114,7 +112,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           topic={p.topic ?? ''}
           title={p.title}
           userTier={tier}
-          brandKit={brandKit}
           initialPublishedState={initialPublishedState}
           dbTemplates={editorDbTemplates}
         />
@@ -157,7 +154,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         currentCategory={p.category}
         hasSlides={false}
         userTier={tier}
-        brandKit={brandKit}
         tosAlreadyAccepted={tosAlreadyAccepted}
         acceptTosAction={acceptStyleFromReferenceTosCurrentVersionAction}
         dbTemplates={dbTemplates}
