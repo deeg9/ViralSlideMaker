@@ -10,22 +10,24 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.15 DB-Backed Template Wiring (2026-05-19)
-**Current Milestone:** v2.16 Picker Polish & Brand-Kit Shelving (started 2026-05-20)
+**Latest Shipped:** v2.16 Picker Polish & Brand-Kit Shelving (2026-05-21)
+**Current Milestone:** None — run `/gsd-new-milestone` to scope the next cycle.
 
 ---
 
-## Current Milestone: v2.16 Picker Polish & Brand-Kit Shelving
+## Latest Shipped: v2.16 Picker Polish & Brand-Kit Shelving (2026-05-21)
 
-**Goal:** Make the template picker visually represent what users will actually generate (real photo backgrounds, not text-on-solid-color), and shelve the brand-kit feature that's no longer part of the near-term direction.
+**Goal achieved:** The template picker now visually represents what users actually generate — real photo-backed preview tiles instead of text-on-solid-color — and the brand-kit feature has been fully shelved.
 
-**Target features:**
-- **Brand-Kit Shelving (Full Removal)** — Delete the brand-kit picker tile (configured + empty-state CTA), Settings → Brand Kit page, `/api/v1/me/brand-kit/*` routes, `src/lib/brand-kit/`, `src/lib/types/brand-kit.ts`, AI prompts merge logic (`style-spec-brand-kit-merge.ts`), and brand-kit conditionals in render/publish/download/style-from-reference paths. The `20260427_brand_kit_template.sql` migration is marked shelved (not rolled back — `brand_kit` row may stay dormant on existing user accounts). ~79 files touched.
-- **Pre-Rendered Template Preview Pipeline** — One-off `scripts/render-template-previews.ts` that renders each of the 15 code-template covers with curated sample text + a real photo background (per-template stock photo or a shared photo library), uploads PNGs to the existing Supabase `template-previews` bucket, and writes the resulting URLs back onto each code-template's `preview` field in `src/lib/render/templates/*.ts`. Picker drops the `<SlidePreview>` live-render fallback entirely.
+**Shipped:**
+- Phase 89 — Brand-Kit Shelving (Full Removal): removed the brand-kit feature across ~79 files (picker tile, Settings → Brand Kit page, `/api/v1/me/brand-kit/*` routes, render/publish/download wiring, AI prompts, style-from-reference remix flow, `src/lib/brand-kit/` + `src/lib/types/brand-kit.ts`); dropped the `brandKit` positional arg from `buildSlideElement`/`buildSlideHtml` across 20+ call sites; added a defensive `getTemplate('brand-kit') → news-oracle` resolver fallback. Render parity 45/45 held; the `20260427_brand_kit_template.sql` migration is marked SHELVED (dormant, not rolled back — removal is forward-only).
+- Phase 90 — Pre-Rendered Template Preview Pipeline: built `scripts/render-template-previews.ts` (one-off, idempotent), ran it live to source 16 code-template cover PNGs from `buyer@example.com`'s carousels, uploaded them to the `template-previews` Supabase bucket, and wired `preview` URLs into all 16 code templates; collapsed `<TemplateTilePreview>` to a single-branch `<img>` (the live-render fallback is deleted — forcing function).
 
-**Key context:** Picker tiles currently render via the live `<SlidePreview>` fallback (text on solid colors — looks wrong because most templates are designed against a photo background). The `template-previews` Supabase Storage bucket already exists from v2.14 phase 86 (admin Save-as-Template). Brand-kit removal must NOT regress v2.13 style-from-reference, v2.14 DB-backed templates, or v2.15 render parity — byte-identity check on all 13 code templates + DB templates required.
+**Verification:** tech_debt audit — 14/14 requirements satisfied, both phases verified, cross-phase integration clean, E2E flow intact. Non-critical debt only (human-UAT: visual review of the 16 PNGs + auth-gated Playwright smoke). `tsc` at the 20-error baseline; zero new test failures.
 
-**Phase numbering:** Continues from v2.15 (last phase 88) → phases 89 and 90.
+**Archive:** `.planning/milestones/v2.16-ROADMAP.md`. Audit: `.planning/milestones/v2.16-MILESTONE-AUDIT.md`. Requirements: `.planning/milestones/v2.16-REQUIREMENTS.md`.
+
+**Carried tech debt (non-critical):** human-UAT items (`90-HUMAN-UAT.md`, `89-VERIFICATION.md`); a NULL-`preview` DB row would render a broken `<img>` (no `onError` fallback — no supported write-path produces it); `90-VALIDATION.md` Nyquist PARTIAL (the picker smoke is intrinsically auth-gated). An unrelated inline-dashboard-form feature that surfaced mid-milestone was quarantined onto branch `wip/dashboard-inline-form` (out of v2.16 scope).
 
 ---
 
@@ -635,4 +637,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-19 after v2.15 DB-Backed Template Wiring milestone — 2 phases (87–88), 5 plans, 6/6 requirements validated. v2.14's DB-backed templates are now wired through the picker, generation, all three render paths, per-slide override, and publish/fork; verified by a live end-to-end Playwright dry-run. No active milestone — run /gsd-new-milestone for the next cycle.*
+*Last updated: 2026-05-21 after v2.16 Picker Polish & Brand-Kit Shelving milestone — 2 phases (89–90), 7 plans, 14/14 requirements satisfied. Brand-kit fully removed (~79 files); the template picker now shows real photo-backed preview tiles for all 16 code templates. No active milestone — run /gsd-new-milestone for the next cycle.*

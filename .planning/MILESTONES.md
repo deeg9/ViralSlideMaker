@@ -1,5 +1,21 @@
 # Milestones
 
+## v2.16 Picker Polish & Brand-Kit Shelving (Shipped: 2026-05-21)
+
+**Phases completed:** 2 phases, 7 plans, 12 tasks
+
+**Delivered:** Removed the brand-kit feature entirely and replaced the template picker's text-on-solid-color preview tiles with real photo-backed preview PNGs — so the picker now shows what generation actually produces.
+
+**Key accomplishments:**
+
+- **Phase 89 — Brand-Kit Shelving (Full Removal):** Removed the brand-kit feature across ~79 files — picker tile, Settings → Brand Kit page, `/api/v1/me/brand-kit/*` API routes, render/publish/download wiring, AI prompts, the style-from-reference remix flow, and the `src/lib/brand-kit/` library + `src/lib/types/brand-kit.ts`. Dropped the `brandKit` positional argument from `buildSlideElement`/`buildSlideHtml` atomically across 20+ call sites, removed the full `SlidePreview` brand-kit React contract + editor prop-drilling chain, and added a defensive `getTemplate('brand-kit') → news-oracle` resolver fallback. Render parity 45/45 held; the brand-kit DB migration was marked SHELVED (dormant, not rolled back); `tsc` at the pre-existing 20-error baseline with zero new failures.
+- **Phase 90 — Pre-Rendered Template Preview Pipeline:** Built `scripts/render-template-previews.ts` — a one-off, idempotent pipeline that queries `buyer@example.com`'s published carousels, generates carousels for templates lacking an exemplar, snapshots cover slides, and uploads PNGs to the `template-previews` Supabase Storage bucket. Ran it live: wired real photo-backed `preview` URLs into all 16 code templates, and collapsed `<TemplateTilePreview>` to a single-branch `<img>` component (the `<SlidePreview>` live-render fallback is deleted — a forcing function so a new template can't ship without a preview).
+- **Audit:** tech_debt — 14/14 requirements satisfied, both phases verified, cross-phase integration clean, E2E flow intact. Non-critical debt only (human-UAT items: visual review of the 16 PNGs + auth-gated Playwright smoke).
+
+**Known deferred items at close:** human-UAT confirmations tracked in `90-HUMAN-UAT.md` and `89-VERIFICATION.md`; see STATE.md Deferred Items.
+
+---
+
 ## v2.15 DB-Backed Template Wiring (Shipped: 2026-05-19)
 
 **Phases completed:** 2 phases (87-88), 5 plans
@@ -21,6 +37,7 @@ because Phase 83's merged code+DB registry was built but never wired into the ap
   `carousel.ts`) keeps a matching-category DB id instead of snapping to the
   category default; `/api/v1/carousel` rejects an unknown id via DB-aware
   `isKnownTemplateId`. WIRE-01/02, 2 plans, +22 tests.
+
 - Phase 88 — Render Paths + Per-Slide Override + Publish/Fork: all five render
   call sites (`/api/render`, `projects/[id]/download`, `publish-actions.ts`
   `renderHero`/`renderMinimalHero`, `publish.ts` `renderHeroBuffer`) converted
@@ -32,8 +49,10 @@ because Phase 83's merged code+DB registry was built but never wired into the ap
   route inherits the source `template_id` (no `highlight-bar` hardcode).
   Byte-identity guard for all 13 code ids; 3 fixture suites green at 45/45.
   WIRE-03/04/05/06, 3 plans, +15 tests.
+
 - Verified by a live end-to-end Playwright dry-run (admin save → picker →
   generate → render → publish → fork) — all WIRE-01..06 confirmed working.
+
 - Milestone audit: **passed** — 6/6 requirements satisfied, 2/2 phases verified,
   both code reviews `clean`, Nyquist COMPLIANT (87 + 88 VALIDATION.md backfilled).
   Only non-critical tech debt (4 items: Info-level code notes, a documented

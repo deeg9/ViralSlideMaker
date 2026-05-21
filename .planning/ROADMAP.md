@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- 🚧 **v2.16 Picker Polish & Brand-Kit Shelving** — Phases 89–90 (active, started 2026-05-20)
+- ✅ **v2.16 Picker Polish & Brand-Kit Shelving** — Phases 89–90 (shipped 2026-05-21)
 - ✅ **v2.15 DB-Backed Template Wiring** — Phases 87–88 (shipped 2026-05-19)
 - ✅ **v2.14 Save as Template** — Phases 83–86 (shipped 2026-05-19)
 - ✅ **v2.13 Style-from-Reference Generation** — Phases 73–82 (shipped 2026-05-14)
@@ -21,136 +21,34 @@
 
 ---
 
-## Active Milestone: v2.16 Picker Polish & Brand-Kit Shelving
-
-**Goal:** Make the template picker visually represent what users will actually generate (real photo backgrounds, not text-on-solid-color), and shelve the brand-kit feature that's no longer part of the near-term direction.
-
-**Phase numbering:** Continues from v2.15 (last phase 88) → phases 89 and 90.
-**Granularity:** coarse (config-driven; two-phase split honored from the milestone spec)
-**Coverage:** 14/14 v2.16 requirements mapped (BKSHELVE-01..09 → Phase 89; PREVIEW-01..05 → Phase 90). No orphans, no duplicates.
-
-### Phases
-
-- [x] **Phase 89: Brand-Kit Shelving (Full Removal)** — Delete the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow; preserve render parity on all 13 code templates + live DB templates.
-- [x] **Phase 90: Pre-Rendered Template Preview Pipeline** — Replace the picker's live-render fallback with real photo-backed preview PNGs sourced from `buyer@example.com`'s published carousels; every code template gets a `preview` URL.
-
-### Phase Details
-
-#### Phase 89: Brand-Kit Shelving (Full Removal)
-
-**Goal**: Fully remove the brand-kit feature from the user-facing app, types, render/publish/download wiring, AI prompts, and style-from-reference flow — without breaking v2.13/v2.14/v2.15 render or generation parity. DB schema is left dormant (NOT migrated).
-
-**Depends on**: Nothing (first phase of v2.16; builds on v2.15 wiring left untouched)
-
-**Requirements**: BKSHELVE-01, BKSHELVE-02, BKSHELVE-03, BKSHELVE-04, BKSHELVE-05, BKSHELVE-06, BKSHELVE-07, BKSHELVE-08, BKSHELVE-09
-
-**Success Criteria** (what must be TRUE):
-1. Project picker no longer shows the "Your Brand Kit" tile or the "Build your brand kit" empty-state CTA.
-2. `/settings/brand-kit` returns 404 and the brand-kit row in the Settings sidebar is gone; `/api/v1/me/brand-kit/*` calls return 404 and the route is removed from the OpenAPI spec at `/docs`.
-3. Existing carousels render and publish identically before and after the removal — byte-identity preserved on all 13 code templates + the live DB-backed templates currently in the `templates` table; the 3 fixture suites (`legacy-templates-byte-identical`, `-regression`, `new-templates-parity`) stay GREEN at 45/45.
-4. Style-from-reference shell renders without the brand-kit remix toggle; remix flow still completes successfully via the regular state-spec path (no merge-with-brand-kit branch).
-5. Carousel generation succeeds end-to-end (web form + `POST /api/v1/carousel` + MCP `create_carousel`) without any brand-kit param in request bodies; projects whose stored `template_id === 'brand-kit'` resolve to a sensible default (`news-oracle`) instead of crashing.
-
-**Plans**: 4 plans
-
-Plans:
-**Wave 1**
-- [x] 89-01-PLAN.md — Remove brand-kit UI surfaces: picker tile, Settings page, /api/v1/me/brand-kit/* routes, OpenAPI schema, nav links (BKSHELVE-01..03)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-- [x] 89-02-PLAN.md — Strip brand-kit from render/publish/download + editor prop chain; add getTemplate('brand-kit') -> news-oracle fallback (BKSHELVE-05, -07)
-
-**Wave 3** *(blocked on Wave 2 completion)*
-- [x] 89-03-PLAN.md — Strip brand-kit from AI prompts, carousel service, generation form, and style-from-reference flow (BKSHELVE-04, -06, -08)
-
-**Wave 4** *(blocked on Wave 3 completion)*
-- [x] 89-04-PLAN.md — Relocate BrandKitTextPosition type, delete src/lib/brand-kit/ + types, final tsc + parity sweep (BKSHELVE-09)
-
-**Scope notes**: ~79 files touched across `src/components/`, `src/app/(dashboard)/`, `src/app/api/`, `src/lib/brand-kit/`, `src/lib/types/`, `src/lib/ai/`, `src/lib/render/`, `src/lib/services/`, and tests. The `20260427_brand_kit_template.sql` migration is marked SHELVED but not rolled back; brand-kit DB rows stay dormant on existing accounts. Removal is forward-only — a future revival rebuilds against the same schema rather than toggling old code on. BKSHELVE-05 byte-identity check is the hard gate.
-
-#### Phase 90: Pre-Rendered Template Preview Pipeline
-
-**Goal**: Replace the picker's live-render `<SlidePreview>` fallback with real photo-backed preview PNGs sourced from `buyer@example.com`'s published carousels. Every code template gets a `preview` URL; the picker becomes a single-branch `<img>` component.
-
-**Depends on**: Phase 89 (cleaner picker code surface after brand-kit removal; technically independent but ordering 89-then-90 keeps the picker component's diffs minimal)
-
-**Requirements**: PREVIEW-01, PREVIEW-02, PREVIEW-03, PREVIEW-04, PREVIEW-05
-
-**Success Criteria** (what must be TRUE):
-1. Every code template in the project picker (16 templates in `src/lib/render/templates/*.ts`, including `y2k-pop`) renders a real photo-backed preview tile — not text on a solid color, not a `<SlidePreview>` fallback.
-2. Newly added or DB-saved templates also render via the same `<img>` path; the picker's preview source is consistent for every tile (code + DB) — verified by Playwright smoke against the project picker showing the picker-visible code templates + live DB templates rendering as `<img>` with valid `src` URLs.
-3. The picker no longer mounts `<SlidePreview>` for tiles — `template-tile-preview.tsx` and `template-picker.tsx` no longer import `makeSampleSlide`; the fallback branch is deleted (forcing function — a new code template can't ship without first rendering its preview).
-4. Operator (Diego) can re-run `scripts/render-template-previews.ts` after a template redesign and get updated previews uploaded to the `template-previews` Supabase Storage bucket with deterministic paths (`code-templates/{slug}.png`); re-running on an unchanged set is a no-op (idempotent).
-
-**Plans**: 3 plans
-
-Plans:
-
-**Wave 1**
-- [x] 90-01-PLAN.md — Build `scripts/render-template-previews.ts` (pure helpers + `main()`, `--dry-run` only) + Wave-0 test scaffolding (PREVIEW-03)
-
-**Wave 2** *(blocked on Wave 1)*
-- [x] 90-02-PLAN.md — Run the pipeline LIVE: generate gap carousels, snapshot covers, upload PNGs, wire `preview` URLs into the 16 template files (PREVIEW-01, -02)
-
-**Wave 3** *(blocked on Wave 2)*
-- [x] 90-03-PLAN.md — Collapse `<TemplateTilePreview>` to single-branch `<img>`, rewrite picker tests, finalize Playwright smoke (PREVIEW-04, -05)
-
-**UI hint**: yes
-
-**Scope notes**: All 16 preview PNGs (RESEARCH.md confirmed 16 code templates, not 15 — `y2k-pop` is the 16th) are sourced from carousels on the `buyer@example.com` account (Diego's pro account = canonical "good-looking exemplar" source — sidesteps stock-photo licensing). The pipeline (or the operator) generates a new carousel on that account for any template that has no exemplar, then snapshots its cover. Uses the existing `template-previews` Supabase Storage bucket from v2.14 Phase 86 and the existing `template.preview` field. One-off render at milestone time — no scheduled refresh. Out of scope: per-slide variants, animated previews, premium-tier picker chrome redesign, picker layout changes.
-
-### Dependencies
-
-```
-Phase 89 (Brand-Kit Shelving) ─── must complete first (parity hard-gate BKSHELVE-05)
-       │
-       ▼
-Phase 90 (Pre-Rendered Template Preview Pipeline) ─── builds on simpler picker surface
-```
-
-Phase 89 runs first because it's a delete-heavy refactor with a strict byte-identity hard-gate (BKSHELVE-05). Phase 90 is additive and depends on the simpler picker surface left after the brand-kit tile is removed. Both phases benefit from the existing v2.14 `template-previews` Supabase Storage bucket and the v2.14 `template.preview` field already on `SlideTemplate`.
-
-### Coverage Validation
-
-All 14 v2.16 requirements mapped to exactly one phase:
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| BKSHELVE-01..09 (9 reqs) | Phase 89 | Open |
-| PREVIEW-01..05 (5 reqs) | Phase 90 | Open |
-
-**Total:** 14/14 requirements mapped. Zero orphans. Zero duplicates.
-
-### Out of Scope (v2.16)
-
-- Custom photo per slide-in-picker (multiple sample variants) — each template gets exactly one preview.
-- Animated/video previews — static PNG only matches the existing `template.preview` contract.
-- Rolling preview refresh / cron — one-off render at milestone time; operator re-runs the script on template redesign.
-- Rolling back the brand-kit migration — migration stays in the migrations folder marked SHELVED.
-- Brand-kit feature flag instead of removal — removal is full and forward-only.
-- Premium-template indicator overlay redesign — existing premium-tier marker logic stays.
-- Picker layout changes (columns, sort order, category chips) — only the tile preview body changes.
-
----
-
 ## Phases (legacy view)
 
-_Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.planning/milestones/`. Phases 89–90 active under v2.16._
+_Phases 14–90 (v2.0–v2.16) complete — see milestone archives under `.planning/milestones/`._
 
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
-| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | Complete    | 2026-05-21 |
-| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 3/3 | Complete    | 2026-05-21 |
-| 87. Picker + Generation Wiring | v2.15 | 2/2 | ✅ Complete | 2026-05-19 |
-| 88. Render Paths + Per-Slide Override + Publish/Fork | v2.15 | 3/3 | ✅ Complete | 2026-05-19 |
+| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | ✅ Complete | 2026-05-21 |
+| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 3/3 | ✅ Complete | 2026-05-21 |
 
-_Phases 14–86 (v2.0–v2.14) complete — see milestone archives under `.planning/milestones/`._
+_Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.planning/milestones/`._
 
 ---
 
 ## Shipped Milestones (archived detail)
+
+<details>
+<summary>✅ v2.16 Picker Polish & Brand-Kit Shelving (Phases 89–90) — SHIPPED 2026-05-21</summary>
+
+Made the template picker visually represent what users actually generate (real photo-backed preview PNGs, no more text-on-solid-color), and fully shelved the brand-kit feature.
+
+- [x] **Phase 89: Brand-Kit Shelving (Full Removal)** (4/4 plans) — completed 2026-05-21. Removed the brand-kit feature across ~79 files (picker tile, Settings page, `/api/v1/me/brand-kit/*` routes, render/publish/download wiring, AI prompts, style-from-reference flow, `src/lib/brand-kit/` + types); added the defensive `brand-kit → news-oracle` resolver fallback. Render parity 45/45 held; DB schema left dormant.
+- [x] **Phase 90: Pre-Rendered Template Preview Pipeline** (3/3 plans) — completed 2026-05-21. Built `scripts/render-template-previews.ts`, ran it live (16 code-template cover PNGs sourced from `buyer@example.com`'s carousels, uploaded to the `template-previews` Supabase bucket, `preview` URLs wired into all 16 template files); collapsed `<TemplateTilePreview>` to a single-branch `<img>`.
+
+Full detail: `.planning/milestones/v2.16-ROADMAP.md` · Requirements: `.planning/milestones/v2.16-REQUIREMENTS.md` · Audit: `.planning/milestones/v2.16-MILESTONE-AUDIT.md`
+
+</details>
 
 <details>
 <summary>✅ v2.15 DB-Backed Template Wiring (Phases 87–88) — SHIPPED 2026-05-19</summary>
