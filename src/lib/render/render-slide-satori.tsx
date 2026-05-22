@@ -38,6 +38,9 @@ import {
 // (The deleted breaking-news-badge module is replaced by adapter-injected
 // 'ruled' kickers rendered through the customTexts branch below.)
 import { RULED_HIGHLIGHT } from './ruled-highlight'
+// Phase 90: carousel output format — drives the dynamic canvas height and the
+// height-ratio scale applied to absolute-pixel font sizes / overlay offsets.
+import { CAROUSEL_FORMATS, scaleFontPx, type CarouselFormat } from './carousel-formats'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Same constants as render-slide.ts for consistency
@@ -56,9 +59,6 @@ const NEWS_LAYOUT = {
   body:  { imageTop: 50, imageHeight: 50, hookY: 8,  bodyY: 30 },
 } as const
 
-const W = 1080
-const H = 1920
-
 /**
  * Build segment children for Satori. Satori supports inline <span style={{color}}> inside a text <div>.
  * Falls back to a plain string when no segments are provided.
@@ -76,13 +76,6 @@ function renderSegmentChildren(
   accentColor: string,
 ): React.ReactNode {
   return renderSegmentsShared(text, segments, baseColor, accentColor)
-}
-
-function pxX(pct: number) {
-  return Math.round(W * pct / 100)
-}
-function pxY(pct: number) {
-  return Math.round(H * pct / 100)
 }
 
 /** Build Satori-safe CSS properties from resolved text effects */
@@ -141,7 +134,16 @@ export function buildSlideElement(
   // in the Satori PNG export. Omitted by every test / client caller —
   // byte-identical to pre-Phase-88 when absent.
   dbTemplates?: ReadonlyMap<string, SlideTemplate>,
+  // Phase 90: carousel output format. Defaults to `tiktok` (1080×1920) so every
+  // existing caller and parity test renders byte-identically; endpoints pass
+  // the project's resolved format to render at 4:5 / 1:1.
+  format: CarouselFormat = CAROUSEL_FORMATS.tiktok,
 ): React.ReactElement {
+  // Phase 90: width is always 1080; only the canvas height varies by format.
+  const W = format.w
+  const H = format.h
+  const pxX = (pct: number) => Math.round(W * pct / 100)
+  const pxY = (pct: number) => Math.round(H * pct / 100)
   const overrides = slide.style_overrides ?? {}
   // quick-260515-epn: per-slide template_id_override re-resolution. When the
   // slide carries a top-level `template_id_override` (or the pre-fusion
@@ -341,7 +343,10 @@ export function buildSlideElement(
     // byte-identical on the alignment axis.
     justifyContent: alignToJustifyContent(hookTextAlign),
     // Phase 82 Gap D: caption-card-aware re-fit (= hookFontSize when no card).
-    fontSize: newsHeadlineFontSize,
+    // Phase 90: scaled by the format's height ratio — the auto-fit math above
+    // stays calibrated on the 1920 reference; only the final px is scaled down
+    // for a shorter canvas. tiktok → exact passthrough (byte-identity).
+    fontSize: scaleFontPx(newsHeadlineFontSize, format),
     // 260503-0f2: respect overrides + template-level hookFontWeight to match
     // slide-preview.tsx:610. Templates using single-weight display fonts (Anton)
     // MUST set hookFontWeight: 400 so Satori does not request weight 900 (which
@@ -388,7 +393,8 @@ export function buildSlideElement(
     textAlign: bodyTextAlign,
     // quick-260514-l9q: same parity reason as hookStyle above.
     justifyContent: alignToJustifyContent(bodyTextAlign),
-    fontSize: bodyFontSize,
+    // Phase 90: scaled by the format's height ratio (tiktok → exact passthrough).
+    fontSize: scaleFontPx(bodyFontSize, format),
     fontWeight: 400,
     lineHeight: 1.5,
     opacity: 0.9,
@@ -447,7 +453,7 @@ export function buildSlideElement(
       )}
       {/* Phase 55 (D-13, layer 1.5): grain/noise overlay — only when template opts in.
           `origin` prepends the absolute URL Satori requires for <img>. */}
-      {template.grainMode ? renderGrain(template.grainMode, origin) : null}
+      {template.grainMode ? renderGrain(template.grainMode, origin, { W, H }) : null}
       {/* Overlay - rendered before text so text appears on top (Satori has no z-index) */}
       <div
         style={{
@@ -461,7 +467,7 @@ export function buildSlideElement(
         }}
       />
       {/* Phase 55 (D-13, layer 2.5): radial vignette — only when template opts in. */}
-      {template.vignette ? renderVignette(template.vignette.strength) : null}
+      {template.vignette ? renderVignette(template.vignette.strength, { W, H }) : null}
       {/* quick-260517-k2n: caption card — an independent draggable/resizable
           colored rectangle. NO LONGER backgroundMode-gated (key_decision 2):
           it renders on ANY template iff resolveCaptionBar(...).enabled. Sits
@@ -520,7 +526,13 @@ export function buildSlideElement(
         // overlays are positioned at overlay.offset.{x,y} (typically using the
         // 'free' slot, but any slot's offset is honored).
         if (overlay.content.type === 'decorative') {
-          const pos = { x: overlay.offset?.x ?? 0, y: overlay.offset?.y ?? 0 }
+          // Phase 90: the y offset is an absolute position on the 1920-ref
+          // canvas — scale it for a shorter format. x is unscaled (width is
+          // always 1080). tiktok → exact passthrough.
+          const pos = {
+            x: overlay.offset?.x ?? 0,
+            y: scaleFontPx(overlay.offset?.y ?? 0, format),
+          }
           // Phase 57 (D-15): notes-app-chic palette tint for sticky-note-accent
           const tintColor =
             overlay.content.asset === 'sticky-note-accent'
@@ -533,7 +545,7 @@ export function buildSlideElement(
                 scale: overlay.content.scale,
                 opacity: overlay.content.opacity,
                 tintColor,
-              }, origin)}
+              }, origin, { W, H })}
             </React.Fragment>
           )
         }
@@ -546,7 +558,13 @@ export function buildSlideElement(
         const slotAny = slot as Record<string, unknown> | null
         const slotStyle: React.CSSProperties =
           slot == null
-            ? { position: 'absolute', left: offset?.x ?? 0, top: offset?.y ?? 0 }
+            ? {
+                position: 'absolute',
+                left: offset?.x ?? 0,
+                // Phase 90: free-slot top is an absolute 1920-ref position —
+                // scale it for a shorter canvas (tiktok → exact passthrough).
+                top: scaleFontPx(offset?.y ?? 0, format),
+              }
             : {
                 position: 'absolute',
                 ...slot,

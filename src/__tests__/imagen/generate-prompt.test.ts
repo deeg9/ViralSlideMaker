@@ -58,6 +58,8 @@ describe('generateImagePrompt', () => {
 
     const result = await generateImagePrompt('travel tips', 'Hook', 'Body', false)
 
-    expect(result).toBe('Professional aesthetic background for travel tips')
+    expect(result).toBe(
+      'Documentary-style photo with a candid adult subject, related to travel tips, composed with empty negative space in the upper area for a text overlay',
+    )
   })
 })

@@ -81,7 +81,7 @@ describe('getProject', () => {
 })
 
 describe('createProjectService', () => {
-  it('inserts project with user_id and returns id', async () => {
+  it('inserts project with user_id and defaults output_format to instagram (Phase 90)', async () => {
     const { supabase, fromFn, insertFn, singleFn } = createMockSupabase({
       insertData: { id: 'new-proj-1' },
     })
@@ -94,12 +94,29 @@ describe('createProjectService', () => {
     expect(fromFn).toHaveBeenCalledWith('projects')
     expect(insertFn).toHaveBeenCalledWith({
       user_id: 'user-123',
+      output_format: 'instagram',
       title: 'New Project',
       description: 'A description',
       slide_data: [],
     })
     expect(singleFn).toHaveBeenCalled()
     expect(result).toEqual({ id: 'new-proj-1' })
+  })
+
+  it('lets an explicit input.output_format override the instagram default', async () => {
+    const { supabase, insertFn } = createMockSupabase({ insertData: { id: 'new-proj-2' } })
+
+    await createProjectService(supabase, 'user-123', {
+      title: 'TikTok Project',
+      output_format: 'tiktok',
+    })
+
+    expect(insertFn).toHaveBeenCalledWith({
+      user_id: 'user-123',
+      output_format: 'tiktok',
+      title: 'TikTok Project',
+      slide_data: [],
+    })
   })
 })
 

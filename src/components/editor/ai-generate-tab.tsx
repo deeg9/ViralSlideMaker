@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useState, useEffect, useTransition } from 'react'
 import { Icon } from '@/components/ui/icon'
-import { UpgradePrompt } from '@/components/subscription/upgrade-prompt'
 import {
   generateAIImageAction,
   generateImagePromptAction,
@@ -15,7 +14,6 @@ interface AIGenerateTabProps {
   slideIndex: number
   projectId: string
   topic: string
-  userTier: 'free' | 'pro' | 'plus'
   onUpdate: (updates: Partial<Slide>) => void
 }
 
@@ -34,7 +32,6 @@ export function AIGenerateTab({
   slideIndex,
   projectId,
   topic,
-  userTier,
   onUpdate,
 }: AIGenerateTabProps) {
   const [prompt, setPrompt] = useState('')
@@ -42,10 +39,8 @@ export function AIGenerateTab({
   const [errorMessage, setErrorMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  // Auto-generate prompt on mount (only for paid users)
+  // Auto-generate a starter prompt on mount — available on every tier.
   useEffect(() => {
-    if (userTier === 'free') return
-
     let cancelled = false
     setStatus('loading-prompt')
 
@@ -71,17 +66,7 @@ export function AIGenerateTab({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slide.hook_text, slide.body_text, slide.is_cta, topic, userTier])
-
-  // Free user gate (IMAGEN-03)
-  if (userTier === 'free') {
-    return (
-      <div className="p-6">
-        <UpgradePrompt context="feature_gate" />
-      </div>
-    )
-  }
+  }, [slide.hook_text, slide.body_text, slide.is_cta, topic])
 
   function handleGenerate() {
     if (!prompt.trim() || isPending) return

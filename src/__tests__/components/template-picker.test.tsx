@@ -42,7 +42,7 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     expect(screen.getAllByText(/Selected/i).length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders the visible Phase 56 template (editorial-serif) as a preview img tile, not swatch fallback', () => {
+  it('renders a picker-visible keeper as a named preview img tile, not swatch fallback', () => {
     render(
       <TemplatePicker
         selectedId="bold-yellow"
@@ -52,15 +52,15 @@ describe('<TemplatePicker> TPLTHUMB-02 parity', () => {
     const previews = screen.getAllByRole('img')
     expect(previews.length).toBe(pickerTemplates.length)
 
-    // For each visible Phase 56 template, find its tile by display name.
-    // notes-app-chic and brutalist-grid are intentionally omitted — they are
-    // in the registry (for legacy projects) but hidden via HIDDEN_FROM_PICKER,
-    // so the keeper-filtered picker never renders them as tiles.
-    const visiblePhase56Templates = [
-      { id: 'editorial-serif', name: 'Editorial Serif' },
-    ]
-    for (const tpl of visiblePhase56Templates) {
-      expect(screen.getByText(tpl.name)).toBeInTheDocument()
+    // A picker-visible keeper renders as a named tile (the TPLTHUMB-02
+    // swatch-fallback regression guard).
+    expect(screen.getByText('Sunset Tabloid')).toBeInTheDocument()
+
+    // editorial-serif / soft-sage / y2k-pop stay in the registry for legacy
+    // projects but were retired from the picker (HIDDEN_FROM_PICKER, 2026-05-20)
+    // — the keeper-filtered picker must never render them as tiles.
+    for (const hiddenName of ['Editorial Serif', 'Soft Sage', 'Y2K Pop']) {
+      expect(screen.queryByText(hiddenName)).not.toBeInTheDocument()
     }
   })
 })

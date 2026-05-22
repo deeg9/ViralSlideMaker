@@ -2,9 +2,10 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { SlidePreview } from '@/components/slides/slide-preview'
+import { SlidePreview, ASPECT_CLASS } from '@/components/slides/slide-preview'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import { CAROUSEL_FORMATS, type CarouselFormat } from '@/lib/render/carousel-formats'
 // quick-260515-epn: each thumbnail resolves its own template via
 // resolvePerSlideTemplate so a slide carrying `template_id_override`
 // (typically projector-emitted from Copy Style → archetype) renders in the
@@ -26,6 +27,9 @@ interface SortableSlideProps {
   isSelected: boolean
   onSelect: (index: number) => void
   userTier?: 'free' | 'plus' | 'pro'
+  // Phase 90: carousel output format — drives the thumbnail aspect ratio so
+  // the strip matches the canvas. Defaults to `tiktok`.
+  format?: CarouselFormat
 }
 
 export function SortableSlide({
@@ -38,6 +42,7 @@ export function SortableSlide({
   isSelected,
   onSelect,
   userTier,
+  format = CAROUSEL_FORMATS.tiktok,
 }: SortableSlideProps) {
   const {
     attributes,
@@ -74,7 +79,7 @@ export function SortableSlide({
       }`}
       data-testid={`sortable-slide-${index}`}
     >
-      <div className="aspect-[9/16] rounded-lg overflow-hidden bg-white">
+      <div className={`${ASPECT_CLASS[format.id]} rounded-lg overflow-hidden bg-white`}>
         <SlidePreview
           slide={slide}
           template={perSlideTemplate}
@@ -83,6 +88,7 @@ export function SortableSlide({
           totalSlides={totalSlides}
           topic={topic}
           userTier={userTier}
+          format={format}
         />
       </div>
     </button>

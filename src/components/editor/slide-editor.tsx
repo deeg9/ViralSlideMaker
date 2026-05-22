@@ -13,7 +13,6 @@ import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import { ElementsPanel } from '@/components/editor/elements-panel'
 import LayersPanel from '@/components/editor/layers-panel/layers-panel'
 import { Icon } from '@/components/ui/icon'
-import { downloadSlidesAsZip } from '@/lib/download/zip-slides'
 import { VisibilityDropdown } from '@/components/editor/visibility-dropdown'
 import {
   saveSlideData,
@@ -24,6 +23,11 @@ import {
   createUploadUrl,
   type WatermarkSpec,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
+import { ExportFormatDialog } from '@/components/editor/export-format-dialog'
+import {
+  CAROUSEL_FORMATS,
+  resolveFormat,
+} from '@/lib/render/carousel-formats'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { useSelectionModel } from '@/lib/editor/use-selection-model'
 import { isEditingTarget } from '@/lib/editor/keyboard-utils'
@@ -89,6 +93,9 @@ interface SlideEditorProps {
    *  list (code templates still resolve via the sync getTemplate registry).
    *  Defaults to [] so existing callers / tests are unaffected. */
   dbTemplates?: PickerDbTemplate[]
+  /** Phase 90: stored carousel output format (projects.output_format).
+   *  Absent/null on legacy projects → resolves to `tiktok` (1080×1920). */
+  initialOutputFormat?: string | null
 }
 
 export function SlideEditor({
@@ -100,6 +107,7 @@ export function SlideEditor({
   userTier,
   initialPublishedState,
   dbTemplates = [],
+  initialOutputFormat,
 }: SlideEditorProps) {
   // quick-260520-064: resolve the initial template once at mount and thread
   // it into useSlideEditor so the adapter's D1 fallback (inject a 'BREAKING
@@ -124,6 +132,12 @@ export function SlideEditor({
     removeTextBox,
   } = useSlideEditor(initialSlides, initialTemplateForMigration)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
+  // Phase 90: the carousel's display format — derived once from the stored
+  // value (legacy projects → `tiktok`, new projects → `instagram`). Drives the
+  // live preview canvas. The aspect ratio of the *export* is chosen separately
+  // in the Export dialog, so this is fixed for the lifetime of the editor.
+  const formatId = resolveFormat(initialOutputFormat).id
+  const format = CAROUSEL_FORMATS[formatId]
   // Phase 88 (WIRE-03): resolve currentTemplateId. A code template id resolves
   // via the sync getTemplate registry. A DB template id (not in TEMPLATE_IDS)
   // resolves from the server-fetched dbTemplates list; if not found there
@@ -138,7 +152,7 @@ export function SlideEditor({
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [activeTab, setActiveTab] = useState<'text' | 'elements' | 'images'>('text')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [exporting, setExporting] = useState(false)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [selectedCustomTextId, setSelectedCustomTextId] = useState<string | null>(null)
   const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -183,6 +197,56 @@ export function SlideEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDecoration?.id])
+
+  // ─── Click-to-focus: canvas element → right-rail control section ─────────
+  // When an element is clicked on the canvas, switch the panel to its tab and
+  // flash its control section so it's obvious which element was picked.
+  // `panelFocus` carries the target + an incrementing nonce; the nonce (NOT a
+  // boolean) is what lets re-clicking the SAME element re-fire the flash.
+  const [panelFocus, setPanelFocus] = useState<{
+    target: 'text' | 'caption-card' | 'watermark' | 'decoration'
+    nonce: number
+  } | null>(null)
+  const requestPanelFocus = useCallback(
+    (target: 'text' | 'caption-card' | 'watermark' | 'decoration') => {
+      setPanelFocus((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 }))
+    },
+    [],
+  )
+
+  // Switch the active tab to match the focused element. Keyed on the nonce so
+  // repeat clicks re-assert it. Caption card / watermark / decoration live in
+  // the Elements tab; text boxes in the Text tab.
+  useEffect(() => {
+    if (!panelFocus) return
+    setActiveTab(panelFocus.target === 'text' ? 'text' : 'elements')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelFocus?.nonce])
+
+  // A decoration becoming selected (canvas click OR LayersPanel) flashes its
+  // inspector card. The activeDecoration effect above handles the tab switch.
+  useEffect(() => {
+    if (activeDecoration) requestPanelFocus('decoration')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDecoration?.id])
+
+  // The watermark becoming the primary selection (e.g. via LayersPanel)
+  // flashes its controls. Canvas watermark clicks go through onWatermarkSelect.
+  useEffect(() => {
+    if (selection?.primary && selection.primary === currentSlide?.watermark?.id) {
+      requestPanelFocus('watermark')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection?.primary])
+
+  // Per-section focus nonces — `undefined` unless that section is the current
+  // target, so untargeted cards stay inert (no scroll / flash).
+  const captionCardFocusNonce =
+    panelFocus?.target === 'caption-card' ? panelFocus.nonce : undefined
+  const watermarkFocusNonce =
+    panelFocus?.target === 'watermark' ? panelFocus.nonce : undefined
+  const decorationFocusNonce =
+    panelFocus?.target === 'decoration' ? panelFocus.nonce : undefined
 
   // Phase 66 Plan 01 (DIFF-02): tracks the most recent BULK_TRANSLATE delta
   // (drag-stop OR arrow-nudge) in % of canvas. Read by the $mod+d (Cmd+D
@@ -1516,6 +1580,7 @@ export function SlideEditor({
               onSelect={setSelectedIndex}
               userTier={userTier ?? 'free'}
               topic={topic}
+              format={format}
               onReorder={(from, to) => {
                 dispatch({ type: 'REORDER_SLIDES', from, to })
                 setSelectedIndex(to)
@@ -1542,6 +1607,7 @@ export function SlideEditor({
           onSelectIndex={setSelectedIndex}
           userTier={userTier ?? 'free'}
           topic={topic}
+          format={format}
           onPositionChange={handlePositionChange}
           onWidthChange={handleWidthChange}
           // phase-59-02: corner-drag font-scale + side-drag width-only routes through
@@ -1560,7 +1626,14 @@ export function SlideEditor({
           onCustomImageSelect={setSelectedCustomImageId}
           onCustomImageRemove={handleRemoveCustomImage}
           selectedCustomImageId={selectedCustomImageId}
-          onTextBoxSelect={setSelectedTextBoxId}
+          onTextBoxSelect={(id) => {
+            setSelectedTextBoxId(id)
+            // Click-to-focus: a real text-box click switches the rail to the
+            // Text tab. Group-select passes null (no single text box to show);
+            // the slide-change re-seed calls setSelectedTextBoxId directly and
+            // never reaches here, so changing slides won't yank the tab.
+            if (id) requestPanelFocus('text')
+          }}
           selectedTextBoxId={selectedTextBoxId}
           // quick-260514-l9z: in-place text edit on hook/body — double-click
           // a text box on the canvas, type, blur to commit. UPDATE_TEXT_BOX
@@ -1671,6 +1744,8 @@ export function SlideEditor({
               },
             })
           }}
+          onCaptionCardSelect={() => requestPanelFocus('caption-card')}
+          onWatermarkSelect={() => requestPanelFocus('watermark')}
         />
 
         {/* Right panel: Editor controls. quick-260514-tan-rail-white-tiles:
@@ -1893,6 +1968,9 @@ export function SlideEditor({
                 onWatermarkLogoUpload={handleWatermarkLogoUpload}
                 onWatermarkLogoRemove={handleWatermarkLogoRemove}
                 isWatermarkPending={isWatermarkPending}
+                captionCardFocusNonce={captionCardFocusNonce}
+                watermarkFocusNonce={watermarkFocusNonce}
+                decorationFocusNonce={decorationFocusNonce}
               />
             )}
             {currentSlide && activeTab === 'images' && (
@@ -1901,7 +1979,6 @@ export function SlideEditor({
                 slideIndex={selectedIndex}
                 projectId={projectId}
                 topic={topic}
-                userTier={userTier ?? 'free'}
                 onUpdate={handleUpdate}
                 onRegenerateText={handleRegenerateText}
                 onRegenerateImage={handleRegenerateImage}
@@ -1946,18 +2023,11 @@ export function SlideEditor({
                 tags={initialPublishedState?.tags ?? []}
               />
               <button
-                onClick={async () => {
-                  setExporting(true)
-                  try {
-                    await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
-                  } catch { /* silently handle */ }
-                  finally { setExporting(false) }
-                }}
-                disabled={exporting}
-                className="flex-1 min-w-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
+                onClick={() => setExportDialogOpen(true)}
+                className="flex-1 min-w-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs"
               >
                 <Icon name="download" size="sm" />
-                <span className="truncate">{exporting ? 'Exporting...' : 'Export'}</span>
+                <span className="truncate">Export</span>
               </button>
             </div>
             {(userTier ?? 'free') === 'free' && (
@@ -2003,6 +2073,19 @@ export function SlideEditor({
         open={openPicker === 'shape'}
         onClose={() => setOpenPicker(null)}
         onAddDecoration={onPickerAddDecoration}
+      />
+
+      {/* Phase 90: download-time format picker. The Export button opens this;
+          the user picks TikTok 9:16 / Instagram 4:5 / Square 1:1 and the
+          slides render at that aspect ratio. Defaults to the project's own
+          format so the common case is one click. */}
+      <ExportFormatDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        projectId={projectId}
+        slideCount={slides.length}
+        projectTitle={title ?? 'slides'}
+        defaultFormat={formatId}
       />
 
     </div>

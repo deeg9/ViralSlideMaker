@@ -19,6 +19,7 @@ import { useRef } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { Switch } from '@/components/ui/switch'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
+import { useScrollFlash } from '@/lib/editor/use-scroll-flash'
 
 export type WatermarkPosition = 'top-left' | 'bottom-left' | 'bottom-right'
 
@@ -36,6 +37,9 @@ export interface WatermarkControlsProps {
   onCustomLogoUpload?: (file: File) => void
   /** Clears the custom logo. Distinct from disabling. */
   onCustomLogoRemove?: () => void
+  /** Incrementing counter set when the watermark is clicked on the canvas.
+   *  A change scrolls this card into view and flashes its highlight ring. */
+  focusNonce?: number
 }
 
 const POSITION_OPTIONS: Array<{ value: WatermarkPosition; label: string }> = [
@@ -51,8 +55,10 @@ export function WatermarkControls({
   onWatermarkChange,
   onCustomLogoUpload,
   onCustomLogoRemove,
+  focusNonce,
 }: WatermarkControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { ref: flashRef, flashing } = useScrollFlash<HTMLDivElement>(focusNonce)
   const isPaid = userTier !== 'free'
   const isReadOnly = !onWatermarkChange
   const wm = slide.style_overrides?.watermark ?? {}
@@ -77,7 +83,10 @@ export function WatermarkControls({
 
   return (
     <div
-      className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-4"
+      ref={flashRef}
+      className={`bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-4 transition-shadow duration-300 ${
+        flashing ? 'ring-4 ring-[#3d0000]/60 ring-offset-2 ring-offset-[#fff0f0]' : ''
+      }`}
       data-testid="watermark-controls"
       data-tier={userTier}
     >

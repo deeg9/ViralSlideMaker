@@ -99,6 +99,12 @@ interface ElementsPanelProps {
   onOpenShapePicker?: () => void
   /** Extracted palette piped to DecorationCard swatches. */
   derivedPalette?: string[]
+  /** Click-to-focus nonces — bumped by slide-editor when the matching element
+   *  is clicked on the canvas. A change scrolls that card into view + flashes
+   *  it. `undefined` keeps the card inert (no scroll/flash on mount). */
+  captionCardFocusNonce?: number
+  watermarkFocusNonce?: number
+  decorationFocusNonce?: number
 }
 
 export function ElementsPanel({
@@ -122,6 +128,9 @@ export function ElementsPanel({
   onWatermarkLogoRemove,
   isWatermarkPending,
   derivedPalette,
+  captionCardFocusNonce,
+  watermarkFocusNonce,
+  decorationFocusNonce,
 }: ElementsPanelProps) {
   // quick-260514-move-slide-cards-to-elements: shared slide-level cards
   // mounted at the bottom of BOTH selection-mode and library-mode renders.
@@ -142,6 +151,7 @@ export function ElementsPanel({
           template={resolvePerSlideTemplate(slide, template)}
           onSlideUpdate={onSlideUpdate}
           onSlidePreview={onSlidePreview ?? onSlideUpdate}
+          focusNonce={captionCardFocusNonce}
         />
         <SlidePhotoOverlayControls
           slide={slide}
@@ -156,6 +166,7 @@ export function ElementsPanel({
           onWatermarkChange={onSlideWatermarkChange}
           onCustomLogoUpload={onWatermarkLogoUpload}
           onCustomLogoRemove={onWatermarkLogoRemove}
+          focusNonce={watermarkFocusNonce}
         />
       </>
     ) : null
@@ -185,6 +196,7 @@ export function ElementsPanel({
           onSwapIcon={isIcon ? onSwapIcon : undefined}
           onPreview={onDecorationPreview}
           derivedPalette={derivedPalette}
+          focusNonce={decorationFocusNonce}
         />
         {slideLevelCards}
       </div>

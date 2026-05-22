@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai'
+import { GoogleGenAI, Type, PersonGeneration } from '@google/genai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { GEMINI_TEXT_MODEL } from '@/lib/ai/gemini-model'
 import { CREDIT_COSTS } from '@/lib/credits/types'
@@ -75,6 +75,9 @@ export async function generateImagenBackgroundAdmin(
         numberOfImages: 1,
         aspectRatio: '9:16',
         includeRaiReason: true,
+        // Match generateImagenBackground: ALLOW_ADULT lets Imagen render adult
+        // human subjects. Without it, person prompts return empty scenes.
+        personGeneration: PersonGeneration.ALLOW_ADULT,
       },
     })
 

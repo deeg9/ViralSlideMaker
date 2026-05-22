@@ -15,6 +15,7 @@ import {
 import { SortableSlide } from '@/components/editor/sortable-slide'
 import type { Slide } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
+import { CAROUSEL_FORMATS, type CarouselFormat } from '@/lib/render/carousel-formats'
 
 interface SlideListProps {
   slides: Slide[]
@@ -26,6 +27,9 @@ interface SlideListProps {
   // Phase 45 — project topic forwarded to <SortableSlide> → <SlidePreview>
   // for slide-field overlay resolution. Optional (graceful fallback to '').
   topic?: string
+  // Phase 90: carousel output format — keeps the thumbnail strip's aspect
+  // ratio in sync with the canvas. Defaults to `tiktok`.
+  format?: CarouselFormat
 }
 
 export function SlideList({
@@ -36,6 +40,7 @@ export function SlideList({
   onReorder,
   userTier,
   topic,
+  format = CAROUSEL_FORMATS.tiktok,
 }: SlideListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -77,6 +82,7 @@ export function SlideList({
               isSelected={index === selectedIndex}
               onSelect={onSelect}
               userTier={userTier}
+              format={format}
             />
           ))}
         </SortableContext>

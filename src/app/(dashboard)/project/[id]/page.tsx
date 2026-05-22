@@ -94,6 +94,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           userTier={tier}
           initialPublishedState={initialPublishedState}
           dbTemplates={editorDbTemplates}
+          initialOutputFormat={p.output_format}
         />
       </>
     )

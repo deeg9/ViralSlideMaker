@@ -43,9 +43,10 @@ export const factsCategory: CategoryModule = {
   tagline: 'One punchy fact per slide',
   ready: true,
   // templateIds[0] is the Facts default — a clean, legible, bold template.
-  // quick task 260519-t3x adds sunset-tabloid (retro-bold color-block) and
-  // soft-sage (wellness-journal italic serif) for variety across the
-  // facts-style range.
-  templateIds: ['bold-yellow', 'sunset-tabloid', 'editorial-serif', 'soft-sage', 'y2k-pop'] as const,
+  // sunset-tabloid (retro-bold color-block) adds variety across the
+  // facts-style range. editorial-serif / soft-sage / y2k-pop were retired from
+  // the picker on 2026-05-20 per user request (renderers retained for
+  // back-compat — see HIDDEN_FROM_PICKER in render/templates/index.ts).
+  templateIds: ['bold-yellow', 'sunset-tabloid'] as const,
   buildPrompt: () => FACTS_PROMPT,
 }
