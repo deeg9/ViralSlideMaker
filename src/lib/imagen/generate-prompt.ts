@@ -21,7 +21,7 @@ Include:
 - An art style or photographic approach (e.g. "soft-focus photography", "flat illustration", "3D render")
 - A mood/atmosphere (e.g. "warm and inviting", "sleek and futuristic")
 
-Do NOT mention text, typography, or slide content. Focus purely on the visual aesthetic that will tie the backgrounds together.`,
+Do NOT mention text, typography, or slide content. Focus purely on the visual aesthetic that will tie the slide visuals together.`,
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
@@ -62,16 +62,18 @@ export async function generateImagePrompt(
 
     const response = await ai.models.generateContent({
       model: GEMINI_TEXT_MODEL,
-      contents: `Generate a concise image prompt for a TikTok carousel slide background.
+      contents: `Generate a concise image prompt for a TikTok carousel slide visual.
 Topic: "${topic}"
 Hook text: "${hookText}"
 Body text: "${bodyText}"
 ${isCta ? 'This is the closing CTA slide.' : ''}${styleContext}${userContext}
 
-The image should be a mood/aesthetic background that complements the text overlay.
+The image is a photographic scene that sits behind a text overlay.
+Prefer a real adult human subject when the slide content suits it — a person reacting, gesturing, using an object, or candidly engaged with the topic. Fall back to an empty scene only when no human subject makes sense.
+COMPOSITION: keep the subject off-center (lower third or to one side) and leave generous empty negative space in the upper-center area where the headline text will sit. The subject must not be centered or fill the frame.
 ${masterStyle ? 'IMPORTANT: Follow the master visual style above. Use the same color palette, art style, and mood. Vary the composition slightly for each slide but keep the overall look cohesive.' : ''}
-Do NOT include text in the image. Focus on atmosphere, colors, and visual mood.
-Keep the prompt under 100 words. Be specific and descriptive.`,
+Do NOT include any text, letters, or words in the image. Be specific about the subject, setting, lighting, and mood.
+Keep the prompt under 100 words.`,
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
@@ -87,6 +89,6 @@ Keep the prompt under 100 words. Be specific and descriptive.`,
     const parsed = JSON.parse(response.text!)
     return parsed.prompt
   } catch {
-    return `Professional aesthetic background for ${topic}${masterStyle ? `. Style: ${masterStyle}` : ''}`
+    return `Documentary-style photo with a candid adult subject, related to ${topic}, composed with empty negative space in the upper area for a text overlay${masterStyle ? `. Style: ${masterStyle}` : ''}`
   }
 }

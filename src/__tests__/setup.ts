@@ -64,6 +64,13 @@ if (typeof Element !== 'undefined') {
       },
     } as DOMRect
   }
+
+  // jsdom does not implement Element.scrollIntoView. The useScrollFlash hook
+  // (right-rail click-to-focus) calls it when a section card is focused; stub
+  // it so component tests that mount those cards don't throw.
+  if (typeof Element.prototype.scrollIntoView !== 'function') {
+    Element.prototype.scrollIntoView = function () {}
+  }
 }
 
 // Mock @supabase/ssr

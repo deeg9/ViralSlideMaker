@@ -658,4 +658,34 @@ describe('SlideBackgroundControls', () => {
     })
   })
 
+  // Click-to-focus: when the caption card is clicked on the canvas, slide-editor
+  // bumps `focusNonce`, which flashes a highlight ring on this card.
+  describe('focusNonce flash', () => {
+    it('flashes the highlight ring when focusNonce is set', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+          focusNonce={1}
+        />,
+      )
+      expect(
+        screen.getByTestId('slide-background-controls').className,
+      ).toContain('ring-4')
+    })
+
+    it('does not flash without a focusNonce', () => {
+      render(
+        <SlideBackgroundControls
+          slide={makeSlide()}
+          template={TMPL}
+          onSlideUpdate={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByTestId('slide-background-controls').className,
+      ).not.toContain('ring-4')
+    })
+  })
 })

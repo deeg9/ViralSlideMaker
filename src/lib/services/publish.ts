@@ -5,6 +5,7 @@ import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/regis
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { getUserTier } from '@/lib/credits/check-credits'
+import { resolveFormat } from '@/lib/render/carousel-formats'
 import type { Project } from '@/lib/types/project'
 
 const TAG_REGEX = /^[a-z0-9][a-z0-9_-]*[a-z0-9]?$/
@@ -52,12 +53,14 @@ export async function renderHeroBuffer(
   const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
   // Phase 88 (WIRE-04): per-slide DB override resolution for the publish hero.
   const dbTemplates = await getDbTemplatesMap()
-  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates)
+  // Phase 90: hero renders at the project's chosen carousel format.
+  const format = resolveFormat(project.output_format)
+  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates, format)
   const fonts = await loadFontBuffersForSlide(slide, template)
 
   const imageResponse = new ImageResponse(element, {
-    width: 1080,
-    height: 1920,
+    width: format.w,
+    height: format.h,
     fonts,
   })
   return Buffer.from(await imageResponse.arrayBuffer())

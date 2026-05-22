@@ -15,7 +15,6 @@ interface ImagePickerPanelProps {
   slideIndex: number
   projectId: string
   topic: string
-  userTier: 'free' | 'pro' | 'plus'
   onUpdate: (updates: Partial<Slide>) => void
   onRegenerateText: () => void | Promise<void>
   onRegenerateImage: () => void | Promise<void>
@@ -34,7 +33,6 @@ export function ImagePickerPanel({
   slideIndex,
   projectId,
   topic,
-  userTier,
   onUpdate,
   onRegenerateText,
   onRegenerateImage,
@@ -261,17 +259,15 @@ export function ImagePickerPanel({
           </label>
           {lastUploadedUrl && (
             <>
-              {userTier !== 'free' && (
-                <button
-                  onClick={handleStylize}
-                  disabled={stylizing}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-[#3d0000] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                  title="Restyle this photo with AI to match the carousel's visual style. Uses 1 credit."
-                >
-                  <Icon name={stylizing ? 'progress_activity' : 'auto_awesome'} size="sm" className={stylizing ? 'animate-spin' : ''} />
-                  {stylizing ? 'Stylizing...' : 'AI-Stylize This Photo (1 credit)'}
-                </button>
-              )}
+              <button
+                onClick={handleStylize}
+                disabled={stylizing}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-[#3d0000] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                title="Restyle this photo with AI to match the carousel's visual style. Uses 1 credit."
+              >
+                <Icon name={stylizing ? 'progress_activity' : 'auto_awesome'} size="sm" className={stylizing ? 'animate-spin' : ''} />
+                {stylizing ? 'Stylizing...' : 'AI-Stylize This Photo (1 credit)'}
+              </button>
               {stylizeError && (
                 <p className="text-[10px] text-red-700 px-1" role="alert">{stylizeError}</p>
               )}
@@ -299,7 +295,6 @@ export function ImagePickerPanel({
           slideIndex={slideIndex}
           projectId={projectId}
           topic={topic}
-          userTier={userTier}
           onUpdate={onUpdate}
         />
       )}

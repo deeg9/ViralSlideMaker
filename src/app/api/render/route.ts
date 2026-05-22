@@ -5,6 +5,7 @@ import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { rateLimitBucket } from '@/lib/rate-limit'
 import { getUserTier } from '@/lib/credits/check-credits'
+import { resolveFormatWithOverride } from '@/lib/render/carousel-formats'
 import type { Project } from '@/lib/types/project'
 
 export const maxDuration = 60
@@ -90,12 +91,17 @@ export async function GET(request: Request) {
   // internally via resolvePerSlideTemplate; `template` is the project-level
   // fallback the helper returns when no per-slide override is set
   // (TPLREND-05 byte-identity reference).
-  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates)
+  // Phase 90: render at the format chosen in the Export dialog (`?format=`),
+  // falling back to the project's stored format (NULL → tiktok). The override
+  // lets one carousel be exported at any aspect ratio without changing the
+  // project itself.
+  const format = resolveFormatWithOverride(searchParams.get('format'), p.output_format)
+  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates, format)
   const fonts = await loadFontBuffersForSlide(slide, template)
 
   const imageResponse = new ImageResponse(element, {
-    width: 1080,
-    height: 1920,
+    width: format.w,
+    height: format.h,
     fonts,
   })
 

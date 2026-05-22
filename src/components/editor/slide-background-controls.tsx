@@ -47,6 +47,7 @@ import { useEffect, useState } from 'react'
 import type { Slide, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 import { resolveCaptionBar } from '@/lib/render/resolve-overlay'
+import { useScrollFlash } from '@/lib/editor/use-scroll-flash'
 import { Switch } from '@/components/ui/switch'
 import { COLOR_SWATCHES } from './text-rail/color-swatches'
 
@@ -71,6 +72,9 @@ export interface SlideBackgroundControlsProps {
    *  `onSlideUpdate` on pointer-up. Optional so isolated unit tests can omit
    *  it; falls back to `onSlideUpdate` when absent. */
   onSlidePreview?: (updates: Partial<Slide>) => void
+  /** Incrementing counter set when the caption card is clicked on the canvas.
+   *  A change scrolls this card into view and flashes its highlight ring. */
+  focusNonce?: number
 }
 
 /**
@@ -91,7 +95,9 @@ export function SlideBackgroundControls({
   template,
   onSlideUpdate,
   onSlidePreview,
+  focusNonce,
 }: SlideBackgroundControlsProps) {
+  const { ref: flashRef, flashing } = useScrollFlash<HTMLDivElement>(focusNonce)
   // quick-260518-8o0: is this a news-layout slide? Mirrors the gate in
   // render-slide.ts (~line 327) — a legacy template (no `backgroundMode`)
   // with a `layout` override. The renderers compute the same boolean to feed
@@ -244,7 +250,10 @@ export function SlideBackgroundControls({
 
   return (
     <div
-      className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-4"
+      ref={flashRef}
+      className={`bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-4 transition-shadow duration-300 ${
+        flashing ? 'ring-4 ring-[#3d0000]/60 ring-offset-2 ring-offset-[#fff0f0]' : ''
+      }`}
       data-testid="slide-background-controls"
     >
       <span className="text-[10px] font-bold uppercase tracking-widest text-[#7d6161]">

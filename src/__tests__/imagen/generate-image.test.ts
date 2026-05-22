@@ -7,6 +7,11 @@ vi.mock('@google/genai', () => {
     GoogleGenAI: class {
       models = { generateImages: mockGenerateImages }
     },
+    PersonGeneration: {
+      DONT_ALLOW: 'DONT_ALLOW',
+      ALLOW_ADULT: 'ALLOW_ADULT',
+      ALLOW_ALL: 'ALLOW_ALL',
+    },
     __mockGenerateImages: mockGenerateImages,
   }
 })

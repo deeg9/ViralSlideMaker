@@ -8,6 +8,7 @@ import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/regis
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { getUserTier } from '@/lib/credits/check-credits'
+import { resolveFormatWithOverride } from '@/lib/render/carousel-formats'
 import type { Slide } from '@/lib/types/slide'
 
 export const maxDuration = 60
@@ -57,6 +58,15 @@ export const GET = withApiAuth(async (req, ctx) => {
   const ownerTier = await getUserTier(ctx.userId)
   const origin = new URL(req.url).origin
 
+  // Phase 90: resolve the carousel output format ONCE for the whole ZIP — every
+  // slide renders at the same dimensions (a carousel cannot mix aspect ratios).
+  // An explicit `?format=` (from the Export dialog) overrides the project's
+  // stored format; absent/invalid falls back to it (NULL → tiktok).
+  const format = resolveFormatWithOverride(
+    new URL(req.url).searchParams.get('format'),
+    project.output_format,
+  )
+
   // Render each slide sequentially to avoid memory pressure
   const zip = new JSZip()
   // Phase 45: per-slide render ctx (slideIndex/totalSlides/topic) flows into
@@ -69,11 +79,11 @@ export const GET = withApiAuth(async (req, ctx) => {
     // internally via resolvePerSlideTemplate; `template` is the project-level
     // fallback (the helper short-circuits to the same reference when no
     // per-slide override is set, preserving TPLREND-05 byte-identity).
-    const element = buildSlideElement(slide, template, ownerTier, origin, renderCtx, dbTemplates)
+    const element = buildSlideElement(slide, template, ownerTier, origin, renderCtx, dbTemplates, format)
     const fonts = await loadFontBuffersForSlide(slide, template)
     const imgRes = new ImageResponse(element, {
-      width: 1080,
-      height: 1920,
+      width: format.w,
+      height: format.h,
       fonts,
     })
     const buffer = await imgRes.arrayBuffer()
@@ -82,7 +92,10 @@ export const GET = withApiAuth(async (req, ctx) => {
 
   const zipBuffer = await zip.generateAsync({ type: 'arraybuffer' })
 
-  const filename = sanitizeFilename(project.title || 'carousel')
+  // Format-aware filename so a TikTok and an Instagram export of the same
+  // carousel don't collide in the user's downloads folder.
+  const ratioSlug = format.ratioLabel.replace(':', 'x')
+  const filename = `${sanitizeFilename(project.title || 'carousel')}-${format.id}-${ratioSlug}`
 
   // Return as NextResponse to satisfy withApiAuth's ApiHandler type
   return new NextResponse(zipBuffer, {

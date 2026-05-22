@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenAI, PersonGeneration } from '@google/genai'
 import { deductCredit } from '@/lib/credits/check-credits'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CREDIT_COSTS } from '@/lib/credits/types'
@@ -41,6 +41,10 @@ export async function generateImagenBackground(
         numberOfImages: 1,
         aspectRatio: '9:16',
         includeRaiReason: true,
+        // Imagen will not render human subjects unless personGeneration is set
+        // explicitly. ALLOW_ADULT permits adult people (still blocks minors);
+        // without it, prompts that ask for a person come back as empty scenes.
+        personGeneration: PersonGeneration.ALLOW_ADULT,
       },
     })
 
@@ -63,8 +67,9 @@ export async function generateImagenBackground(
 
     // 6. Return public URL
     return { url: publicData.publicUrl }
-  } catch {
+  } catch (err) {
     // 7. API error -- refund the credit
+    console.error('[imagen] generateImagenBackground failed:', err)
     await refundCredit(userId, projectId)
     return { error: 'Image generation failed. Credit refunded.', refunded: true }
   }

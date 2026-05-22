@@ -8,6 +8,7 @@ import { resolveTemplate, getDbTemplatesMap } from '@/lib/render/templates/regis
 import { buildSlideElement } from '@/lib/render/render-slide-satori'
 import { loadFontBuffersForSlide } from '@/lib/render/load-font'
 import { getUserTier } from '@/lib/credits/check-credits'
+import { resolveFormat, scaleFontPx } from '@/lib/render/carousel-formats'
 import type { Project } from '@/lib/types/project'
 
 export type PublishResult =
@@ -46,12 +47,14 @@ async function renderHero(
   const ctx = { slideIndex: 0, totalSlides: 1, topic: project.topic }
   // Phase 88 (WIRE-04): per-slide DB override resolution for the publish hero.
   const dbTemplates = await getDbTemplatesMap()
-  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates)
+  // Phase 90: hero renders at the project's chosen carousel format.
+  const format = resolveFormat(project.output_format)
+  const element = buildSlideElement(slide, template, ownerTier, origin, ctx, dbTemplates, format)
   const fonts = await loadFontBuffersForSlide(slide, template)
 
   const imageResponse = new ImageResponse(element, {
-    width: 1080,
-    height: 1920,
+    width: format.w,
+    height: format.h,
     fonts,
   })
   const buffer = Buffer.from(await imageResponse.arrayBuffer())
@@ -79,12 +82,16 @@ async function renderMinimalHero(
   const hookText = slide.hook_text?.trim() ?? ''
   const bodyText = slide.body_text?.trim() ?? ''
 
+  // Phase 90: minimal hero renders at the project's chosen carousel format;
+  // the absolute-pixel font sizes are scaled by the format's height ratio.
+  const format = resolveFormat(project.output_format)
+
   const element = React.createElement(
     'div',
     {
       style: {
-        width: 1080,
-        height: 1920,
+        width: format.w,
+        height: format.h,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -102,7 +109,7 @@ async function renderMinimalHero(
             key: 'hook',
             style: {
               display: 'flex',
-              fontSize: 120,
+              fontSize: scaleFontPx(120, format),
               fontWeight: 900,
               lineHeight: 1.1,
               textAlign: 'center',
@@ -119,7 +126,7 @@ async function renderMinimalHero(
             key: 'body',
             style: {
               display: 'flex',
-              fontSize: 48,
+              fontSize: scaleFontPx(48, format),
               fontWeight: 400,
               lineHeight: 1.4,
               textAlign: 'center',
@@ -133,8 +140,8 @@ async function renderMinimalHero(
 
   const fonts = await loadFontBuffersForSlide(slide, template)
   const imageResponse = new ImageResponse(element, {
-    width: 1080,
-    height: 1920,
+    width: format.w,
+    height: format.h,
     fonts,
   })
   return Buffer.from(await imageResponse.arrayBuffer())
