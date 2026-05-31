@@ -19,12 +19,12 @@
 ### Mobile Editor (EDIT)
 *The concentrated work. EDIT-01 is a gate that must pass before the rest is built.*
 
-- [~] **EDIT-01**: A user can tap a text element on a slide and edit its text on touch (iOS), with the on-screen keyboard not covering the field being edited. *(GATE — Phase 92 diagnosed the path + applied a conservative `touch-action:manipulation` repair; **code-ready, awaiting physical-iPhone sign-off**. Diagnosis flags deferred-`.focus()` (likely keyboard-summon break) and keyboard-occlusion as the two on-device risks — see 92-VERIFICATION.md device checklist. NOT fully complete until device pass.)*
-- [ ] **EDIT-02**: On a phone the slide canvas is the dominant element — editor chrome collapses so the canvas is not squeezed by stacked panels (filmstrip + Layers + canvas + tabs + bars).
-- [ ] **EDIT-03**: Editing tool panels (Text / Elements / Images and their controls) are reachable on mobile via thumb-friendly bottom sheets (re-hosting existing rails; no rebuild).
-- [ ] **EDIT-04**: A user can navigate between slides on mobile via the filmstrip with a clear scroll/selection affordance (no hidden horizontal scroll).
-- [ ] **EDIT-05**: Destructive editor actions (delete slide/element) require confirmation or are undoable, and destructive controls are spaced away from primary tap targets — no accidental data loss on mis-tap. *(Addresses the documented hard-delete-via-adjacent-control history.)*
-- [ ] **EDIT-06**: Core editor actions (Export, add, undo/redo, Public toggle) are reachable from a persistent, thumb-reachable bottom action area.
+- [~] **EDIT-01**: A user can tap a text element on a slide and edit its text on touch (iOS), with the on-screen keyboard not covering the field being edited. *(GATE — Phase 92 diagnosed; **Phase 93 repaired**: gesture-synchronous focus inside `onPointerUp`, single-tap-to-edit with a 10px drag threshold (`src/lib/editor/touch-edit.ts`), `scrollIntoView` + `interactiveWidget:'resizes-visual'` for occlusion. Code-complete; awaiting the consolidated physical-iPhone pass in 93-VERIFICATION.md.)*
+- [~] **EDIT-02**: On a phone the slide canvas is the dominant element — editor chrome collapses so the canvas is not squeezed by stacked panels. *(Phase 93: both desktop asides `hidden lg:flex`, canvas dominates the mobile column, slim top bar + thin filmstrip + bottom bar. Code-complete; awaiting device pass.)*
+- [~] **EDIT-03**: Editing tool panels (Text / Elements / Images and their controls) are reachable on mobile via thumb-friendly bottom sheets (re-hosting existing rails; no rebuild). *(Phase 93: new `src/components/ui/sheet.tsx` on `@radix-ui/react-dialog`; rails re-hosted via shared `toolPanelBody`. Code-complete; awaiting device pass.)*
+- [~] **EDIT-04**: A user can navigate between slides on mobile via the filmstrip with a clear scroll/selection affordance (no hidden horizontal scroll). *(Phase 93: thin `SlideList` filmstrip + edge-fade mask + "n / total" counter. Code-complete; awaiting device pass.)*
+- [~] **EDIT-05**: Destructive editor actions (delete slide/element) require confirmation or are undoable, and destructive controls are spaced away from primary tap targets — no accidental data loss on mis-tap. *(Phase 93: slide delete confirm-gated on both breakpoints; mobile delete spaced to the bottom of the layers sheet, away from add/export; undo covers it. Code-complete; awaiting device pass. Addresses the documented hard-delete-via-adjacent-control history.)*
+- [~] **EDIT-06**: Core editor actions (Export, add, undo/redo, Public toggle) are reachable from a persistent, thumb-reachable bottom action area. *(Phase 93: persistent safe-area-padded bottom action bar. Code-complete; awaiting device pass.)*
 
 ### App-Wide Mobile Polish (POLISH)
 
@@ -76,12 +76,12 @@
 | FOUND-02 | Phase 91 | Code complete (device-confirm pending) |
 | FOUND-03 | Phase 91 | Satisfied |
 | FOUND-04 | Phase 91 | Satisfied |
-| EDIT-01 | Phase 92 | Code-ready, awaiting device sign-off (GATE) |
-| EDIT-02 | Phase 93 | Pending |
-| EDIT-03 | Phase 93 | Pending |
-| EDIT-04 | Phase 93 | Pending |
-| EDIT-05 | Phase 93 | Pending |
-| EDIT-06 | Phase 93 | Pending |
+| EDIT-01 | Phase 92→93 | Code-complete (Phase 93 repair), awaiting device sign-off (GATE) |
+| EDIT-02 | Phase 93 | Code-complete, awaiting device sign-off |
+| EDIT-03 | Phase 93 | Code-complete, awaiting device sign-off |
+| EDIT-04 | Phase 93 | Code-complete, awaiting device sign-off |
+| EDIT-05 | Phase 93 | Code-complete, awaiting device sign-off |
+| EDIT-06 | Phase 93 | Code-complete, awaiting device sign-off |
 | POLISH-01 | Phase 94 | Pending |
 | POLISH-02 | Phase 94 | Pending |
 | POLISH-03 | Phase 94 | Pending |
