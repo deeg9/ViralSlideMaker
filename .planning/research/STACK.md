@@ -1,311 +1,289 @@
-# Stack Research — v2.13 Style-from-Reference Generation
+# Stack Research — v2.17 Mobile Optimization
 
-**Domain:** Vision-based design-template extraction from uploaded slideshow images, fed into the existing Gemini emit pipeline.
-**Researched:** 2026-05-10
-**Confidence:** HIGH (all Gemini specifics verified against live `ai.google.dev` docs and the `@google/genai` SDK via Context7 on 2026-05-10; existing app patterns verified by reading production code in `src/lib/ai/match-photos-to-slides.ts`).
+**Domain:** Mobile-first / iOS-Safari correctness for an existing Next.js 15 + React 19 + Tailwind v4 web app (TikTok carousel editor). Primary target: iPhone 15 / iOS Safari, 393×852 logical, `viewport-fit=cover`.
+**Researched:** 2026-05-31
+**Confidence:** HIGH
 
----
-
-## Executive Summary
-
-**v2.13 needs zero new vendor relationships and zero new Tier-1 dependencies.** Every primitive required for vision-based style extraction is already in the production stack:
-
-- `@google/genai@^1.46.0` SDK (already calling `gemini-2.5-flash` in 7 production files)
-- `responseMimeType: 'application/json' + responseSchema` pattern (already used in 5 emit paths including `match-photos-to-slides.ts`, which already sends multiple inline images per request)
-- `sharp@^0.33.5` server-side (already installed for v2.9 photo treatment pipeline) — exact tool we need for pre-vision downscale
-- Supabase `createSignedUploadUrl` pattern (already used in `/api/v1/me/brand-kit/logo-upload-url/route.ts` for brand-kit logo uploads — same pattern fits reference uploads)
-- `node-vibrant@4.0.4` (already installed for derived palette extraction; useful as a deterministic cross-check on Gemini's reported palette)
-
-The only **new** runtime concern is reference-image lifecycle (a new private Supabase Storage bucket with retention policy) and a small `style_specs` Postgres table to persist the structured output. Everything else is wiring existing primitives together.
-
-**Bottom line:** This milestone is a wedge layered on top of v2.12, NOT a stack expansion.
+> **Scope note (read this first).** This is a SUBSEQUENT-milestone (v2.17) stack pass, not a greenfield one. The framework stack is already fixed and out of scope: **Next.js 15.5.13 (App Router, Turbopack), React 19.1.0, TypeScript, Tailwind CSS v4 (CSS-first, no JS config — `@tailwindcss/postcss`), Supabase auth, Vercel.** This document only covers what to **add or change** to make the app correct on iOS Safari / iPhone 15.
+>
+> **The headline finding: this is overwhelmingly a CSS + one-line-config milestone, NOT a "add a library" milestone.** The editor canvas already drives drag/select/rotate through **Pointer Events + `setPointerCapture` + `touch-action: none`** (see `slide-preview.tsx`, `decoration-rotation-handle.tsx`) and **react-rnd** (already installed, touch-capable). The correct recommendation for almost every line item below is **add zero dependencies** and use the web platform + Tailwind utilities the project already has.
 
 ---
 
-## What's Already In Place (DO NOT Re-Add)
+## Recommended Stack
 
-These are already validated in production. Phase plans should consume them, not re-research them.
+### Core Technologies (already present — used differently, NOT added)
 
-| Capability | Existing tool | Where it's used today | Reuse for v2.13 |
-|---|---|---|---|
-| Vision-capable LLM | `gemini-2.5-flash` via `@google/genai@^1.46.0` | `src/lib/ai/match-photos-to-slides.ts` (multi-image input + JSON schema response) | **Same model, same SDK** — extract style spec instead of photo assignments |
-| Structured JSON output | `config.responseMimeType: 'application/json' + responseSchema` | `generate-slides.ts`, `match-photos-to-slides.ts`, `editor-actions.ts`, `captions/generate-captions.ts`, `imagen/generate-prompt.ts`, `brand-kit/actions.ts` | **Same pattern** — define `StyleSpec` schema, pass as `responseSchema` |
-| Server-side image processing | `sharp@^0.33.5` | `src/lib/photo-treatment/treat.ts` (B&W / duotone presets) | **Same lib** — downscale references to ≤1024px max edge before sending to Gemini |
-| Private storage + signed URLs | Supabase Storage `createSignedUploadUrl` | `src/app/api/v1/me/brand-kit/logo-upload-url/route.ts`, `editor-actions.ts` | **Same pattern** — new bucket `slide-references` with per-user RLS |
-| Palette extraction (deterministic) | `node-vibrant@^4.0.4` (server-only ≤256×256) | `src/lib/photo-treatment/treat.ts` writing `derived_palette` to `style_overrides` | **Optional cross-check** of Gemini's reported palette (not required, but cheap and useful) |
-| Credit ledger (charge-then-refund-on-failure) | `gemini_vision_match` row in `credit_events` (v2.9) | `match-photos-to-slides.ts` | **Same pattern** — new event type `gemini_vision_extract_style` |
-| Zod silent-drop at AI ingest | Pattern from v2.7/v2.12 (`safeParse`, drop unknowns) | `src/lib/schemas/slide.ts` | **Same pattern** — silent-drop unknown enum values in `StyleSpec` |
+| Technology | Version (installed) | Purpose for this milestone | Why it's the right tool for iOS Safari |
+|------------|--------------------|----------------------------|----------------------------------------|
+| Next.js App Router `viewport` export | 15.5.13 | Emit `<meta name="viewport" … viewport-fit=cover>` so `env(safe-area-inset-*)` get populated | This is the **only** supported way to set `viewport-fit=cover` in App Router. Without it, the safe-area env vars are all `0` and the fixed bottom nav collides with the home indicator (AUDIT finding X1). |
+| Tailwind CSS v4 | `^4` | Dynamic-viewport height utilities (`h-dvh`/`min-h-svh`), `touch-*` utilities, arbitrary `env()` values | v4 ships `h-dvh`/`h-svh`/`h-lvh` and `touch-pan-*`/`touch-none`/`touch-manipulation` **built in** (the repo already uses `touch-pan-y` in `showcase-carousel.tsx`). `env(safe-area-inset-*)` works via arbitrary values `pb-[env(safe-area-inset-bottom)]` or a theme token — no plugin needed. |
+| Pointer Events API | platform | All touch drag/select/(optional pinch) on the editor canvas | Already the editor's foundation. One unified event model for mouse + touch + pen; `setPointerCapture` keeps a drag alive when the finger leaves the element. iOS Safari has shipped Pointer Events since iOS 13. **No gesture library needed.** |
+| react-rnd | `^10.5.3` (latest 10.5.3) | Existing on-canvas text-box drag/resize | Already wired to "both mouse and touch handlers (react-rnd contract)" per `slide-preview.tsx:2044`. Touch already works; the milestone job is **tap-target sizing of its handles**, not replacing it. |
+| CSS `env()` + `dvh` units | platform | Safe-area insets + correct full-height | Native iOS-Safari-correct primitives. `100dvh` is the documented fix for the iOS `100vh` "address-bar overshoot" bug. |
+| VirtualKeyboard via `interactiveWidget` | platform / Next `viewport` | Keep editor chrome correct when the iOS keyboard opens | Next's `Viewport.interactiveWidget: 'resizes-visual'` + `dvh` units handle the common case without JS. The `visualViewport` API is the escape hatch if a pinned element must track the keyboard precisely. |
+
+### Supporting Libraries
+
+**Recommended default: add NOTHING.** Every requirement in the question is satisfiable with the platform + Tailwind v4 + existing deps. The table below is the *conditional* shortlist — add an item ONLY if the corresponding trigger fires during implementation.
+
+| Library | Version | Purpose | Add ONLY if… |
+|---------|---------|---------|--------------|
+| `tailwindcss-safe-area` | `^0.6.0` (v4-compatible) | Sugar utilities `pb-safe`, `min-h-safe`, `bottom-safe`, `inset-safe` instead of `pb-[env(safe-area-inset-bottom)]` | …the team finds the arbitrary-value `env()` syntax too noisy across many files and wants named utilities. **Pure DX sugar — not a capability gap.** Default = skip it; arbitrary values are fine for the ~3 fixed bars. |
+| `@use-gesture/react` | `10.3.1` | Declarative pinch/drag/wheel gesture binding | …you decide to ship **pinch-to-zoom / two-finger scale of text elements** AND the hand-rolled two-pointer math in Pointer Events proves error-prone. See the dedicated section below — **recommendation is to NOT add it for v2.17.** |
+
+### Development / Verification Tools (already present)
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| Playwright `^1.58.2` | iPhone-15 viewport regression (the AUDIT was built with it) | Use 393×852 + `hasTouch`. Note the headed-window dpr clamp documented in AUDIT.md (request a pre-divided size). Playwright emulates touch but **does NOT reproduce the real iOS safe-area inset, the `100vh` bug, or keyboard-overlay behavior** — those need a real device or the iOS Simulator for final sign-off. |
+| iOS Simulator (Xcode) / real iPhone 15 | Final visual sign-off for safe-area + keyboard | The only faithful check for `env(safe-area-inset-*)` rendering and VirtualKeyboard resize behavior. |
 
 ---
 
-## Gemini Vision API — Verified Specs
+## The six questions, answered with exact syntax
 
-All facts below verified on **2026-05-10** against:
-- https://ai.google.dev/gemini-api/docs/image-understanding (cited "Last updated 2026-05-07 UTC")
-- https://ai.google.dev/gemini-api/docs/pricing
-- https://ai.google.dev/gemini-api/docs/structured-output
-- Context7 `/googleapis/js-genai` v2.0.1 SDK reference
+### 1. iOS safe-area handling (`viewport-fit=cover` + `env()` + Tailwind wiring)
 
-### Model
+**Step A — set `viewport-fit=cover` via the App Router `viewport` export (HIGH, verified via Context7 `/vercel/next.js`).**
+Add to `src/app/layout.tsx` (this file currently has `metadata` but **no `viewport` export** — confirmed):
 
-| Field | Value |
-|---|---|
-| Model ID | `gemini-2.5-flash` (stable; same model already in production for the app) |
-| Vision support | YES (multimodal — text + image input) |
-| Structured output | YES — supports `responseMimeType: 'application/json'` + `responseSchema` (and the newer `responseJsonSchema` form) |
-| Status | Stable (NOT preview). `gemini-3-flash-preview` exists as of 2026-05 but is preview-only. **Do not adopt for v2.13** — stay on the stable model the rest of the app uses. |
+```ts
+import type { Viewport } from 'next'
 
-### Image input limits
-
-| Limit | Value | Source |
-|---|---|---|
-| Max images per request | 3,600 image files | image-understanding docs |
-| Supported MIME types | `image/png`, `image/jpeg`, `image/webp`, `image/heic`, `image/heif` | image-understanding docs |
-| Token cost — small image | 258 tokens flat if both dims ≤ 384 px | image-understanding docs |
-| Token cost — large image | Tiled into 768×768 px tiles, **258 tokens per tile** | image-understanding docs |
-| Token-budget control | `media_resolution` parameter caps tokens per image | image-understanding docs |
-| Max image size (MB) | Not stated in vision docs; use the SDK inline limit (≤20MB inline base64; use Files API for larger). For v2.13 we cap at 5MB post-downscale via sharp. | — |
-
-### Pricing — `gemini-2.5-flash` (Standard tier, paid)
-
-| Direction | Price |
-|---|---|
-| Text input | $0.30 / 1M tokens |
-| Image input | $0.30 / 1M tokens (charged via the per-image token math above) |
-| Output | $2.50 / 1M tokens |
-
-**Per-call cost estimate for v2.13** (worst case, no preprocessing):
-- 3 reference slides at 1080×1920 each ≈ 3 × ~6 tiles × 258 tokens = ~4,640 input tokens ≈ $0.0014 input
-- ~600-token style-spec JSON output ≈ $0.0015 output
-- **Total ≈ $0.003 per style extraction.** Negligible. Even with 10 reference slides (~$0.01), this is nothing.
-
-**With sharp downscale to 768×1366** (1 tile per dim → 2 tiles per slide):
-- 3 slides × 2 tiles × 258 = ~1,548 tokens ≈ $0.0005 input + $0.0015 output ≈ **$0.002 / extraction**.
-
-**Decision:** Downscale on the server with `sharp` before the Gemini call. Reduces tokens ~3×, reduces latency, and bounds cost predictably at scale.
-
-### Latency expectations
-
-Live docs do not publish per-image latency. Empirical pattern from the existing `match-photos-to-slides.ts` (8 photos + JSON schema) is sub-10s — that file uses a 10s `Promise.race` timeout with index-order fallback. For v2.13 we adopt the **same 10s timeout pattern** but with no graceful fallback on the style-extract path (it's the whole feature — surface the error and let the user retry). For the apply-style emit path, fall through to a default template if extraction failed earlier.
-
-### Structured output — verified syntax
-
-The SDK supports both `responseSchema` (legacy) and `responseJsonSchema` (newer). The existing app uses `responseSchema`; **stay on it for consistency.**
-
-```typescript
-import { GoogleGenAI } from '@google/genai'
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-
-const response = await ai.models.generateContent({
-  model: 'gemini-2.5-flash',
-  contents: [{
-    role: 'user',
-    parts: [
-      { text: 'Extract the visual design template from these slideshow images. Return a structured StyleSpec.' },
-      { inlineData: { mimeType: 'image/jpeg', data: base64Image1 } },
-      { inlineData: { mimeType: 'image/jpeg', data: base64Image2 } },
-      // ... up to N images
-    ],
-  }],
-  config: {
-    responseMimeType: 'application/json',
-    responseSchema: STYLE_SPEC_SCHEMA, // OpenAPI-subset JSON schema
-  },
-})
-
-// response.text is guaranteed valid JSON matching the schema
-const spec = StyleSpecZod.parse(JSON.parse(response.text)) // belt + suspenders
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',          // → emits viewport-fit=cover; this is what populates env(safe-area-inset-*)
+  // maximumScale: 1,            // see double-tap-zoom note in §3 before enabling — prefer NOT to
+  // interactiveWidget: 'resizes-visual',  // see §6
+}
 ```
 
-**Schema constraints (verified):**
-- Subset of JSON Schema / OpenAPI: `STRING`, `NUMBER`, `INTEGER`, `BOOLEAN`, `ARRAY`, `OBJECT`, `NULL`
-- Supports `description`, `enum`, `format`, `minimum`, `maximum`, `required`, `propertyOrdering`
-- `Type.OBJECT` cannot be empty — must contain properties
-- "API may reject very large or deeply nested schemas. If you encounter errors, try simplifying" — keep StyleSpec ≤ ~3 levels deep
+The `viewportFit` key is a first-class property of Next's `Viewport` type (camelCase → rendered as `viewport-fit=cover`). This is the canonical, only-supported way in App Router — do **not** hand-write a `<meta name="viewport">` in `<head>`.
+
+**Step B — consume the insets.** Pure CSS env vars become available: `env(safe-area-inset-top|right|bottom|left)`.
+
+**Step C — wire into Tailwind v4.** Two interchangeable approaches; pick ONE for consistency.
+
+- **Arbitrary values (recommended default, zero deps):**
+  ```tsx
+  // bottom-navbar.tsx — replace the static `pb-6`
+  <nav className="… fixed bottom-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] …">
+  ```
+  Use `max(…)` so devices without an inset still keep the original 24px breathing room.
+
+- **Theme tokens (optional, for reuse) — Tailwind v4 CSS-first in `globals.css`:**
+  ```css
+  @theme {
+    --spacing-safe-b: env(safe-area-inset-bottom);
+    --spacing-safe-t: env(safe-area-inset-top);
+  }
+  /* → enables `pb-safe-b`, `pt-safe-t`, etc. */
+  ```
+
+**Exact integration points in THIS codebase:**
+- `src/app/layout.tsx` — add the `viewport` export (currently absent).
+- `src/components/layout/bottom-navbar.tsx:25` — swap static `pb-6` → `pb-[max(1.5rem,env(safe-area-inset-bottom))]` (AUDIT X1).
+- `src/components/layout/dashboard-shell.tsx:19` — the `fixed inset-0` editor shell should also respect top/bottom insets where its chrome bars sit.
+- Any other `fixed`-positioned bar (editor Public/Export bar, top nav on iOS).
 
 ---
 
-## Recommended Stack Additions for v2.13
+### 2. Dynamic viewport units (`dvh`/`svh`/`lvh`) vs the iOS `100vh` bug
 
-### Core — required
+**Problem (HIGH):** On iOS Safari, `100vh` equals the **largest** viewport (address bar retracted), so `height:100vh` elements are taller than the visible area and the bottom is cut off behind the toolbar — the classic "fixed bottom nav pushed off-screen" bug.
 
-| Technology | Version | Purpose | Why |
-|---|---|---|---|
-| `gemini-2.5-flash` | (stable, in use) | Vision LLM for style extraction | Same model already powering the rest of the app — cost-aligned, JSON-mode verified, vision-capable. Zero new vendor risk. |
-| `@google/genai` | `^1.46.0` (in use) | SDK | Already in production. No version bump needed for vision — vision API is stable on the version in use. |
-| `sharp` | `^0.33.5` (in use) | Pre-vision downscale (≤768px max edge) + JPEG transcode (HEIC/PNG → JPEG@quality=85) | Already in production for v2.9 photo treatment. Server-side processing is the right place — keeps client lightweight, gives us deterministic preprocessing, lets us cap byte size before the Gemini call. |
-| `@supabase/supabase-js` | `^2.99.3` (in use) | Signed-URL upload + private bucket storage for reference images | Pattern already proven by `brand-kit/logo-upload-url/route.ts`. New bucket `slide-references`, per-user RLS folder layout. |
-| `zod` | (in use) | Validate parsed StyleSpec at the AI-ingest boundary | Same silent-drop pattern from v2.7 / v2.9 / v2.12. Belt-and-suspenders even though Gemini structured output is "guaranteed valid JSON". |
+**Fix:** use dynamic viewport units. Tailwind v4 utilities map 1:1:
+- `h-dvh` / `min-h-dvh` → `100dvh` — resizes live as the browser chrome shows/hides. **Use this for the editor's full-height shell and canvas column.**
+- `h-svh` → `100svh` (smallest viewport — chrome visible). Use when you must guarantee content never hides behind the address bar even at first paint.
+- `h-lvh` → `100lvh` (largest). Rarely what you want on iOS.
 
-### Supporting — recommended
+**Recommendation:**
+- The editor shell (`dashboard-shell.tsx` `fixed inset-0` branch) and the 9:16 canvas height budget: use **`dvh`** (the `min-h-0` flex children are already in place; switch any `100vh`/`h-screen` to `h-dvh`).
+- The fixed bottom nav itself is `bottom-0` anchored, so it doesn't need a height unit — but anything that computes "available height above the nav" should subtract from `100dvh`, not `100vh`.
+- Grep the codebase for `h-screen`, `min-h-screen`, `100vh`, `vh]` and convert the mobile-relevant ones to `dvh`/`svh`. (`min-h-screen` is on the non-editor shell branch in `dashboard-shell.tsx:19` — acceptable for scrolling pages, but `min-h-dvh` is the safer swap on iOS.)
 
-| Library | Version | Purpose | When to use |
-|---|---|---|---|
-| `node-vibrant` | `^4.0.4` (in use) | Deterministic palette extraction from each reference as a cross-check on Gemini's reported palette | Optional. Cheap. If Gemini's palette wildly disagrees with Vibrant's dominant colors, log a warning + reconcile (Vibrant wins on raw color; Gemini wins on semantic role assignment like "accent"). |
-| `nanoid` (in use) | — | Generate unique reference upload IDs | Standard pattern — same as elsewhere in the app. |
-
-### Storage layout — new
-
-**New Supabase Storage bucket:** `slide-references` (private)
-- Path layout: `{user_id}/{ref_set_id}/{slide_index}.jpg`
-- RLS: identical pattern to `slide-backgrounds-treated` from v2.9 (per-user folder access)
-- Retention: `pg_cron` job deletes ref sets older than **30 days** (same pattern as `slide-backgrounds-treated` 7-day retention; longer here because users may want to re-extract from the same uploads)
-
-**New table:** `public.style_specs`
-- `id uuid PK`, `user_id uuid FK`, `ref_set_id text` (groups uploads), `spec jsonb` (the StyleSpec), `created_at`, `extraction_model text` (default `'gemini-2.5-flash'`), `version int` (start at 1 for forward compat)
-- RLS: owner-only read/write
-- Phase plans should propose this; do not pre-bake.
+Browser support is fine: `dvh`/`svh`/`lvh` shipped in iOS Safari 15.4+ (well below the iPhone 15 / iOS 17+ baseline).
 
 ---
 
-## Image Preprocessing — Decision
+### 3. Touch correctness
 
-**Question:** Do we need client-side downscale/transcode before sending to vision (cost/latency)?
+All of these are **platform CSS / event-handling**, zero deps.
 
-**Answer:** **No client-side preprocessing.** All preprocessing on the server with `sharp`. Rationale:
+| Concern | Fix | Where / why for iOS Safari |
+|---------|-----|----------------------------|
+| **Drag must not scroll/zoom the page** | `touch-action: none` on draggable elements (Tailwind `touch-none`) | Already applied on `decoration-rotation-handle.tsx:221`. Extend the same discipline to the canvas drag surface and react-rnd handles. `touch-action: none` is what makes Pointer Events reliably win over native scroll on iOS. |
+| **Allow page scroll but capture horizontal drag** | `touch-action: pan-y` (Tailwind `touch-pan-y`) | Already used on `showcase-carousel.tsx:92`. Pattern for horizontal filmstrips/carousels where vertical page scroll must still work. |
+| **Double-tap zoom on buttons** | `touch-action: manipulation` (Tailwind `touch-manipulation`) on interactive controls | iOS Safari adds a ~300ms delay + double-tap-to-zoom on tappable elements. `manipulation` disables double-tap-zoom while **keeping** pinch-zoom of the page. **Prefer this over `maximumScale:1`/`userScalable:false`** — disabling user zoom globally is a WCAG 1.4.4 accessibility failure. Apply per-control (or to a base button class), not globally. |
+| **Grey tap flash** | `-webkit-tap-highlight-color: transparent` | iOS draws a translucent grey box on tap. Set once globally in `globals.css` (e.g. on `html`/`body` or a base button rule). The app already uses `active:bg-*` states for press feedback, so the native highlight is redundant. |
+| **Momentum / rubber-band on scroll containers** | `overflow-y: auto` already gives iOS momentum (legacy `-webkit-overflow-scrolling: touch` is no longer required on modern iOS); add `overscroll-behavior: contain` (Tailwind `overscroll-contain`) | On the editor's scroll panes and the `<main>` scroller (`dashboard-shell.tsx:21`), `overscroll-contain` stops the rubber-band from bubbling to the whole page and prevents the "pull past the end scroll-chains into the fixed shell" glitch. Use `overscroll-none` on the fixed editor shell so the canvas area can't rubber-band at all. |
+| **Pointer vs Touch events** | Use **Pointer Events** (already the codebase choice) | Don't introduce raw `TouchEvent` handlers. Pointer Events unify mouse/touch/pen, support `setPointerCapture`, and are what react-rnd + the existing marquee/rotation code already use. Mixing in `onTouchStart` invites double-fire and passive-listener `preventDefault` headaches. |
 
-1. **HEIC handling.** iPhone screenshots default to HEIC. Gemini supports HEIC, but Safari is the only browser that can decode HEIC client-side reliably. Doing the transcode on the server with sharp = consistent across browsers.
-2. **Determinism.** Server-side sharp pipeline is byte-identical regardless of client. Important for the cache pattern below.
-3. **Existing pattern.** v2.9 already does server-side sharp for photo treatment. Same architecture, new caller.
-4. **Cost is already trivial.** $0.002–$0.01 per extraction (see Gemini pricing math above) — preprocessing is about latency and predictability, not cost reduction.
-
-**Sharp pipeline for vision input:**
-```typescript
-const processed = await sharp(buffer)
-  .resize(768, 1366, { fit: 'inside', withoutEnlargement: true }) // 9:16 aware, max 1 tile per dim
-  .jpeg({ quality: 85, mozjpeg: true })
-  .toBuffer()
-// → ~1 tile per image → 258 tokens flat → predictable cost
-```
-
-**Cache key:** `sha256(originalBytes + 'v2.13-style-extract-v1')` — store on the `style_specs` row so re-uploading the same images returns the cached spec without a second Gemini call. (Mirror the `treated_image_cache` pattern from v2.9.)
+**iOS gotcha to flag for the roadmap:** React attaches listeners as **passive** by default via JSX props, so `e.preventDefault()` inside an `onTouchMove`/`onWheel` JSX handler is silently ignored on iOS. The codebase sidesteps this by using Pointer Events + `touch-action` CSS (the correct approach). If any new code needs `preventDefault` on a scroll/touch/wheel event, it must attach a **non-passive** listener manually via `ref` + `addEventListener(..., { passive: false })` — not a JSX prop. (This is exactly why `@use-gesture` documents its `target` + `eventOptions:{passive:false}` option — verified via Context7.)
 
 ---
 
-## Integration with Existing Gemini Emit Pipeline
+### 4. Tap-target sizing (44×44 CSS px minimum) — utility/pattern, not per-component hacks
 
-The existing emit pipeline (`src/lib/ai/generate-slides.ts`) takes `{ topic, template, ... }` and emits slides. v2.13 changes the contract to: `{ topic, template OR styleSpec, ... }`.
+AUDIT X2 found **46 sub-40px interactive elements in the editor alone** (header icon 32px, toolbar icons 36px, slide/layer chips 80×22, chevrons 28–32px). Apple HIG min is **44×44**; WCAG 2.5.8 AA min is **24×24** (the project already references WCAG 2.5.8 in v2.10). Target **44** for primary nav/controls, accept **24** hit-area as the floor for dense editor affordances.
 
-**Two integration paths:**
+**Recommended pattern (zero deps): a reusable hit-area utility, applied via className — not bespoke padding per component.**
 
-1. **Full emit path** (user types new topic, references uploaded → AI generates copy in extracted style):
-   - Run vision extraction → produce `StyleSpec`
-   - Pass `styleSpec` to `generate-slides.ts`. Inside the generator:
-     - Use `styleSpec.palette`, `styleSpec.fontPair`, `styleSpec.decorationLanguage` to override `template` defaults at the prompt-building stage
-     - Continue to use the existing v2.12 `decorations[]` emit path — `styleSpec.decorationLanguage` becomes the prompt addendum
-     - The output Slide schema does not change; only the `template_id_override` + `style_overrides.derived_palette` + `decorations[]` fields are populated from the spec
-   - **No new renderer work.** Spec → existing schema → existing renderers.
+Two equivalent mechanisms; choose one:
 
-2. **Apply-style-only path** (user pastes their own copy, references uploaded → AI re-styles their copy without re-writing):
-   - Run vision extraction → produce `StyleSpec`
-   - New, narrower function `apply-style-spec.ts` that takes `{ userSlides, styleSpec }` and only runs the prompt-builder + decoration-emit half of `generate-slides.ts`
-   - Skips the hook/body generation entirely — user's text is canonical
+- **Tailwind v4 custom utility (CSS-first, recommended):**
+  ```css
+  /* globals.css */
+  @utility tap-44 {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ```
+  Then `className="tap-44"` on icon buttons. For a 24px visual icon that must keep a 44px **hit** area without affecting layout, use an inset pseudo-expander (the v2.10 pattern already in this repo): visual glyph stays small, an `::before { position:absolute; inset:-10px }` grows the touch target.
 
-Both paths produce slides that pass through the same v2.11/v2.12 editor flow. No changes to the editor itself for v2.13.
+- **Or compose existing utilities** (`min-h-11 min-w-11 inline-flex items-center justify-center`, since Tailwind `11` = 44px) where adding a custom utility is overkill.
 
----
-
-## Alternatives Considered
-
-| Recommended | Alternative | Why not the alternative |
-|---|---|---|
-| `gemini-2.5-flash` | `gemini-2.5-pro` | Pro is ~10× more expensive ($1.25 / $10 vs $0.30 / $2.50 per 1M). Style extraction is a vision-pattern-matching task, not a deep-reasoning task — Flash is more than capable. Pro also has higher latency. Match the model the rest of the app uses. |
-| `gemini-2.5-flash` | `gemini-3-flash-preview` | Preview status. The app does not run preview models in production. Re-evaluate after Gemini 3 Flash hits stable. |
-| `gemini-2.5-flash` | Claude Sonnet 4.5 vision / GPT-4o vision | Adding a second vision provider means: second SDK, second API key in env, second rate limit to manage, second billing surface, second prompt-tuning loop. Memory: project explicitly chose Gemini over Claude for cost. No reason to revisit. |
-| `sharp` server-side | Browser canvas downscale | HEIC support + determinism + reuse of existing v2.9 pipeline. Browser path adds complexity for zero benefit at the volumes we're targeting (single-user uploads, not bulk ingest). |
-| Supabase signed-URL upload | Direct base64 POST to a server action | Server actions on Vercel have a 4MB request body cap (default) and a 60s timeout. Multi-image uploads at 5MB each would breach both. Signed-URL upload puts the bytes directly in Storage; server only reads them after upload. Same pattern as logo-upload. |
-| `responseSchema` (in use) | `responseJsonSchema` (newer SDK API) | Both work and produce identical results. Existing app uses `responseSchema` in 5 places. Consistency wins. Migrate later if the SDK deprecates the older form. |
-| Persist StyleSpec in `style_specs` table | Persist inside the project's `style_overrides` jsonb | StyleSpec is upstream of any project (a reference set may produce many projects). It needs its own row + retention lifecycle + RLS. Embedding in `style_overrides` couples extraction lifetime to project lifetime, which is wrong. |
-| `node-vibrant` cross-check | Trust Gemini's palette unconditionally | Gemini may name a near-black as "deep navy" or vice-versa. Vibrant gives us ground truth on RGB values; Gemini gives us role labels. Combining both is more accurate than either alone. Vibrant is already installed; ~50ms server-side. |
+**Anti-pattern to avoid:** scaling the visible icon up to 44px — it looks clumsy. Keep the glyph at its design size and expand the **hit area** (padding or inset pseudo-element). This is a global sweep concern; do it with the shared utility + a button base class, not ad-hoc per file. Use the Playwright sub-44 probe (already written for the AUDIT) as the regression gate.
 
 ---
 
-## What NOT to Add (Project-Specific Anti-List)
+### 5. Editor touch canvas — gesture library, or Pointer Events?
 
-These look attractive but should be skipped for v2.13:
+**Recommendation: do NOT add `@use-gesture/react` (or any gesture lib) for v2.17. Stay on Pointer Events + react-rnd.**
 
-| Avoid | Why | What to do instead |
-|---|---|---|
-| **A separate vision provider** (Anthropic / OpenAI / Replicate vision models) | Gemini 2.5 Flash already handles this. Adding a second provider doubles operational surface (auth, rate limits, billing, error handling, prompt drift). Memory: project chose Gemini for cost. | Stay on `gemini-2.5-flash`. |
-| **`gemini-3-flash-preview`** | Preview models are not allowed in production paths. App-wide policy (no preview models in prod). | Re-evaluate when GA. |
-| **A dedicated image-feature-extraction microservice** (e.g., a Python FastAPI sidecar with PIL / OpenCV / CLIP embeddings) | Massively over-engineered. The app is a Next.js + Supabase monolith. Adding a second runtime/deployment doubles infra cost for a feature whose entire compute fits in one Gemini call. | One server action that calls `sharp` then `ai.models.generateContent`. |
-| **A dedicated CV library on the server** (`opencv4nodejs`, `@tensorflow/tfjs-node`, ONNX runtime) | Same reasoning. Gemini's vision IS the CV. We don't need to bolt on classical CV for a "what does this slide look like" task. | Trust the LLM. |
-| **An embeddings-based style search** (CLIP / `@xenova/transformers` / Pinecone / Supabase pgvector for "find similar templates") | This is a *style transfer* feature, not a *style search* feature. We're extracting from the user's references, not retrieving similar references from a corpus. Embedding store is a different product. | Skip entirely until/unless the explicit feature shifts. |
-| **Server-side "render template" for Gemini to compare against** (re-render existing templates, send both ref + render to Gemini, ask "which is closest?") | Sounds clever; in practice it's a 30s round trip and Gemini can already infer the design language directly from the references. | Direct extraction. |
-| **A new Storage bucket per user** | RLS-on-folder pattern is what the app already uses. Per-user buckets create a Supabase quota problem. | One `slide-references` bucket, per-user folders, folder-prefix RLS. |
-| **Files API (Gemini)** for ref uploads | Files API caps and lifecycle (48-hour TTL) introduce a second source of truth alongside Supabase Storage. We already have private storage with signed URLs and RLS. Inline base64 (post-sharp downscale ~50KB/image) is well under the 20MB inline limit and far simpler. | Inline `inlineData` after sharp downscale. |
-| **A queue / background worker for style extraction** (Inngest, Vercel Cron, BullMQ, etc.) | A single Gemini vision call returns in under 10s. The user is sitting at the page waiting. Pre-existing pattern: server action + 10s timeout. | Synchronous server action + spinner UI. Reuse `Promise.race` timeout pattern from `match-photos-to-slides.ts`. |
-| **Image upload via Server Action with `formData`** | 4MB body limit + 60s timeout on Vercel. Multi-slide uploads will hit the cap. | Signed-URL upload pattern from `brand-kit/logo-upload-url/route.ts`. |
-| **A "style version control" feature** (StyleSpec history, diffs, branches) | Pre-PMF wedge. We don't even know yet if users want a single style extracted once. | Single `style_specs` row per `ref_set_id`. Replace, don't version. |
-| **`zod-to-json-schema`** library to auto-derive Gemini's `responseSchema` from a Zod schema | Adds a dep and a build-time transform for negligible value — Gemini's schema subset doesn't 1:1 match Zod (no unions, no transforms, no refinements). Hand-write the Gemini schema next to the Zod schema; tests guard parity. | Hand-author both. |
-| **Streaming response** (`ai.models.generateContentStream`) | Style extraction is a single structured JSON blob. Streaming a JSON blob you can't use until it's complete adds complexity for zero UX gain. | Plain `generateContent`. |
+**Why (codebase evidence):** The editor canvas already implements a full touch-capable interaction layer with the platform:
+- Marquee select: `onPointerDown/Move/Up` state machine on the canvas root with `setPointerCapture(e.pointerId)` so the drag survives the pointer leaving the canvas (`slide-preview.tsx` ~lines 1798–1851).
+- Element drag/resize: **react-rnd**, explicitly wired for "both mouse and touch handlers (react-rnd contract)" (`slide-preview.tsx:2044`).
+- Rotation: a self-contained Pointer-Events handle with `touch-action:none` (`decoration-rotation-handle.tsx`).
+
+Single-pointer gestures (tap-select, drag-move, drag-resize, drag-rotate) — i.e. **everything v2.17 needs to make touch editing work** — are already covered. Adding a gesture library would mean **rewriting working, tested drag code** to gain nothing.
+
+**The only thing Pointer Events doesn't give you "for free" is multi-touch pinch-to-zoom/scale** (two simultaneous pointers → distance delta). Tradeoff:
+
+| Option | Pinch-zoom text elements | Cost | Verdict for v2.17 |
+|--------|--------------------------|------|-------------------|
+| **Pointer Events (status quo)** | Hand-roll: track two active `pointerId`s in a `Map`, compute distance ratio on `pointermove`. ~40–60 lines, well-documented pattern. | 0 deps, no rewrite of existing single-pointer code | **Recommended.** Corner-resize already scales font+width (v2.10); a two-finger pinch is a *nice-to-have*, not a table-stakes mobile fix. |
+| **`@use-gesture/react` 10.3.1** | `usePinch`/`useDrag` declarative, handles two-pointer math + inertia | +1 dep, but you must still set `touch-action:none` yourself, manage non-passive listeners via its `target`/`eventOptions`, and reconcile it with react-rnd's own drag (risk of double-handling the same `pointerId`) | Add **later** (v2.18+) only if pinch becomes a real requirement and the hand-rolled version is unsatisfactory. Not for this milestone. |
+
+**Bottom line:** v2.17's #1 editor risk (per AUDIT) is "**can a user tap a text element to edit it on touch?**" — that's a tap-target + selection + keyboard problem, **not** a gesture-engine problem. Solve it with the existing Pointer-Events plumbing and 44px hit areas. Defer pinch.
+
+---
+
+### 6. On-screen keyboard / VirtualKeyboard in a fixed-layout editor on iOS
+
+This is the subtlest iOS issue and deserves an explicit research flag for the editor phase.
+
+**The problem:** the editor shell is `position:fixed; inset:0` (`dashboard-shell.tsx:19`). On iOS Safari, when the soft keyboard opens, Safari by default **does NOT resize the layout viewport** — it scrolls the page and overlays the keyboard, which can shove a `fixed` bottom bar/canvas under the keyboard or leave the focused input hidden behind it.
+
+**Layered fix (cheapest first):**
+
+1. **`interactiveWidget: 'resizes-visual'`** in the `viewport` export (Next supports this key, confirmed via Context7). Combined with `dvh` heights, this is the lowest-effort improvement and the right default to ship.
+2. **Use `dvh`/`svh`** for editor height (see §2) so the layout tracks viewport changes rather than assuming a static height.
+3. **`visualViewport` API (escape hatch, only if needed):** if a specific element (e.g. a text-edit toolbar) must sit pinned directly above the keyboard, listen to `window.visualViewport`'s `resize`/`scroll` and translate the element by `visualViewport.height`/`offsetTop`. This is the platform-blessed way to track the keyboard precisely. **No library** — `visualViewport` is native and well-supported on iOS 13+.
+4. **`scrollIntoView({ block: 'center' })` on focus** for text inputs that risk being occluded, as a robustness backstop.
+5. The experimental **`VirtualKeyboard` API** (`navigator.virtualKeyboard.overlaysContent`) is **Chromium-only — NOT supported in iOS Safari.** Do **not** rely on it for the iPhone target; it's mentioned only to rule out. Stick with `interactiveWidget` + `dvh` + `visualViewport`.
+
+**Roadmap flag:** the touch text-editing flow (AUDIT's "#1 risk to validate") intersects keyboard handling directly. Budget a real-device/Simulator verification pass here — Playwright will not faithfully reproduce iOS keyboard-overlay behavior.
 
 ---
 
 ## Installation
 
-**Nothing to install.** All required packages are already in `package.json`:
-
 ```bash
-# Already present — verified 2026-05-10
-@google/genai@^1.46.0
-@supabase/supabase-js@^2.99.3
-sharp@^0.33.5
-node-vibrant@^4.0.4
-zod  # (already in use across schemas)
+# DEFAULT PATH: nothing to install.
+# Every requirement is met by the existing stack (Next viewport export,
+# Tailwind v4 utilities, Pointer Events, react-rnd) + plain CSS env()/dvh.
+
+# OPTIONAL — only if the team wants named safe-area utilities instead of
+# arbitrary env() values (pure DX sugar):
+npm install tailwindcss-safe-area      # v4-compatible
+
+# OPTIONAL — only if pinch-to-zoom of text elements becomes a real requirement
+# AND hand-rolled two-pointer math proves insufficient (defer past v2.17):
+# npm install @use-gesture/react
 ```
 
-**Migrations required (Phase plan should author):**
-- New Supabase Storage bucket `slide-references` (private, owner RLS)
-- New table `public.style_specs` (RLS owner-only)
-- New `pg_cron` job: `delete_old_style_references` (30-day retention)
-- New credit-event type: `gemini_vision_extract_style` (charge-then-refund-on-failure pattern from v2.9)
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Pointer Events + react-rnd (existing) | `@use-gesture/react` 10.3.1 | Only if shipping multi-touch pinch/rotate gestures and the native two-pointer math is unmanageable. Not v2.17. |
+| Arbitrary `env(safe-area-inset-*)` values | `tailwindcss-safe-area` plugin | If `env()` arbitrary syntax is repeated across many files and named utilities (`pb-safe`) materially improve readability. |
+| `dvh`/`svh` units | JS `--vh` custom property (`window.innerHeight * 0.01` resize hack) | Legacy pre-iOS-15.4 only. **Obsolete** on the iPhone 15 target — `dvh` is native. Do not add the JS hack. |
+| `touch-action: manipulation` (per control) | `maximumScale:1` + `userScalable:false` in viewport | Effectively never — disabling page zoom fails WCAG 1.4.4. Only consider `userScalable:false` if a hard product decision overrides accessibility (not recommended). |
+| `interactiveWidget` + `dvh` + `visualViewport` | `VirtualKeyboard` API (`overlaysContent`) | Never for iOS — it's Chromium-only and absent in iOS Safari. |
+
+---
+
+## What NOT to Use / NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| A gesture library (`@use-gesture`, `hammerjs`, `interactjs`) for v2.17 | The editor's single-pointer drag/select/rotate already work via Pointer Events + react-rnd; adding one means rewriting tested code for no table-stakes gain | Existing Pointer Events + react-rnd |
+| Hand-written `<meta name="viewport">` in `<head>` | App Router owns the viewport meta; a manual tag fights the framework and gets overridden | `export const viewport` in `layout.tsx` |
+| The JS `--vh` / `window.innerHeight` resize hack | Obsolete since iOS 15.4; adds resize-listener jank | `h-dvh` / `min-h-dvh` |
+| `userScalable: false` / `maximumScale: 1` to kill double-tap zoom | Disables pinch-zoom for low-vision users → WCAG 1.4.4 fail | `touch-action: manipulation` per interactive control |
+| Raw `onTouchStart/Move/End` handlers in React | Passive-by-default → `preventDefault` silently ignored on iOS; double-fires alongside Pointer Events | Pointer Events (already the codebase standard) |
+| `VirtualKeyboard` API for the iPhone target | Chromium-only; not in iOS Safari | `interactiveWidget:'resizes-visual'` + `dvh` + `visualViewport` |
+| `-webkit-overflow-scrolling: touch` everywhere | No longer needed on modern iOS; momentum is default | Plain `overflow-y:auto` + `overscroll-contain` |
+| Scaling icon glyphs up to 44px to meet tap targets | Looks clumsy, breaks visual rhythm | Keep glyph size; expand hit area via min-size utility or inset pseudo-element (the v2.10 pattern) |
+
+---
+
+## Stack Patterns by Variant
+
+**If a fixed bar sits at a screen edge (bottom nav, editor export bar, top nav):**
+- Pad with `env(safe-area-inset-*)` using `max(designPadding, env(...))`.
+- Because the home indicator / notch / Dynamic Island will otherwise overlap the bar (AUDIT X1).
+
+**If an element must fill the visible screen height (editor shell, canvas column):**
+- Use `dvh` (`h-dvh`/`min-h-dvh`), not `vh`/`h-screen`.
+- Because `100vh` overshoots the visible area on iOS and hides the bottom edge.
+
+**If an element is draggable on touch (canvas, react-rnd handle, rotation handle):**
+- Set `touch-action: none` (Tailwind `touch-none`) on it and drive it with Pointer Events.
+- Because it stops iOS native scroll/zoom from stealing the gesture.
+
+**If a container scrolls but is inside the fixed editor shell:**
+- Add `overscroll-contain` (or `overscroll-none` on the fixed shell itself).
+- Because it prevents rubber-band scroll-chaining to the body behind the fixed editor.
+
+**If an interactive control is tappable but small (icon button, chip, chevron):**
+- Apply the shared `tap-44` (or `min-h-11 min-w-11 inline-flex …`) hit-area utility.
+- Because AUDIT X2 flags 46 sub-40px targets in the editor; do it once, globally.
 
 ---
 
 ## Version Compatibility
 
-| Package | Status | Notes |
-|---|---|---|
-| `@google/genai@^1.46.0` | OK | Vision API stable on this line. `responseSchema` syntax stable. No bump needed. |
-| `sharp@^0.33.5` | OK | Stable for HEIC + JPEG; same version powering v2.9 photo treatment. |
-| `@supabase/supabase-js@^2.99.3` | OK | `createSignedUploadUrl` stable. |
-| Vercel runtime | Node 20+ | Sharp + Gemini SDK both Node 20+. App is on Node 20 (verified by deploy logs). |
-
----
-
-## Phase Implications for Roadmapper
-
-This stack analysis suggests the milestone splits cleanly into 3–4 phases:
-
-1. **Phase A — Reference Upload + Storage:** New `slide-references` bucket + `style_specs` table + signed-URL upload server action + retention cron. Mirrors the v2.4 `hero-thumbnails` and v2.9 `slide-backgrounds-treated` storage patterns. No AI work. Smallest, lowest-risk phase.
-
-2. **Phase B — Vision Extraction Service:** `src/lib/ai/extract-style-spec.ts` + StyleSpec Zod schema + Gemini `responseSchema` + sharp preprocessing pipeline + caching layer + credit ledger event. Mirrors the `match-photos-to-slides.ts` shape exactly (same SDK call shape, same timeout pattern, same charge-then-refund). Heaviest phase, but every primitive is well-trodden.
-
-3. **Phase C — Apply Style to New Content:** Wire StyleSpec into `generate-slides.ts` (full emit path) + new `apply-style-spec.ts` (apply-only path). Both produce slides that pass through the existing v2.11/v2.12 editor unchanged.
-
-4. **Phase D — UI + Editor Handoff:** Reference-upload UI on the new-project flow; "Style applied" indicator in the editor right rail; manual QA. UI-only phase.
-
-**No phase needs deeper research** — every dependency is verified-in-production. The Phase B research surface is the StyleSpec schema design itself, which is a domain question (FEATURES.md scope), not a stack question.
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| Next 15.5.13 `viewport` export | React 19.1.0 | `viewportFit` + `interactiveWidget` are stable `Viewport` keys (verified via Context7 `/vercel/next.js`). Server-Component export — `layout.tsx` is already a Server Component. |
+| Tailwind v4 (`@tailwindcss/postcss`) | `h-dvh`/`h-svh`/`h-lvh`, `touch-*`, `overscroll-*`, arbitrary `env()` | All built into v4 core; no plugin. The repo already uses `touch-pan-y` (`showcase-carousel.tsx`), confirming utilities resolve. CSS-first config means custom utilities go in `globals.css` via `@utility`/`@theme`, **not** a `tailwind.config` (there is none). |
+| `tailwindcss-safe-area` (if added) | Tailwind v4 | README documents explicit v4 support (`npm install tailwindcss-safe-area`, register in `globals.css`). Optional. |
+| `@use-gesture/react` 10.3.1 (if added) | React 19 | Works with React 18/19. Must self-manage `touch-action` and non-passive listeners; reconcile with react-rnd to avoid double-handling the same `pointerId`. Defer. |
+| react-rnd `^10.5.3` | React 19 | Already installed and touch-capable; no upgrade needed. |
+| `dvh`/`svh`/`env(safe-area-inset-*)` | iOS Safari 15.4+ | Far below the iPhone 15 (iOS 17+) baseline — safe. |
 
 ---
 
 ## Sources
 
-| Source | URL / ID | Date verified | Confidence | Used for |
-|---|---|---|---|---|
-| Gemini image understanding docs | https://ai.google.dev/gemini-api/docs/image-understanding | 2026-05-10 (page cited "Last updated 2026-05-07 UTC") | HIGH | Image limits, MIME types, token math, `media_resolution` |
-| Gemini pricing | https://ai.google.dev/gemini-api/docs/pricing | 2026-05-10 | HIGH | $0.30 / $0.30 / $2.50 per 1M for `gemini-2.5-flash` |
-| Gemini structured output | https://ai.google.dev/gemini-api/docs/structured-output | 2026-05-10 | HIGH | `responseSchema` support on `gemini-2.5-flash`, schema constraints |
-| Gemini models overview | https://ai.google.dev/gemini-api/docs/models | 2026-05-10 | HIGH | `gemini-2.5-flash` stable; `gemini-3-flash-preview` preview-only |
-| `@google/genai` SDK reference | Context7 `/googleapis/js-genai` v2.0.1 | 2026-05-10 | HIGH | `inlineData` + `responseMimeType` + `responseSchema` SDK shape |
-| Existing app code | `/src/lib/ai/match-photos-to-slides.ts` | 2026-05-10 (read directly) | HIGH | Confirmed app already does multi-image input + JSON schema response with same SDK; pattern to mirror |
-| Existing app code | `/src/app/api/v1/me/brand-kit/logo-upload-url/route.ts` | 2026-05-10 (read directly) | HIGH | Confirmed `createSignedUploadUrl` is the in-house upload pattern |
-| Project memory | `.claude/.../MEMORY.md` (Gemini cost decision) | 2026-05-10 | HIGH | Reaffirms Gemini-over-Claude policy |
-| `package.json` | `/package.json` | 2026-05-10 (read directly) | HIGH | Confirmed `@google/genai@^1.46.0`, `sharp@^0.33.5`, `node-vibrant@^4.0.4`, `@supabase/supabase-js@^2.99.3` all present |
+- Context7 `/vercel/next.js` — `generate-viewport.mdx`: confirmed `export const viewport: Viewport`, `viewportFit`, `width`, `initialScale`, `maximumScale`, `userScalable`, `interactiveWidget: 'resizes-visual'`, `themeColor`. **HIGH.**
+- Context7 `/pmndrs/use-gesture` — `faq.mdx` / `options.mdx`: `touch-action:none` requirement, passive-listener limitation in React (must use `target` + `eventOptions:{passive:false}`), `touch-action:pan-y` for axis-locked drag. **HIGH.**
+- Context7 `/mvllow/tailwindcss-safe-area` — confirmed Tailwind v4 support + `pb-safe`/`inset-safe`/`bottom-safe` utility surface. **HIGH.**
+- `npm view` — `@use-gesture/react@10.3.1`, `react-rnd@10.5.3` (latest). **HIGH.**
+- Repo evidence (read directly): `package.json` (Next 15.5.13, React 19.1.0, Tailwind v4, react-rnd 10.5.3, selecto 1.26.3, no `tailwind.config`); `src/app/layout.tsx` (no `viewport` export today); `src/app/globals.css` (`@import "tailwindcss"`, `@theme inline`, `@layer base`); `src/components/layout/bottom-navbar.tsx:25` (`pb-6`, no env inset); `src/components/layout/dashboard-shell.tsx` (`fixed inset-0` editor shell, `min-h-screen` non-editor, `<main>` scroller); `src/components/slides/slide-preview.tsx` (Pointer-Events marquee + `setPointerCapture` + react-rnd touch contract); `src/components/slides/decoration-rotation-handle.tsx:221` (`touch-action:none` + Pointer Events); `src/components/landing/showcase-carousel.tsx:92` (`touch-pan-y` proves Tailwind v4 touch utilities resolve). **HIGH.**
+- `.planning/mobile-audit/AUDIT.md` — empirical iPhone-15 findings X1 (safe-area), X2 (46 sub-44px targets), X3 (contrast); editor as #1 risk. **HIGH (project-grounded).**
+- iOS Safari platform behavior (`100vh` overshoot, passive listeners, `-webkit-tap-highlight-color`, `visualViewport`, `VirtualKeyboard` Chromium-only): widely-documented web-platform facts, cross-checked against the use-gesture/Next docs above. **MEDIUM-HIGH** — recommend one real-device/Simulator pass to confirm `env()` rendering + keyboard resize for final sign-off (Playwright does not reproduce these).
 
 ---
-
-*Stack research for: vision-based style extraction (v2.13)*
-*Researched: 2026-05-10*
-*Confidence: HIGH*
+*Stack research for: mobile-first iOS-Safari correctness of an existing Next.js 15 + React 19 + Tailwind v4 editor app (v2.17 Mobile Optimization)*
+*Researched: 2026-05-31*
