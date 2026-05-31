@@ -14,7 +14,7 @@ export default async function ForgotPasswordPage({ searchParams }: ForgotPasswor
   const { error, sent } = await searchParams
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -53,9 +53,14 @@ export default async function ForgotPasswordPage({ searchParams }: ForgotPasswor
                     placeholder="you@example.com"
                     required
                     autoComplete="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="h-12 md:h-8"
                   />
                 </div>
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full h-12 md:h-8">
                   Send reset link
                 </Button>
               </form>
