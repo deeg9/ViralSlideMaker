@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { SlidePreview } from '@/components/slides/slide-preview'
 // quick-260515-epn: explore detail viewer mirrors the editor — slide.template_id_override
@@ -18,6 +18,35 @@ interface CarouselSlideshowProps {
 
 export function CarouselSlideshow({ slides, template, ownerTier }: CarouselSlideshowProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
+
+  // Shared navigation handlers — reused by the chevrons AND the swipe gesture
+  // so all three entry points stay in lock-step.
+  const goPrev = () => setSelectedIndex((i) => Math.max(0, i - 1))
+  const goNext = () =>
+    setSelectedIndex((i) => Math.min(slides.length - 1, i + 1))
+
+  // POLISH-03 (Phase 94): touch/pointer swipe navigation in addition to the
+  // chevrons. Pointer Events (already used elsewhere in the app) — no new
+  // dependency. We record the pointer-down X/Y, and on pointer-up treat a
+  // mostly-horizontal drag past a 50px threshold as a slide step. The
+  // vertical guard (|dx| > |dy|) lets a vertical page scroll pass through
+  // untouched.
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
+  const SWIPE_THRESHOLD = 50
+  const handlePointerDown = (e: React.PointerEvent) => {
+    swipeStart.current = { x: e.clientX, y: e.clientY }
+  }
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const start = swipeStart.current
+    swipeStart.current = null
+    if (!start) return
+    const dx = e.clientX - start.x
+    const dy = e.clientY - start.y
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return
+    if (dx < 0) goNext()
+    else goPrev()
+  }
+
   if (slides.length === 0) return null
   const currentSlide = slides[selectedIndex]
   const isFirst = selectedIndex === 0
@@ -29,7 +58,11 @@ export function CarouselSlideshow({ slides, template, ownerTier }: CarouselSlide
   return (
     <div className="flex flex-col items-center">
       <div className="w-full max-w-md relative">
-        <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden touch-pan-y"
+        >
           <SlidePreview
             slide={currentSlide}
             template={perSlideTemplate}
@@ -48,7 +81,7 @@ export function CarouselSlideshow({ slides, template, ownerTier }: CarouselSlide
         </div>
 
         <button
-          onClick={() => setSelectedIndex((i) => Math.max(0, i - 1))}
+          onClick={goPrev}
           disabled={isFirst}
           aria-label="Previous slide"
           className="absolute left-1 lg:left-[-20px] top-1/2 -translate-y-1/2 z-20 bg-white/90 lg:bg-white shadow-lg hover:bg-[#fadbdb] text-[#3d0000] rounded-full p-1.5 lg:p-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center"
@@ -57,7 +90,7 @@ export function CarouselSlideshow({ slides, template, ownerTier }: CarouselSlide
         </button>
 
         <button
-          onClick={() => setSelectedIndex((i) => Math.min(slides.length - 1, i + 1))}
+          onClick={goNext}
           disabled={isLast}
           aria-label="Next slide"
           className="absolute right-1 lg:right-[-20px] top-1/2 -translate-y-1/2 z-20 bg-white/90 lg:bg-white shadow-lg hover:bg-[#fadbdb] text-[#3d0000] rounded-full p-1.5 lg:p-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center"
