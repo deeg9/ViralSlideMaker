@@ -1,5 +1,23 @@
 # Milestones
 
+## v2.17 Mobile Optimization (Shipped: 2026-05-31)
+
+**Phases completed:** 5 phases (91–95), 6 plans, 8 tasks. Grounded in an empirical iPhone-15 Playwright audit (`.planning/milestones/` + `mobile-audit/`).
+
+**Key accomplishments:**
+
+- **Phase 91 — Cross-cutting foundation:** `viewport-fit=cover` viewport export (populated `env(safe-area-inset-*)` app-wide), `dvh` editor shell, a reusable `@utility tap-44` (44px touch targets), safe-area padding on fixed bars, and 16px-input/WCAG-contrast fixes.
+- **Phase 92 — Editor touch-edit gate:** static iOS diagnosis of the tap-to-edit flow (found deferred `.focus()` + keyboard occlusion as the device risks) plus a conservative `touch-action:manipulation` repair; the real fix folded into Phase 93.
+- **Phase 93 — Editor mobile rework:** gesture-synchronous single-tap-to-edit (`src/lib/editor/touch-edit.ts`), a bottom `Sheet` primitive on the already-installed `@radix-ui/react-dialog`, canvas-first chrome re-host (asides `hidden lg:flex`), persistent safe-area action bar, and confirm-gated destructive delete — desktop unregressed (grid seam preserved), zero new deps.
+- **Phase 94 — App-wide polish:** mobile template-picker grid, settings sub-nav fade affordance, swipe nav on the public carousel viewer, and 393px hero typography — all Playwright-verified at a true 393px.
+- **Phase 95 — Logged-out & auth:** mobile-first landing page + auth forms (login/signup/onboarding/reset) with correct iOS input ergonomics (16px, `inputMode`/`autoComplete`, 48px targets) — layout-only, no auth-logic changes.
+
+**Status:** tech_debt — 16/16 requirements code-satisfied, integration 14/16 (0 blockers; the one safe-area double-count found by the integration check was fixed). **Carried human-UAT:** physical-iPhone device sign-off for the editor touch flow + FOUND-01/02 safe-area/dvh (13-step checklist in `93-VERIFICATION.md`), and a credentialed live auth round-trip. Nyquist VALIDATION.md absent across phases (frontend pattern). Shipped on branch `feat/carousel-output-format` (not yet merged to main).
+
+**Known deferred items at close:** 12 (3 verification gaps = the device-UAT above; 9 stale pre-v2.17 quick-task artifacts from 260519). See STATE.md Deferred Items.
+
+---
+
 ## v2.16 Picker Polish & Brand-Kit Shelving (Shipped: 2026-05-21)
 
 **Phases completed:** 2 phases, 7 plans, 12 tasks

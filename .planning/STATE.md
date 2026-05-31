@@ -2,47 +2,46 @@
 gsd_state_version: 1.0
 milestone: v2.17
 milestone_name: Mobile Optimization
-status: ready_to_plan
-last_updated: "2026-05-31T18:10:00.000Z"
-last_activity: 2026-05-31
+status: Awaiting next milestone
+stopped_at: Roadmap created for v2.17 (Phases 91–95). 16/16 requirements mapped, no orphans. Forced build order honored (Foundation → Touch Gate → Editor Rework → Polish → Auth).
+last_updated: "2026-05-31T19:40:23.738Z"
+last_activity: 2026-05-31 — Milestone v2.17 completed and archived
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 5
+  total_plans: 6
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-31 — v2.17 in progress)
+See: .planning/PROJECT.md (updated 2026-05-31 — after v2.17 milestone)
 
 **Core value:** Type a topic, get ready-to-post carousel slide images — fully AI-generated, editable, downloadable.
-**Current focus:** v2.17 Mobile Optimization, Phase 91 — Cross-Cutting Mobile Foundation.
-**Latest shipped:** v2.16 Picker Polish & Brand-Kit Shelving (2026-05-21).
+**Current focus:** None — v2.17 shipped. Next: `/gsd-new-milestone` to scope the next cycle.
+**Latest shipped:** v2.17 Mobile Optimization (2026-05-31) — mobile-first iPhone-15 retrofit; code-complete with carried device/credential UAT.
 
 ## Current Position
 
-Phase: 91 of 95 (Cross-Cutting Mobile Foundation)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-05-31 — Roadmap created for v2.17 (Phases 91–95)
+Phase: Milestone v2.17 complete (archived)
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-31 — Milestone v2.17 completed and archived
 
-Progress: [░░░░░░░░░░] 0%
+## Roadmap — v2.17 (Phases 91–95) ✅ SHIPPED
 
-## Roadmap — v2.17 (Phases 91–95) 🚧 IN PROGRESS
+| Phase | Requirements | Status |
+|-------|--------------|--------|
+| 91. Cross-Cutting Mobile Foundation | FOUND-01..04 | ✅ Code-complete (FOUND-01/02 device-confirm carried) |
+| 92. Editor Touch-Edit Validation Gate | EDIT-01 | ✅ Diagnosed + folded into 93; device sign-off carried |
+| 93. Editor Mobile Layout Rework | EDIT-02..06 | ✅ Code-complete; consolidated device sign-off carried |
+| 94. App-Wide Mobile Polish | POLISH-01..04 | ✅ Complete (Playwright-verified @393px) |
+| 95. Logged-Out & Auth Mobile Pass | AUTH-01..02 | ✅ Code-complete; live round-trip carried (credential) |
 
-| Phase | Goal | Requirements | Status |
-|-------|------|--------------|--------|
-| 91. Cross-Cutting Mobile Foundation | `viewport-fit=cover` + iOS safe-area insets, `dvh` shells, global 44px tap targets, input zoom/contrast fixes — the cross-cutting prerequisite for everything else | FOUND-01..04 (4 reqs) | Ready to plan |
-| 92. Editor Touch-Edit Validation Gate | Verify (and repair if broken) tap-to-edit-text on a **physical iPhone** before any layout rework | EDIT-01 (1 req) | Not started — device gate |
-| 93. Editor Mobile Layout Rework | Bottom-sheet primitive + canvas-dominant chrome re-host + persistent thumb action bar + safe destructive actions + filmstrip affordance | EDIT-02..06 (5 reqs) | Not started |
-| 94. App-Wide Mobile Polish | Template-picker grid, settings sub-nav, swipeable public viewer, 393px typography/spacing | POLISH-01..04 (4 reqs) | Not started (parallelizable after 91) |
-| 95. Logged-Out & Auth Mobile Pass | Landing + auth screens at 393px — **blocked on a login credential** | AUTH-01..02 (2 reqs) | Not started — credential-blocked |
-
-**Coverage:** 16/16 v2.17 requirements mapped (no orphans, no duplicates). Build order is forced: 91 must land first (`env()` reads 0 without `viewport-fit=cover`); 92 (touch gate) must pass before 93; 94 may run parallel with 92–93; 95 is sequenced last (credential-blocked) but only hard-depends on 91.
+**Coverage:** 16/16 requirements code-satisfied. Audit `tech_debt` (integration 14/16, 0 blockers — the one safe-area double-count was fixed). On branch `feat/carousel-output-format` (not yet merged to main).
 
 ## Milestone History
 
@@ -83,6 +82,11 @@ Carried forward from prior milestone closes (still open):
 | QA | iPhone Safari touch QA carried from v2.10/v2.12 (corner resize handles, touch editing) | Now directly addressed by v2.17 Phase 92 | prior milestones |
 | UAT | v2.16 Phase 90 — visual review of the 16 preview PNGs + authenticated Playwright picker smoke | Tracked in `90-HUMAN-UAT.md` (partial) | v2.16 close |
 | UAT | v2.16 Phase 89 — 5 live-runtime confirmations | Code-level evidence verified; `89-VERIFICATION.md` | v2.16 close |
+| UAT (device) | v2.17 editor touch flow + FOUND-01/02 — physical-iPhone sign-off (13-step checklist) | Open; `93-VERIFICATION.md` (decisive: tap-to-edit keyboard summon) | v2.17 close |
+| UAT (credential) | v2.17 AUTH-02 live login/signup round-trip + `/reset-password` + `/onboarding` render | Open; layout done, needs a session | v2.17 close |
+| Tech debt | v2.17 WARNING-02 toolPanelBody double-mount on mobile; WARNING-03 isDesktop first-paint flash; WARNING-04 `h-12` vs `tap-44` drift; INFO-01 editor height ignores `safe-area-inset-top` | Open (non-blocking); see `milestones/v2.17-MILESTONE-AUDIT.md` | v2.17 close |
+| Cleanup | 9 stale pre-v2.17 quick-task artifacts (260519-*) flagged by audit-open | Open; unrelated to v2.17 | v2.17 close |
+| Observation | Landing page markets shelved "Brand DNA" feature (brand-kit removed in v2.16) — stale marketing copy | Open (out of scope) | v2.17 close |
 | v2.14 ops | Set `ADMIN_USER_IDS` on Vercel + apply `20260519_phase86_template_previews_bucket.sql` if not already done | Carried | v2.14 close |
 | Hardening | DB template with NULL `preview` renders a broken `<img>` (no `onError` fallback) | Low risk | v2.16 close |
 | Templates | End-user/community template authoring; edit/delete of a saved DB template | Deferred | v2.14/v2.15 |
@@ -95,6 +99,4 @@ Resume file: `.planning/ROADMAP.md`
 
 ## Operator Next Steps
 
-- Plan the first phase: `/gsd-plan-phase 91`
-- Before Phase 92/93: confirm the physical iPhone is on hand for the device-validation checkpoints.
-- Before Phase 95: obtain a login credential to round-trip the auth flows.
+- Start the next milestone with /gsd-new-milestone

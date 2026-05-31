@@ -10,23 +10,25 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.16 Picker Polish & Brand-Kit Shelving (2026-05-21)
-**Current Milestone:** v2.17 Mobile Optimization (in progress — started 2026-05-31)
+**Latest Shipped:** v2.17 Mobile Optimization (2026-05-31)
+**Current Milestone:** None — run `/gsd-new-milestone` to scope the next cycle.
 
 ---
 
-## Current Milestone: v2.17 Mobile Optimization
+## Latest Shipped: v2.17 Mobile Optimization (2026-05-31)
 
-**Goal:** Make the entire app feel native-quality on an iPhone 15 (393px) — every surface mobile-first, with the slide editor genuinely usable for touch editing.
+**Goal achieved (code):** The app is now mobile-first for iPhone 15 (393×852, iOS Safari) — a CSS-first retrofit with zero new heavy dependencies, grounded in an empirical Playwright audit. **Status `tech_debt`:** 16/16 requirements code-satisfied; carried human-UAT (physical-iPhone device sign-off + a credentialed live auth round-trip). Shipped on branch `feat/carousel-output-format` (not yet merged to main).
 
-**Target features:**
-- Cross-cutting foundation — `viewport-fit=cover` + iOS safe-area insets; global 44px tap-target compliance; input contrast / a11y.
-- Editor mobile pass — rework the editor's vertical chrome so the canvas has room; verify & repair the touch text-editing flow (the #1 risk).
-- App-wide mobile-first re-examination — layout, spacing, typography scale, and gestures across all surfaces.
-- Logged-out pass — landing page + auth (login / signup / onboarding / reset) at 393px. *Dependency: a login credential to round-trip these.*
-- Minor polish — settings sub-nav affordance; template-picker discoverability.
+**Shipped:**
+- Phase 91 — Cross-Cutting Foundation: `viewport-fit=cover` viewport export (populated `env(safe-area-inset-*)` app-wide), `dvh` editor shell, a reusable `@utility tap-44`, safe-area padding on fixed bars, 16px-input + WCAG-contrast fixes.
+- Phase 92 — Editor Touch-Edit Gate: static iOS diagnosis (deferred-`.focus()` + keyboard occlusion identified as the on-device risks) + a conservative `touch-action:manipulation` repair; structural fix folded into Phase 93.
+- Phase 93 — Editor Mobile Rework: gesture-synchronous single-tap-to-edit (`src/lib/editor/touch-edit.ts`), a bottom `Sheet` primitive on the already-installed `@radix-ui/react-dialog`, canvas-first chrome re-host (asides `hidden lg:flex`), persistent safe-area action bar, confirm-gated destructive delete. Desktop unregressed (grid seam preserved), slide parity 121/121.
+- Phase 94 — App-Wide Polish: mobile template-picker grid, settings sub-nav fade affordance, swipe nav on the public carousel viewer, 393px hero typography — Playwright-verified at a true 393px.
+- Phase 95 — Logged-Out & Auth: mobile-first landing + auth forms (16px inputs, `inputMode`/`autoComplete`, 48px targets) — layout-only, no auth-logic changes.
 
-**Grounding:** Empirical iPhone-15 Playwright audit at `.planning/mobile-audit/` (AUDIT.md + screenshots). Most public/view surfaces already reflow cleanly with zero horizontal overflow; the editor, iOS safe-areas, and sub-44px tap targets are the concentrated work.
+**Verification:** Integration check 14/16 (0 blockers; the one safe-area double-count it found was fixed). Carried human-UAT: editor device sign-off (13-step checklist in `93-VERIFICATION.md`) + live auth round-trip (credential). Nyquist VALIDATION.md absent across phases (frontend pattern, matches prior milestones). `tsc` at the 20-error baseline; zero new test failures.
+
+**Archive:** `.planning/milestones/v2.17-ROADMAP.md`. Audit: `.planning/milestones/v2.17-MILESTONE-AUDIT.md`. Requirements: `.planning/milestones/v2.17-REQUIREMENTS.md`. Audit screenshots: `.planning/mobile-audit/`.
 
 ---
 
