@@ -94,7 +94,7 @@ export function ExploreCard({
               onClick={handlePrev}
               disabled={isFirst}
               aria-label="Previous slide"
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-md text-[#3d0000] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-md text-[#3d0000] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0 [@media(hover:none)]:enabled:opacity-100"
             >
               <Icon name="chevron_left" size="sm" />
             </button>
@@ -103,12 +103,12 @@ export function ExploreCard({
               onClick={handleNext}
               disabled={isLast}
               aria-label="Next slide"
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-md text-[#3d0000] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-md text-[#3d0000] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0 [@media(hover:none)]:enabled:opacity-100"
             >
               <Icon name="chevron_right" size="sm" />
             </button>
             <span
-              className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded-full bg-white/90 text-[#3d0000] text-[0.6rem] font-bold tracking-wider tabular-nums opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded-full bg-white/90 text-[#3d0000] text-[0.6rem] font-bold tracking-wider tabular-nums opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity pointer-events-none"
               aria-live="polite"
             >
               {safeIndex + 1} / {totalSlides}
