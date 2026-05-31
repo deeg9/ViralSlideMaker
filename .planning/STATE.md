@@ -43,6 +43,12 @@ Last activity: 2026-05-31 — Milestone v2.17 completed and archived
 
 **Coverage:** 16/16 requirements code-satisfied. Audit `tech_debt` (integration 14/16, 0 blockers — the one safe-area double-count was fixed). On branch `feat/carousel-output-format` (not yet merged to main).
 
+## Quick Tasks Completed
+
+| Date | Task | Result |
+|------|------|--------|
+| 2026-05-31 | fix-mobile-nav-profile-editor | v2.17 device-UAT bugs: profile dropdown stay-open ✅ fixed+verified; editor full-bleed nav collision ✅ fixed (editor scroll = device retest); dashboard nav iOS float 🟡 best-effort `translateZ(0)` (device retest). `.planning/quick/260531-mob-fix-mobile-nav-profile-editor/` |
+
 ## Milestone History
 
 16 milestones shipped (v1.0–v2.16, Phases 1–90). Latest:
