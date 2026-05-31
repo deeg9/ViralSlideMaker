@@ -57,13 +57,13 @@ export function TopNavbar({ variant, userName, creditDisplay, signedIn = true }:
           <div className="flex items-center gap-3 md:gap-6">
             <Link
               href="/login"
-              className="whitespace-nowrap font-medium text-sm tracking-wide text-[#3d0000] hover:text-[#3d0000]/70 transition-colors duration-200"
+              className="inline-flex items-center whitespace-nowrap font-medium text-sm tracking-wide text-[#3d0000] hover:text-[#3d0000]/70 transition-colors duration-200 py-2.5"
             >
               Log In
             </Link>
             <Link
               href="/signup"
-              className="bg-[#3d0000] text-white px-4 md:px-6 py-2.5 rounded-xl font-medium text-sm transition-transform active:scale-90 whitespace-nowrap"
+              className="inline-flex items-center justify-center bg-[#3d0000] text-white px-4 md:px-6 py-3 md:py-2.5 rounded-xl font-medium text-sm transition-transform active:scale-90 whitespace-nowrap"
             >
               Get Started
             </Link>
