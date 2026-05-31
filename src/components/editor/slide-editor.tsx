@@ -2117,6 +2117,18 @@ export function SlideEditor({
         </div>
       </div>
 
+      {/* bug-260531: mobile-visible tool tabs. Phase 93 only rendered the
+          Text/Elements/Images triggers inside the desktop aside (hidden lg:flex)
+          and inside the Sheet itself — so on mobile there was NO way to OPEN the
+          editing panels (you could inline-edit text, but never reach formatting,
+          elements, or image swap). This thin lg:hidden row restores the entry
+          point; renderTabButton opens the bottom Sheet to the tapped tab. */}
+      <div className="lg:hidden shrink-0 flex border-t border-[#dbc1bc]/20 bg-white">
+        {renderTabButton('text', 'Text')}
+        {renderTabButton('elements', 'Elements')}
+        {renderTabButton('images', 'Images')}
+      </div>
+
       {/* EDIT-06: persistent, thumb-reachable, safe-area-padded bottom action
           bar — add slide, undo/redo, Public toggle, Export. The destructive
           delete is NOT here (EDIT-05): it lives in the spaced-away layers sheet
