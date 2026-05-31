@@ -22,7 +22,7 @@ export function BottomNavbar() {
   }
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 bg-[#fff8f7] shadow-[0_-10px_30px_rgba(61,0,0,0.04)] rounded-t-2xl z-50">
+    <nav className="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 bg-[#fff8f7] shadow-[0_-10px_30px_rgba(61,0,0,0.04)] rounded-t-2xl z-50 [transform:translateZ(0)]">
       {/* Home */}
       {(() => {
         const tab = tabs[0]
