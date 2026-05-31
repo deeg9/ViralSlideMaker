@@ -151,9 +151,18 @@ export function ProjectCard({ project, publishedState }: ProjectCardProps) {
   return (
     <>
     <div className="group cursor-pointer" onClick={handleCardClick}>
+      {/* bug-260531: the lazy-mounted <SlidePreview> renders an absolutely-
+          positioned 1080×1920 element scaled down via transform. iOS Safari
+          (unlike Chromium) fails to clip that child's SCROLL-height through
+          overflow:hidden — so on a dashboard with many cards the body inflates
+          by thousands of px ("scroll past the toolbar into blank white space",
+          and the fixed bottom nav looks unmoored). `contain: layout paint`
+          makes the thumb a true layout/paint containment boundary that iOS
+          honors, capping each card at its own box. Same class of leak the
+          editor shell solved with `position: fixed`. */}
       <div
         ref={thumbRef}
-        className="aspect-[9/16] bg-[#fadbdb] rounded-xl overflow-hidden relative mb-4 transition-all duration-300 group-hover:scale-[1.02]"
+        className="aspect-[9/16] bg-[#fadbdb] rounded-xl overflow-hidden relative mb-4 transition-all duration-300 group-hover:scale-[1.02] [contain:layout_paint]"
       >
         {currentSlide ? (
           hasBeenVisible ? (
