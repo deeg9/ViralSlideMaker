@@ -117,7 +117,7 @@ export function AIGenerateTab({
         placeholder="Describe the background image you want..."
         aria-label="Image generation prompt"
         aria-busy={isLoadingPrompt}
-        className={`w-full rounded-xl border border-[#dbc1bc]/30 bg-white px-4 py-3 text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 placeholder:text-[#dbc1bc] resize-none disabled:opacity-60 ${
+        className={`w-full rounded-xl border border-[#dbc1bc]/30 bg-white px-4 py-3 text-base md:text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 placeholder:text-[#7d6161]/60 resize-none disabled:opacity-60 ${
           isLoadingPrompt ? 'animate-pulse bg-[#fff0f0]' : ''
         }`}
       />

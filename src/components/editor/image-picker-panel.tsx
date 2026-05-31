@@ -191,7 +191,7 @@ export function ImagePickerPanel({
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Search photos..."
-              className="flex-1 rounded-xl border border-[#dbc1bc]/30 bg-white px-4 py-2.5 text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 placeholder:text-[#dbc1bc]"
+              className="flex-1 rounded-xl border border-[#dbc1bc]/30 bg-white px-4 py-2.5 text-base md:text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 placeholder:text-[#7d6161]/60"
             />
             <button
               onClick={handleSearch}

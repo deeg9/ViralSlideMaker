@@ -127,7 +127,21 @@
   }
   html {
     @apply font-sans;
+    /* Mobile foundation (Phase 91): the app uses active:bg-* press feedback,
+       so iOS's native grey tap flash is redundant noise. */
+    -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* Mobile foundation (Phase 91 / FOUND-03): reusable ≥44×44 hit-area utility.
+   Apply via className="tap-44" on icon buttons / chips. Keeps the glyph at its
+   design size and grows the touch target (do NOT upscale icons). */
+@utility tap-44 {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Material Symbols */

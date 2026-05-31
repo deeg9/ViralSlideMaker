@@ -343,7 +343,7 @@ export function GenerationForm({
                   rows={1}
                   disabled={busy}
                   maxLength={2000}
-                  className="w-full bg-transparent border-0 outline-none resize-none text-[#3d0000] text-base placeholder:text-[#dbc1bc] py-1.5 leading-relaxed min-h-[3rem] disabled:opacity-50"
+                  className="w-full bg-transparent border-0 outline-none resize-none text-[#3d0000] text-base placeholder:text-[#7d6161]/60 py-1.5 leading-relaxed min-h-[3rem] disabled:opacity-50"
                 />
               </div>
 
