@@ -23,7 +23,11 @@ export function DashboardShell({ userName, creditDisplay, children }: { userName
             {children}
           </div>
         </main>
-        <BottomNavbar />
+        {/* The editor (full-bleed /project/*) has its own persistent bottom
+            action bar (EDIT-06). Rendering the global mobile tab nav there too
+            stacks two fixed bars at the viewport bottom — it overlaps the
+            editor's Export/Public bar and eats the bottom of the scroll area. */}
+        {!isFullBleed && <BottomNavbar />}
       </div>
     </NavigationLoaderProvider>
   )
