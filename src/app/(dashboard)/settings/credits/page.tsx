@@ -67,9 +67,9 @@ export default async function CreditsPage() {
             <p>No credit transactions yet.</p>
           </div>
         ) : (
-          {/* bug-260531: a 4-column table doesn't fit 393px and the parent's
-              overflow-hidden clips it (Description/Amount cut off, unscrollable).
-              Scroll it horizontally on mobile; min-w keeps the columns readable. */}
+          // bug-260531: a 4-column table doesn't fit 393px and the parent's
+          // overflow-hidden clips it; scroll horizontally on mobile (min-w keeps
+          // the columns readable).
           <div className="overflow-x-auto">
           <table className="w-full min-w-[34rem]">
             <thead>
