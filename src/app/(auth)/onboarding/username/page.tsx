@@ -33,8 +33,8 @@ export default async function OnboardingUsernamePage({
   const suggestion = ''
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fff8f7] px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 border border-[#dbc1bc]/40">
+    <div className="flex min-h-dvh items-center justify-center bg-[#fff8f7] px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 md:p-8 border border-[#dbc1bc]/40">
         <h1 className="text-2xl font-bold text-[#3d0000]">
           {isChange && currentUsername ? 'Change your username' : 'Pick your username'}
         </h1>

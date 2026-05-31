@@ -98,11 +98,15 @@ export function ClaimUsernameForm({
           <input
             id="username"
             type="text"
+            inputMode="text"
             autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             autoFocus
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full rounded-xl border border-[#dbc1bc]/60 bg-white pl-7 pr-10 py-3 text-sm text-[#3d0000] placeholder:text-[#7d6161]/60 focus:border-[#3d0000] focus:outline-none focus:ring-2 focus:ring-[#3d0000]/20"
+            className="w-full rounded-xl border border-[#dbc1bc]/60 bg-white pl-7 pr-10 py-3 text-base md:text-sm text-[#3d0000] placeholder:text-[#7d6161]/60 focus:border-[#3d0000] focus:outline-none focus:ring-2 focus:ring-[#3d0000]/20"
             placeholder="username"
             maxLength={24}
           />
