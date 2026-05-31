@@ -1818,7 +1818,7 @@ export function SlideEditor({
                 <Icon name="content_copy" size="sm" />
               </button>
               <button
-                onClick={() => dispatch({ type: 'REMOVE_SLIDE', index: selectedIndex })}
+                onClick={() => setConfirmDeleteSlide(true)}
                 disabled={slides.length <= 1}
                 className="tap-44 p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95 disabled:opacity-30"
                 title="Delete Slide"
