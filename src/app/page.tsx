@@ -23,21 +23,21 @@ export default async function Home() {
       <MouseSparkles />
       <TopNavbar variant="marketing" />
 
-      <main className="pt-32 pb-20">
+      <main className="pt-24 md:pt-32 pb-20">
         {/* Hero Section */}
-        <section className="px-8 max-w-7xl mx-auto flex flex-col items-center text-center mb-32">
-          <h1 className="text-5xl md:text-7xl font-semibold tracking-[-0.02em] text-[#3d0000] leading-[1.1] mb-8 max-w-4xl">
+        <section className="px-5 md:px-8 max-w-7xl mx-auto flex flex-col items-center text-center mb-20 md:mb-32">
+          <h1 className="text-[2.75rem] md:text-7xl font-semibold tracking-[-0.02em] text-[#3d0000] leading-[1.1] mb-6 md:mb-8 max-w-4xl">
             The future of content creation is <AnimatedWord />
           </h1>
-          <p className="text-lg text-[#55423f] max-w-2xl mb-12">
+          <p className="text-base md:text-lg text-[#55423f] max-w-2xl mb-8 md:mb-12">
             Turn your ideas into viral carousels in seconds. No design skills needed.
           </p>
 
           {/* Side-by-side: Chat Box + Robot */}
           <div className="w-full flex flex-col md:flex-row gap-6 items-stretch">
           {/* Left: AI Generation Box */}
-          <div className="flex-1 bg-white rounded-2xl shadow-[0px_40px_80px_rgba(61,0,0,0.08)] p-8 md:p-12 border border-[#dbc1bc]/20">
-            <div className="mb-8 text-left">
+          <div className="flex-1 bg-white rounded-2xl shadow-[0px_40px_80px_rgba(61,0,0,0.08)] p-5 md:p-12 border border-[#dbc1bc]/20">
+            <div className="mb-6 md:mb-8 text-left">
               <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4 ml-1">
                 Presentation Prompt
               </label>
@@ -58,7 +58,7 @@ export default async function Home() {
             </div>
 
             {/* Template Picker */}
-            <div className="mb-10 text-left">
+            <div className="mb-8 md:mb-10 text-left">
               <label className="block text-[0.75rem] uppercase font-bold tracking-[0.05em] text-[#7d6161] mb-4">
                 Select Visual Style
               </label>
@@ -124,10 +124,10 @@ export default async function Home() {
         </section>
 
         {/* Examples Showcase */}
-        <section className="px-8 py-24 bg-[#fff8f7]">
+        <section className="px-5 md:px-8 py-16 md:py-24 bg-[#fff8f7]">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-semibold text-[#3d0000] mb-4">Created with ViralSlideMaker</h2>
+            <div className="text-center mb-10 md:mb-16">
+              <h2 className="text-3xl md:text-4xl font-semibold text-[#3d0000] mb-4">Created with ViralSlideMaker</h2>
               <p className="text-[#55423f] max-w-xl mx-auto">
                 High-converting carousel content generated in seconds for social creators.
               </p>
@@ -137,14 +137,14 @@ export default async function Home() {
         </section>
 
         {/* Bento Grid Features */}
-        <section className="px-8 py-20 bg-[#fff0f0]">
+        <section className="px-5 md:px-8 py-14 md:py-20 bg-[#fff0f0]">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-16">
-              <h2 className="text-3xl font-medium tracking-tight text-[#3d0000]">Crafted for Clarification</h2>
+            <div className="mb-10 md:mb-16">
+              <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-[#3d0000]">Crafted for Clarification</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 md:h-[600px]">
               {/* Large card */}
-              <div className="md:col-span-2 md:row-span-2 bg-white p-10 rounded-xl flex flex-col justify-between">
+              <div className="md:col-span-2 md:row-span-2 bg-white p-6 md:p-10 rounded-xl flex flex-col justify-between">
                 <div>
                   <Icon name="auto_awesome" size="xl" className="text-[#3d0000] mb-6" />
                   <h3 className="text-2xl font-semibold mb-4 text-[#3d0000]">Neural Layout Engine</h3>
@@ -158,7 +158,7 @@ export default async function Home() {
               </div>
 
               {/* Typography */}
-              <div className="md:col-span-2 bg-[#fadbdb] p-10 rounded-xl flex items-center gap-8">
+              <div className="md:col-span-2 bg-[#fadbdb] p-6 md:p-10 rounded-xl flex items-center gap-8">
                 <div className="flex-1">
                   <Icon name="font_download" size="lg" className="text-[#3d0000] mb-4" />
                   <h3 className="text-xl font-semibold mb-2 text-[#3d0000]">Editorial Typography</h3>
@@ -172,14 +172,14 @@ export default async function Home() {
               </div>
 
               {/* Instant Export */}
-              <div className="bg-[#fadbdb] p-8 rounded-xl flex flex-col justify-center text-center">
+              <div className="bg-[#fadbdb] p-6 md:p-8 rounded-xl flex flex-col justify-center text-center">
                 <Icon name="bolt" size="lg" className="text-[#3d0000] mb-4 mx-auto" />
                 <h3 className="text-lg font-semibold text-[#3d0000]">Instant Export</h3>
                 <p className="text-xs text-[#55423f] mt-2">PDF, PPTX, or Live Web Link.</p>
               </div>
 
               {/* Brand DNA */}
-              <div className="bg-white p-8 rounded-xl flex flex-col justify-center text-center">
+              <div className="bg-white p-6 md:p-8 rounded-xl flex flex-col justify-center text-center">
                 <Icon name="palette" size="lg" className="text-[#3d0000] mb-4 mx-auto" />
                 <h3 className="text-lg font-semibold text-[#3d0000]">Brand DNA</h3>
                 <p className="text-xs text-[#55423f] mt-2">Matches your brand colors instantly.</p>
