@@ -1996,7 +1996,7 @@ export function SlideEditor({
               the scroll area naturally pins to the bottom.
               SAVE CHANGES button removed — autosave already fires 2s after
               the last edit via the isDirty debounce on doSave. */}
-          <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mx-4 mt-2 mb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mx-4 mt-2 mb-4">
             <div className="flex items-center gap-1">
               <button
                 onClick={undo}
