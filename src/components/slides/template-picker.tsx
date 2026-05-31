@@ -46,7 +46,17 @@ export function TemplatePicker({ selectedId, onSelect, category, dbTemplates = [
   ]
 
   return (
-    <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-4 px-4">
+    // POLISH-01 (Phase 94): mobile shows all templates in a wrapping 2-col
+    // grid so every tile is discoverable without a silently-hidden horizontal
+    // scroll. From `md` up the original horizontal-scroll filmstrip is
+    // restored (flex row, fixed-width tiles, overflow-x scroll) — desktop is
+    // unchanged.
+    <div
+      className="
+        grid grid-cols-2 gap-4 pb-2
+        md:flex md:gap-4 md:overflow-x-auto md:hide-scrollbar md:pb-4 md:-mx-4 md:px-4
+      "
+    >
       {visibleTemplates.map((template) => {
         const isSelected = selectedId === template.id
         return (
@@ -54,7 +64,7 @@ export function TemplatePicker({ selectedId, onSelect, category, dbTemplates = [
             key={template.id}
             type="button"
             onClick={() => onSelect(template.id)}
-            className="flex-none w-40 group text-left"
+            className="w-full md:flex-none md:w-40 group text-left"
           >
             <div
               className={`aspect-[9/16] rounded-xl overflow-hidden mb-3 border-2 transition-all relative ${
