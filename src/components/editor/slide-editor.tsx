@@ -1495,7 +1495,7 @@ export function SlideEditor({
   )
 
   return (
-    <div className="flex flex-col bg-[#fff8f7] h-[calc(100vh-140px)] lg:h-[calc(100vh-80px)] overflow-hidden">
+    <div className="flex flex-col bg-[#fff8f7] h-[calc(100dvh-140px)] lg:h-[calc(100dvh-80px)] overflow-hidden">
       {/* Three-panel layout -- no top toolbar */}
       <div
         className="grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] flex-1 min-h-0 overflow-hidden gap-0 lg:gap-3 px-0 lg:px-2 py-0 lg:py-2"
@@ -1512,7 +1512,7 @@ export function SlideEditor({
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard"
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors"
                 title="Back to dashboard"
               >
                 <Icon name="arrow_back" size="sm" />
@@ -1534,7 +1534,7 @@ export function SlideEditor({
                   dispatch({ type: 'ADD_SLIDE', index: selectedIndex + 1 })
                   setSelectedIndex(selectedIndex + 1)
                 }}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
                 title="Add Slide"
               >
                 <Icon name="add" size="sm" />
@@ -1544,7 +1544,7 @@ export function SlideEditor({
                   dispatch({ type: 'DUPLICATE_SLIDE', index: selectedIndex })
                   setSelectedIndex(selectedIndex + 1)
                 }}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
                 title="Duplicate Slide"
               >
                 <Icon name="content_copy" size="sm" />
@@ -1552,14 +1552,14 @@ export function SlideEditor({
               <button
                 onClick={() => dispatch({ type: 'REMOVE_SLIDE', index: selectedIndex })}
                 disabled={slides.length <= 1}
-                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                className="tap-44 p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95 disabled:opacity-30"
                 title="Delete Slide"
               >
                 <Icon name="delete" size="sm" />
               </button>
               <button
                 onClick={handleAddCustomText}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
                 title="Add Text Box"
               >
                 <Icon name="text_fields" size="sm" />
@@ -1996,12 +1996,12 @@ export function SlideEditor({
               the scroll area naturally pins to the bottom.
               SAVE CHANGES button removed — autosave already fires 2s after
               the last edit via the isDirty debounce on doSave. */}
-          <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mx-4 mt-2 mb-4">
+          <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mx-4 mt-2 mb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="flex items-center gap-1">
               <button
                 onClick={undo}
                 disabled={!canUndo}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
                 title="Undo"
               >
                 <Icon name="undo" size="sm" />
@@ -2009,7 +2009,7 @@ export function SlideEditor({
               <button
                 onClick={redo}
                 disabled={!canRedo}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
                 title="Redo"
               >
                 <Icon name="redo" size="sm" />

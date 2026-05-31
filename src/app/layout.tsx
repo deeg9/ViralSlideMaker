@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -15,6 +15,16 @@ export const metadata: Metadata = {
     icon: '/favicon.ico',
     apple: '/apple-icon.png',
   },
+}
+
+// Mobile foundation (v2.17 / Phase 91 / FOUND-01): viewport-fit=cover is the
+// ONLY App-Router-supported way to populate env(safe-area-inset-*). Until this
+// ships, every safe-area inset reads 0 and the fixed bottom nav collides with
+// the home indicator. Never set userScalable:false / maximumScale (WCAG 1.4.4).
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
