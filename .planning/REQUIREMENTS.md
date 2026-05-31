@@ -70,4 +70,25 @@
 
 ## Traceability
 
-*(filled by roadmap — REQ-ID → phase)*
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FOUND-01 | Phase 91 | Pending |
+| FOUND-02 | Phase 91 | Pending |
+| FOUND-03 | Phase 91 | Pending |
+| FOUND-04 | Phase 91 | Pending |
+| EDIT-01 | Phase 92 | Pending |
+| EDIT-02 | Phase 93 | Pending |
+| EDIT-03 | Phase 93 | Pending |
+| EDIT-04 | Phase 93 | Pending |
+| EDIT-05 | Phase 93 | Pending |
+| EDIT-06 | Phase 93 | Pending |
+| POLISH-01 | Phase 94 | Pending |
+| POLISH-02 | Phase 94 | Pending |
+| POLISH-03 | Phase 94 | Pending |
+| POLISH-04 | Phase 94 | Pending |
+| AUTH-01 | Phase 95 | Pending |
+| AUTH-02 | Phase 95 | Pending |
+
+**Coverage:** 16/16 v2.17 requirements mapped to exactly one phase. No orphans, no duplicates.
+
+*Note: the milestone brief referenced "14 requirements" but `REQUIREMENTS.md` enumerates 16 (FOUND×4, EDIT×6, POLISH×4, AUTH×2). All 16 are mapped above.*
