@@ -30,7 +30,7 @@
 
 ## Phases
 
-- [ ] **Phase 91: Cross-Cutting Mobile Foundation** — `viewport-fit=cover` + iOS safe-area insets, `dvh` shells, global 44px tap targets, input zoom/contrast fixes
+- [x] **Phase 91: Cross-Cutting Mobile Foundation** — `viewport-fit=cover` + iOS safe-area insets, `dvh` shells, global 44px tap targets, input zoom/contrast fixes *(code complete 2026-05-31; FOUND-01/02 pending physical-iPhone confirmation)*
 - [ ] **Phase 92: Editor Touch-Edit Validation Gate** — verify (and repair if broken) tap-to-edit-text on a real iPhone before any layout rework
 - [ ] **Phase 93: Editor Mobile Layout Rework** — bottom-sheet primitive + canvas-dominant re-host of editor chrome, persistent thumb-reachable action bar, safe destructive actions
 - [ ] **Phase 94: App-Wide Mobile Polish** — template-picker grid, settings sub-nav, swipeable public viewer, 393px typography/spacing tuning
@@ -106,7 +106,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 | ----- | --------- | -------------- | ------ | --------- |
-| 91. Cross-Cutting Mobile Foundation | v2.17 | 0/TBD | Not started | - |
+| 91. Cross-Cutting Mobile Foundation | v2.17 | 2/2 | Code complete (device-confirm pending) | 2026-05-31 |
 | 92. Editor Touch-Edit Validation Gate | v2.17 | 0/TBD | Not started | - |
 | 93. Editor Mobile Layout Rework | v2.17 | 0/TBD | Not started | - |
 | 94. App-Wide Mobile Polish | v2.17 | 0/TBD | Not started | - |

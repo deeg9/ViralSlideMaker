@@ -11,10 +11,10 @@
 ### Cross-Cutting Foundation (FOUND)
 *Must land first — `env(safe-area-inset-*)` reads 0 until `viewport-fit=cover` is set.*
 
-- [ ] **FOUND-01**: On iOS Safari, no fixed UI (bottom tab nav, editor action bars) is obscured by or collides with the home indicator or notch — safe-area insets respected app-wide (`viewport-fit=cover` + `env(safe-area-inset-*)`).
-- [ ] **FOUND-02**: Full-height screens fill the visible viewport without the iOS `100vh` overshoot — no content cut off under the collapsing URL bar (`dvh`/`svh`).
-- [ ] **FOUND-03**: All interactive controls meet a ≥44×44px touch target across the app (currently pervasive 28–36px; the editor alone had 46 sub-40px controls).
-- [ ] **FOUND-04**: Text inputs do not trigger iOS zoom-on-focus (≥16px effective font), and placeholder/label text meets WCAG AA contrast (the prompt placeholder is currently near-invisible).
+- [x] **FOUND-01**: On iOS Safari, no fixed UI (bottom tab nav, editor action bars) is obscured by or collides with the home indicator or notch — safe-area insets respected app-wide (`viewport-fit=cover` + `env(safe-area-inset-*)`). *(Code complete Phase 91; on-device iPhone confirmation pending — insets read 0 in Playwright.)*
+- [x] **FOUND-02**: Full-height screens fill the visible viewport without the iOS `100vh` overshoot — no content cut off under the collapsing URL bar (`dvh`/`svh`). *(Code complete Phase 91; on-device iPhone confirmation pending — URL-bar collapse not reproducible in Playwright.)*
+- [x] **FOUND-03**: All interactive controls meet a ≥44×44px touch target across the app (currently pervasive 28–36px; the editor alone had 46 sub-40px controls). *(`tap-44` utility + editor chrome sweep landed Phase 91; per-surface sweeps continue as later phases rework those surfaces.)*
+- [x] **FOUND-04**: Text inputs do not trigger iOS zoom-on-focus (≥16px effective font), and placeholder/label text meets WCAG AA contrast (the prompt placeholder is currently near-invisible). *(Landed Phase 91.)*
 
 ### Mobile Editor (EDIT)
 *The concentrated work. EDIT-01 is a gate that must pass before the rest is built.*
@@ -72,10 +72,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 91 | Pending |
-| FOUND-02 | Phase 91 | Pending |
-| FOUND-03 | Phase 91 | Pending |
-| FOUND-04 | Phase 91 | Pending |
+| FOUND-01 | Phase 91 | Code complete (device-confirm pending) |
+| FOUND-02 | Phase 91 | Code complete (device-confirm pending) |
+| FOUND-03 | Phase 91 | Satisfied |
+| FOUND-04 | Phase 91 | Satisfied |
 | EDIT-01 | Phase 92 | Pending |
 | EDIT-02 | Phase 93 | Pending |
 | EDIT-03 | Phase 93 | Pending |
