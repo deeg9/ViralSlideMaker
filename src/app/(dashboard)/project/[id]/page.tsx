@@ -122,8 +122,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
       )}
 
-      <div className="text-center mb-12">
-        <h1 className="text-[3.5rem] font-semibold tracking-[-0.02em] leading-tight text-[#3d0000]">
+      {/* POLISH-04 (Phase 94): mirror the dashboard heading scale-down so the
+          empty-state hero doesn't eat the 393px fold; restored to 3.5rem at
+          md+. Page-level heading only — editor canvas/chrome untouched. */}
+      <div className="text-center mb-8 md:mb-12">
+        <h1 className="text-[2.25rem] md:text-[3.5rem] font-semibold tracking-[-0.02em] leading-tight text-[#3d0000]">
           What shall we create?
         </h1>
       </div>
