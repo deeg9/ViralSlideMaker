@@ -2121,7 +2121,7 @@ export function SlideEditor({
           bar — add slide, undo/redo, Public toggle, Export. The destructive
           delete is NOT here (EDIT-05): it lives in the spaced-away layers sheet
           with a confirm step, so a 44px mis-tap can't destroy a slide. */}
-      <div className="lg:hidden shrink-0 border-t border-[#dbc1bc]/20 bg-white px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="lg:hidden shrink-0 border-t border-[#dbc1bc]/20 bg-white px-3 pt-2 pb-2">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
