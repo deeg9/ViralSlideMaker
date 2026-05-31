@@ -33,7 +33,7 @@
 - [x] **Phase 91: Cross-Cutting Mobile Foundation** — `viewport-fit=cover` + iOS safe-area insets, `dvh` shells, global 44px tap targets, input zoom/contrast fixes *(code complete 2026-05-31; FOUND-01/02 pending physical-iPhone confirmation)*
 - [~] **Phase 92: Editor Touch-Edit Validation Gate** — diagnosed the touch text-edit path + applied a conservative `touch-action:manipulation` repair; **code-ready, awaiting physical-iPhone sign-off** (device checklist in 92-VERIFICATION.md). Diagnosis flags deferred-`.focus()` (likely keyboard-summon break) + keyboard-occlusion as on-device risks; the structural fix is gated on the device pass and deferred to Phase 93 if needed.
 - [~] **Phase 93: Editor Mobile Layout Rework** — bottom-sheet primitive (`ui/sheet.tsx` on Radix Dialog) + canvas-dominant re-host of editor chrome, thin filmstrip, persistent safe-area bottom action bar, confirm-gated destructive delete, AND the folded EDIT-01 repair (gesture-synchronous single-tap-to-edit + keyboard occlusion). **Code-complete; awaiting the single consolidated physical-iPhone pass** (93-VERIFICATION.md covers EDIT-01..06 + carried FOUND-01/02). tsc 0-new, slide tests 121/121, next build green.
-- [ ] **Phase 94: App-Wide Mobile Polish** — template-picker grid, settings sub-nav, swipeable public viewer, 393px typography/spacing tuning
+- [x] **Phase 94: App-Wide Mobile Polish** — template-picker grid, settings sub-nav, swipeable public viewer, 393px typography/spacing tuning
 - [ ] **Phase 95: Logged-Out & Auth Mobile Pass** — landing + auth screens optimized at 393px *(externally blocked on a login credential)*
 
 ## Phase Details

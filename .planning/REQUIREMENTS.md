@@ -28,10 +28,10 @@
 
 ### App-Wide Mobile Polish (POLISH)
 
-- [ ] **POLISH-01**: The template picker presents all 16 templates in a mobile-friendly browsable grid (not a silently-hidden horizontal scroll).
-- [ ] **POLISH-02**: Settings sub-navigation makes off-screen tabs discoverable on mobile (no silently hidden tabs).
-- [ ] **POLISH-03**: The public carousel viewer supports swipe (in addition to chevrons) for slide navigation on touch.
-- [ ] **POLISH-04**: Typography scale and spacing are tuned for 393px across surfaces (oversized headings no longer eat the fold; consistent mobile rhythm).
+- [x] **POLISH-01**: The template picker presents all 16 templates in a mobile-friendly browsable grid (not a silently-hidden horizontal scroll).
+- [x] **POLISH-02**: Settings sub-navigation makes off-screen tabs discoverable on mobile (no silently hidden tabs).
+- [x] **POLISH-03**: The public carousel viewer supports swipe (in addition to chevrons) for slide navigation on touch.
+- [x] **POLISH-04**: Typography scale and spacing are tuned for 393px across surfaces (oversized headings no longer eat the fold; consistent mobile rhythm).
 
 ### Logged-Out & Auth (AUTH)
 *Externally blocked on a login credential to round-trip the authed transitions.*
@@ -82,10 +82,10 @@
 | EDIT-04 | Phase 93 | Code-complete, awaiting device sign-off |
 | EDIT-05 | Phase 93 | Code-complete, awaiting device sign-off |
 | EDIT-06 | Phase 93 | Code-complete, awaiting device sign-off |
-| POLISH-01 | Phase 94 | Pending |
-| POLISH-02 | Phase 94 | Pending |
-| POLISH-03 | Phase 94 | Pending |
-| POLISH-04 | Phase 94 | Pending |
+| POLISH-01 | Phase 94 | Done |
+| POLISH-02 | Phase 94 | Done |
+| POLISH-03 | Phase 94 | Done |
+| POLISH-04 | Phase 94 | Done |
 | AUTH-01 | Phase 95 | Pending |
 | AUTH-02 | Phase 95 | Pending |
 
