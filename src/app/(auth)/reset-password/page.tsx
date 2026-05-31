@@ -26,7 +26,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -53,6 +53,8 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
                 required
                 minLength={6}
                 autoComplete="new-password"
+                autoCapitalize="none"
+                className="h-12 md:h-8"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -65,9 +67,11 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
                 required
                 minLength={6}
                 autoComplete="new-password"
+                autoCapitalize="none"
+                className="h-12 md:h-8"
               />
             </div>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full h-12 md:h-8">
               Update password
             </Button>
           </form>
