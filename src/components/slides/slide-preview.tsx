@@ -2430,6 +2430,12 @@ export function SlidePreview({
             style={{
               width: '100%',
               cursor: hookEditing ? 'text' : 'grab',
+              // Phase 92 (EDIT-01): kill iOS Safari's 300ms tap delay +
+              // double-tap-to-zoom on the editable text surface so the
+              // double-tap-to-edit gesture isn't consumed by the browser as a
+              // zoom (Pitfall 9). Keeps page pinch-zoom (WCAG) — only this
+              // element opts out of double-tap-zoom, not the page.
+              touchAction: 'manipulation',
               padding: '4px 8px',
               borderRadius: '4px',
               textAlign: hookTextAlign,
@@ -2757,6 +2763,10 @@ export function SlidePreview({
               style={{
                 width: '100%',
                 cursor: bodyEditing ? 'text' : 'grab',
+                // Phase 92 (EDIT-01): see hook wrapper — disable iOS
+                // double-tap-zoom / 300ms delay on the editable surface
+                // (Pitfall 9); page pinch-zoom preserved.
+                touchAction: 'manipulation',
                 padding: '4px 8px',
                 borderRadius: '4px',
                 textAlign: bodyTextAlign,
@@ -3120,6 +3130,10 @@ export function SlidePreview({
                 style={{
                   width: '100%',
                   cursor: isEditing ? 'text' : 'grab',
+                  // Phase 92 (EDIT-01): see hook wrapper — disable iOS
+                  // double-tap-zoom / 300ms delay on the editable surface
+                  // (Pitfall 9); page pinch-zoom preserved.
+                  touchAction: 'manipulation',
                   padding: '4px 8px',
                   borderRadius: '4px',
                   textAlign: ct.text_align ?? 'left',
