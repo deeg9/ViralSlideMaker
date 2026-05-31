@@ -36,8 +36,8 @@
 ### Logged-Out & Auth (AUTH)
 *Externally blocked on a login credential to round-trip the authed transitions.*
 
-- [ ] **AUTH-01**: The logged-out landing page (`/`) is fully mobile-optimized at 393px — audited and fixed.
-- [ ] **AUTH-02**: The auth screens (login, signup, onboarding/username, forgot/reset password) are fully mobile-optimized at 393px with mobile-correct form ergonomics (input types, autocomplete, ≥16px fonts, sticky submit).
+- [~] **AUTH-01**: The logged-out landing page (`/`) is fully mobile-optimized at 393px — audited and fixed. *(Phase 95 code-complete 2026-05-31: mobile padding/spacing/heading-scale gated behind `md:`, 44px nav CTAs, no overflow, 3D robot stays `hidden md:flex`. Awaiting orchestrator 393px logged-out visual check.)*
+- [~] **AUTH-02**: The auth screens (login, signup, onboarding/username, forgot/reset password) are fully mobile-optimized at 393px with mobile-correct form ergonomics (input types, autocomplete, ≥16px fonts, sticky submit). *(Phase 95 code-complete 2026-05-31: `min-h-dvh` + safe-area submit clearance, every input/button 48px on mobile (`h-12 md:h-8`), email `inputMode/autoCapitalize/autoCorrect/spellCheck`, password `autoCapitalize=none`, the lone <16px custom username input fixed to 16px on mobile. Awaiting visual check; live auth round-trip smoke deferred to a credentialed human.)*
 
 ---
 
@@ -86,8 +86,8 @@
 | POLISH-02 | Phase 94 | Done |
 | POLISH-03 | Phase 94 | Done |
 | POLISH-04 | Phase 94 | Done |
-| AUTH-01 | Phase 95 | Pending |
-| AUTH-02 | Phase 95 | Pending |
+| AUTH-01 | Phase 95 | Code-complete, awaiting 393px visual check |
+| AUTH-02 | Phase 95 | Code-complete, awaiting 393px visual check (live auth round-trip deferred — credential) |
 
 **Coverage:** 16/16 v2.17 requirements mapped to exactly one phase. No orphans, no duplicates.
 
