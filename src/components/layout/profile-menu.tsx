@@ -115,7 +115,7 @@ export function ProfileMenu({ userName, creditDisplay }: ProfileMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Open profile menu"
-        className="w-8 h-8 rounded-full bg-[#fadbdb] flex items-center justify-center transition-transform active:scale-95"
+        className="tap-44 w-8 h-8 rounded-full bg-[#fadbdb] flex items-center justify-center transition-transform active:scale-95"
       >
         <Icon name="person" size="sm" className="text-[#3d0000]" />
       </button>
