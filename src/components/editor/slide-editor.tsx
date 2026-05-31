@@ -1726,10 +1726,10 @@ export function SlideEditor({
       />
       <button
         onClick={() => setExportDialogOpen(true)}
-        className="flex-1 min-w-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs"
+        className="shrink-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 transition-all text-xs whitespace-nowrap"
       >
         <Icon name="download" size="sm" />
-        <span className="truncate">Export</span>
+        <span>Export</span>
       </button>
     </>
   )
