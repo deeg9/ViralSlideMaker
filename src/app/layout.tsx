@@ -21,10 +21,15 @@ export const metadata: Metadata = {
 // ONLY App-Router-supported way to populate env(safe-area-inset-*). Until this
 // ships, every safe-area inset reads 0 and the fixed bottom nav collides with
 // the home indicator. Never set userScalable:false / maximumScale (WCAG 1.4.4).
+// Phase 93 (EDIT-01): interactiveWidget:'resizes-visual' makes the iOS soft
+// keyboard shrink the *visual* viewport (rather than overlay it), so the
+// `bottom-0`-anchored bottom sheet + scrollIntoView keep the edited field above
+// the keyboard inside the `fixed inset-0` dvh editor shell.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  interactiveWidget: 'resizes-visual',
 }
 
 export default function RootLayout({

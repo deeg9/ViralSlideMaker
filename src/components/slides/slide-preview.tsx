@@ -66,6 +66,7 @@ import { elementsInRect } from '@/lib/editor/transforms/element-rect-intersect'
 import { applyAxisConstrain } from '@/lib/editor/transforms/axis-constrain'
 import { MarqueeOverlay } from '@/components/editor/marquee-overlay'
 import { useModifierState } from '@/lib/editor/use-modifier-state'
+import { createTapTracker, focusEditableSynchronously } from '@/lib/editor/touch-edit'
 import type { Selection } from '@/lib/editor/use-selection-model'
 // Phase 45 — shared resolver that guarantees the React preview renders overlay
 // content + slot anchors + per-segment highlight pills with the SAME source as
@@ -677,6 +678,12 @@ export function SlidePreview({
   // centre − height/2. `null` until the first layout-effect measure pass.
   const [hookCenteredTopPct, setHookCenteredTopPct] = useState<number | null>(null)
   const customTextRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  // Phase 93 (EDIT-01): per-surface tap-vs-drag trackers. A touch tap (<10px
+  // move) on a text wrapper enters edit mode + focuses synchronously inside the
+  // gesture (iOS keyboard summon); a larger move is a drag react-rnd owns.
+  const hookTapRef = useRef(createTapTracker())
+  const bodyTapRef = useRef(createTapTracker())
+  const customTextTapRefs = useRef<Record<string, ReturnType<typeof createTapTracker>>>({})
   // phase-59-01: capture pre-drag width+fontSize on resize start so 59-02 can
   // compute widthRatio = newWidthPx / oldWidthPx in onResizeStop. Per-role
   // refs prevent cross-talk when multiple boxes coexist on a slide.
@@ -2427,6 +2434,21 @@ export function SlidePreview({
           <div
             ref={hookRef}
             data-testid="hook-text-wrapper"
+            // Phase 93 (EDIT-01): single-tap-to-edit on TOUCH. We record the
+            // pointer-down position and, on a tap (<10px move), enter edit mode
+            // AND focus the contentEditable SYNCHRONOUSLY in this gesture so iOS
+            // Safari opens the soft keyboard (the deferred-focus effect alone
+            // does not summon it — Phase 92 diagnosis #2). A larger move is a
+            // drag, owned by react-rnd. Mouse is untouched (gated on touch).
+            onPointerDown={(e) => hookTapRef.current.onDown(e.nativeEvent)}
+            onPointerUp={(e) => {
+              if (!hookTapRef.current.wasTouchTap(e.nativeEvent)) return
+              const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+              if (!hookBox || hookLocked || !onTextBoxTextEdit) return
+              if (editingHookBodyId === hookBox.id) return
+              setEditingHookBodyId(hookBox.id)
+              focusEditableSynchronously(hookRef.current)
+            }}
             style={{
               width: '100%',
               cursor: hookEditing ? 'text' : 'grab',
@@ -2760,6 +2782,16 @@ export function SlidePreview({
             <div
               ref={bodyRef}
               data-testid="body-text-wrapper"
+              // Phase 93 (EDIT-01): single-tap-to-edit on touch (see hook).
+              onPointerDown={(e) => bodyTapRef.current.onDown(e.nativeEvent)}
+              onPointerUp={(e) => {
+                if (!bodyTapRef.current.wasTouchTap(e.nativeEvent)) return
+                const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+                if (!bodyBox || bodyLocked || !onTextBoxTextEdit) return
+                if (editingHookBodyId === bodyBox.id) return
+                setEditingHookBodyId(bodyBox.id)
+                focusEditableSynchronously(bodyRef.current)
+              }}
               style={{
                 width: '100%',
                 cursor: bodyEditing ? 'text' : 'grab',
@@ -3126,6 +3158,21 @@ export function SlidePreview({
                   if (isEditing && el) {
                     requestAnimationFrame(() => el.focus())
                   }
+                }}
+                // Phase 93 (EDIT-01): single-tap-to-edit on touch (see hook).
+                // The editable surface IS this div (no inner child), so
+                // focusEditableSynchronously focuses the host itself.
+                onPointerDown={(e) => {
+                  ;(customTextTapRefs.current[ct.id] ??= createTapTracker()).onDown(
+                    e.nativeEvent,
+                  )
+                }}
+                onPointerUp={(e) => {
+                  const tracker = customTextTapRefs.current[ct.id]
+                  if (!tracker?.wasTouchTap(e.nativeEvent)) return
+                  if (ctLocked || editingCustomTextId === ct.id) return
+                  setEditingCustomTextId(ct.id)
+                  focusEditableSynchronously(customTextRefs.current[ct.id])
                 }}
                 style={{
                   width: '100%',
