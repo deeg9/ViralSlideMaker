@@ -353,7 +353,7 @@ export function GenerationForm({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={busy || selectedFiles.length >= MAX_UPLOADS}
-                  className="flex items-center justify-center h-8 w-8 rounded-lg text-[#7d6161] hover:text-[#3d0000] hover:bg-[#fff0f0] transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="tap-44 flex items-center justify-center h-8 w-8 rounded-lg text-[#7d6161] hover:text-[#3d0000] hover:bg-[#fff0f0] transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Attach photos for the slideshow"
                   title="Attach photos for the slideshow"
                 >
@@ -364,7 +364,7 @@ export function GenerationForm({
                   type="submit"
                   data-onboarding-id="generate-button"
                   disabled={!canSubmit}
-                  className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all active:scale-95 ${
+                  className={`tap-44 flex items-center justify-center h-8 w-8 rounded-xl transition-all active:scale-95 ${
                     canSubmit
                       ? 'bg-[#3d0000] text-white hover:opacity-90 shadow-sm'
                       : 'bg-[#3d0000]/25 text-white/70 cursor-not-allowed'
@@ -560,6 +560,26 @@ export function GenerationForm({
                     <span className="text-[10px] text-[#7d6161]">Text only</span>
                   </button>
                 </div>
+                {/* Upload-your-own: surfaces the file picker the prompt "+"
+                    already drives, but as a discoverable, thumb-sized button.
+                    Uploaded photos are placed on the most relevant slides; the
+                    source tiles above fill the rest. */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={busy || selectedFiles.length >= MAX_UPLOADS}
+                  className="mt-3 w-full flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl border-2 border-dashed border-[#dbc1bc]/60 bg-white text-[#3d0000] text-sm font-semibold transition-all hover:border-[#3d0000]/40 hover:bg-[#fff0f0] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Icon name="upload" size="md" />
+                  {selectedFiles.length > 0
+                    ? `${selectedFiles.length} photo${selectedFiles.length === 1 ? '' : 's'} attached`
+                    : 'Upload your own photos'}
+                </button>
+                {selectedFiles.length > 0 ? (
+                  <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
+                    Your photos go on the most relevant slides; the rest use the source above.
+                  </p>
+                ) : null}
                 {imageSource === 'ai' && (
                   <p className="text-[10px] text-[#7d6161] mt-2 ml-1">
                     Uses ~{slideCount} credits for AI backgrounds. Takes ~{Math.ceil(slideCount / 2) * 10}-{Math.ceil(slideCount / 2) * 15}s. Slides that fail will use stock photos instead.
