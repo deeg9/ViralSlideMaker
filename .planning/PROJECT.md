@@ -11,7 +11,22 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 ## Current State
 
 **Latest Shipped:** v2.16 Picker Polish & Brand-Kit Shelving (2026-05-21)
-**Current Milestone:** None — run `/gsd-new-milestone` to scope the next cycle.
+**Current Milestone:** v2.17 Mobile Optimization (in progress — started 2026-05-31)
+
+---
+
+## Current Milestone: v2.17 Mobile Optimization
+
+**Goal:** Make the entire app feel native-quality on an iPhone 15 (393px) — every surface mobile-first, with the slide editor genuinely usable for touch editing.
+
+**Target features:**
+- Cross-cutting foundation — `viewport-fit=cover` + iOS safe-area insets; global 44px tap-target compliance; input contrast / a11y.
+- Editor mobile pass — rework the editor's vertical chrome so the canvas has room; verify & repair the touch text-editing flow (the #1 risk).
+- App-wide mobile-first re-examination — layout, spacing, typography scale, and gestures across all surfaces.
+- Logged-out pass — landing page + auth (login / signup / onboarding / reset) at 393px. *Dependency: a login credential to round-trip these.*
+- Minor polish — settings sub-nav affordance; template-picker discoverability.
+
+**Grounding:** Empirical iPhone-15 Playwright audit at `.planning/mobile-audit/` (AUDIT.md + screenshots). Most public/view surfaces already reflow cleanly with zero horizontal overflow; the editor, iOS safe-areas, and sub-44px tap targets are the concentrated work.
 
 ---
 

@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.16
-milestone_name: Picker Polish & Brand-Kit Shelving
-status: Awaiting next milestone
-stopped_at: "Roadmap created for v2.16 (Phases 89–90). Phase 89 — Brand-Kit Shelving (Full Removal, BKSHELVE-01..09); Phase 90 — Pre-Rendered Template Preview Pipeline (PREVIEW-01..05). 14/14 requirements mapped, no orphans. Next step: `/gsd-plan-phase 89` to begin planning Phase 89."
-last_updated: "2026-05-21T04:09:07.982Z"
-last_activity: 2026-05-21 — Milestone v2.16 completed and archived
+milestone: v2.17
+milestone_name: Mobile Optimization
+status: planning
+last_updated: "2026-05-31T17:40:19.848Z"
+last_activity: 2026-05-31
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -26,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-21 — after v2.16 milestone)
 
 ## Current Position
 
-Phase: Milestone v2.16 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-21 — Milestone v2.16 completed and archived
+Status: Defining requirements
+Last activity: 2026-05-31 — Milestone v2.17 started
 
 ## Roadmap — v2.16 (Phases 89–90) ✅ SHIPPED
 
