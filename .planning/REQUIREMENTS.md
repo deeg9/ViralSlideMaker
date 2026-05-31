@@ -19,7 +19,7 @@
 ### Mobile Editor (EDIT)
 *The concentrated work. EDIT-01 is a gate that must pass before the rest is built.*
 
-- [ ] **EDIT-01**: A user can tap a text element on a slide and edit its text on touch (iOS), with the on-screen keyboard not covering the field being edited. *(GATE — verify on real device, repair if broken, before building EDIT-02/03.)*
+- [~] **EDIT-01**: A user can tap a text element on a slide and edit its text on touch (iOS), with the on-screen keyboard not covering the field being edited. *(GATE — Phase 92 diagnosed the path + applied a conservative `touch-action:manipulation` repair; **code-ready, awaiting physical-iPhone sign-off**. Diagnosis flags deferred-`.focus()` (likely keyboard-summon break) and keyboard-occlusion as the two on-device risks — see 92-VERIFICATION.md device checklist. NOT fully complete until device pass.)*
 - [ ] **EDIT-02**: On a phone the slide canvas is the dominant element — editor chrome collapses so the canvas is not squeezed by stacked panels (filmstrip + Layers + canvas + tabs + bars).
 - [ ] **EDIT-03**: Editing tool panels (Text / Elements / Images and their controls) are reachable on mobile via thumb-friendly bottom sheets (re-hosting existing rails; no rebuild).
 - [ ] **EDIT-04**: A user can navigate between slides on mobile via the filmstrip with a clear scroll/selection affordance (no hidden horizontal scroll).
@@ -76,7 +76,7 @@
 | FOUND-02 | Phase 91 | Code complete (device-confirm pending) |
 | FOUND-03 | Phase 91 | Satisfied |
 | FOUND-04 | Phase 91 | Satisfied |
-| EDIT-01 | Phase 92 | Pending |
+| EDIT-01 | Phase 92 | Code-ready, awaiting device sign-off (GATE) |
 | EDIT-02 | Phase 93 | Pending |
 | EDIT-03 | Phase 93 | Pending |
 | EDIT-04 | Phase 93 | Pending |
