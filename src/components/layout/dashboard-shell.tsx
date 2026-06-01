@@ -28,7 +28,7 @@ export function DashboardShell({ userName, creditDisplay, children }: { userName
           <TopNavbar variant="app" userName={userName} creditDisplay={creditDisplay} />
         )}
         <main className={isFullBleed ? 'flex-1 min-h-0 overflow-y-auto' : ''}>
-          <div className={isFullBleed ? '' : 'px-8 py-8 max-w-screen-2xl mx-auto pb-24 md:pb-8'}>
+          <div className={isFullBleed ? 'h-full' : 'px-8 py-8 max-w-screen-2xl mx-auto pb-24 md:pb-8'}>
             {children}
           </div>
         </main>
