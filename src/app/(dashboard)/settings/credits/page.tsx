@@ -67,7 +67,11 @@ export default async function CreditsPage() {
             <p>No credit transactions yet.</p>
           </div>
         ) : (
-          <table className="w-full">
+          // bug-260531: a 4-column table doesn't fit 393px and the parent's
+          // overflow-hidden clips it; scroll horizontally on mobile (min-w keeps
+          // the columns readable).
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[34rem]">
             <thead>
               <tr className="text-left text-[0.75rem] font-bold uppercase tracking-widest text-[#7d6161]">
                 <th className="px-6 py-3">Date</th>
@@ -95,6 +99,7 @@ export default async function CreditsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

@@ -66,6 +66,7 @@ import { elementsInRect } from '@/lib/editor/transforms/element-rect-intersect'
 import { applyAxisConstrain } from '@/lib/editor/transforms/axis-constrain'
 import { MarqueeOverlay } from '@/components/editor/marquee-overlay'
 import { useModifierState } from '@/lib/editor/use-modifier-state'
+import { createTapTracker, focusEditableSynchronously } from '@/lib/editor/touch-edit'
 import type { Selection } from '@/lib/editor/use-selection-model'
 // Phase 45 — shared resolver that guarantees the React preview renders overlay
 // content + slot anchors + per-segment highlight pills with the SAME source as
@@ -90,10 +91,29 @@ import {
   type OverlayResolveCtx,
 } from '@/lib/render/resolve-overlay'
 import type { TemplateOverlay } from '@/lib/render/templates/index'
+// Phase 90: carousel output format — drives the dynamic canvas height.
+import {
+  CAROUSEL_FORMATS,
+  scaleFontPx,
+  type CarouselFormat,
+  type CarouselFormatId,
+} from '@/lib/render/carousel-formats'
 
-// Reference canvas dimensions (matches TikTok/Instagram 9:16)
+// Reference canvas WIDTH — always 1080 across every format (only the canvas
+// HEIGHT varies by carousel format; the per-component REF_HEIGHT is derived
+// from the `format` prop inside SlidePreview).
 const REF_WIDTH = 1080
-const REF_HEIGHT = 1920
+
+// Phase 90: Tailwind aspect-ratio utility per format. Static class strings —
+// NOT interpolated — so Tailwind's JIT scanner generates each one. `tiktok`
+// maps to `aspect-[9/16]`, byte-identical to the pre-Phase-90 markup, so every
+// legacy SlidePreview snapshot stays green. Exported so the slide-list
+// thumbnail wrapper (sortable-slide.tsx) reuses the exact same mapping.
+export const ASPECT_CLASS: Record<CarouselFormatId, string> = {
+  tiktok: 'aspect-[9/16]',
+  instagram: 'aspect-[4/5]',
+  square: 'aspect-[1/1]',
+}
 
 // GAP-F (82-10): the editable headline <Rnd>'s inner `hook-text-wrapper` div
 // applies `padding: '4px 8px'`. The 8px horizontal padding each side narrows
@@ -152,6 +172,8 @@ interface BackgroundLayersProps {
   slide: Slide
   overlayOpacity: number
   overlayColor: string
+  // Phase 90: canvas dimensions for the full-canvas grain/vignette overlays.
+  format: CarouselFormat
 }
 
 function BackgroundLayers({
@@ -159,6 +181,7 @@ function BackgroundLayers({
   slide,
   overlayOpacity,
   overlayColor,
+  format,
 }: BackgroundLayersProps) {
   // No useBgMode guard needed — caller already gates on useBgMode via ternary
   return (
@@ -183,7 +206,9 @@ function BackgroundLayers({
       {/* Phase 55 (D-13, layer 1.5): grain/noise overlay — only when template opts in.
           Imported from @/lib/render/resolve-overlay (TPLREND-05 — same module as the
           Satori renderer at src/lib/render/render-slide-satori.tsx). */}
-      {template.grainMode ? renderGrain(template.grainMode) : null}
+      {template.grainMode
+        ? renderGrain(template.grainMode, undefined, { W: format.w, H: format.h })
+        : null}
       {/* Tint overlay — paints above the photo for tonal control of B&W treatments */}
       <div
         style={{
@@ -197,7 +222,9 @@ function BackgroundLayers({
       {/* Phase 55 (D-13, layer 2.5): radial vignette — only when template opts in.
           Imported from @/lib/render/resolve-overlay (TPLREND-05 — same module as the
           Satori renderer). Sits ABOVE tint, BELOW hook/body text + overlays. */}
-      {template.vignette ? renderVignette(template.vignette.strength) : null}
+      {template.vignette
+        ? renderVignette(template.vignette.strength, { W: format.w, H: format.h })
+        : null}
     </>
   )
 }
@@ -262,9 +289,12 @@ function CaptionCardLayer({
 interface OverlayLayersProps {
   template: SlideTemplate
   ctx: OverlayResolveCtx
+  // Phase 90: active carousel format — scales decorative/free-slot offsets and
+  // sizes the full-canvas paper-frame asset.
+  format: CarouselFormat
 }
 
-function OverlayLayers({ template, ctx }: OverlayLayersProps) {
+function OverlayLayers({ template, ctx, format }: OverlayLayersProps) {
   if (!template.overlays || template.overlays.length === 0) return null
   return (
     <>
@@ -280,7 +310,12 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
         // asset via the shared renderDecorativeOverlay helper — both renderers
         // consume the same module (TPLREND-05 parity invariant).
         if (overlay.content.type === 'decorative') {
-          const pos = { x: overlay.offset?.x ?? 0, y: overlay.offset?.y ?? 0 }
+          // Phase 90: y offset is an absolute 1920-ref position — scale it for
+          // a shorter canvas; x is unscaled (width is always 1080).
+          const pos = {
+            x: overlay.offset?.x ?? 0,
+            y: scaleFontPx(overlay.offset?.y ?? 0, format),
+          }
           // Phase 57 (D-15): notes-app-chic palette tint for sticky-note-accent
           const tintColor =
             overlay.content.asset === 'sticky-note-accent'
@@ -293,7 +328,7 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
                 scale: overlay.content.scale,
                 opacity: overlay.content.opacity,
                 tintColor,
-              })}
+              }, undefined, { W: format.w, H: format.h })}
             </React.Fragment>
           )
         }
@@ -308,7 +343,8 @@ function OverlayLayers({ template, ctx }: OverlayLayersProps) {
             ? {
                 position: 'absolute',
                 left: offset?.x ?? 0,
-                top: offset?.y ?? 0,
+                // Phase 90: free-slot top is an absolute 1920-ref position.
+                top: scaleFontPx(offset?.y ?? 0, format),
               }
             : {
                 position: 'absolute',
@@ -578,6 +614,25 @@ interface SlidePreviewProps {
    * its drag/resize no-ops — acceptable, those callers are not interactive.
    */
   onCaptionBarUpdate?: (updates: Partial<SlideStyleOverrides>) => void
+  /**
+   * Click-to-focus: fired when the user clicks the caption card on the canvas.
+   * slide-editor wires this to switch the right rail to the ELEMENTS tab and
+   * flash the Caption Card controls. The caption card is intentionally NOT a
+   * selection-model element (it has no id), so it needs its own callback.
+   * Optional — non-editor callers omit it.
+   */
+  onCaptionCardSelect?: () => void
+  /**
+   * Click-to-focus: fired when the user clicks the watermark on the canvas.
+   * slide-editor wires this to switch to the ELEMENTS tab and flash the
+   * Watermark controls. When omitted (non-editor / export renders) the
+   * watermark stays non-interactive (`pointerEvents: 'none'`).
+   */
+  onWatermarkSelect?: () => void
+  // Phase 90: carousel output format. Optional — defaults to `tiktok`
+  // (1080×1920) so every legacy caller / test renders at the historical size.
+  // Drives the canvas height (REF_HEIGHT) and the wrapper aspect ratio.
+  format?: CarouselFormat
 }
 
 export function SlidePreview({
@@ -604,7 +659,15 @@ export function SlidePreview({
   onDecorationPositionChange,
   onDecorationSizeChange,
   onCaptionBarUpdate,
+  onCaptionCardSelect,
+  onWatermarkSelect,
+  format = CAROUSEL_FORMATS.tiktok,
 }: SlidePreviewProps) {
+  // Phase 90: reference canvas HEIGHT for this carousel's format. Width is
+  // always REF_WIDTH (1080); only the height varies (1920 / 1350 / 1080). All
+  // %↔px conversions below use this — drag/resize math stays correct because
+  // the editor canvas is rendered at exactly this height.
+  const REF_HEIGHT = format.h
   const containerRef = useRef<HTMLDivElement>(null)
   const hookRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -615,6 +678,12 @@ export function SlidePreview({
   // centre − height/2. `null` until the first layout-effect measure pass.
   const [hookCenteredTopPct, setHookCenteredTopPct] = useState<number | null>(null)
   const customTextRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  // Phase 93 (EDIT-01): per-surface tap-vs-drag trackers. A touch tap (<10px
+  // move) on a text wrapper enters edit mode + focuses synchronously inside the
+  // gesture (iOS keyboard summon); a larger move is a drag react-rnd owns.
+  const hookTapRef = useRef(createTapTracker())
+  const bodyTapRef = useRef(createTapTracker())
+  const customTextTapRefs = useRef<Record<string, ReturnType<typeof createTapTracker>>>({})
   // phase-59-01: capture pre-drag width+fontSize on resize start so 59-02 can
   // compute widthRatio = newWidthPx / oldWidthPx in onResizeStop. Per-role
   // refs prevent cross-talk when multiple boxes coexist on a slide.
@@ -1089,7 +1158,10 @@ export function SlidePreview({
 
   const hookTextStyle: React.CSSProperties = {
     // Phase 82 Gap D: caption-card-aware re-fit (= hookFontSize when no card).
-    fontSize: `${newsHeadlineFontSize}px`,
+    // Phase 90: scaled by the format height ratio at the DISPLAY point only —
+    // `newsHeadlineFontSize` itself stays unscaled so the resize handlers
+    // (hookResizeStartRef) ratio against the stored value, never double-scale.
+    fontSize: `${scaleFontPx(newsHeadlineFontSize, format)}px`,
     fontFamily: hookFontFamily,
     fontWeight: hookFontWeight,
     // quick-260515-nhf: italic still honors the per-override hook_font_style
@@ -1117,7 +1189,8 @@ export function SlidePreview({
     justifyContent: alignToJustifyContent(hookTextAlign),
   }
   const bodyTextStyle: React.CSSProperties = {
-    fontSize: `${bodyFontSize}px`,
+    // Phase 90: format-scaled at the display point only (see hookTextStyle).
+    fontSize: `${scaleFontPx(bodyFontSize, format)}px`,
     fontFamily: bodyFontFamily,
     fontWeight: bodyFontWeight,
     fontStyle: bodyFontStyle === 'italic' ? 'italic' : undefined,
@@ -1324,7 +1397,7 @@ export function SlidePreview({
       <div
         ref={containerRef}
         data-testid="slide-preview"
-        className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
+        className={`relative rounded-lg overflow-hidden ${ASPECT_CLASS[format.id]} w-full`}
         style={{ backgroundColor: template.backgroundColor }}
       />
     )
@@ -1336,7 +1409,7 @@ export function SlidePreview({
       <div
         ref={containerRef}
         data-testid="slide-preview"
-        className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
+        className={`relative rounded-lg overflow-hidden ${ASPECT_CLASS[format.id]} w-full`}
       >
         <div style={innerStyle}>
           {/* Phase 45 layers 1-3: backgroundMode photo + tint + optional bottom-card.
@@ -1349,6 +1422,7 @@ export function SlidePreview({
               slide={slide}
               overlayOpacity={overlayOpacity}
               overlayColor={overlayColor}
+              format={format}
             />
           ) : (
             <div style={{
@@ -1371,7 +1445,7 @@ export function SlidePreview({
           {/* Phase 45 layer 4: overlay zones (chip, counter, mid pill).
               Above tint+card per CONTEXT.md Area 1; below hook so headline
               pills stay top-most. */}
-          <OverlayLayers template={template} ctx={resolveCtx} />
+          <OverlayLayers template={template} ctx={resolveCtx} format={format} />
 
           {/* Hook text — Phase 64 LOCK-07: skip when hook text_box hidden=true */}
           {!hookTextBox?.hidden && (
@@ -1709,7 +1783,7 @@ export function SlidePreview({
     <div
       ref={containerRef}
       data-testid="slide-preview"
-      className="relative rounded-lg overflow-hidden aspect-[9/16] w-full"
+      className={`relative rounded-lg overflow-hidden ${ASPECT_CLASS[format.id]} w-full`}
     >
       <div
         style={innerStyle}
@@ -1835,6 +1909,7 @@ export function SlidePreview({
             slide={slide}
             overlayOpacity={overlayOpacity}
             overlayColor={overlayColor}
+            format={format}
           />
         ) : (
           /* quick-260518-8o0: legacy news <img> retired — news photo is
@@ -1914,6 +1989,9 @@ export function SlidePreview({
               onMouseDown={(e) => {
                 e.stopPropagation()
                 setCaptionCardSelected(true)
+                // Click-to-focus: surface the Caption Card controls in the
+                // right rail so it's clear which element was picked.
+                onCaptionCardSelect?.()
               }}
               onDragStop={(_e, data) => {
                 const x = Math.max(0, Math.min(100, (data.x / REF_WIDTH) * 100))
@@ -1964,7 +2042,7 @@ export function SlidePreview({
             participates in the standard custom-text drag/edit/Layers flow). */}
 
         {/* Phase 45 layer 4: overlay zones — same DOM order as non-editable branch. */}
-        <OverlayLayers template={template} ctx={resolveCtx} />
+        <OverlayLayers template={template} ctx={resolveCtx} format={format} />
 
         {/* Resizable + Draggable hook text — Phase 64 LOCK-07: skip when hook hidden */}
         {hookTextBox?.hidden !== true && (() => {
@@ -2356,9 +2434,30 @@ export function SlidePreview({
           <div
             ref={hookRef}
             data-testid="hook-text-wrapper"
+            // Phase 93 (EDIT-01): single-tap-to-edit on TOUCH. We record the
+            // pointer-down position and, on a tap (<10px move), enter edit mode
+            // AND focus the contentEditable SYNCHRONOUSLY in this gesture so iOS
+            // Safari opens the soft keyboard (the deferred-focus effect alone
+            // does not summon it — Phase 92 diagnosis #2). A larger move is a
+            // drag, owned by react-rnd. Mouse is untouched (gated on touch).
+            onPointerDown={(e) => hookTapRef.current.onDown(e.nativeEvent)}
+            onPointerUp={(e) => {
+              if (!hookTapRef.current.wasTouchTap(e.nativeEvent)) return
+              const hookBox = slide.text_boxes?.find((tb) => tb.role === 'hook')
+              if (!hookBox || hookLocked || !onTextBoxTextEdit) return
+              if (editingHookBodyId === hookBox.id) return
+              setEditingHookBodyId(hookBox.id)
+              focusEditableSynchronously(hookRef.current)
+            }}
             style={{
               width: '100%',
               cursor: hookEditing ? 'text' : 'grab',
+              // Phase 92 (EDIT-01): kill iOS Safari's 300ms tap delay +
+              // double-tap-to-zoom on the editable text surface so the
+              // double-tap-to-edit gesture isn't consumed by the browser as a
+              // zoom (Pitfall 9). Keeps page pinch-zoom (WCAG) — only this
+              // element opts out of double-tap-zoom, not the page.
+              touchAction: 'manipulation',
               padding: '4px 8px',
               borderRadius: '4px',
               textAlign: hookTextAlign,
@@ -2683,9 +2782,23 @@ export function SlidePreview({
             <div
               ref={bodyRef}
               data-testid="body-text-wrapper"
+              // Phase 93 (EDIT-01): single-tap-to-edit on touch (see hook).
+              onPointerDown={(e) => bodyTapRef.current.onDown(e.nativeEvent)}
+              onPointerUp={(e) => {
+                if (!bodyTapRef.current.wasTouchTap(e.nativeEvent)) return
+                const bodyBox = slide.text_boxes?.find((tb) => tb.role === 'body')
+                if (!bodyBox || bodyLocked || !onTextBoxTextEdit) return
+                if (editingHookBodyId === bodyBox.id) return
+                setEditingHookBodyId(bodyBox.id)
+                focusEditableSynchronously(bodyRef.current)
+              }}
               style={{
                 width: '100%',
                 cursor: bodyEditing ? 'text' : 'grab',
+                // Phase 92 (EDIT-01): see hook wrapper — disable iOS
+                // double-tap-zoom / 300ms delay on the editable surface
+                // (Pitfall 9); page pinch-zoom preserved.
+                touchAction: 'manipulation',
                 padding: '4px 8px',
                 borderRadius: '4px',
                 textAlign: bodyTextAlign,
@@ -3046,9 +3159,28 @@ export function SlidePreview({
                     requestAnimationFrame(() => el.focus())
                   }
                 }}
+                // Phase 93 (EDIT-01): single-tap-to-edit on touch (see hook).
+                // The editable surface IS this div (no inner child), so
+                // focusEditableSynchronously focuses the host itself.
+                onPointerDown={(e) => {
+                  ;(customTextTapRefs.current[ct.id] ??= createTapTracker()).onDown(
+                    e.nativeEvent,
+                  )
+                }}
+                onPointerUp={(e) => {
+                  const tracker = customTextTapRefs.current[ct.id]
+                  if (!tracker?.wasTouchTap(e.nativeEvent)) return
+                  if (ctLocked || editingCustomTextId === ct.id) return
+                  setEditingCustomTextId(ct.id)
+                  focusEditableSynchronously(customTextRefs.current[ct.id])
+                }}
                 style={{
                   width: '100%',
                   cursor: isEditing ? 'text' : 'grab',
+                  // Phase 92 (EDIT-01): see hook wrapper — disable iOS
+                  // double-tap-zoom / 300ms delay on the editable surface
+                  // (Pitfall 9); page pinch-zoom preserved.
+                  touchAction: 'manipulation',
                   padding: '4px 8px',
                   borderRadius: '4px',
                   textAlign: ct.text_align ?? 'left',
@@ -3723,6 +3855,14 @@ export function SlidePreview({
               src={wm.url}
               draggable={false}
               alt=""
+              onMouseDown={
+                onWatermarkSelect
+                  ? (e) => {
+                      e.stopPropagation()
+                      onWatermarkSelect()
+                    }
+                  : undefined
+              }
               style={{
                 position: 'absolute',
                 left: wm.x,
@@ -3731,7 +3871,10 @@ export function SlidePreview({
                 height: 'auto',
                 opacity: wm.opacity,
                 zIndex: 18,
-                pointerEvents: 'none',
+                // Click-to-focus: interactive only in the editor (when the
+                // callback is wired). Export / non-editor renders stay inert.
+                pointerEvents: onWatermarkSelect ? 'auto' : 'none',
+                cursor: onWatermarkSelect ? 'pointer' : undefined,
                 userSelect: 'none',
               }}
             />
@@ -3744,6 +3887,14 @@ export function SlidePreview({
           if (!fw) return null
           return (
             <div
+              onMouseDown={
+                onWatermarkSelect
+                  ? (e) => {
+                      e.stopPropagation()
+                      onWatermarkSelect()
+                    }
+                  : undefined
+              }
               style={{
                 position: 'absolute',
                 left: fw.x,
@@ -3752,7 +3903,10 @@ export function SlidePreview({
                 alignItems: 'center',
                 opacity: fw.opacity,
                 zIndex: 19,
-                pointerEvents: 'none',
+                // Click-to-focus: interactive only in the editor (when the
+                // callback is wired). Export / non-editor renders stay inert.
+                pointerEvents: onWatermarkSelect ? 'auto' : 'none',
+                cursor: onWatermarkSelect ? 'pointer' : undefined,
                 userSelect: 'none',
               }}
             >

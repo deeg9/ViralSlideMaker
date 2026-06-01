@@ -2,6 +2,7 @@
 
 ## Milestones
 
+- ✅ **v2.17 Mobile Optimization** — Phases 91–95 (shipped 2026-05-31)
 - ✅ **v2.16 Picker Polish & Brand-Kit Shelving** — Phases 89–90 (shipped 2026-05-21)
 - ✅ **v2.15 DB-Backed Template Wiring** — Phases 87–88 (shipped 2026-05-19)
 - ✅ **v2.14 Save as Template** — Phases 83–86 (shipped 2026-05-19)
@@ -19,24 +20,30 @@
 - ✅ **v2.1 Text Effects** — Phases 17–19 (shipped 2026-04-07)
 - ✅ **v2.0 API & MCP Platform** — Phases 14–16 (shipped 2026-04-07)
 
----
+## Current Milestone
 
-## Phases (legacy view)
+None — v2.17 shipped 2026-05-31. Run `/gsd-new-milestone` to scope the next cycle.
 
-_Phases 14–90 (v2.0–v2.16) complete — see milestone archives under `.planning/milestones/`._
-
-## Progress
-
-| Phase | Milestone | Plans Complete | Status | Completed |
-| ----- | --------- | -------------- | ------ | --------- |
-| 89. Brand-Kit Shelving (Full Removal) | v2.16 | 4/4 | ✅ Complete | 2026-05-21 |
-| 90. Pre-Rendered Template Preview Pipeline | v2.16 | 3/3 | ✅ Complete | 2026-05-21 |
-
-_Phases 14–88 (v2.0–v2.15) complete — see milestone archives under `.planning/milestones/`._
+_Phases 14–95 (v2.0–v2.17) complete — see milestone archives under `.planning/milestones/`._
 
 ---
 
 ## Shipped Milestones (archived detail)
+
+<details>
+<summary>✅ v2.17 Mobile Optimization (Phases 91–95) — SHIPPED 2026-05-31</summary>
+
+Made the app mobile-first for iPhone 15 (393×852, iOS Safari) as a CSS-first retrofit with zero new heavy dependencies, grounded in an empirical Playwright audit. Status `tech_debt`: 16/16 requirements code-satisfied; **carried human-UAT** — physical-iPhone device sign-off for the editor touch flow (13-step checklist in `93-VERIFICATION.md`) + a credentialed live auth round-trip. Shipped on branch `feat/carousel-output-format` (not yet merged to main).
+
+- [x] **Phase 91: Cross-Cutting Mobile Foundation** (2/2 plans) — `viewport-fit=cover` + safe-area insets, `dvh` shells, `@utility tap-44`, input zoom/contrast. *(FOUND-01/02 device-confirm carried.)*
+- [~] **Phase 92: Editor Touch-Edit Validation Gate** (1/1) — static iOS diagnosis of the tap-to-edit path (deferred-`.focus()` + keyboard-occlusion risks) + conservative `touch-action:manipulation`; structural fix folded into Phase 93. *(Device sign-off carried.)*
+- [~] **Phase 93: Editor Mobile Layout Rework** (1/1) — `ui/sheet.tsx` on Radix Dialog, canvas-first chrome re-host (asides `hidden lg:flex`), persistent safe-area action bar, confirm-gated delete, + folded EDIT-01 gesture-synchronous single-tap-to-edit. Desktop unregressed; slide parity 121/121. *(Consolidated device sign-off carried.)*
+- [x] **Phase 94: App-Wide Mobile Polish** (1/1) — template-picker grid, settings sub-nav fade, swipeable public viewer, 393px typography. *(Playwright-verified @393px.)*
+- [x] **Phase 95: Logged-Out & Auth Mobile Pass** (1/1) — mobile-first landing + auth forms (16px inputs, `inputMode`/`autoComplete`, 48px targets), layout-only. *(Landing+login verified @393px; live round-trip carried — credential.)*
+
+Full detail: `.planning/milestones/v2.17-ROADMAP.md` · Requirements: `.planning/milestones/v2.17-REQUIREMENTS.md` · Audit: `.planning/milestones/v2.17-MILESTONE-AUDIT.md` · Device checklist: `.planning/phases/93-editor-mobile-layout-rework/93-VERIFICATION.md`
+
+</details>
 
 <details>
 <summary>✅ v2.16 Picker Polish & Brand-Kit Shelving (Phases 89–90) — SHIPPED 2026-05-21</summary>

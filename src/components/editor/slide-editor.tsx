@@ -13,8 +13,23 @@ import { ImagePickerPanel } from '@/components/editor/image-picker-panel'
 import { ElementsPanel } from '@/components/editor/elements-panel'
 import LayersPanel from '@/components/editor/layers-panel/layers-panel'
 import { Icon } from '@/components/ui/icon'
-import { downloadSlidesAsZip } from '@/lib/download/zip-slides'
 import { VisibilityDropdown } from '@/components/editor/visibility-dropdown'
+import { useMediaQuery } from '@/hooks/use-media-query'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+} from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import {
   saveSlideData,
   saveTemplateId,
@@ -24,6 +39,11 @@ import {
   createUploadUrl,
   type WatermarkSpec,
 } from '@/app/(dashboard)/project/[id]/editor-actions'
+import { ExportFormatDialog } from '@/components/editor/export-format-dialog'
+import {
+  CAROUSEL_FORMATS,
+  resolveFormat,
+} from '@/lib/render/carousel-formats'
 import { textBoxesToLegacy } from '@/lib/editor/text-box-adapter'
 import { useSelectionModel } from '@/lib/editor/use-selection-model'
 import { isEditingTarget } from '@/lib/editor/keyboard-utils'
@@ -89,6 +109,9 @@ interface SlideEditorProps {
    *  list (code templates still resolve via the sync getTemplate registry).
    *  Defaults to [] so existing callers / tests are unaffected. */
   dbTemplates?: PickerDbTemplate[]
+  /** Phase 90: stored carousel output format (projects.output_format).
+   *  Absent/null on legacy projects → resolves to `tiktok` (1080×1920). */
+  initialOutputFormat?: string | null
 }
 
 export function SlideEditor({
@@ -100,6 +123,7 @@ export function SlideEditor({
   userTier,
   initialPublishedState,
   dbTemplates = [],
+  initialOutputFormat,
 }: SlideEditorProps) {
   // quick-260520-064: resolve the initial template once at mount and thread
   // it into useSlideEditor so the adapter's D1 fallback (inject a 'BREAKING
@@ -124,6 +148,12 @@ export function SlideEditor({
     removeTextBox,
   } = useSlideEditor(initialSlides, initialTemplateForMigration)
   const [currentTemplateId, setCurrentTemplateId] = useState(templateId)
+  // Phase 90: the carousel's display format — derived once from the stored
+  // value (legacy projects → `tiktok`, new projects → `instagram`). Drives the
+  // live preview canvas. The aspect ratio of the *export* is chosen separately
+  // in the Export dialog, so this is fixed for the lifetime of the editor.
+  const formatId = resolveFormat(initialOutputFormat).id
+  const format = CAROUSEL_FORMATS[formatId]
   // Phase 88 (WIRE-03): resolve currentTemplateId. A code template id resolves
   // via the sync getTemplate registry. A DB template id (not in TEMPLATE_IDS)
   // resolves from the server-fetched dbTemplates list; if not found there
@@ -137,8 +167,14 @@ export function SlideEditor({
       : (dbMatch?.template ?? getTemplate(currentTemplateId))
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [activeTab, setActiveTab] = useState<'text' | 'elements' | 'images'>('text')
+  // Phase 93 (EDIT-03/EDIT-05): mobile bottom-sheet visibility. The tool sheet
+  // hosts the TEXT/ELEMENTS/IMAGES rails; the layers sheet hosts LayersPanel +
+  // the spaced-away destructive slide-delete control.
+  const [toolSheetOpen, setToolSheetOpen] = useState(false)
+  const [layersSheetOpen, setLayersSheetOpen] = useState(false)
+  const [confirmDeleteSlide, setConfirmDeleteSlide] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [exporting, setExporting] = useState(false)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [selectedCustomTextId, setSelectedCustomTextId] = useState<string | null>(null)
   const [selectedCustomImageId, setSelectedCustomImageId] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -183,6 +219,56 @@ export function SlideEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDecoration?.id])
+
+  // ─── Click-to-focus: canvas element → right-rail control section ─────────
+  // When an element is clicked on the canvas, switch the panel to its tab and
+  // flash its control section so it's obvious which element was picked.
+  // `panelFocus` carries the target + an incrementing nonce; the nonce (NOT a
+  // boolean) is what lets re-clicking the SAME element re-fire the flash.
+  const [panelFocus, setPanelFocus] = useState<{
+    target: 'text' | 'caption-card' | 'watermark' | 'decoration'
+    nonce: number
+  } | null>(null)
+  const requestPanelFocus = useCallback(
+    (target: 'text' | 'caption-card' | 'watermark' | 'decoration') => {
+      setPanelFocus((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 }))
+    },
+    [],
+  )
+
+  // Switch the active tab to match the focused element. Keyed on the nonce so
+  // repeat clicks re-assert it. Caption card / watermark / decoration live in
+  // the Elements tab; text boxes in the Text tab.
+  useEffect(() => {
+    if (!panelFocus) return
+    setActiveTab(panelFocus.target === 'text' ? 'text' : 'elements')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelFocus?.nonce])
+
+  // A decoration becoming selected (canvas click OR LayersPanel) flashes its
+  // inspector card. The activeDecoration effect above handles the tab switch.
+  useEffect(() => {
+    if (activeDecoration) requestPanelFocus('decoration')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDecoration?.id])
+
+  // The watermark becoming the primary selection (e.g. via LayersPanel)
+  // flashes its controls. Canvas watermark clicks go through onWatermarkSelect.
+  useEffect(() => {
+    if (selection?.primary && selection.primary === currentSlide?.watermark?.id) {
+      requestPanelFocus('watermark')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection?.primary])
+
+  // Per-section focus nonces — `undefined` unless that section is the current
+  // target, so untargeted cards stay inert (no scroll / flash).
+  const captionCardFocusNonce =
+    panelFocus?.target === 'caption-card' ? panelFocus.nonce : undefined
+  const watermarkFocusNonce =
+    panelFocus?.target === 'watermark' ? panelFocus.nonce : undefined
+  const decorationFocusNonce =
+    panelFocus?.target === 'decoration' ? panelFocus.nonce : undefined
 
   // Phase 66 Plan 01 (DIFF-02): tracks the most recent BULK_TRANSLATE delta
   // (drag-stop OR arrow-nudge) in % of canvas. Read by the $mod+d (Cmd+D
@@ -1430,8 +1516,254 @@ export function SlideEditor({
     [selectedIndex, dispatch],
   )
 
+  // Phase 93 (EDIT-02/03/06): the editor is the SAME three children at both
+  // breakpoints; below `lg` they are re-hosted (canvas dominant, rails in a
+  // bottom Sheet, actions in a persistent bottom bar). `isDesktop` gates the
+  // JS arrangement; the desktop render path is byte-identical to before. The
+  // three tool panels, the tab triggers, and the action controls are extracted
+  // to JSX consts so they render ONCE and are reused in both arrangements (no
+  // duplication, panels re-hosted not rebuilt).
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+
+  // The three tab tool panels (TEXT / ELEMENTS / IMAGES). Reused verbatim in
+  // the desktop right-aside scroll body AND the mobile bottom Sheet body.
+  const toolPanelBody = (
+    <>
+      {currentSlide && activeTab === 'text' && (
+        useNewRail ? (
+          <TextEditorPanel
+            slide={currentSlide}
+            template={template}
+            selectedTextBoxId={selectedTextBoxId}
+            onSelectTextBox={setSelectedTextBoxId}
+            onTextBoxAction={(action) => {
+              if (action.type === 'ADD_TEXT_BOX') {
+                const newId = crypto.randomUUID()
+                dispatch({
+                  type: 'ADD_TEXT_BOX',
+                  slideIndex: selectedIndex,
+                  role: action.role,
+                  defaults: { id: newId },
+                })
+                setSelectedTextBoxId(newId)
+              } else if (action.type === 'UPDATE_TEXT_BOX') {
+                dispatch({
+                  type: 'UPDATE_TEXT_BOX',
+                  slideIndex: selectedIndex,
+                  textBoxId: action.textBoxId,
+                  updates: action.updates,
+                })
+              } else if (action.type === 'REMOVE_TEXT_BOX') {
+                removeTextBox(selectedIndex, action.textBoxId)
+              }
+            }}
+            onUpdate={handleUpdate}
+            selectedCustomTextId={selectedCustomTextId}
+            customTexts={currentSlide.custom_texts}
+            onCustomTextUpdate={handleCustomTextUpdate}
+            onCustomTextRemove={handleRemoveCustomText}
+            selection={{
+              ids: selection.ids,
+              primary: selection.primary,
+            }}
+            onBulkDelete={(ids) => {
+              dispatch({
+                type: 'BULK_DELETE',
+                slideIndex: selectedIndex,
+                ids,
+              })
+              const idSet = new Set(ids)
+              if (selectedTextBoxId && idSet.has(selectedTextBoxId)) {
+                setSelectedTextBoxId(null)
+              }
+              if (selectedCustomTextId && idSet.has(selectedCustomTextId)) {
+                setSelectedCustomTextId(null)
+              }
+              if (selectedCustomImageId && idSet.has(selectedCustomImageId)) {
+                setSelectedCustomImageId(null)
+              }
+              selection.clear()
+            }}
+          />
+        ) : (
+          <LegacyTextEditorPanel
+            slide={currentSlide}
+            template={template}
+            onUpdate={handleUpdate}
+            selectedCustomTextId={selectedCustomTextId}
+            customTexts={currentSlide.custom_texts}
+            onCustomTextUpdate={handleCustomTextUpdate}
+            onCustomTextRemove={handleRemoveCustomText}
+          />
+        )
+      )}
+      {currentSlide && activeTab === 'elements' && (
+        <ElementsPanel
+          slide={currentSlide}
+          templateTextColor={template.textColor}
+          onInsertDivider={handleInsertDivider}
+          activeDecoration={activeDecoration}
+          onDecorationUpdate={(updates) => {
+            if (!activeDecoration) return
+            dispatch({
+              type: 'UPDATE_DECORATION',
+              slideIndex: selectedIndex,
+              id: activeDecoration.id,
+              updates,
+            })
+          }}
+          onDecorationPreview={(updates) => {
+            if (!activeDecoration) return
+            dispatch({
+              type: 'UPDATE_DECORATION',
+              slideIndex: selectedIndex,
+              id: activeDecoration.id,
+              updates,
+              noHistory: true,
+            })
+          }}
+          onDecorationRemove={() => {
+            if (!activeDecoration) return
+            dispatch({
+              type: 'REMOVE_DECORATION',
+              slideIndex: selectedIndex,
+              id: activeDecoration.id,
+            })
+            selection.clear()
+          }}
+          onOpenIconPicker={() => setOpenPicker('lucide')}
+          onOpenShapePicker={() => setOpenPicker('shape')}
+          onSwapIcon={() => {
+            if (!activeDecoration || activeDecoration.kind !== 'icon') return
+            setPickerMode({ kind: 'swap-icon', targetId: activeDecoration.id })
+            setOpenPicker('lucide')
+          }}
+          onBackToLibrary={() => selection.clear()}
+          derivedPalette={currentSlide.style_overrides?.derived_palette}
+          template={template}
+          onSlideUpdate={handleUpdate}
+          onSlidePreview={(updates) =>
+            dispatch({
+              type: 'UPDATE_SLIDE',
+              index: selectedIndex,
+              updates,
+              noHistory: true,
+            })
+          }
+          userTier={userTier}
+          onSlideWatermarkChange={handleSlideWatermarkChange}
+          onWatermarkLogoUpload={handleWatermarkLogoUpload}
+          onWatermarkLogoRemove={handleWatermarkLogoRemove}
+          isWatermarkPending={isWatermarkPending}
+          captionCardFocusNonce={captionCardFocusNonce}
+          watermarkFocusNonce={watermarkFocusNonce}
+          decorationFocusNonce={decorationFocusNonce}
+        />
+      )}
+      {currentSlide && activeTab === 'images' && (
+        <ImagePickerPanel
+          slide={currentSlide}
+          slideIndex={selectedIndex}
+          projectId={projectId}
+          topic={topic}
+          onUpdate={handleUpdate}
+          onRegenerateText={handleRegenerateText}
+          onRegenerateImage={handleRegenerateImage}
+          onAddCanvasImage={handleAddCustomImage}
+        />
+      )}
+    </>
+  )
+
+  // Tab triggers (TEXT / ELEMENTS / IMAGES). On desktop these switch the inline
+  // rail; on mobile they switch tab AND open the bottom Sheet.
+  const renderTabButton = (tab: 'text' | 'elements' | 'images', label: string) => (
+    <button
+      onClick={() => {
+        setActiveTab(tab)
+        if (!isDesktop) setToolSheetOpen(true)
+      }}
+      className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+        activeTab === tab && (isDesktop || toolSheetOpen)
+          ? 'border-b-2 border-[#3d0000] text-[#3d0000]'
+          : 'text-[#7d6161] hover:bg-[#fff0f0]'
+      }`}
+    >
+      {label}
+    </button>
+  )
+
+  // Undo / Redo control pair — reused in the desktop portlet + mobile bar.
+  const undoRedoControls = (
+    <>
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+        title="Undo"
+      >
+        <Icon name="undo" size="sm" />
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
+        title="Redo"
+      >
+        <Icon name="redo" size="sm" />
+      </button>
+    </>
+  )
+
+  // Public toggle + Export — reused in the desktop portlet + mobile bar.
+  const publicExportControls = (
+    <>
+      <VisibilityDropdown
+        projectId={projectId}
+        title={title ?? 'Untitled Carousel'}
+        isPublic={!!initialPublishedState}
+        tags={initialPublishedState?.tags ?? []}
+      />
+      <button
+        onClick={() => setExportDialogOpen(true)}
+        className="shrink-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 transition-all text-xs whitespace-nowrap"
+      >
+        <Icon name="download" size="sm" />
+        <span>Export</span>
+      </button>
+    </>
+  )
+
   return (
-    <div className="flex flex-col bg-[#fff8f7] h-[calc(100vh-140px)] lg:h-[calc(100vh-80px)] overflow-hidden">
+    <div className="flex flex-col bg-[#fff8f7] h-[calc(100dvh-140px)] lg:h-[calc(100dvh-80px)] overflow-hidden">
+      {/* Phase 93 (EDIT-02): MOBILE slim top bar (below lg). The desktop left
+          aside's back/title row collapses into this thin bar so the canvas gets
+          the vertical room. Layers + the spaced-away destructive delete live in
+          the on-demand ⋯ sheet. */}
+      <div className="lg:hidden flex items-center gap-2 px-3 py-2 border-b border-[#dbc1bc]/20 shrink-0">
+        <Link
+          href="/dashboard"
+          className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors"
+          title="Back to dashboard"
+        >
+          <Icon name="arrow_back" size="sm" />
+        </Link>
+        <span className="text-xs font-semibold text-[#3d0000] truncate flex-1">
+          {title ?? 'Untitled'}
+        </span>
+        {saveStatus !== 'idle' && (
+          <span className="text-[9px] font-bold uppercase tracking-widest text-[#7d6161]">
+            {saveStatus === 'saving' ? '...' : 'Saved'}
+          </span>
+        )}
+        <button
+          onClick={() => setLayersSheetOpen(true)}
+          className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors"
+          title="Layers & slide options"
+        >
+          <Icon name="layers" size="sm" />
+        </button>
+      </div>
       {/* Three-panel layout -- no top toolbar */}
       <div
         className="grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] flex-1 min-h-0 overflow-hidden gap-0 lg:gap-3 px-0 lg:px-2 py-0 lg:py-2"
@@ -1441,14 +1773,14 @@ export function SlideEditor({
             the old "Presentation / N Slides" label was removed and the action bar
             (back, title, slide actions, help) moved from the bottom to here at the
             top — same two-row composition, same paddings, same icon-button styles. */}
-        <aside className="bg-[#fff0f0] lg:rounded-xl flex flex-col overflow-hidden">
+        <aside className="hidden lg:flex bg-[#fff0f0] lg:rounded-xl flex-col overflow-hidden">
           {/* Top actions: back, title, slide actions, help (formerly at bottom) */}
           <div className="p-3 border-b border-[#dbc1bc]/20 space-y-3">
             {/* Back + Title */}
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard"
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-colors"
                 title="Back to dashboard"
               >
                 <Icon name="arrow_back" size="sm" />
@@ -1470,7 +1802,7 @@ export function SlideEditor({
                   dispatch({ type: 'ADD_SLIDE', index: selectedIndex + 1 })
                   setSelectedIndex(selectedIndex + 1)
                 }}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
                 title="Add Slide"
               >
                 <Icon name="add" size="sm" />
@@ -1480,22 +1812,22 @@ export function SlideEditor({
                   dispatch({ type: 'DUPLICATE_SLIDE', index: selectedIndex })
                   setSelectedIndex(selectedIndex + 1)
                 }}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
                 title="Duplicate Slide"
               >
                 <Icon name="content_copy" size="sm" />
               </button>
               <button
-                onClick={() => dispatch({ type: 'REMOVE_SLIDE', index: selectedIndex })}
+                onClick={() => setConfirmDeleteSlide(true)}
                 disabled={slides.length <= 1}
-                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95 disabled:opacity-30"
+                className="tap-44 p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-95 disabled:opacity-30"
                 title="Delete Slide"
               >
                 <Icon name="delete" size="sm" />
               </button>
               <button
                 onClick={handleAddCustomText}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+                className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
                 title="Add Text Box"
               >
                 <Icon name="text_fields" size="sm" />
@@ -1516,6 +1848,7 @@ export function SlideEditor({
               onSelect={setSelectedIndex}
               userTier={userTier ?? 'free'}
               topic={topic}
+              format={format}
               onReorder={(from, to) => {
                 dispatch({ type: 'REORDER_SLIDES', from, to })
                 setSelectedIndex(to)
@@ -1542,6 +1875,7 @@ export function SlideEditor({
           onSelectIndex={setSelectedIndex}
           userTier={userTier ?? 'free'}
           topic={topic}
+          format={format}
           onPositionChange={handlePositionChange}
           onWidthChange={handleWidthChange}
           // phase-59-02: corner-drag font-scale + side-drag width-only routes through
@@ -1560,7 +1894,14 @@ export function SlideEditor({
           onCustomImageSelect={setSelectedCustomImageId}
           onCustomImageRemove={handleRemoveCustomImage}
           selectedCustomImageId={selectedCustomImageId}
-          onTextBoxSelect={setSelectedTextBoxId}
+          onTextBoxSelect={(id) => {
+            setSelectedTextBoxId(id)
+            // Click-to-focus: a real text-box click switches the rail to the
+            // Text tab. Group-select passes null (no single text box to show);
+            // the slide-change re-seed calls setSelectedTextBoxId directly and
+            // never reaches here, so changing slides won't yank the tab.
+            if (id) requestPanelFocus('text')
+          }}
           selectedTextBoxId={selectedTextBoxId}
           // quick-260514-l9z: in-place text edit on hook/body — double-click
           // a text box on the canvas, type, blur to commit. UPDATE_TEXT_BOX
@@ -1671,45 +2012,24 @@ export function SlideEditor({
               },
             })
           }}
+          onCaptionCardSelect={() => requestPanelFocus('caption-card')}
+          onWatermarkSelect={() => requestPanelFocus('watermark')}
         />
 
         {/* Right panel: Editor controls. quick-260514-tan-rail-white-tiles:
             background is the tan page color so the rail blends with the
             canvas behind it; interior tiles + cards are white with brown
             borders (mirrors SlideSettings/Watermark/HookText style). */}
-        <aside className="bg-[#fff8f7] lg:rounded-xl flex flex-col overflow-hidden">
+        {/* Phase 93 (EDIT-02/03): right rail is DESKTOP-ONLY. On mobile its tab
+            panels move into the bottom Sheet and its portlet into the persistent
+            bottom action bar (both rendered after this grid). hidden lg:flex
+            keeps the desktop render path byte-identical. */}
+        <aside className="hidden lg:flex bg-[#fff8f7] lg:rounded-xl flex-col overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-[#dbc1bc]/10">
-            <button
-              onClick={() => setActiveTab('text')}
-              className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                activeTab === 'text'
-                  ? 'border-b-2 border-[#3d0000] text-[#3d0000]'
-                  : 'text-[#7d6161] hover:bg-[#fff0f0]'
-              }`}
-            >
-              Text
-            </button>
-            <button
-              onClick={() => setActiveTab('elements')}
-              className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                activeTab === 'elements'
-                  ? 'border-b-2 border-[#3d0000] text-[#3d0000]'
-                  : 'text-[#7d6161] hover:bg-[#fff0f0]'
-              }`}
-            >
-              Elements
-            </button>
-            <button
-              onClick={() => setActiveTab('images')}
-              className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                activeTab === 'images'
-                  ? 'border-b-2 border-[#3d0000] text-[#3d0000]'
-                  : 'text-[#7d6161] hover:bg-[#fff0f0]'
-              }`}
-            >
-              Images
-            </button>
+            {renderTabButton('text', 'Text')}
+            {renderTabButton('elements', 'Elements')}
+            {renderTabButton('images', 'Images')}
           </div>
 
           {/* Panel content + footer all scrollable together */}
@@ -1723,191 +2043,7 @@ export function SlideEditor({
                 toggling the per-slide override on/off REVERSIBLE from the
                 control panel. The per-slide override drives only the visual
                 CANVAS (slide-canvas.tsx) + THUMBNAILS (sortable-slide.tsx). */}
-            {currentSlide && activeTab === 'text' && (
-              useNewRail ? (
-                <TextEditorPanel
-                  slide={currentSlide}
-                  template={template}
-                  selectedTextBoxId={selectedTextBoxId}
-                  onSelectTextBox={setSelectedTextBoxId}
-                  onTextBoxAction={(action) => {
-                    // Resolve slideIndex from current selection so the panel
-                    // stays decoupled from selectedIndex (Phase 49 D-16: the
-                    // reducer expects slideIndex on every text-box action).
-                    if (action.type === 'ADD_TEXT_BOX') {
-                      // Phase 50 (MR-01): pre-generate the id so we can
-                      // auto-select the newly added box in the same render
-                      // cycle. The reducer reads `defaults.id` if present and
-                      // falls back to crypto.randomUUID() otherwise.
-                      const newId = crypto.randomUUID()
-                      dispatch({
-                        type: 'ADD_TEXT_BOX',
-                        slideIndex: selectedIndex,
-                        role: action.role,
-                        defaults: { id: newId },
-                      })
-                      setSelectedTextBoxId(newId)
-                    } else if (action.type === 'UPDATE_TEXT_BOX') {
-                      dispatch({
-                        type: 'UPDATE_TEXT_BOX',
-                        slideIndex: selectedIndex,
-                        textBoxId: action.textBoxId,
-                        updates: action.updates,
-                      })
-                    } else if (action.type === 'REMOVE_TEXT_BOX') {
-                      // Phase 50 (HR-01): route through useSlideEditor helper so
-                      // selectedTextBoxId is cleared if it matched the removed
-                      // box. The helper dispatches REMOVE_TEXT_BOX internally.
-                      removeTextBox(selectedIndex, action.textBoxId)
-                    }
-                  }}
-                  onUpdate={handleUpdate}
-                  selectedCustomTextId={selectedCustomTextId}
-                  customTexts={currentSlide.custom_texts}
-                  onCustomTextUpdate={handleCustomTextUpdate}
-                  onCustomTextRemove={handleRemoveCustomText}
-                  selection={{
-                    ids: selection.ids,
-                    primary: selection.primary,
-                  }}
-                  onBulkDelete={(ids) => {
-                    // Phase 60 (HIGH-1 review-fix): single dispatch per gesture
-                    // so a 5-element bulk delete is one Cmd+Z, not five. The
-                    // BULK_DELETE reducer mirrors the per-id loop's policy
-                    // (skip hook/body, skip locked, never touch watermark) so
-                    // user-visible behavior is unchanged — only history depth.
-                    dispatch({
-                      type: 'BULK_DELETE',
-                      slideIndex: selectedIndex,
-                      ids,
-                    })
-                    // Clear legacy single-id slots if they pointed at a deleted
-                    // element (the per-id removeTextBox / handleRemoveCustomImage
-                    // helpers used to do this internally; with one dispatch we
-                    // mirror that cleanup here at the call site).
-                    const idSet = new Set(ids)
-                    if (selectedTextBoxId && idSet.has(selectedTextBoxId)) {
-                      setSelectedTextBoxId(null)
-                    }
-                    if (selectedCustomTextId && idSet.has(selectedCustomTextId)) {
-                      setSelectedCustomTextId(null)
-                    }
-                    if (selectedCustomImageId && idSet.has(selectedCustomImageId)) {
-                      setSelectedCustomImageId(null)
-                    }
-                    // Clear the selection model so the ring and TYPE BAR
-                    // collapse on the next render.
-                    selection.clear()
-                  }}
-                  // quick-260514-jn5: decoration editing moved to the Elements
-                  // tab (see ElementsPanel above). UPDATE_DECORATION /
-                  // REMOVE_DECORATION dispatches now live on the ElementsPanel
-                  // props — TextEditorPanel no longer carries that surface.
-                />
-              ) : (
-                <LegacyTextEditorPanel
-                  slide={currentSlide}
-                  template={template}
-                  onUpdate={handleUpdate}
-                  selectedCustomTextId={selectedCustomTextId}
-                  customTexts={currentSlide.custom_texts}
-                  onCustomTextUpdate={handleCustomTextUpdate}
-                  onCustomTextRemove={handleRemoveCustomText}
-                />
-              )
-            )}
-            {currentSlide && activeTab === 'elements' && (
-              <ElementsPanel
-                slide={currentSlide}
-                templateTextColor={template.textColor}
-                onInsertDivider={handleInsertDivider}
-                // quick-260514-jn5: decoration inspector + library mode.
-                // When a decoration is selected on the canvas, ElementsPanel
-                // renders DecorationCard (edit + delete). Otherwise it shows
-                // the insert library: icons (LucidePicker), shapes (ShapePicker),
-                // dividers (existing tiles).
-                activeDecoration={activeDecoration}
-                onDecorationUpdate={(updates) => {
-                  if (!activeDecoration) return
-                  dispatch({
-                    type: 'UPDATE_DECORATION',
-                    slideIndex: selectedIndex,
-                    id: activeDecoration.id,
-                    updates,
-                  })
-                }}
-                onDecorationPreview={(updates) => {
-                  if (!activeDecoration) return
-                  // quick-260514-decoration-controls-polish: transient
-                  // live-preview channel — reducer skips pushHistory when
-                  // noHistory:true, so the gesture records exactly one undo
-                  // entry on the committing dispatch above (KBD-09).
-                  dispatch({
-                    type: 'UPDATE_DECORATION',
-                    slideIndex: selectedIndex,
-                    id: activeDecoration.id,
-                    updates,
-                    noHistory: true,
-                  })
-                }}
-                onDecorationRemove={() => {
-                  if (!activeDecoration) return
-                  dispatch({
-                    type: 'REMOVE_DECORATION',
-                    slideIndex: selectedIndex,
-                    id: activeDecoration.id,
-                  })
-                  // Clear the selection ring so the editor doesn't keep
-                  // chasing a stale id after the decoration is gone.
-                  selection.clear()
-                }}
-                onOpenIconPicker={() => setOpenPicker('lucide')}
-                onOpenShapePicker={() => setOpenPicker('shape')}
-                onSwapIcon={() => {
-                  if (!activeDecoration || activeDecoration.kind !== 'icon') return
-                  setPickerMode({ kind: 'swap-icon', targetId: activeDecoration.id })
-                  setOpenPicker('lucide')
-                }}
-                onBackToLibrary={() => selection.clear()}
-                derivedPalette={currentSlide.style_overrides?.derived_palette}
-                // quick-260514-move-slide-cards-to-elements: SlideSettings +
-                // WatermarkControls moved from TextEditorPanel to here. They
-                // mount inside ElementsPanel at the bottom in both selection
-                // and library modes (slide-scoped controls, not selection-scoped).
-                template={template}
-                onSlideUpdate={handleUpdate}
-                // quick-260515-k12: transient live-preview channel for the
-                // Caption Bar card — caption-bar slider drags dispatch with
-                // noHistory:true so the gesture records exactly one undo entry
-                // on the committing handleUpdate dispatch (KBD-09).
-                onSlidePreview={(updates) =>
-                  dispatch({
-                    type: 'UPDATE_SLIDE',
-                    index: selectedIndex,
-                    updates,
-                    noHistory: true,
-                  })
-                }
-                userTier={userTier}
-                onSlideWatermarkChange={handleSlideWatermarkChange}
-                onWatermarkLogoUpload={handleWatermarkLogoUpload}
-                onWatermarkLogoRemove={handleWatermarkLogoRemove}
-                isWatermarkPending={isWatermarkPending}
-              />
-            )}
-            {currentSlide && activeTab === 'images' && (
-              <ImagePickerPanel
-                slide={currentSlide}
-                slideIndex={selectedIndex}
-                projectId={projectId}
-                topic={topic}
-                userTier={userTier ?? 'free'}
-                onUpdate={handleUpdate}
-                onRegenerateText={handleRegenerateText}
-                onRegenerateImage={handleRegenerateImage}
-                onAddCanvasImage={handleAddCustomImage}
-              />
-            )}
+            {toolPanelBody}
 
           </div>
 
@@ -1921,44 +2057,10 @@ export function SlideEditor({
               the last edit via the isDirty debounce on doSave. */}
           <div className="bg-white border-2 border-[#3d0000]/20 rounded-2xl p-4 space-y-3 mx-4 mt-2 mb-4">
             <div className="flex items-center gap-1">
-              <button
-                onClick={undo}
-                disabled={!canUndo}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
-                title="Undo"
-              >
-                <Icon name="undo" size="sm" />
-              </button>
-              <button
-                onClick={redo}
-                disabled={!canRedo}
-                className="p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95 disabled:opacity-30"
-                title="Redo"
-              >
-                <Icon name="redo" size="sm" />
-              </button>
+              {undoRedoControls}
             </div>
             <div className="flex items-center gap-2">
-              <VisibilityDropdown
-                projectId={projectId}
-                title={title ?? 'Untitled Carousel'}
-                isPublic={!!initialPublishedState}
-                tags={initialPublishedState?.tags ?? []}
-              />
-              <button
-                onClick={async () => {
-                  setExporting(true)
-                  try {
-                    await downloadSlidesAsZip(projectId, slides.length, title ?? 'slides')
-                  } catch { /* silently handle */ }
-                  finally { setExporting(false) }
-                }}
-                disabled={exporting}
-                className="flex-1 min-w-0 px-3 py-1.5 bg-[#3d0000] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all text-xs disabled:opacity-50"
-              >
-                <Icon name="download" size="sm" />
-                <span className="truncate">{exporting ? 'Exporting...' : 'Export'}</span>
-              </button>
+              {publicExportControls}
             </div>
             {(userTier ?? 'free') === 'free' && (
               <p className="text-[11px] text-[#7d6161] leading-snug">
@@ -1974,6 +2076,188 @@ export function SlideEditor({
           </div>
         </aside>
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────────────
+          Phase 93 MOBILE CHROME (below lg only). The canvas above is dominant;
+          everything the desktop asides held is re-hosted here as a thin
+          filmstrip + a persistent bottom action bar + on-demand bottom sheets.
+          ───────────────────────────────────────────────────────────────────── */}
+
+      {/* EDIT-04: thin slide filmstrip with a clear scroll/selection affordance
+          (edge-fade + counter) so there is no silently-hidden horizontal
+          scroll. Reuses SlideList (already flex-row on mobile) verbatim. */}
+      <div className="lg:hidden shrink-0 border-t border-[#dbc1bc]/20 bg-[#fff0f0]">
+        <div className="flex items-center justify-between px-3 pt-1.5">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-[#7d6161]">
+            Slides
+          </span>
+          <span className="text-[10px] font-semibold text-[#3d0000] tabular-nums">
+            {selectedIndex + 1} / {slides.length}
+          </span>
+        </div>
+        {/* Edge-fade mask signals more slides off the right edge. */}
+        <div
+          className="px-3 py-2 [mask-image:linear-gradient(to_right,black_85%,transparent)]"
+        >
+          <div className="h-16">
+            <SlideList
+              slides={slides}
+              template={template}
+              selectedIndex={selectedIndex}
+              onSelect={setSelectedIndex}
+              userTier={userTier ?? 'free'}
+              topic={topic}
+              format={format}
+              onReorder={(from, to) => {
+                dispatch({ type: 'REORDER_SLIDES', from, to })
+                setSelectedIndex(to)
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* bug-260531: mobile-visible tool tabs. Phase 93 only rendered the
+          Text/Elements/Images triggers inside the desktop aside (hidden lg:flex)
+          and inside the Sheet itself — so on mobile there was NO way to OPEN the
+          editing panels (you could inline-edit text, but never reach formatting,
+          elements, or image swap). This thin lg:hidden row restores the entry
+          point; renderTabButton opens the bottom Sheet to the tapped tab. */}
+      <div className="lg:hidden shrink-0 flex border-t border-[#dbc1bc]/20 bg-white">
+        {renderTabButton('text', 'Text')}
+        {renderTabButton('elements', 'Elements')}
+        {renderTabButton('images', 'Images')}
+      </div>
+
+      {/* EDIT-06: persistent, thumb-reachable, safe-area-padded bottom action
+          bar — add slide, undo/redo, Public toggle, Export. The destructive
+          delete is NOT here (EDIT-05): it lives in the spaced-away layers sheet
+          with a confirm step, so a 44px mis-tap can't destroy a slide. */}
+      <div className="lg:hidden shrink-0 border-t border-[#dbc1bc]/20 bg-white px-3 pt-2 pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              dispatch({ type: 'ADD_SLIDE', index: selectedIndex + 1 })
+              setSelectedIndex(selectedIndex + 1)
+            }}
+            className="tap-44 p-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg transition-all active:scale-95"
+            title="Add Slide"
+          >
+            <Icon name="add" size="sm" />
+          </button>
+          {undoRedoControls}
+          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+            {publicExportControls}
+          </div>
+        </div>
+      </div>
+
+      {/* EDIT-03: bottom Sheet hosting the SAME tab rails (re-hosted, not
+          rebuilt). Opened by the mobile tab triggers. */}
+      <Sheet
+        open={!isDesktop && toolSheetOpen}
+        onOpenChange={setToolSheetOpen}
+      >
+        <SheetContent>
+          <SheetHeader className="pr-12">
+            <SheetTitle>Edit</SheetTitle>
+          </SheetHeader>
+          <div className="flex border-b border-[#dbc1bc]/10">
+            {renderTabButton('text', 'Text')}
+            {renderTabButton('elements', 'Elements')}
+            {renderTabButton('images', 'Images')}
+          </div>
+          <SheetBody className="px-0">{toolPanelBody}</SheetBody>
+        </SheetContent>
+      </Sheet>
+
+      {/* EDIT-05: layers + slide options sheet — holds LayersPanel and the
+          spaced-away, confirm-gated destructive delete. */}
+      <Sheet open={!isDesktop && layersSheetOpen} onOpenChange={setLayersSheetOpen}>
+        <SheetContent>
+          <SheetHeader className="pr-12">
+            <SheetTitle>Slide & Layers</SheetTitle>
+          </SheetHeader>
+          <SheetBody className="px-4 pb-4 space-y-4">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  dispatch({ type: 'DUPLICATE_SLIDE', index: selectedIndex })
+                  setSelectedIndex(selectedIndex + 1)
+                  setLayersSheetOpen(false)
+                }}
+                className="tap-44 flex items-center gap-2 px-3 py-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg text-xs font-medium"
+                title="Duplicate Slide"
+              >
+                <Icon name="content_copy" size="sm" />
+                Duplicate
+              </button>
+              <button
+                onClick={handleAddCustomText}
+                className="tap-44 flex items-center gap-2 px-3 py-1.5 text-[#795e5e] hover:bg-[#fadbdb] rounded-lg text-xs font-medium"
+                title="Add Text Box"
+              >
+                <Icon name="text_fields" size="sm" />
+                Add text
+              </button>
+            </div>
+            {currentSlide && (
+              <LayersPanel
+                slide={currentSlide}
+                selection={selection}
+                onRename={handleLayerRename}
+                onLockToggle={handleLayerLockToggle}
+                onVisibilityToggle={handleLayerVisibilityToggle}
+                onReorder={handleLayerReorder}
+              />
+            )}
+            {/* Destructive: spaced to the bottom, full-width, red, with a
+                confirmation dialog before it actually removes the slide. */}
+            <button
+              onClick={() => setConfirmDeleteSlide(true)}
+              disabled={slides.length <= 1}
+              className="tap-44 w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 text-red-600 border border-red-200 hover:bg-red-50 rounded-xl text-xs font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Delete Slide"
+            >
+              <Icon name="delete" size="sm" />
+              Delete this slide
+            </button>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+
+      {/* EDIT-05: confirm before a destructive slide delete (closes the
+          documented hard-delete-via-adjacent-control scar). Undo also covers it
+          via the bottom-bar undo control. */}
+      <Dialog open={confirmDeleteSlide} onOpenChange={setConfirmDeleteSlide}>
+        <DialogContent className="max-w-sm p-6">
+          <DialogHeader>
+            <DialogTitle>Delete this slide?</DialogTitle>
+            <DialogDescription>
+              Slide {selectedIndex + 1} of {slides.length} will be removed. You
+              can undo this from the editor.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2">
+            <button
+              onClick={() => setConfirmDeleteSlide(false)}
+              className="tap-44 px-4 py-2 rounded-xl text-sm font-medium text-[#3d0000] hover:bg-[#fff0f0]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                dispatch({ type: 'REMOVE_SLIDE', index: selectedIndex })
+                setConfirmDeleteSlide(false)
+                setLayersSheetOpen(false)
+              }}
+              className="tap-44 px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete slide
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Phase 70 Plan 03 (PICKER-01 + SHAPES-02): picker mounts. Outside the
           three-panel grid so the modal/popover float above the editor.
@@ -2003,6 +2287,19 @@ export function SlideEditor({
         open={openPicker === 'shape'}
         onClose={() => setOpenPicker(null)}
         onAddDecoration={onPickerAddDecoration}
+      />
+
+      {/* Phase 90: download-time format picker. The Export button opens this;
+          the user picks TikTok 9:16 / Instagram 4:5 / Square 1:1 and the
+          slides render at that aspect ratio. Defaults to the project's own
+          format so the common case is one click. */}
+      <ExportFormatDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        projectId={projectId}
+        slideCount={slides.length}
+        projectTitle={title ?? 'slides'}
+        defaultFormat={formatId}
       />
 
     </div>

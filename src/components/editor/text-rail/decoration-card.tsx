@@ -48,6 +48,7 @@ import type {
   ShapeKind,
 } from '@/lib/types/decoration'
 import { renderDecoration } from '@/lib/render/decoration-renderer'
+import { useScrollFlash } from '@/lib/editor/use-scroll-flash'
 
 export interface DecorationCardProps {
   decoration: Decoration
@@ -68,6 +69,9 @@ export interface DecorationCardProps {
    *  (KBD-09 invariant). */
   onPreview?: (updates: Partial<Decoration>) => void
   derivedPalette?: string[]
+  /** Incrementing counter set when a decoration is clicked on the canvas.
+   *  A change scrolls this card into view and flashes its highlight ring. */
+  focusNonce?: number
 }
 
 const KINDS_WITH_ASPECT_LOCK: ReadonlySet<ShapeKind> = new Set([
@@ -103,7 +107,9 @@ export function DecorationCard({
   onSwapIcon,
   onPreview,
   derivedPalette,
+  focusNonce,
 }: DecorationCardProps) {
+  const { ref: flashRef, flashing } = useScrollFlash<HTMLDivElement>(focusNonce)
   const isShape = d.kind === 'shape'
   const isIcon = d.kind === 'icon'
   const liveColor = isIcon ? (d as IconDecoration).color : (d as ShapeDecoration).fill
@@ -199,7 +205,10 @@ export function DecorationCard({
   // ─────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="bg-[#fff0f0] border-2 border-[#3d0000]/20 focus-within:border-[#3d0000] rounded-2xl p-5 space-y-4 transition-colors"
+      ref={flashRef}
+      className={`bg-[#fff0f0] border-2 border-[#3d0000]/20 focus-within:border-[#3d0000] rounded-2xl p-5 space-y-4 transition ${
+        flashing ? 'ring-4 ring-[#3d0000]/60 ring-offset-2 ring-offset-[#fff0f0]' : ''
+      }`}
       data-testid="decoration-card"
       data-kind={d.kind}
     >

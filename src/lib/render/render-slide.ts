@@ -22,6 +22,9 @@ import {
 // rules byte-identically to the canvas + Satori paths. (The deleted
 // breaking-news-badge module is replaced by adapter-injected 'ruled' kickers.)
 import { RULED_HIGHLIGHT } from './ruled-highlight'
+// Phase 90: carousel output format — drives the dynamic canvas height and the
+// height-ratio scale applied to absolute-pixel font sizes.
+import { CAROUSEL_FORMATS, scaleFontPx, type CarouselFormat } from './carousel-formats'
 
 // TikTok/Instagram safe zones on 1080x1920 canvas
 // Top ~200px (10.4%), Bottom ~480px from bottom (max y ~75%), Sides ~120px (11%)
@@ -202,6 +205,9 @@ export function buildSlideHtml(
   // in the HTML export. Omitted by every test / client caller —
   // byte-identical to pre-Phase-88 when absent.
   dbTemplates?: ReadonlyMap<string, SlideTemplate>,
+  // Phase 90: carousel output format. Defaults to `tiktok` (1080×1920) so
+  // every existing caller / parity test stays byte-identical.
+  format: CarouselFormat = CAROUSEL_FORMATS.tiktok,
 ): string {
   const overrides = slide.style_overrides ?? {}
   // quick-260515-epn: per-slide template_id_override re-resolution. Mirrors
@@ -243,7 +249,10 @@ export function buildSlideHtml(
     : autoFitHookPx != null
       ? autoFitHookPx
       : baseHookSizePx
-  const bodyFontSize = overrides.body_font_size ? `${overrides.body_font_size}px` : template.bodyFontSize
+  // Phase 90: numeric body size scaled by the format's height ratio (tiktok →
+  // exact passthrough). `|| 32` mirrors the satori path's default fallback.
+  const bodyFontSizePx = overrides.body_font_size ?? (parseInt(template.bodyFontSize, 10) || 32)
+  const bodyFontSize = `${scaleFontPx(bodyFontSizePx, format)}px`
 
   // quick-260515-nhf: hook casing/font/italic resolved via the shared
   // resolveHookTypography helper so the exported HTML agrees with the editor
@@ -392,13 +401,13 @@ export function buildSlideHtml(
   // Watermark layer (260427-hut). Sits above custom_images at z-index:5.
   // Phase 89 (BKSHELVE): brand-kit removed — resolveWatermark short-circuits
   // to null on null input, so this layer never renders. Kept for parity.
-  const watermark = resolveWatermark(null, slide, { width: 1080, height: 1920 })
+  const watermark = resolveWatermark(null, slide, { width: format.w, height: format.h })
   const watermarkHtml = watermark
     ? `<img src="${watermark.url}" style="position:absolute; left:${watermark.x}px; top:${watermark.y}px; width:${watermark.width}px; height:auto; opacity:${watermark.opacity}; z-index:5; pointer-events:none;" />`
     : ''
 
   // Forced free-tier watermark (260427-wmk). z-index:6 so it sits above the watermark layer.
-  const forced = resolveForcedWatermark(tier, { width: 1080, height: 1920 }, slide)
+  const forced = resolveForcedWatermark(tier, { width: format.w, height: format.h }, slide)
   const forcedWatermarkHtml = forced
     ? `<div style="position:absolute; left:${forced.x}px; top:${forced.y}px; display:flex; align-items:center; opacity:${forced.opacity}; z-index:6; pointer-events:none;"><img src="${forced.logoUrl}" style="width:${forced.logoSize}px; height:${forced.logoSize}px; object-fit:contain; margin-right:${forced.gap}px;" /><span style="font-size:${forced.fontSize}px; font-weight:700; color:${forced.textColor}; text-shadow:${forced.textShadow}; letter-spacing:-0.2px; line-height:1;">${forced.text}</span></div>`
     : ''
@@ -456,8 +465,8 @@ export function buildSlideHtml(
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      width: 1080px;
-      height: 1920px;
+      width: ${format.w}px;
+      height: ${format.h}px;
       ${backgroundCss}
       font-family: ${template.fontFamily};
       color: ${textColor};
@@ -478,7 +487,7 @@ export function buildSlideHtml(
       ${captionCardHeadline ? 'transform: translateY(-50%);' : ''}
       text-align: ${hookTextAlign};
       z-index: 1;
-      font-size: ${newsHeadlineFontSizePx}px;
+      font-size: ${scaleFontPx(newsHeadlineFontSizePx, format)}px;
       font-weight: 900;
       line-height: 1.1;
       ${hookFontFamilyCss}

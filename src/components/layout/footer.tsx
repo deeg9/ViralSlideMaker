@@ -3,8 +3,8 @@ import Image from 'next/image'
 
 export function Footer() {
   return (
-    <footer className="bg-[#fff8f7] w-full border-t-0 py-16">
-      <div className="flex flex-col md:flex-row justify-between items-center px-12 max-w-7xl mx-auto gap-12 md:gap-0">
+    <footer className="bg-[#fff8f7] w-full border-t-0 py-10 md:py-16">
+      <div className="flex flex-col md:flex-row justify-between items-center px-6 md:px-12 max-w-7xl mx-auto gap-10 md:gap-0">
         <div className="flex flex-col items-center md:items-start">
           <div className="flex items-center gap-2 mb-4">
             <Image src="/logo.png" alt="ViralSlideMaker" width={24} height={24} className="rounded" />

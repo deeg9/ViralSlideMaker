@@ -219,20 +219,20 @@ export const TEMPLATE_IDS: readonly string[] = templates.map((t) => t.id)
 // Adding an ID here removes it from the picker without breaking existing
 // projects whose template_id was assigned before the style was retired.
 //
-// Phase 82 (R8/R9): this set IS the user-approved cull list recorded in
-// `82-KEEPER-SIGNOFF.md` (signed off 2026-05-17). The keeper-list curation is
-// hide-not-delete — the ids below lose only their picker visibility; their
-// renderer code and registry entries stay, so `getTemplate()` still resolves
-// every culled id and the ~50 saved projects render byte-identically (v2.13
-// render-parity invariant preserved). pickerTemplates (below) therefore yields
-// exactly the 5 approved keepers: news-oracle, tr3nding-news, bold-yellow,
-// editorial-serif, y2k-pop. Both shipping content categories (News, Facts) are
-// covered by keepers — no category can resolve to a hidden template.
+// Phase 82 (R8/R9): hide-not-delete curation — the ids below lose only their
+// picker visibility; their renderer code and registry entries stay, so
+// `getTemplate()` still resolves every culled id and the ~50 saved projects
+// render byte-identically (v2.13 render-parity invariant preserved).
 //
-// quick task 260518-jhg: 'news-cyan' retired from the picker (non-destructive —
-// news-cyan.ts unmodified, getTemplate('news-cyan') still resolves so the 3
-// existing news-cyan carousels render byte-identically). The new picker-facing
-// news keeper is 'news-oracle'.
+// quick task 260518-jhg: 'news-cyan' retired from the picker, replaced by
+// 'news-oracle' as the picker-facing news keeper.
+// quick task 260519-t3x: 'sunset-tabloid' / 'soft-sage' / 'chrome-pulse' added.
+// 2026-05-20: 'editorial-serif', 'soft-sage' and 'y2k-pop' retired from the
+// picker per user request (renderers retained — back-compat preserved).
+// pickerTemplates (below) therefore yields exactly the 5 approved keepers:
+// news-oracle, tr3nding-news, bold-yellow, sunset-tabloid, chrome-pulse. Both
+// shipping content categories (News, Facts) are covered by keepers — no
+// category can resolve to a hidden template.
 export const HIDDEN_FROM_PICKER: ReadonlySet<string> = new Set([
   'highlight-bar',
   'news-drop',
@@ -242,11 +242,14 @@ export const HIDDEN_FROM_PICKER: ReadonlySet<string> = new Set([
   'notes-app-chic',
   'brutalist-grid',
   'paper-essay',
+  'editorial-serif',
+  'soft-sage',
+  'y2k-pop',
 ])
 
 // Phase 82 (R8): the keeper-filtered picker list — exactly the 5 approved
-// keepers (news-oracle, tr3nding-news, bold-yellow, editorial-serif, y2k-pop;
-// see quick task 260518-jhg for the news-cyan -> news-oracle swap).
+// keepers (news-oracle, tr3nding-news, bold-yellow, sunset-tabloid,
+// chrome-pulse; see HIDDEN_FROM_PICKER above for the curation history).
 // Category->template coverage (every `templateIds` entry across all
 // CATEGORIES modules must be a picker-visible keeper, so a category never
 // resolves to a hidden template — SPEC R7) is asserted in the keeper-curation

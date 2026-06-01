@@ -12,6 +12,7 @@ import type { SlideTemplate } from '@/lib/render/templates/index'
 import { resolvePerSlideTemplate } from '@/lib/render/resolve-per-slide-template'
 import type { Selection } from '@/lib/editor/use-selection-model'
 import type { AlignAxis, DistributeAxis } from '@/lib/editor/transforms/align'
+import { CAROUSEL_FORMATS, type CarouselFormat } from '@/lib/render/carousel-formats'
 
 // Re-export so consumers can type the new group-state props symmetrically.
 type GroupEnterFn = (elementId: string, slide: Slide) => void
@@ -105,6 +106,14 @@ interface SlideCanvasProps {
   // quick-260517-k2n: caption-card geometry commit pass-through. SlideCanvas is
   // a thin forwarding wrapper — slide-editor.tsx wires this to handleUpdate.
   onCaptionBarUpdate?: (updates: Partial<SlideStyleOverrides>) => void
+  // Click-to-focus pass-through. SlideCanvas is a thin forwarding wrapper —
+  // slide-editor.tsx wires these to requestPanelFocus so clicking the caption
+  // card / watermark on the canvas surfaces its controls in the right rail.
+  onCaptionCardSelect?: () => void
+  onWatermarkSelect?: () => void
+  // Phase 90: carousel output format. Defaults to `tiktok` — drives the live
+  // preview's canvas dimensions + the wrapper aspect ratio.
+  format?: CarouselFormat
 }
 
 export function SlideCanvas({
@@ -143,6 +152,9 @@ export function SlideCanvas({
   onDecorationPositionChange,
   onDecorationSizeChange,
   onCaptionBarUpdate,
+  onCaptionCardSelect,
+  onWatermarkSelect,
+  format = CAROUSEL_FORMATS.tiktok,
 }: SlideCanvasProps) {
   const currentSlide = slides[selectedIndex]
   if (!currentSlide) return null
@@ -191,7 +203,13 @@ export function SlideCanvas({
         </HintPill>
       )}
 
-      <div className="w-full max-w-md relative">
+      {/* Mobile: cap the slide's WIDTH so its derived 16:9 height fits the
+          available canvas area (letterboxed, centered) instead of filling the
+          393px width and overflowing → the old center-clip that hid the bottom
+          of every slide. Width-cap (not h-full) can't collapse the box. The
+          dvh-410px subtracts the editor chrome (top bar + filmstrip + tab bar +
+          action bar + counter); ×0.5625 = 9/16. Desktop unchanged (lg:max-w-md). */}
+      <div className="w-full max-w-[calc((100dvh-448px)*0.5625)] lg:max-w-[28rem] mx-auto relative">
         <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
           <SlidePreview
             slide={currentSlide}
@@ -231,6 +249,9 @@ export function SlideCanvas({
             onDecorationPositionChange={onDecorationPositionChange}
             onDecorationSizeChange={onDecorationSizeChange}
             onCaptionBarUpdate={onCaptionBarUpdate}
+            onCaptionCardSelect={onCaptionCardSelect}
+            onWatermarkSelect={onWatermarkSelect}
+            format={format}
           />
           {/* quick-260514-ksh: IG feed safe-zone overlay + IG Grid toggle
               chip removed per user request. */}

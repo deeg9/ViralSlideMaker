@@ -726,6 +726,10 @@ const GRAIN_OPACITY_MAP = {
 export function renderGrain(
   intensity: 'subtle' | 'medium' | 'heavy' | 'paper' | 'xerox',
   origin?: string,
+  // Phase 90: full-canvas overlay sizing. Defaults to the 1080×1920 reference
+  // so every existing caller (and parity test) stays byte-identical; the
+  // format-aware render paths pass the active carousel format's {W,H}.
+  canvas: { W: number; H: number } = CANVAS,
 ): React.ReactNode {
   // Satori (next/og) rejects relative `<img src>` values with
   // "Image source must be an absolute URL". When invoked from the satori
@@ -741,8 +745,8 @@ export function renderGrain(
       position: 'absolute',
       top: 0,
       left: 0,
-      width: CANVAS.W,
-      height: CANVAS.H,
+      width: canvas.W,
+      height: canvas.H,
       objectFit: 'cover',
       opacity: GRAIN_OPACITY_MAP[intensity],
       pointerEvents: 'none',
@@ -766,15 +770,20 @@ export function renderGrain(
  * In Phase 55 the helper is never invoked at runtime — existing 8 templates
  * leave template.vignette undefined.
  */
-export function renderVignette(strength: number): React.ReactNode {
+export function renderVignette(
+  strength: number,
+  // Phase 90: full-canvas overlay sizing — see renderGrain. Defaults to the
+  // 1080×1920 reference so existing callers stay byte-identical.
+  canvas: { W: number; H: number } = CANVAS,
+): React.ReactNode {
   return React.createElement('div', {
     'data-layer': 'vignette',
     style: {
       position: 'absolute',
       top: 0,
       left: 0,
-      width: CANVAS.W,
-      height: CANVAS.H,
+      width: canvas.W,
+      height: canvas.H,
       backgroundImage: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${strength}) 100%)`,
       pointerEvents: 'none',
     },
@@ -808,6 +817,11 @@ export function renderDecorativeOverlay(
   position: { x: number; y: number },
   options?: { rotation?: number; scale?: number; opacity?: number; tintColor?: string },
   origin?: string,
+  // Phase 90: active canvas dimensions. A full-canvas asset (the 1080×1920
+  // `paper-frame`) is re-sized to track this so it neither overflows nor
+  // leaves a gap at 4:5 / 1:1. Defaults to the 1080×1920 reference — every
+  // existing caller / test stays byte-identical.
+  canvas: { W: number; H: number } = CANVAS,
 ): React.ReactNode {
   const ext = DECORATIVE_PNG_ASSETS.includes(asset) ? 'png' : 'svg'
   // Same Satori absolute-URL constraint as renderGrain — see comment there.
@@ -826,7 +840,13 @@ export function renderDecorativeOverlay(
   // thumbnail-generation pipeline base64-encodes the asset). Falling back to
   // a sensible asset-specific default keeps notes-app-chic etc. unchanged
   // while letting new assets like rule-thin render at all.
-  const dims = ASSET_DIMENSIONS[asset] ?? { width: 240, height: 60 }
+  let dims = ASSET_DIMENSIONS[asset] ?? { width: 240, height: 60 }
+  // Phase 90: a full-canvas asset (one designed at the exact 1080×1920
+  // reference — `paper-frame`) must track the active format's canvas. A
+  // partial-width strip like `paper-torn-edge` (1080×40) is left untouched.
+  if (dims.width === CANVAS.W && dims.height === CANVAS.H) {
+    dims = { width: canvas.W, height: canvas.H }
+  }
   const style: Record<string, string | number | undefined> = {
     position: 'absolute',
     top: position.y,

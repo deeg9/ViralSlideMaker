@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { DEFAULT_FORMAT_NEW } from '@/lib/render/carousel-formats'
 
 export async function listProjects(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
@@ -24,11 +25,14 @@ export async function getProject(supabase: SupabaseClient, userId: string, proje
 export async function createProjectService(
   supabase: SupabaseClient,
   userId: string,
-  input: { title: string; description?: string | null; topic?: string | null; template_id?: string | null; slide_data?: unknown[] }
+  input: { title: string; description?: string | null; topic?: string | null; template_id?: string | null; slide_data?: unknown[]; output_format?: string | null }
 ) {
   const { data, error } = await supabase
     .from('projects')
-    .insert({ user_id: userId, ...input, slide_data: input.slide_data ?? [] })
+    // Phase 90: new carousels default to Instagram 4:5 (output_format is
+    // listed BEFORE ...input so an explicit input.output_format still wins —
+    // e.g. a future "remix preserves format" path).
+    .insert({ user_id: userId, output_format: DEFAULT_FORMAT_NEW, ...input, slide_data: input.slide_data ?? [] })
     .select('id')
     .single()
   if (error) throw error

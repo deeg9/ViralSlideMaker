@@ -26,19 +26,19 @@ import { CATEGORIES } from '@/lib/ai/categories'
 // quick task 260519-t3x: 3 trending-style additions (sunset-tabloid / soft-sage
 // / chrome-pulse) appended to the picker — 5 keepers → 8 (verbally approved
 // 2026-05-19 for the marketing-push expansion).
+// 2026-05-20: editorial-serif / soft-sage / y2k-pop retired from the picker per
+// user request — 8 keepers → 5.
 const APPROVED_KEEPERS = [
   'news-oracle',
   'tr3nding-news',
   'bold-yellow',
-  'editorial-serif',
-  'y2k-pop',
   'sunset-tabloid',
-  'soft-sage',
   'chrome-pulse',
 ] as const
 
 // The user-approved cull list (hidden from picker, renderers retained).
 // quick task 260518-jhg: news-cyan added to the cull (8 culled ids now).
+// 2026-05-20: editorial-serif / soft-sage / y2k-pop added to the cull (11 now).
 const CULLED_IDS = [
   'highlight-bar',
   'news-drop',
@@ -48,10 +48,13 @@ const CULLED_IDS = [
   'notes-app-chic',
   'brutalist-grid',
   'paper-essay',
+  'editorial-serif',
+  'soft-sage',
+  'y2k-pop',
 ] as const
 
 describe('Phase 82 — keeper-list curation (R8/R9 hide-not-delete)', () => {
-  it('pickerTemplates is exactly the approved keepers (5 + 3 from quick-260519-t3x = 8)', () => {
+  it('pickerTemplates is exactly the approved keepers (5 — 3 retired on 2026-05-20)', () => {
     const pickerIds = pickerTemplates.map((t) => t.id).sort()
     expect(pickerIds).toEqual([...APPROVED_KEEPERS].sort())
   })

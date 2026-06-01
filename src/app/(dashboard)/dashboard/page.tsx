@@ -89,10 +89,13 @@ export default async function DashboardPage() {
   const dbTemplates = scratchProjectId ? await getPickerDbTemplates() : []
 
   return (
-    <div className="space-y-16">
-      {/* Welcome Header */}
+    <div className="space-y-10 md:space-y-16">
+      {/* Welcome Header.
+          POLISH-04 (Phase 94): the 3.5rem (56px) heading ate ~⅓ of the 393px
+          fold. Scaled down on mobile (2.25rem) and restored to 3.5rem at md+;
+          the section's vertical rhythm is likewise tightened on mobile. */}
       <section>
-        <h1 className="text-[3.5rem] font-semibold tracking-tighter text-[#3d0000] leading-tight text-center">
+        <h1 className="text-[2.25rem] md:text-[3.5rem] font-semibold tracking-tighter text-[#3d0000] leading-tight text-center">
           Welcome back, {userName}!
         </h1>
       </section>

@@ -1,6 +1,7 @@
 import type { Slide, GenerationStatus } from './slide'
 import type { StyleSpec } from './style-spec'
 import type { ReferenceAssetRow } from './projects-storage-constants'
+import type { CarouselFormatId } from '@/lib/render/carousel-formats'
 
 export interface Project {
   id: string
@@ -25,4 +26,9 @@ export interface Project {
   // adding optional fields cannot break existing consumers.
   style_spec?: StyleSpec | null
   reference_assets?: ReferenceAssetRow[] | null
+  /** Phase 90: carousel output format — tiktok|instagram|square. Absent/null
+      on legacy projects; `resolveFormat` treats absent as 'tiktok' (1080x1920)
+      so pre-Phase-90 carousels render visually unchanged. New projects insert
+      'instagram'. */
+  output_format?: CarouselFormatId | null
 }

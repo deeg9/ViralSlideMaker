@@ -117,6 +117,42 @@
 
 ---
 
+## Milestone: v2.17 — Mobile Optimization
+
+**Shipped:** 2026-05-31 (code-complete; carried device/credential UAT)
+**Phases:** 5 (91–95) | **Plans:** 6 | **Sessions:** 1 (audit → new-milestone → autonomous run + lifecycle)
+
+### What Was Built
+- A CSS-first mobile retrofit for iPhone 15: `viewport-fit=cover` viewport export (the single change that populates `env(safe-area-inset-*)` app-wide), `dvh` shells, a reusable `@utility tap-44`, safe-area padding on fixed bars, 16px-input/contrast fixes (Phase 91).
+- Editor mobile rework as a container re-host on one grid seam: gesture-synchronous single-tap-to-edit (`touch-edit.ts`), a bottom `Sheet` on the already-installed `@radix-ui/react-dialog`, canvas-first chrome, persistent safe-area action bar, confirm-gated destructive delete — desktop unregressed, slide parity 121/121 (Phases 92–93).
+- App-wide polish (picker grid, settings sub-nav fade, public-viewer swipe, 393px typography) and a logged-out + auth mobile-ergonomics pass (Phases 94–95).
+
+### What Worked
+- **Empirical audit before scoping.** Driving Playwright at a true 393px first (the headed browser clamps to 589px @ dpr 0.667 — pre-dividing the requested size by ~1.4987 yields a real 393px) surfaced that most surfaces already reflow cleanly, so the milestone concentrated on the editor + safe-areas instead of a blind "fix everything" sweep. It also caught a false positive (the "N" overlapping the nav was the Next.js dev indicator, not app code).
+- **Research-forced build order** (Foundation → touch gate → editor rework) mapped 1:1 to phases and held — `env()` reads 0 until `viewport-fit` ships, so Foundation genuinely had to land first.
+- **Reuse-over-rebuild** kept the editor change small: a bottom sheet on an already-installed dep, rails re-hosted not rebuilt, all gated behind `lg:` so desktop never regressed.
+- **Adversarial integration check earned its keep** — it caught a safe-area double-count on the new editor bar (the *exact* bug class fixed in Phase 91's portlet), fixed before the device test.
+
+### What Was Inefficient
+- **gsd skills can't be invoked from inside a delegated subagent** (they spawn their own subagents — a nesting the harness won't do). Each phase's foreground agent had to drive the GSD chain *manually* in gsd format. It worked and kept the orchestrator context lean, but bypassed the real gsd-planner/executor/verifier rigor — Nyquist VALIDATION.md ended up absent across all phases.
+- The CLI's auto-extracted milestone accomplishments grabbed SUMMARY section headers ("Requirement:", "Milestone:") and had to be hand-rewritten.
+
+### Patterns Established
+- **Audit-first milestone**: run an empirical Playwright/device audit, write findings to `.planning/<area>-audit/`, and scope requirements from observed problems rather than guesses.
+- **Device-gate phase**: a "verify-and-repair gate" phase (92) that does the autonomous half (static diagnosis + clear-cut fixes) then hands the user a concrete on-device checklist — folding the structural repair into the next phase when the gate predicts broken.
+- **Orchestrator-verifies-the-diff**: after each delegated phase, independently re-run tsc/tests/grep and (for visual phases) Playwright at 393px, rather than trusting the agent's self-report.
+
+### Key Lessons
+- For frontend/iOS work, Playwright proves layout/overflow/tap-target/attribute correctness but **cannot** prove safe-area insets, the `100vh` URL-bar collapse, keyboard summon/occlusion, or real touch — those are intrinsically device-gated. Plan the milestone exit around a physical-device pass from the start.
+- A bare phase number to `/gsd-autonomous` is ambiguous (only-this vs from-here); confirming scope up front avoided launching 5 phases when the gates meant a partial run.
+
+### Cost Observations
+- Model mix: opus orchestrator + opus foreground phase agents, sonnet integration checker.
+- Sessions: 1 (one `/gsd-autonomous 91` run covering all 5 phases + audit + lifecycle).
+- Notable: 5 phases / 6 plans, ~25 source files touched, zero new tsc errors (20-error baseline held), slide parity 121/121 throughout. The run paused at exactly the designed human gates (the iPhone touch gate; the close-out decision) — correct pause points, not friction.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

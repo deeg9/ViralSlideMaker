@@ -15,7 +15,6 @@ interface ImagePickerPanelProps {
   slideIndex: number
   projectId: string
   topic: string
-  userTier: 'free' | 'pro' | 'plus'
   onUpdate: (updates: Partial<Slide>) => void
   onRegenerateText: () => void | Promise<void>
   onRegenerateImage: () => void | Promise<void>
@@ -34,7 +33,6 @@ export function ImagePickerPanel({
   slideIndex,
   projectId,
   topic,
-  userTier,
   onUpdate,
   onRegenerateText,
   onRegenerateImage,
@@ -193,7 +191,7 @@ export function ImagePickerPanel({
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Search photos..."
-              className="flex-1 rounded-xl border border-[#dbc1bc]/30 bg-white px-4 py-2.5 text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 placeholder:text-[#dbc1bc]"
+              className="flex-1 rounded-xl border border-[#dbc1bc]/30 bg-white px-4 py-2.5 text-base md:text-sm text-[#3d0000] focus:border-[#3d0000] focus:ring-0 placeholder:text-[#7d6161]/60"
             />
             <button
               onClick={handleSearch}
@@ -221,7 +219,7 @@ export function ImagePickerPanel({
                       className="w-full h-full object-cover"
                     />
                   </button>
-                  <div className="absolute inset-x-0 bottom-0 bg-[#3d0000]/60 px-1 py-0.5 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-x-0 bottom-0 bg-[#3d0000]/60 px-1 py-0.5 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
                     {photo.photographer}
                   </div>
                   {onAddCanvasImage && (
@@ -230,7 +228,7 @@ export function ImagePickerPanel({
                         e.stopPropagation()
                         onAddCanvasImage(photo.url)
                       }}
-                      className="absolute top-1 right-1 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                      className="absolute top-1 right-1 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-white"
                       title="Add to canvas"
                     >
                       <Icon name="add_circle" size="sm" className="text-[#3d0000]" />
@@ -261,17 +259,15 @@ export function ImagePickerPanel({
           </label>
           {lastUploadedUrl && (
             <>
-              {userTier !== 'free' && (
-                <button
-                  onClick={handleStylize}
-                  disabled={stylizing}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-[#3d0000] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                  title="Restyle this photo with AI to match the carousel's visual style. Uses 1 credit."
-                >
-                  <Icon name={stylizing ? 'progress_activity' : 'auto_awesome'} size="sm" className={stylizing ? 'animate-spin' : ''} />
-                  {stylizing ? 'Stylizing...' : 'AI-Stylize This Photo (1 credit)'}
-                </button>
-              )}
+              <button
+                onClick={handleStylize}
+                disabled={stylizing}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-[#3d0000] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                title="Restyle this photo with AI to match the carousel's visual style. Uses 1 credit."
+              >
+                <Icon name={stylizing ? 'progress_activity' : 'auto_awesome'} size="sm" className={stylizing ? 'animate-spin' : ''} />
+                {stylizing ? 'Stylizing...' : 'AI-Stylize This Photo (1 credit)'}
+              </button>
               {stylizeError && (
                 <p className="text-[10px] text-red-700 px-1" role="alert">{stylizeError}</p>
               )}
@@ -299,7 +295,6 @@ export function ImagePickerPanel({
           slideIndex={slideIndex}
           projectId={projectId}
           topic={topic}
-          userTier={userTier}
           onUpdate={onUpdate}
         />
       )}

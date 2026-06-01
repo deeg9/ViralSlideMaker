@@ -10,8 +10,25 @@ Type a topic, get a set of ready-to-post carousel slide images — fully generat
 
 ## Current State
 
-**Latest Shipped:** v2.16 Picker Polish & Brand-Kit Shelving (2026-05-21)
+**Latest Shipped:** v2.17 Mobile Optimization (2026-05-31)
 **Current Milestone:** None — run `/gsd-new-milestone` to scope the next cycle.
+
+---
+
+## Latest Shipped: v2.17 Mobile Optimization (2026-05-31)
+
+**Goal achieved (code):** The app is now mobile-first for iPhone 15 (393×852, iOS Safari) — a CSS-first retrofit with zero new heavy dependencies, grounded in an empirical Playwright audit. **Status `tech_debt`:** 16/16 requirements code-satisfied; carried human-UAT (physical-iPhone device sign-off + a credentialed live auth round-trip). Shipped on branch `feat/carousel-output-format` (not yet merged to main).
+
+**Shipped:**
+- Phase 91 — Cross-Cutting Foundation: `viewport-fit=cover` viewport export (populated `env(safe-area-inset-*)` app-wide), `dvh` editor shell, a reusable `@utility tap-44`, safe-area padding on fixed bars, 16px-input + WCAG-contrast fixes.
+- Phase 92 — Editor Touch-Edit Gate: static iOS diagnosis (deferred-`.focus()` + keyboard occlusion identified as the on-device risks) + a conservative `touch-action:manipulation` repair; structural fix folded into Phase 93.
+- Phase 93 — Editor Mobile Rework: gesture-synchronous single-tap-to-edit (`src/lib/editor/touch-edit.ts`), a bottom `Sheet` primitive on the already-installed `@radix-ui/react-dialog`, canvas-first chrome re-host (asides `hidden lg:flex`), persistent safe-area action bar, confirm-gated destructive delete. Desktop unregressed (grid seam preserved), slide parity 121/121.
+- Phase 94 — App-Wide Polish: mobile template-picker grid, settings sub-nav fade affordance, swipe nav on the public carousel viewer, 393px hero typography — Playwright-verified at a true 393px.
+- Phase 95 — Logged-Out & Auth: mobile-first landing + auth forms (16px inputs, `inputMode`/`autoComplete`, 48px targets) — layout-only, no auth-logic changes.
+
+**Verification:** Integration check 14/16 (0 blockers; the one safe-area double-count it found was fixed). Carried human-UAT: editor device sign-off (13-step checklist in `93-VERIFICATION.md`) + live auth round-trip (credential). Nyquist VALIDATION.md absent across phases (frontend pattern, matches prior milestones). `tsc` at the 20-error baseline; zero new test failures.
+
+**Archive:** `.planning/milestones/v2.17-ROADMAP.md`. Audit: `.planning/milestones/v2.17-MILESTONE-AUDIT.md`. Requirements: `.planning/milestones/v2.17-REQUIREMENTS.md`. Audit screenshots: `.planning/mobile-audit/`.
 
 ---
 

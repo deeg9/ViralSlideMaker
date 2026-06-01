@@ -68,7 +68,12 @@ export function ProfileMenu({ userName, creditDisplay }: ProfileMenuProps) {
     }
   }, [])
 
-  function handlePointerEnter() {
+  // Hover-intent is mouse-only. On touch, a tap fires pointerenter→click in
+  // one gesture; if hover opened the menu, the click-toggle would immediately
+  // close it again (the menu "won't stay open"). Gating these to mouse leaves
+  // touch entirely governed by the click-toggle + outside-click handlers.
+  function handlePointerEnter(e: React.PointerEvent) {
+    if (e.pointerType !== 'mouse') return
     if (closeTimeoutRef.current !== null) {
       window.clearTimeout(closeTimeoutRef.current)
       closeTimeoutRef.current = null
@@ -76,7 +81,8 @@ export function ProfileMenu({ userName, creditDisplay }: ProfileMenuProps) {
     setOpen(true)
   }
 
-  function handlePointerLeave() {
+  function handlePointerLeave(e: React.PointerEvent) {
+    if (e.pointerType !== 'mouse') return
     if (closeTimeoutRef.current !== null) {
       window.clearTimeout(closeTimeoutRef.current)
     }
@@ -109,7 +115,7 @@ export function ProfileMenu({ userName, creditDisplay }: ProfileMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Open profile menu"
-        className="w-8 h-8 rounded-full bg-[#fadbdb] flex items-center justify-center transition-transform active:scale-95"
+        className="tap-44 w-8 h-8 rounded-full bg-[#fadbdb] flex items-center justify-center transition-transform active:scale-95"
       >
         <Icon name="person" size="sm" className="text-[#3d0000]" />
       </button>
