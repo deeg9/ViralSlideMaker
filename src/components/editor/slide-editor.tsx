@@ -1735,7 +1735,7 @@ export function SlideEditor({
   )
 
   return (
-    <div className="flex flex-col bg-[#fff8f7] h-[calc(100dvh-140px)] lg:h-[calc(100dvh-80px)] overflow-hidden">
+    <div className="flex flex-col bg-[#fff8f7] h-full lg:h-[calc(100dvh-80px)] overflow-hidden">
       {/* Phase 93 (EDIT-02): MOBILE slim top bar (below lg). The desktop left
           aside's back/title row collapses into this thin bar so the canvas gets
           the vertical room. Layers + the spaced-away destructive delete live in
@@ -2099,7 +2099,7 @@ export function SlideEditor({
         <div
           className="px-3 py-2 [mask-image:linear-gradient(to_right,black_85%,transparent)]"
         >
-          <div className="h-16">
+          <div className="h-36">
             <SlideList
               slides={slides}
               template={template}
