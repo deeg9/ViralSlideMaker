@@ -17,7 +17,16 @@ export function DashboardShell({ userName, creditDisplay, children }: { userName
   return (
     <NavigationLoaderProvider>
       <div className={isFullBleed ? 'fixed inset-0 overflow-hidden bg-[#fff8f7] flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]' : 'min-h-screen bg-[#fff8f7]'}>
-        <TopNavbar variant="app" userName={userName} creditDisplay={creditDisplay} />
+        {/* The editor (full-bleed /project/*) has its own top bar (back / title /
+            layers) on mobile, so the global app header is redundant chrome that
+            squeezes the 9:16 canvas. Hide it below lg there; desktop keeps it. */}
+        {isFullBleed ? (
+          <div className="hidden lg:block">
+            <TopNavbar variant="app" userName={userName} creditDisplay={creditDisplay} />
+          </div>
+        ) : (
+          <TopNavbar variant="app" userName={userName} creditDisplay={creditDisplay} />
+        )}
         <main className={isFullBleed ? 'flex-1 min-h-0 overflow-y-auto' : ''}>
           <div className={isFullBleed ? '' : 'px-8 py-8 max-w-screen-2xl mx-auto pb-24 md:pb-8'}>
             {children}
