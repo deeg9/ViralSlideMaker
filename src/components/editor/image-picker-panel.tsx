@@ -219,7 +219,7 @@ export function ImagePickerPanel({
                       className="w-full h-full object-cover"
                     />
                   </button>
-                  <div className="absolute inset-x-0 bottom-0 bg-[#3d0000]/60 px-1 py-0.5 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-x-0 bottom-0 bg-[#3d0000]/60 px-1 py-0.5 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
                     {photo.photographer}
                   </div>
                   {onAddCanvasImage && (
@@ -228,7 +228,7 @@ export function ImagePickerPanel({
                         e.stopPropagation()
                         onAddCanvasImage(photo.url)
                       }}
-                      className="absolute top-1 right-1 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                      className="absolute top-1 right-1 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-white"
                       title="Add to canvas"
                     >
                       <Icon name="add_circle" size="sm" className="text-[#3d0000]" />
