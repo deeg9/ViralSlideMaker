@@ -2,7 +2,7 @@
 
 import { Icon } from '@/components/ui/icon'
 import { HintPill } from '@/components/ui/hint-pill'
-import { SlidePreview } from '@/components/slides/slide-preview'
+import { SlidePreview, ASPECT_CLASS } from '@/components/slides/slide-preview'
 import type { Slide, TextPosition, CustomText, SlideStyleOverrides } from '@/lib/types/slide'
 import type { SlideTemplate } from '@/lib/render/templates/index'
 // quick-260515-epn: canvas resolves per-slide template_id_override for the
@@ -184,12 +184,14 @@ export function SlideCanvas({
 
   return (
     <div
-      className="bg-[#fff8f7] flex flex-col items-center justify-center p-3 lg:p-8 overflow-hidden"
+      className="bg-[#fff8f7] flex flex-col items-center justify-center min-h-0 p-2 lg:p-8 overflow-hidden"
       data-testid="slide-canvas"
     >
       {/* quick-260514-ku2: slide counter moved above the canvas (was below
-          the navigation arrows). Same chip, same testid; just relocated. */}
-      <div className="mb-4 bg-white px-4 py-2 rounded-full flex items-center gap-3 shadow-sm border border-[#dbc1bc]/10">
+          the navigation arrows). Same chip, same testid; just relocated.
+          bug-260531: mobile margin tightened (mb-2 vs lg:mb-4) + shrink-0 so it
+          never steals canvas height. */}
+      <div className="shrink-0 mb-2 lg:mb-4 bg-white px-4 py-2 rounded-full flex items-center gap-3 shadow-sm border border-[#dbc1bc]/10">
         <span className="text-[10px] font-bold text-[#3d0000] uppercase tracking-widest">
           Slide {selectedIndex + 1} / {slides.length}
         </span>
@@ -198,12 +200,24 @@ export function SlideCanvas({
       {/* quick-260519-hnp: contextual hint for the d7g card-headline drag
           affordance. Shows once per device until the user dismisses it. */}
       {showCaptionCardDragHint && (
-        <HintPill hintKey="caption-card-drag-headline-v1" className="mb-3">
+        <HintPill hintKey="caption-card-drag-headline-v1" className="shrink-0 mb-3">
           Drag the headline to move the card
         </HintPill>
       )}
 
-      <div className="w-full max-w-md relative">
+      {/* bug-260531: MOBILE canvas is HEIGHT-constrained so the WHOLE 9:16 slide
+          fits (was width-filled → bottom ~40% clipped). The wrapper claims the
+          remaining column height (flex-1 min-h-0), and the inner aspect box is
+          `h-full` with width derived from the format aspect ratio + `w-auto`,
+          centered (mx-auto) and letterboxed horizontally (max-w-full). Because
+          <SlidePreview> is `w-full` it then fills THIS narrower box, so its
+          ResizeObserver-driven scale (containerWidth/1080) shrinks to fit the
+          short area — the entire slide is visible. Desktop (lg:) is restored to
+          the byte-identical `w-full max-w-md` width-driven layout. */}
+      <div className="flex-1 min-h-0 w-full flex items-center justify-center lg:block lg:flex-none lg:w-full lg:max-w-md">
+        <div
+          className={`relative h-full ${ASPECT_CLASS[format.id]} max-w-full w-auto mx-auto lg:h-auto lg:aspect-auto lg:w-full lg:max-w-none lg:mx-0`}
+        >
         <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
           <SlidePreview
             slide={currentSlide}
@@ -269,6 +283,7 @@ export function SlideCanvas({
         >
           <Icon name="chevron_right" size="sm" />
         </button>
+        </div>
       </div>
     </div>
   )

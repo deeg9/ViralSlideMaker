@@ -1735,7 +1735,7 @@ export function SlideEditor({
   )
 
   return (
-    <div className="flex flex-col bg-[#fff8f7] h-[calc(100dvh-140px)] lg:h-[calc(100dvh-80px)] overflow-hidden">
+    <div className="flex flex-col bg-[#fff8f7] h-full min-h-0 flex-1 lg:h-[calc(100dvh-80px)] lg:min-h-0 lg:flex-none overflow-hidden">
       {/* Phase 93 (EDIT-02): MOBILE slim top bar (below lg). The desktop left
           aside's back/title row collapses into this thin bar so the canvas gets
           the vertical room. Layers + the spaced-away destructive delete live in
@@ -2095,11 +2095,13 @@ export function SlideEditor({
             {selectedIndex + 1} / {slides.length}
           </span>
         </div>
-        {/* Edge-fade mask signals more slides off the right edge. */}
+        {/* Edge-fade mask signals more slides off the right edge.
+            bug-260531: padding + thumb height tightened (py-1.5, h-12 vs h-16)
+            to reclaim ~28px of vertical chrome for the canvas. */}
         <div
-          className="px-3 py-2 [mask-image:linear-gradient(to_right,black_85%,transparent)]"
+          className="px-3 py-1.5 [mask-image:linear-gradient(to_right,black_85%,transparent)]"
         >
-          <div className="h-16">
+          <div className="h-12">
             <SlideList
               slides={slides}
               template={template}
