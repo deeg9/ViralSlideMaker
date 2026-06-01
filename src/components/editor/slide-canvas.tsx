@@ -203,7 +203,13 @@ export function SlideCanvas({
         </HintPill>
       )}
 
-      <div className="w-full max-w-md relative">
+      {/* Mobile: cap the slide's WIDTH so its derived 16:9 height fits the
+          available canvas area (letterboxed, centered) instead of filling the
+          393px width and overflowing → the old center-clip that hid the bottom
+          of every slide. Width-cap (not h-full) can't collapse the box. The
+          dvh-410px subtracts the editor chrome (top bar + filmstrip + tab bar +
+          action bar + counter); ×0.5625 = 9/16. Desktop unchanged (lg:max-w-md). */}
+      <div className="w-full max-w-[calc((100dvh-448px)*0.5625)] lg:max-w-[28rem] mx-auto relative">
         <div className="rounded-xl shadow-[0px_20px_40px_rgba(61,0,0,0.06)] overflow-hidden">
           <SlidePreview
             slide={currentSlide}
