@@ -61,7 +61,7 @@ export function SlideList({
 
   return (
     <div
-      className="flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden"
+      className="flex flex-row lg:flex-col gap-4 h-full lg:h-auto overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden"
       data-testid="slide-list"
     >
       <DndContext
