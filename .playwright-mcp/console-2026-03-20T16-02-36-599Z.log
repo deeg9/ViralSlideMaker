@@ -1,4 +1,0 @@
-[     849ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
-    at CreateProjectDialog (http://localhost:3002/_next/static/chunks/src_3fcb7f5d._.js:170:215)
-    at ProjectList (about://React/Server/file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/chunks/ssr/%5Broot-of-the-server%5D__37f9089b._.js?52:314:272)
-    at DashboardPage (about://React/Server/file:///Users/deeg/Downloads/b_PtJ6SJaZFpQ-1773178607401/TikTokSlideshow/.next/server/chunks/ssr/%5Broot-of-the-server%5D__37f9089b._.js?20:546:264) @ http://localhost:3002/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:2359

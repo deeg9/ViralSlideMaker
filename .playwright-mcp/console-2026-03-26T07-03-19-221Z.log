@@ -1,5 +1,0 @@
-[    4131ms] [ERROR] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
-    at CreateProjectDialog (webpack-internal:///(app-pages-browser)/./src/components/projects/create-project-dialog.tsx:96:88)
-    at ProjectList (about://React/Server/webpack-internal:///(rsc)/./src/components/projects/project-list.tsx?70:132:96)
-    at DashboardPage (about://React/Server/webpack-internal:///(rsc)/./src/app/(dashboard)/dashboard/page.tsx?35:237:88) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
-[    4134ms] [WARNING] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio. @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
