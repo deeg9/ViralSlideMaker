@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# ViralSlideMaker
 
-First, run the development server:
+Type a topic, pick a style, and get a scroll-stopping carousel ready to post on Instagram and TikTok in seconds.
+
+<img src="docs/images/hero.webp" alt="ViralSlideMaker landing page" width="820" />
+
+</div>
+
+---
+
+## Features
+
+- **Prompt to carousel**: AI writes and lays out the whole deck in one of several visual styles and 15 templates
+- **Real editor**: drag-and-drop slide reordering, draggable text, and built-in Pexels stock photos
+- **Style from reference**: upload example posts and Gemini vision extracts a matching style
+- **Export**: PDF, PPTX, or a live web link, plus a public explore feed and user profiles
+- **Developer API + MCP server**: Claude, Cursor, and other agents can create, edit, and render carousels
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | Next.js, React, Tailwind, shadcn, Spline 3D |
+| Data & auth | Supabase |
+| AI | Google Gemini (text, image, vision) |
+| Rendering | Playwright + sharp |
+| Billing & infra | Stripe, Upstash, Vercel |
+
+## Running it
 
 ```bash
+cp .env.example .env   # fill in your own keys
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Status
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+ViralSlideMaker was built in 2026 and is no longer live. The code is published here as a portfolio project. Read the case study at [diegofill.com/projects/viralslidemaker](https://diegofill.com/projects/viralslidemaker).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+<details>
+<summary>Full landing page</summary>
 
-## Learn More
+<img src="docs/images/landing.webp" alt="The full ViralSlideMaker landing page" width="820" />
 
-To learn more about Next.js, take a look at the following resources:
+</details>
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built by [Diego Fill](https://diegofill.com).
